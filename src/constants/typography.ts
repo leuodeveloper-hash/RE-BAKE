@@ -32,6 +32,9 @@ const parseFontWeight = (weight: number | string): string => {
   return weight.toString();
 };
 
+// IBM Plex Sans 폰트의 baseline 보정값 (폰트가 위로 올라가 보이는 현상 보정)
+export const FONT_BASELINE_OFFSET = 2;
+
 export const Typography = {
   display: {
     large: {

@@ -1,4 +1,32 @@
 {
-  "name": "FigmaReactNativeApp",
-  "displayName": "Figma React Native App"
+  "expo": {
+    "name": "RE-BAKE",
+    "slug": "rebake",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#FAF9F8"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.rebake.app"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#FAF9F8"
+      },
+      "package": "com.rebake.app"
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    }
+  }
 }

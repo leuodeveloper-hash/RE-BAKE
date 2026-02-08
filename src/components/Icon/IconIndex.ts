@@ -10,11 +10,9 @@
 
 // Icons 폴더의 아이콘들
 export {default as IconUser} from '../../../assets/icons/Icons/user.svg';
-export {default as IconHome} from '../../../assets/icons/Icons/house.svg';
-export {default as IconHomeFilled} from '../../../assets/icons/Icons/house_filled.svg';
+export {default as IconHomeFilled} from '../../../assets/icons/Icons/home_filled.svg';
 export {default as IconSearch} from '../../../assets/icons/Icons/search.svg';
 export {default as IconAdd} from '../../../assets/icons/Icons/add.svg';
-export {default as IconAddFilled} from '../../../assets/icons/Icons/add_filled.svg';
 export {default as IconClose} from '../../../assets/icons/Icons/close.svg';
 export {default as IconCloseCircleFilled} from '../../../assets/icons/Icons/close_circle_filled.svg';
 export {default as IconArrowLeft} from '../../../assets/icons/Icons/arrow_left.svg';
@@ -112,7 +110,6 @@ export {default as IconOpenbookFilled} from '../../../assets/icons/Icons/openboo
 export {default as IconGlobeFilled} from '../../../assets/icons/Icons/globe_filled.svg';
 export {default as IconEarthFilled} from '../../../assets/icons/Icons/earth_filled.svg';
 export {default as IconHealthFilled} from '../../../assets/icons/Icons/health_filled.svg';
-export {default as IconHomeFilled2} from '../../../assets/icons/Icons/home_filled.svg';
 export {default as IconTrees} from '../../../assets/icons/Icons/trees.svg';
 export {default as IconTreesFilled} from '../../../assets/icons/Icons/trees_filled.svg';
 export {default as IconDot} from '../../../assets/icons/Icons/dot.svg';
@@ -135,10 +132,9 @@ export {default as IconAppleColored} from '../../../assets/icons/Icons/apple_col
 export {default as IconYourubeColored} from '../../../assets/icons/Icons/yourube_colored.svg';
 export {default as IconInstagram} from '../../../assets/icons/Icons/instagram.svg';
 export {default as IconYoutube} from '../../../assets/icons/Icons/youtube.svg';
-export {default as IconKakaoLogo} from '../../../assets/icons/Icons/카카오 로고.svg';
+export {default as IconKakaoLogo} from '../../../assets/icons/Icons/kakao-logo.svg';
 export {default as IconChartNoAxesGantt} from '../../../assets/icons/Icons/chart-no-axes-gantt.svg';
 export {default as IconPhoto1} from '../../../assets/icons/Icons/photo-1.svg';
-export {default as IconAdd1} from '../../../assets/icons/Icons/add-1.svg';
 export {default as IconPath} from '../../../assets/icons/Icons/path.svg';
 export {default as IconPath1} from '../../../assets/icons/Icons/path-1.svg';
 export {default as IconColliections} from '../../../assets/icons/Icons/colliections.svg';

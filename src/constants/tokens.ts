@@ -7,6 +7,20 @@
  * Figma 변수 이름을 최대한 유지해서, 디자인과 코드가 1:1로 매칭되도록 구성했습니다.
  */
 
+// ---- Helper: 베이스 컬러에 투명도 적용 ----
+
+/**
+ * Hex 컬러에 투명도를 적용하여 rgba 문자열 반환
+ * @param hex - 6자리 hex 컬러 (예: '#80A109')
+ * @param opacity - 0~1 사이의 투명도 값
+ */
+export function withOpacity(hex: string, opacity: number): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${opacity})`;
+}
+
 // ---- Primitive color tokens (base) ----
 
 export const BaseColors = {
@@ -336,6 +350,14 @@ export const PrimitiveColors = {
 
 export type PrimitiveColorKey = keyof typeof PrimitiveColors;
 
+// ---- Computed colors with opacity ----
+// 베이스 컬러에 투명도를 적용한 파생 컬러
+const ComputedColors = {
+  'greenvar-64': withOpacity(BaseColors['color-base-green-80'], 0.64),
+  'brownvar-64': withOpacity(BaseColors['color-base-brown-50'], 0.64),
+  'yellowcontainer-16': withOpacity(BaseColors['color-base-yellow-80'], 0.16),
+} as const;
+
 // ---- Semantic tokens: Light mode ----
 
 export const SemanticColorsLight = {
@@ -362,6 +384,7 @@ export const SemanticColorsLight = {
   'surface-surfacecontainer': PrimitiveColors['color-neutral-10'],
   'surface-surfacecontainerhigh': PrimitiveColors['color-neutral-20'],
   'surface-surfacecontainerhighest': PrimitiveColors['color-neutral-30'],
+  'surface-surfacecontainertransparent': 'rgba(139, 142, 156, 0.12)',
   'surface-surfaceinverse': PrimitiveColors['color-neutral-96'],
 
   // Error
@@ -374,9 +397,10 @@ export const SemanticColorsLight = {
   // On surface
   'foreground-onsurface': PrimitiveColors['color-neutral-98'],
   'foreground-onsurfacevar': '#1F2126A3',
-  'foreground-onsurfacemuted': '#1F212660',
+  'foreground-onsurfacemuted': '#1F21265C', // Figma: Foreground/OnSurfaceMuted (36%)
   'foreground-onsurfacedisabled': '#1F21263D',
   'foreground-onsurfaceinverse': PrimitiveColors['color-neutral-5'],
+  'foreground-onsurfaceinversevar': '#FCFCFDA3', // white 64% opacity
 
   // Border
   'border-borderlight': PrimitiveColors['color-neutral-20'],
@@ -390,14 +414,16 @@ export const SemanticColorsLight = {
   // Custom hues
   'custom-greybrown': BaseColors['color-base-greybrown-80'],
   'custom-brown': BaseColors['color-base-brown-80'],
+  'custom-brownvar': ComputedColors['brownvar-64'],
   'custom-darkred': BaseColors['color-base-darkred-80'],
   'custom-red': BaseColors['color-base-red-80'],
   'custom-orange': BaseColors['color-base-orange-80'],
   'custom-yellow': BaseColors['color-base-yellow-80'],
   'custom-onyellowcontainer': BaseColors['color-base-yellow-80'],
-  'custom-yellowcontainer': '#DBA04C28',
+  'custom-yellowcontainer': ComputedColors['yellowcontainer-16'],
   'custom-lime': BaseColors['color-base-lime-80'],
   'custom-green': BaseColors['color-base-green-80'],
+  'custom-greenvar': ComputedColors['greenvar-64'],
   'custom-teal': BaseColors['color-base-teal-80'],
   'custom-lightblue': BaseColors['color-base-lightblue-80'],
   'custom-blue': BaseColors['color-base-blue-80'],
@@ -424,9 +450,9 @@ export const SemanticColorsLight = {
     PrimitiveColors['color-accent-statelayers-10-10'],
 
   'background-statelayers-surfacehover':
-    PrimitiveColors['color-neutral-statelayers-10-08'],
+    PrimitiveColors['color-neutral-statelayers-40-08'], // Figma: Surface/StateLayers/SurfaceHover (#5E5E5E14)
   'background-statelayers-surfacefocus_press':
-    PrimitiveColors['color-neutral-statelayers-10-10'],
+    PrimitiveColors['color-neutral-statelayers-40-08'], // Figma: Surface/StateLayers/SurfaceFocus_Press (#5E5E5E14)
   'background-statelayers-surfacedrag':
     PrimitiveColors['color-neutral-statelayers-10-16'],
   'background-statelayers-inversesurfacehover':
@@ -441,7 +467,7 @@ export const SemanticColorsLight = {
   'background-statelayers-errorfocused_pressed':
     PrimitiveColors['color-error-statelayers-40-10'],
 
-  'background-transparent': '#FDFDFDCC',
+  'background-transparent': '#FDFDFDE0', // rgba(253, 253, 253, 0.88)
 } as const;
 
 export type SemanticLightKey = keyof typeof SemanticColorsLight;
@@ -500,14 +526,16 @@ export const SemanticColorsDark = {
   // Custom hues
   'custom-greybrown': BaseColors['color-base-greybrown-80'],
   'custom-brown': BaseColors['color-base-brown-80'],
+  'custom-brownvar': ComputedColors['brownvar-64'],
   'custom-darkred': BaseColors['color-base-darkred-80'],
   'custom-red': BaseColors['color-base-red-80'],
   'custom-orange': BaseColors['color-base-orange-80'],
   'custom-yellow': BaseColors['color-base-yellow-80'],
   'custom-onyellowcontainer': BaseColors['color-base-yellow-80'],
-  'custom-yellowcontainer': '#DBA04C28',
+  'custom-yellowcontainer': ComputedColors['yellowcontainer-16'],
   'custom-lime': BaseColors['color-base-lime-80'],
   'custom-green': BaseColors['color-base-green-80'],
+  'custom-greenvar': ComputedColors['greenvar-64'],
   'custom-teal': BaseColors['color-base-teal-80'],
   'custom-lightblue': BaseColors['color-base-lightblue-80'],
   'custom-blue': BaseColors['color-base-blue-80'],

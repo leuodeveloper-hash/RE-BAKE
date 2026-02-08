@@ -7,6 +7,11 @@ const {getDefaultConfig, mergeConfig} = require('@react-native/metro-config');
  * @type {import('metro-config').MetroConfig}
  */
 const config = {
+  watchFolders: [
+    __dirname,
+    __dirname + '/src',
+  ],
+  watchman: false, // Watchman 없이 사용
   transformer: {
     getTransformOptions: async () => ({
       transform: {
