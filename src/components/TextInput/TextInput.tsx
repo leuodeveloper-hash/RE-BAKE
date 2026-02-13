@@ -113,7 +113,8 @@ const styles = StyleSheet.create({
     color: SemanticColorsLight['foreground-onsurface'],
     paddingVertical: Spacing.sm,
     minHeight: 24,
-  },
+    outlineStyle: 'none',
+  } as any,
   inputMultiline: {
     minHeight: 60,
     textAlignVertical: 'top',

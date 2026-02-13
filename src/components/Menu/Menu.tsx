@@ -11,6 +11,7 @@ export interface MenuItemData {
   id: string;
   label: string;
   icon: React.FC<SvgProps>;
+  destructive?: boolean;
 }
 
 export interface MenuProps {
@@ -103,6 +104,7 @@ export function Menu({
               label={item.label}
               icon={item.icon}
               selected={item.id === selectedId}
+              destructive={item.destructive}
               onPress={() => onSelect?.(item.id)}
             />
           ))}

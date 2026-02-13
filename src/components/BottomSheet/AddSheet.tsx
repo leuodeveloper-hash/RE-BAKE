@@ -10,7 +10,9 @@ import {
   IconOpenbook,
   IconCamera,
   IconImport,
+  IconClose,
 } from '@components/Icon/IconIndex';
+import {IconButton} from '@components/Layout';
 
 export interface AddSheetItem {
   id: string;
@@ -75,7 +77,15 @@ export function AddSheet({
     <BottomSheet visible={visible} onClose={onClose}>
       <View style={styles.container}>
         {/* 헤더 */}
-        <Text style={styles.title}>추가하기</Text>
+        <View style={styles.header}>
+          <Text style={styles.title}>추가하기</Text>
+          <IconButton
+            icon={IconClose}
+            variant="ghost-secondary"
+            size="small"
+            onPress={onClose}
+          />
+        </View>
 
         {/* 메뉴 아이템들 */}
         <View style={styles.itemsContainer}>
@@ -111,8 +121,15 @@ export function AddSheet({
 
 const styles = StyleSheet.create({
   container: {
-    paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.sm,
+    paddingLeft: Spacing.lg,
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingRight: Spacing.md,
+    paddingTop: Spacing.lg,
+    marginBottom: Spacing.lg,
   },
   title: {
     fontFamily: Typography.title.large.fontFamily,
@@ -120,7 +137,6 @@ const styles = StyleSheet.create({
     fontWeight: Typography.title.large.fontWeight as '700',
     lineHeight: Typography.title.large.lineHeight,
     color: SemanticColorsLight['foreground-onsurface'],
-    marginBottom: Spacing.lg,
   },
   itemsContainer: {
     gap: Spacing.xs,

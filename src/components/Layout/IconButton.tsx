@@ -114,6 +114,9 @@ export function IconButton({
     if (variant === 'ghost-secondary') {
       return SemanticColorsLight['foreground-onsurfacemuted'];
     }
+    if (variant === 'soft') {
+      return SemanticColorsLight['foreground-onsurfacevar'];
+    }
     return SemanticColorsLight['foreground-onsurface'];
   };
 

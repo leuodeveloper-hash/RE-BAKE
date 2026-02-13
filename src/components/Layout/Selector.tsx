@@ -98,11 +98,13 @@ export function Selector({
         <View style={getContainerStyle(pressed)}>
           <Text style={[styles.label, {color: getTextColor()}]}>{label}</Text>
           {showDropdown && (
-            <AppIcon
-              icon={IconChevronDown}
-              size="xs"
-              color={getIconColor()}
-            />
+            <View style={{width: 12}}>
+              <AppIcon
+                icon={IconChevronDown}
+                size="xs"
+                color={getIconColor()}
+              />
+            </View>
           )}
         </View>
       )}

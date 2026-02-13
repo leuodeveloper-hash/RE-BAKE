@@ -7,7 +7,7 @@ import {SvgProps} from 'react-native-svg';
 export type AvatarSize = 'xsmall' | 'small' | 'medium' | 'large' | 'xlarge';
 export type AvatarShape = 'default' | 'rounded' | 'circle';
 export type AvatarType = 'monogram' | 'icon' | 'image' | 'random';
-export type AvatarColor = 'gray' | 'yellow';
+export type AvatarColor = 'gray' | 'yellow' | 'brown';
 
 export interface AvatarProps {
   /** 크기 */
@@ -57,12 +57,14 @@ const getShapeRadius = (shape: AvatarShape, size: AvatarSize): number => {
 const BACKGROUND_COLORS = {
   gray: SemanticColorsLight['surface-surfacecontainerhigh'],
   yellow: '#F3EFC2', // custom/yellowcontainer
+  brown: '#F2EBE3', // base-brown-10
 };
 
 // 색상별 텍스트/아이콘 색상
 const FOREGROUND_COLORS = {
   gray: SemanticColorsLight['foreground-onprimarycontainer'],
   yellow: '#BFAC27', // custom/lime
+  brown: '#A87F43', // base-brown-50
 };
 
 export function Avatar({
@@ -131,7 +133,6 @@ export function Avatar({
                 width={config.icon}
                 height={config.icon}
                 color={foregroundColor}
-                style={{opacity: 0.56}}
               />
             </View>
           );

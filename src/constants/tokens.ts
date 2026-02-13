@@ -355,6 +355,8 @@ export type PrimitiveColorKey = keyof typeof PrimitiveColors;
 const ComputedColors = {
   'greenvar-64': withOpacity(BaseColors['color-base-green-80'], 0.64),
   'brownvar-64': withOpacity(BaseColors['color-base-brown-50'], 0.64),
+  'yellowvar-light-64': withOpacity(BaseColors['color-base-yellow-90'], 0.64),
+  'yellowvar-dark-64': withOpacity(BaseColors['color-base-yellow-70'], 0.64),
   'yellowcontainer-16': withOpacity(BaseColors['color-base-yellow-80'], 0.16),
 } as const;
 
@@ -419,7 +421,8 @@ export const SemanticColorsLight = {
   'custom-red': BaseColors['color-base-red-80'],
   'custom-orange': BaseColors['color-base-orange-80'],
   'custom-yellow': BaseColors['color-base-yellow-80'],
-  'custom-onyellowcontainer': BaseColors['color-base-yellow-80'],
+  'custom-yellowvar': ComputedColors['yellowvar-light-64'],
+  'custom-onyellowcontainer': BaseColors['color-base-yellow-90'],
   'custom-yellowcontainer': ComputedColors['yellowcontainer-16'],
   'custom-lime': BaseColors['color-base-lime-80'],
   'custom-green': BaseColors['color-base-green-80'],
@@ -531,7 +534,8 @@ export const SemanticColorsDark = {
   'custom-red': BaseColors['color-base-red-80'],
   'custom-orange': BaseColors['color-base-orange-80'],
   'custom-yellow': BaseColors['color-base-yellow-80'],
-  'custom-onyellowcontainer': BaseColors['color-base-yellow-80'],
+  'custom-yellowvar': ComputedColors['yellowvar-dark-64'],
+  'custom-onyellowcontainer': BaseColors['color-base-yellow-70'],
   'custom-yellowcontainer': ComputedColors['yellowcontainer-16'],
   'custom-lime': BaseColors['color-base-lime-80'],
   'custom-green': BaseColors['color-base-green-80'],

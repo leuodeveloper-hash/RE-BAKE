@@ -13,6 +13,8 @@ export interface MenuItemProps {
   selected?: boolean;
   /** 하위 메뉴가 있는 경우 arrow 아이콘 표시 */
   hasChildren?: boolean;
+  /** 삭제 등 위험한 액션 (빨간색으로 표시) */
+  destructive?: boolean;
   onPress?: () => void;
   style?: ViewStyle;
 }
@@ -22,9 +24,16 @@ export function MenuItem({
   icon: Icon,
   selected,
   hasChildren,
+  destructive,
   onPress,
   style,
 }: MenuItemProps) {
+  const iconColor = destructive
+    ? SemanticColorsLight['foreground-error']
+    : selected
+      ? SemanticColorsLight['foreground-onsurfacevar']
+      : SemanticColorsLight['foreground-onsurfacemuted'];
+
   return (
     <Pressable
       onPress={onPress}
@@ -34,16 +43,10 @@ export function MenuItem({
         pressed && styles.menuItemPressed,
         style,
       ]}>
-      <Icon
-        width={20}
-        height={20}
-        color={
-          selected
-            ? SemanticColorsLight['foreground-onsurfacevar']
-            : SemanticColorsLight['foreground-onsurfacemuted']
-        }
-      />
-      <Text style={styles.menuItemLabel}>{label}</Text>
+      <Icon width={20} height={20} color={iconColor} />
+      <Text style={[styles.menuItemLabel, destructive && styles.destructiveLabel]}>
+        {label}
+      </Text>
       {hasChildren && (
         <View style={styles.trailingIcon}>
           <IconArrowRight
@@ -86,5 +89,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     opacity: 0.56,
+  },
+  destructiveLabel: {
+    color: SemanticColorsLight['foreground-error'],
   },
 });

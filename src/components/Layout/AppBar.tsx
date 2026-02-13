@@ -1,6 +1,5 @@
 import React from 'react';
-import {StyleSheet, View} from 'react-native';
-import {Spacing} from '@constants/spacing';
+import {StyleSheet} from 'react-native';
 import {
   IconAdd,
   IconFilter,
@@ -9,6 +8,7 @@ import {
 import {IconButton} from './IconButton';
 import {Selector} from './Selector';
 import {GlassContainer} from './GlassContainer';
+import {FloatingNavBar, navPillStyle} from './FloatingNavBar';
 
 export interface AppBarProps {
   title?: string;
@@ -20,7 +20,8 @@ export interface AppBarProps {
   showAddButton?: boolean;
   showFilterButton?: boolean;
   showMenuButton?: boolean;
-  filterMenuOpen?: boolean; // 필터 메뉴 열림 상태 (버튼 pressed 표시용)
+  filterMenuOpen?: boolean;
+  menuOpen?: boolean;
 }
 
 export function AppBar({
@@ -34,78 +35,62 @@ export function AppBar({
   showFilterButton = true,
   showMenuButton = true,
   filterMenuOpen = false,
+  menuOpen = false,
 }: AppBarProps) {
   const hasRightButtons = showAddButton || showFilterButton || showMenuButton;
 
   return (
-    <View style={styles.container}>
-      {/* 왼쪽: 타이틀 버튼 */}
-      <GlassContainer contentStyle={styles.titlePill}>
-        <Selector
-          label={title}
-          showDropdown={showDropdown}
-          onPress={onTitlePress}
-          variant="ghost"
-        />
-      </GlassContainer>
-
-      {/* 오른쪽: 아이콘 버튼들 */}
-      {hasRightButtons && (
-        <GlassContainer contentStyle={styles.actionsPill}>
-          {showAddButton && (
-            <IconButton
-              icon={IconAdd}
-              onPress={onAddPress}
-              variant="ghost-secondary"
-              size="medium"
-            />
-          )}
-          {showFilterButton && (
-            <IconButton
-              icon={IconFilter}
-              onPress={onFilterPress}
-              variant="ghost-secondary"
-              size="medium"
-              forcePressed={filterMenuOpen}
-            />
-          )}
-          {showMenuButton && (
-            <IconButton
-              icon={IconEllipsisVertical}
-              onPress={onMenuPress}
-              variant="ghost-secondary"
-              size="medium"
-            />
-          )}
+    <FloatingNavBar
+      left={
+        <GlassContainer contentStyle={styles.titlePill}>
+          <Selector
+            label={title}
+            showDropdown={showDropdown}
+            onPress={onTitlePress}
+            variant="ghost"
+          />
         </GlassContainer>
-      )}
-    </View>
+      }
+      right={
+        hasRightButtons ? (
+          <GlassContainer contentStyle={navPillStyle}>
+            {showAddButton && (
+              <IconButton
+                icon={IconAdd}
+                onPress={onAddPress}
+                variant="ghost-secondary"
+                size="medium"
+              />
+            )}
+            {showFilterButton && (
+              <IconButton
+                icon={IconFilter}
+                onPress={onFilterPress}
+                variant="ghost-secondary"
+                size="medium"
+                forcePressed={filterMenuOpen}
+              />
+            )}
+            {showMenuButton && (
+              <IconButton
+                icon={IconEllipsisVertical}
+                onPress={onMenuPress}
+                variant="ghost-secondary"
+                size="medium"
+                forcePressed={menuOpen}
+              />
+            )}
+          </GlassContainer>
+        ) : undefined
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 100,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: 12,
-  },
   titlePill: {
-    height: 48,
+    height: 44,
     justifyContent: 'center',
-    padding: Spacing.xs,
-  },
-  actionsPill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: 48,
-    padding: Spacing.xs,
-    gap: Spacing.xs,
+    padding: 2,
   },
 });

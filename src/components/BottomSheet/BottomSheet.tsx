@@ -217,8 +217,8 @@ const styles = StyleSheet.create({
   },
   handleContainer: {
     alignItems: 'center',
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.xs,
+    paddingTop: Spacing.xl,
+    paddingBottom: Spacing.smd,
   },
   handle: {
     width: 36,

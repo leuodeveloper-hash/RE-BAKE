@@ -1,46 +1,47 @@
 import React from 'react';
-import {View, Text, StyleSheet, ViewStyle} from 'react-native';
+import {StyleSheet, Text, ViewStyle} from 'react-native';
+import {SvgProps} from 'react-native-svg';
 import {SemanticColorsLight} from '@constants/tokens';
-import {Typography} from '@constants/typography';
-import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
-import {ElevationLight} from '@constants/elevation';
+import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
+import {Card} from '@components/Layout/Card';
+import {AppIcon, AppIconSize} from '@components/Icon/AppIcon';
 
 export interface OptionTileProps {
-  icon?: React.ReactNode;
+  icon: React.FC<SvgProps>;
+  iconSize?: AppIconSize;
   label: string;
   style?: ViewStyle;
 }
 
-export const OptionTile: React.FC<OptionTileProps> = ({icon, label, style}) => {
+export function OptionTile({icon, iconSize = 'sm', label, style}: OptionTileProps) {
   return (
-    <View style={[styles.container, style]}>
-      {icon && <View style={styles.iconContainer}>{icon}</View>}
+    <Card style={[styles.card, style]}>
+      <AppIcon
+        icon={icon}
+        size={iconSize}
+        color={SemanticColorsLight['foreground-onsurfacemuted']}
+      />
       <Text style={styles.label}>{label}</Text>
-    </View>
+    </Card>
   );
-};
+}
 
 const styles = StyleSheet.create({
-  container: {
+  card: {
     flex: 1,
-    flexDirection: 'column',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: SemanticColorsLight['surface-surfacebright'],
-    borderRadius: Radius['radius-md'],
-    paddingVertical: Spacing.md,
-    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
     gap: Spacing.sm,
-    ...ElevationLight['3'],
-  },
-  iconContainer: {
-    width: 16,
-    height: 16,
   },
   label: {
-    ...Typography.label['medium - semibold'],
-    color: SemanticColorsLight['foreground-onsurfacemuted'],
+    fontFamily: Typography.label.medium.fontFamily,
+    fontSize: Typography.label.medium.fontSize,
+    fontWeight: Typography.label.medium.fontWeight as '600',
+    lineHeight: Typography.label.medium.lineHeight,
+    color: SemanticColorsLight['foreground-onsurface'],
     textAlign: 'center',
+    marginTop: FONT_BASELINE_OFFSET,
   },
 });
