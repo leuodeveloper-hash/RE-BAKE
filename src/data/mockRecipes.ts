@@ -31,6 +31,7 @@ export interface Step {
   step: number;
   description: string;
   tip?: string;
+  caution?: string;
 }
 
 export interface StepGroup {
@@ -54,6 +55,11 @@ export interface MockRecipe {
   steps?: Step[];
   stepGroups?: StepGroup[];
   activeFieldIds?: string[];
+  reviews?: {evaluation: string; improvement: string}[];
+  /** 둘러보기에서 가져온 경우 원본 레시피 ID */
+  sourceId?: string;
+  /** 다시 만들기 회차 그룹 식별자 */
+  remakeGroupId?: string;
 }
 
 // 임시 데이터 - 20개 (피그마 기준)
@@ -67,7 +73,7 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb6,
     time: '1시간 50분',
     servings: '3호 4개',
-    session: '1/2 회차',
+    session: '1회차',
     ingredientGroups: [
       {
         title: '가루',
@@ -108,18 +114,33 @@ export const MOCK_RECIPES: MockRecipe[] = [
       {name: '유산지'},
       {name: '오븐'},
     ],
-    steps: [
-      {step: 1, description: '달걀을 노른자와 흰자로 분리해요.', tip: '흰자에 노른자가 들어가면 머랭이 잘 안 올라와요! 분리할 때 믹싱볼을 나눠서 흰자를 따로 분리한 뒤 흰자 믹싱볼에 옮겨 놓는 것이 좋아요. 노른자에 비해 설탕이 많아서 잘 안 녹으니까 노른자에 흰자가 조금 들어가면 잘 녹는답니다.'},
-      {step: 2, description: '버너에 버터를 중탕하고 가루재료를 체쳐요.', tip: '팔팔 끓이지 않고 약한 불로 용해해요. 60도 정도로 용해해요!'},
-      {step: 3, description: '흰자에 설탕 B를 넣고 거품기로 섞은 후 기계로 섞어요.', tip: '1단계→2단계→3단계, 저속 → 중속 → 고속으로 섞어요!'},
-      {step: 4, description: '기계 돌리는 동시에 수작업으로 노른자를 섞어요.', tip: '노른자를 잘 섞어야 해요. 잘 섞지 않으면 노른자와 설탕이 만나서 점처럼 생겨요. 노른자를 잘 풀고 소금 먼저 섞은 후 설탕A를 3번에 나눠서 넣고 아이보리색까지 섞어요! 머랭을 만들고 있는 기계로 가서 80~90 정도로 끝이 조금 내려오는 정도로 머랭을 만든 후 3단계로 30초→ 2단계 30초→ 1단계로 마무리'},
-      {step: 5, description: '노른자 반죽에 머랭 3분의 1을 넣고 섞어요.', tip: '가루 재료랑 머랭을 넣고 섞기 때문에 노른자 반죽을 큰 곳에 하는 게 좋아요! 막 섞으면 머랭 꺼지니 머랭이 꺼지지 않게 위 표면에 발라서 펴주고 들어서 섞어요!'},
-      {step: 6, description: '체 친 가루를 넣고 섞어요.', tip: '덧가루가 안 보일 정도로만 섞어요!'},
-      {step: 7, description: '머랭의 3분의 1을 넣고 섞어요.'},
-      {step: 8, description: '용해 버터를 넣고 섞어요.', tip: '한 번에 확 넣으면 섞이는 곳과 안 섞이는 곳이 있으니 녹인 버터에 주걱으로 반죽을 2스푼 정도 넣고 막 섞는 희생 반죽을 하고 난 후 희생 반죽을 믹싱볼에 다시 넣고 섞으면 잘 섞여요.'},
-      {step: 9, description: '머랭의 3분의 1을 넣고 섞어요.', tip: '반죽이 끝난 후 온도 체크와 비중 체크를 해요!'},
-      {step: 10, description: '반죽을 케이크 틀의 유산지 안에 채워 넣어요.', tip: '처음부터 계량기에 놓고 똑같이 g을 재는 것보다 50%씩 4개의 팬에 채운 후에 남은 반죽으로 나머지를 채워 넣는 게 더 쉬워요. 오븐에 넣기 전에 바닥에 탕탕탕 3회 쳐서 기포를 빼요!'},
-      {step: 11, description: '위 온도 180도/아래 온도 160도에서 20~25분 구워요.', tip: '오븐에 지그재그로 넣어야 잘 구워진다고 해요. 색깔이 골고루 나오면 자리를 안 바꿔도 되지만 색깔이 골고루 나오지 않았으면 위치를 앞뒤, 양옆으로 바꿔줘요! 오븐에서 꺼낸 후 팬에서 빼고 유산지를 떼어내고 냉각시키면 된답니다!'},
+    stepGroups: [
+      {
+        title: '유산지 재단',
+        steps: [
+          {step: 1, description: '밑면용 유산지 한 장을 반으로 2번 접으면 밑면 동그라미 4개가 나와요. 유산지 위에 케이크 틀을 올린 후 연필로 대고 동그라미를 그려서 잘라요.', tip: '틀 안에 들어가도록 본 뜬 틀보다 작게 잘라요.'},
+          {step: 2, description: '옆면은 직사각형이라 유산지 긴 면을 반으로 2번 접어서 4개로 잘라요.', tip: '옆면은 가위보다 커터 칼로 자르는 게 편해요. 2~3센티 정도 접고 틀에 유산지를 넣었을 때 틀 높이에서 1센티 이상 올라오게 해요. 1개씩 자르면 오래 걸리니 자른 옆면 4장을 다 겹쳐서 밑에 접은 부분에 사선으로 1센티 정도 간격으로 잘라요. 가위질을 하는 이유는 동그라미 안에 잘 들어가도록 하기 위해서랍니다! 두꺼우면 동그랗게 잘 안되니까 1센티 정도로 얇게 넣는 것이 좋아요.'},
+          {step: 3, description: '옆면에 1개를 넣으면 3호 팬은 중간이 모자라요. 옆면을 한 개 더 만들어서 4등분 해서 4개의 케이크 틀에 부족한 부분에 잘린 부분이 안쪽으로 들어가게 끼워 넣어요.'},
+          {step: 4, description: '옆면용 유산지 먼저 케이크 틀 안에 넣은 후, 밑면용 유산지를 케이크 틀 안에 넣어요!', tip: '4개 분량의 반죽이라 4개의 케이크 틀에 넣을 유산지를 만들어서 넣었어요^^'},
+          {step: 5, description: '이렇게 4개 만들어 놓고 위 온도 180도 / 아래 온도 160도로 오븐을 미리 예열해요!'},
+        ],
+      },
+      {
+        title: '시트',
+        steps: [
+          {step: 1, description: '달걀을 노른자와 흰자로 분리해요.', tip: '흰자에 노른자가 들어가면 머랭이 잘 안 올라와요! 분리할 때 믹싱볼을 나눠서 흰자를 따로 분리한 뒤 흰자 믹싱볼에 옮겨 놓는 것이 좋아요. 노른자에 비해 설탕이 많아서 잘 안 녹으니까 노른자에 흰자가 조금 들어가면 잘 녹는답니다.'},
+          {step: 2, description: '버너에 버터를 중탕하고 가루재료를 체쳐요.', tip: '팔팔 끓이지 않고 약한 불로 용해해요. 60도 정도로 용해해요!'},
+          {step: 3, description: '흰자에 설탕 B를 넣고 거품기로 섞은 후 기계로 섞어요.', tip: '1단계→2단계→3단계, 저속 → 중속 → 고속으로 섞어요!'},
+          {step: 4, description: '기계 돌리는 동시에 수작업으로 노른자를 섞어요.', tip: '노른자를 잘 섞어야 해요. 잘 섞지 않으면 노른자와 설탕이 만나서 점처럼 생겨요. 노른자를 잘 풀고 소금 먼저 섞은 후 설탕A를 3번에 나눠서 넣고 아이보리색까지 섞어요! 머랭을 만들고 있는 기계로 가서 80~90 정도로 끝이 조금 내려오는 정도로 머랭을 만든 후 3단계로 30초→ 2단계 30초→ 1단계로 마무리'},
+          {step: 5, description: '노른자 반죽에 머랭 3분의 1을 넣고 섞어요.', tip: '가루 재료랑 머랭을 넣고 섞기 때문에 노른자 반죽을 큰 곳에 하는 게 좋아요! 막 섞으면 머랭 꺼지니 머랭이 꺼지지 않게 위 표면에 발라서 펴주고 들어서 섞어요!'},
+          {step: 6, description: '체 친 가루를 넣고 섞어요.', tip: '덧가루가 안 보일 정도로만 섞어요!'},
+          {step: 7, description: '머랭의 3분의 1을 넣고 섞어요.'},
+          {step: 8, description: '용해 버터를 넣고 섞어요.', tip: '한 번에 확 넣으면 섞이는 곳과 안 섞이는 곳이 있으니 녹인 버터에 주걱으로 반죽을 2스푼 정도 넣고 막 섞는 희생 반죽을 하고 난 후 희생 반죽을 믹싱볼에 다시 넣고 섞으면 잘 섞여요.'},
+          {step: 9, description: '머랭의 3분의 1을 넣고 섞어요.', tip: '반죽이 끝난 후 온도 체크와 비중 체크를 해요!'},
+          {step: 10, description: '반죽을 케이크 틀의 유산지 안에 채워 넣어요.', tip: '처음부터 계량기에 놓고 똑같이 g을 재는 것보다 50%씩 4개의 팬에 채운 후에 남은 반죽으로 나머지를 채워 넣는 게 더 쉬워요. 오븐에 넣기 전에 바닥에 탕탕탕 3회 쳐서 기포를 빼요!'},
+          {step: 11, description: '위 온도 180도/아래 온도 160도에서 20~25분 구워요.', tip: '오븐에 지그재그로 넣어야 잘 구워진다고 해요. 색깔이 골고루 나오면 자리를 안 바꿔도 되지만 색깔이 골고루 나오지 않았으면 위치를 앞뒤, 양옆으로 바꿔줘요! 오븐에서 꺼낸 후 팬에서 빼고 유산지를 떼어내고 냉각시키면 된답니다!'},
+        ],
+      },
     ],
   },
   {
@@ -131,7 +152,7 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb5,
     time: '1시간 50분',
     servings: '3호 4개',
-    session: '1/1 회차',
+    session: '1회차',
     ingredientGroups: [
       {
         title: '가루',
@@ -170,13 +191,31 @@ export const MOCK_RECIPES: MockRecipe[] = [
       {name: '유산지'},
       {name: '오븐'},
     ],
-    steps: [
-      {step: 1, description: '달걀과 설탕을 믹싱볼에 넣고 중탕으로 40도까지 데워요.'},
-      {step: 2, description: '중탕에서 내려 고속으로 리본 상태가 될 때까지 휘핑해요.'},
-      {step: 3, description: '체 친 박력분을 넣고 주걱으로 자르듯 가볍게 섞어요.'},
-      {step: 4, description: '녹인 버터와 우유를 넣고 빠르게 섞어요.'},
-      {step: 5, description: '팬에 반죽을 붓고 170도에서 30~35분 구워요.'},
-      {step: 6, description: '구운 후 뒤집어서 식혀요.'},
+    stepGroups: [
+      {
+        title: '유산지 재단',
+        steps: [
+          {step: 1, description: '밑면용 유산지 한 장을 반으로 2번 접으면 밑면 동그라미 4개가 나와요. 유산지 위에 케이크 틀을 올린 후 연필로 대고 동그라미를 그려서 잘라요.', tip: '틀 안에 들어가도록 본 뜬 틀보다 작게 잘라요.'},
+          {step: 2, description: '옆면은 직사각형이라 유산지 긴 면을 반으로 2번 접어서 4개로 잘라요.', tip: '옆면은 가위보다 커터 칼로 자르는 게 편해요. 2~3센티 정도 접고 틀에 유산지를 넣었을 때 틀 높이에서 1센티 이상 올라오게 해요. 1개씩 자르면 오래 걸리니 자른 옆면 4장을 다 겹쳐서 밑에 접은 부분에 사선으로 1센티 정도 간격으로 잘라요. 가위질을 하는 이유는 동그라미 안에 잘 들어가도록 하기 위해서랍니다! 두꺼우면 동그랗게 잘 안되니까 1센티 정도로 얇게 넣는 것이 좋아요.'},
+          {step: 3, description: '옆면에 1개를 넣으면 3호 팬은 중간이 모자라요. 옆면을 한 개 더 만들어서 4등분 해서 4개의 케이크 틀에 부족한 부분에 잘린 부분이 안쪽으로 들어가게 끼워 넣어요.'},
+          {step: 4, description: '옆면용 유산지 먼저 케이크 틀 안에 넣은 후, 밑면용 유산지를 케이크 틀 안에 넣어요!', tip: '4개 분량의 반죽이라 4개의 케이크 틀에 넣을 유산지를 만들어서 넣었어요^^'},
+          {step: 5, description: '이렇게 4개 만들어 놓고 위 온도 180도 / 아래 온도 160도로 오븐을 미리 예열해요!'},
+        ],
+      },
+      {
+        title: '시트',
+        steps: [
+          {step: 1, description: '달걀을 거품기로 쉬어요.', tip: '노른자랑 흰 자가 잘 쉬이게 하고 알끈이 풀리도록 들었다 놨다 하며 쉬어요.'},
+          {step: 2, description: '설탕과 소금을 섞어서 넣고 중탕해요.', tip: '물을 넣은 믹싱볼 안에 쇠 스크래퍼를 넣고 그 위에 믹싱볼을 넣으면 물이 넘치거나 물이 제품에 들어가지 않도록 할 수 있어요! 약불에서 계란이 익지 않도록 저으면서 설탕을 잘 녹여요. 43도 이상이면 계란이 익어서 40~43도까지만 해요! 중탕은 살살 저으면서 설탕이 녹을 때까지 해요. 설탕이 녹았는지 확인하는 방법은 색깔이 진한 노란색으로 변해요!'},
+          {step: 3, description: '중탕한 물을 버리지 말고 버터를 담은 볼을 넣어요.', tip: '반죽을 만드는 동안 버터가 녹아요.'},
+          {step: 4, description: '휘퍼를 장착하고 거품을 올려요.', tip: '1단으로 30초, 2단으로 1분, 3단으로 아이보리색이 될 때까지 해요. (1단계 → 2단계 → 3단계 → 1단계로 마무리 / 저속 → 고속 → 저속) 아이보리색으로 변하고 반죽이 2.5배 정도 부풀어 오르고 반죽에 휘퍼 자국이 생기는 시점! 젓가락에 반죽을 찍었을 때 반죽이 흐르지 않고 매달려 있는 시점, 젓가락으로 떠서 리본을 그렸을 때 리본이 유지되었다가 사라지는 시점이라고 해요!'},
+          {step: 5, description: '3단계로 돌릴 때 박력분과 바닐라향을 같이 체 쳐요.', tip: '3단계로 돌리는 시간이 오래 걸리니까 그 사이에 박력분과 바닐라향을 섞어서 같이 체 쳐놔요.'},
+          {step: 6, description: '반죽에 체 친 가루 넣고 11자로 섞어요.', tip: '올라온 거품이 꺼지지 않게 옆면과 밑면을 11자로 섞어야 해요. 제품에 덩어리져 있으면 안 익고 나오기 때문에 가루가 덩어리지지 않게 잘 섞어야 해요.'},
+          {step: 7, description: '녹은 버터를 넣고 섞어요.', tip: '한 번에 확 넣으면 섞이는 곳과 안 섞이는 곳이 있으니 녹인 버터에 주걱으로 반죽을 2스푼 정도 넣고 막 섞는 희생 반죽을 해요. 희생 반죽한 것을 큰 믹싱볼에 다시 넣고 섞으면 잘 섞여요. (골고루 들어가게 반죽을 원을 돌리면서 넣어요!)'},
+          {step: 8, description: '반죽을 케이크 틀 안에 넣은 유산지에 안에 채워 넣어요.', tip: '처음부터 계량기에 놓고 똑같이 g을 재는 것보다 50프로씩 4개 채운 후에 남은 반죽으로 나머지를 채워 넣는 게 더 쉬워요.'},
+          {step: 9, description: '위 온도 180도/아래 온도 160도에서 20~25분 구워요.', tip: '오븐에 넣기 전에 바닥에 탕탕탕 3회 쳐서 기포를 빼고 오븐에 지그재그로 넣어야 잘 구워진다고 해요. 색깔이 골고루 나오면 자리를 안 바꿔도 되지만 색깔이 골고루 나오지 않았으면 위치를 앞뒤, 양옆으로 바꿔줘요. *시험장에서는 오븐에 넣고 구워질 동안 설거지와 테이블 정리 정돈을 해요.'},
+        ],
+      },
     ],
   },
   {
@@ -188,7 +227,7 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb16,
     time: '2시간 30분',
     servings: '1호 1개',
-    session: '1/1 회차',
+    session: '1회차',
     ingredientGroups: [
       {
         title: '반죽',
@@ -241,28 +280,47 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb18,
     time: '2시간 30분',
     servings: '1개',
-    session: '1/1 회차',
+    session: '1회차',
     ingredientGroups: [
       {
-        title: '재료',
+        title: '가루',
         ingredients: [
-          {name: '박력분', amount: '200g'},
-          {name: '버터', amount: '200g'},
-          {name: '설탕', amount: '200g'},
-          {name: '달걀', amount: '200g'},
-          {name: '베이킹파우더', amount: '2g'},
-          {name: '소금', amount: '2g'},
-          {name: '바닐라에센스', amount: '1g'},
+          {name: '박력분', amount: '800g'},
+          {name: '베이킹파우더', amount: '16g'},
+          {name: '바닐라향', amount: '4g'},
+          {name: '탈지분유', amount: '16g'},
+        ],
+      },
+      {
+        title: '조미,감미',
+        ingredients: [
+          {name: '설탕', amount: '640g'},
+          {name: '소금', amount: '8g'},
+        ],
+      },
+      {
+        title: '유지',
+        ingredients: [
+          {name: '버터', amount: '640g'},
+          {name: '달걀', amount: '640g'},
+          {name: '유화제', amount: '16g'},
         ],
       },
     ],
     tools: [
       {name: '계량기'},
+      {name: '계량스푼'},
+      {name: '계량컵'},
+      {name: '온도계'},
       {name: '믹싱볼'},
-      {name: '핸드믹서'},
+      {name: '거품기'},
+      {name: '스크래퍼'},
       {name: '고무주걱'},
-      {name: '채망'},
-      {name: '파운드 팬'},
+      {name: '채반'},
+      {name: '가스레인지'},
+      {name: '물'},
+      {name: '파운드케이크 틀'},
+      {name: '가위'},
       {name: '유산지'},
       {name: '오븐'},
     ],
@@ -285,7 +343,7 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb4,
     time: '1시간 50분',
     servings: '12개',
-    session: '1/1 회차',
+    session: '1회차',
     ingredientGroups: [
       {
         title: '재료',
@@ -328,7 +386,7 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb2,
     time: '1시간 50분',
     servings: '10개',
-    session: '1/1 회차',
+    session: '1회차',
     ingredientGroups: [
       {
         title: '재료',
@@ -371,7 +429,7 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb11,
     time: '2시간',
     servings: '15개',
-    session: '1/1 회차',
+    session: '1회차',
     ingredientGroups: [
       {
         title: '재료',
@@ -413,7 +471,7 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb10,
     time: '2시간',
     servings: '20개',
-    session: '1/1 회차',
+    session: '1회차',
     ingredientGroups: [
       {
         title: '재료',
@@ -453,7 +511,7 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb20,
     time: '추후공개',
     servings: '1개',
-    session: '1/1 회차',
+    session: '1회차',
     ingredientGroups: [
       {
         title: '시트',
@@ -504,7 +562,7 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb12,
     time: '1시간 40분',
     servings: '1호 1개',
-    session: '1/1 회차',
+    session: '1회차',
     ingredientGroups: [
       {
         title: '재료',
@@ -548,7 +606,7 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb17,
     time: '2시간 20분',
     servings: '1개',
-    session: '1/1 회차',
+    session: '1회차',
     ingredientGroups: [
       {
         title: '재료',
@@ -624,7 +682,7 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb9,
     time: '1시간 50분',
     servings: '1개',
-    session: '1/1 회차',
+    session: '1회차',
     ingredientGroups: [
       {
         title: '시트',
@@ -674,7 +732,7 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb7,
     time: '2시간',
     servings: '30개',
-    session: '1/1 회차',
+    session: '1회차',
     ingredientGroups: [
       {
         title: '재료',
@@ -784,7 +842,7 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb14,
     time: '1시간 50분',
     servings: '1개',
-    session: '1/1 회차',
+    session: '1회차',
     ingredientGroups: [
       {
         title: '시트',
@@ -836,7 +894,7 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb13,
     time: '1시간 30분',
     servings: '1개',
-    session: '1/1 회차',
+    session: '1회차',
     ingredientGroups: [
       {
         title: '시트',
@@ -884,7 +942,7 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb8,
     time: '1시간 50분',
     servings: '9조각',
-    session: '1/1 회차',
+    session: '1회차',
     ingredientGroups: [
       {
         title: '재료',
@@ -948,7 +1006,7 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb1,
     time: '2시간 30분',
     servings: '1개',
-    session: '1/1 회차',
+    session: '1회차',
     ingredientGroups: [
       {
         title: '가루',
@@ -1035,7 +1093,7 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb3,
     time: '2시간',
     servings: '12개',
-    session: '1/1 회차',
+    session: '1회차',
     ingredientGroups: [
       {
         title: '가루',
@@ -1115,7 +1173,7 @@ export const MOCK_RECIPES: MockRecipe[] = [
     imageSource: SAMPLE_IMAGES.thumb19,
     time: '2시간 30분',
     servings: '1개',
-    session: '1/1 회차',
+    session: '1회차',
     ingredientGroups: [
       {
         title: '반죽(껍질) 만들기',

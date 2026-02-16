@@ -1,18 +1,22 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Pressable, StyleProp, StyleSheet, Text, TextInput as RNTextInput, View, ViewStyle} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {IconAstriks, IconCircleAlertFilled, IconCloseCircleFilled} from '@components/Icon/IconIndex';
-import {Radius, SemanticColorsLight} from '@constants/tokens';
+import {Radius} from '@constants/tokens';
+import {useColors} from '@contexts/ThemeContext';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 
 const noOutline: any = {outlineStyle: 'none', fieldSizing: 'content'};
 
 export type EditableChipVariant = 'tip' | 'yellow';
+export type EditableChipSize = 'small' | 'medium' | 'large';
 
 export interface EditableChipProps {
   label: string;
   variant?: EditableChipVariant;
+  size?: EditableChipSize;
   icon?: React.FC<SvgProps>;
   placeholder?: string;
   style?: StyleProp<ViewStyle>;
@@ -20,46 +24,81 @@ export interface EditableChipProps {
   onChangeText?: (text: string) => void;
 }
 
-const variantConfig: Record<
-  EditableChipVariant,
-  {
-    backgroundColor: string;
-    iconColor: string;
-    textColor: string;
-    placeholderColor: string;
-    Icon: React.FC<SvgProps>;
-  }
-> = {
-  tip: {
-    backgroundColor: SemanticColorsLight['surface-surfacecontainerhigh'],
-    iconColor: SemanticColorsLight['foreground-onsurfacevar'],
-    textColor: SemanticColorsLight['foreground-onsurfacevar'],
-    placeholderColor: SemanticColorsLight['foreground-onsurfacemuted'],
-    Icon: IconAstriks,
+const SIZE_CONFIG = {
+  small: {
+    lineHeight: Typography.body.small.lineHeight,
+    fontFamily: Typography.body.small.fontFamily,
+    fontSize: Typography.body.small.fontSize,
+    fontWeight: Typography.body.small.fontWeight as '400',
+    iconSize: 12,
+    padding: Spacing.sm,
+    gap: Spacing.xs,
+    borderRadius: Radius['radius-sm'],
   },
-  yellow: {
-    backgroundColor: SemanticColorsLight['custom-yellowcontainer'],
-    iconColor: SemanticColorsLight['custom-yellow'],
-    textColor: SemanticColorsLight['custom-onyellowcontainer'],
-    placeholderColor: SemanticColorsLight['custom-yellowvar'],
-    Icon: IconCircleAlertFilled,
+  medium: {
+    lineHeight: Typography.body.medium.lineHeight,
+    fontFamily: Typography.body.medium.fontFamily,
+    fontSize: Typography.body.medium.fontSize,
+    fontWeight: Typography.body.medium.fontWeight as '500',
+    iconSize: 14,
+    padding: Spacing.sm,
+    gap: Spacing.xs,
+    borderRadius: Radius['radius-sm'],
   },
-};
-
-const LINE_HEIGHT = Typography.body.small.lineHeight;
+  large: {
+    lineHeight: Typography.headline.small.lineHeight,
+    fontFamily: Typography.headline.small.fontFamily,
+    fontSize: Typography.headline.small.fontSize,
+    fontWeight: '400' as '400',
+    iconSize: 20,
+    padding: Spacing.smd,
+    gap: Spacing.sm,
+    borderRadius: Radius['radius-md'],
+  },
+} as const;
 
 export function EditableChip({
   label,
   variant = 'tip',
+  size = 'small',
   icon,
   placeholder = '팁을 입력하세요',
   style,
   onRemove,
   onChangeText,
 }: EditableChipProps) {
+  const colors = useColors();
+  const sizeConfig = SIZE_CONFIG[size];
+
+  const variantConfig = useMemo((): Record<
+    EditableChipVariant,
+    {
+      backgroundColor: string;
+      iconColor: string;
+      textColor: string;
+      placeholderColor: string;
+      Icon: React.FC<SvgProps>;
+    }
+  > => ({
+    tip: {
+      backgroundColor: colors['surface-surfacecontainerhigh'],
+      iconColor: colors['foreground-onsurfacevar'],
+      textColor: colors['foreground-onsurfacevar'],
+      placeholderColor: colors['foreground-onsurfacemuted'],
+      Icon: IconAstriks,
+    },
+    yellow: {
+      backgroundColor: colors['custom-yellowcontainer'],
+      iconColor: colors['custom-yellow'],
+      textColor: colors['custom-onyellowcontainer'],
+      placeholderColor: colors['custom-yellowvar'],
+      Icon: IconCircleAlertFilled,
+    },
+  }), [colors]);
+
   const config = variantConfig[variant];
   const Icon = icon ?? config.Icon;
-  const [inputHeight, setInputHeight] = useState<number>(LINE_HEIGHT);
+  const [inputHeight, setInputHeight] = useState<number>(sizeConfig.lineHeight);
   const inputRef = useRef<any>(null);
 
   // 웹: scrollHeight로 grow + shrink 모두 지원
@@ -70,7 +109,7 @@ export function EditableChip({
     const textarea = el?.tagName === 'TEXTAREA' ? el : el?.querySelector?.('textarea');
     if (!textarea) return;
     textarea.style.height = '0';
-    const h = Math.max(LINE_HEIGHT, textarea.scrollHeight);
+    const h = Math.max(sizeConfig.lineHeight, textarea.scrollHeight);
     textarea.style.height = h + 'px';
     setInputHeight(prev => (prev === h ? prev : h));
   }, []);
@@ -88,31 +127,44 @@ export function EditableChip({
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
-    <View style={[styles.container, {backgroundColor: config.backgroundColor}, style]}>
-      <View style={styles.iconWrap}>
-        <Icon width={12} height={12} color={config.iconColor} />
+    <View style={[styles.container, {backgroundColor: config.backgroundColor, padding: sizeConfig.padding, gap: sizeConfig.gap, borderRadius: sizeConfig.borderRadius}, style]}>
+      <View style={[styles.iconWrap, {height: sizeConfig.lineHeight + FONT_BASELINE_OFFSET}]}>
+        <Icon width={sizeConfig.iconSize} height={sizeConfig.iconSize} color={config.iconColor} />
       </View>
       {onChangeText ? (
         <RNTextInput
           ref={inputRef}
-          style={[styles.label, styles.labelInput, noOutline, {color: config.textColor, height: inputHeight}]}
+          style={[styles.label, styles.labelInput, noOutline, {
+            color: config.textColor,
+            height: inputHeight,
+            fontFamily: sizeConfig.fontFamily,
+            fontSize: sizeConfig.fontSize,
+            fontWeight: sizeConfig.fontWeight,
+            lineHeight: sizeConfig.lineHeight,
+          }]}
           value={label}
           onChangeText={handleChangeText}
           placeholder={placeholder}
           placeholderTextColor={config.placeholderColor}
           multiline
           onContentSizeChange={e => {
-            setInputHeight(Math.max(LINE_HEIGHT, Math.ceil(e.nativeEvent.contentSize.height)));
+            setInputHeight(Math.max(sizeConfig.lineHeight, Math.ceil(e.nativeEvent.contentSize.height)));
           }}
         />
       ) : (
-        <Text style={[styles.label, {color: config.textColor}]}>
+        <Text style={[styles.label, {
+          color: config.textColor,
+          fontFamily: sizeConfig.fontFamily,
+          fontSize: sizeConfig.fontSize,
+          fontWeight: sizeConfig.fontWeight,
+          lineHeight: sizeConfig.lineHeight,
+        }]}>
           {label}
         </Text>
       )}
       {onRemove && (
-        <Pressable onPress={onRemove} hitSlop={4} style={styles.iconWrap}>
-          <IconCloseCircleFilled width={12} height={12} color={config.iconColor} />
+        <Pressable onPress={onRemove} hitSlop={4} style={[styles.iconWrap, {height: sizeConfig.lineHeight + FONT_BASELINE_OFFSET}]}>
+          <IconCloseCircleFilled width={sizeConfig.iconSize} height={sizeConfig.iconSize} color={config.iconColor} />
         </Pressable>
       )}
     </View>

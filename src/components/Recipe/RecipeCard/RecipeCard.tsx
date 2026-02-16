@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useCallback, useRef} from 'react';
 import {
   Image,
   ImageSourcePropType,
@@ -9,9 +9,13 @@ import {
   View,
 } from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
-import {SemanticColorsLight, Radius} from '@constants/tokens';
+import {Radius} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
+import {SvgProps} from 'react-native-svg';
 import {IconEllipsisVertical, IconPhoto} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/Layout/IconButton';
 
@@ -22,11 +26,20 @@ export interface RecipeCardProps {
   category?: string;
   method?: string;
   reviewCount?: number;
+  sessionCount?: number;
   imageUrl?: string;
   imageSource?: ImageSourcePropType;
   onPress?: () => void;
-  onMenuPress?: () => void;
+  onMenuPress?: (position: {pageX: number; pageY: number; width: number; height: number}) => void;
   layout?: RecipeCardLayout;
+  /** list 레이아웃 플레이스홀더 아이콘 (기본: IconPhoto) */
+  placeholderIcon?: React.FC<SvgProps>;
+  /** list 레이아웃 플레이스홀더 아이콘 색상 */
+  placeholderIconColor?: string;
+  /** list 레이아웃 trailing 아이콘 커스텀 (기본: IconEllipsisVertical) */
+  trailingIcon?: React.FC<SvgProps>;
+  /** trailing 아이콘 색상 */
+  trailingIconColor?: string;
 }
 
 export function RecipeCard({
@@ -34,16 +47,31 @@ export function RecipeCard({
   category = '제과',
   method,
   reviewCount = 0,
+  sessionCount,
   imageUrl,
   imageSource,
   onPress,
   onMenuPress,
   layout = 'grid',
+  placeholderIcon: PlaceholderIcon = IconPhoto,
+  placeholderIconColor,
+  trailingIcon,
+  trailingIconColor,
 }: RecipeCardProps) {
+  const colors = useColors();
+  const styles = useThemedStyles(createStyles);
+  const menuButtonRef = useRef<View>(null);
   const hasImage = imageUrl || imageSource;
-  const subtitle = method
-    ? `${category} · ${method} · ${reviewCount}개의 회고`
-    : `${category} · ${reviewCount}개의 회고`;
+  const parts = [category, method].filter(Boolean);
+  if (sessionCount && sessionCount > 1) parts.push(`${sessionCount}개의 회차`);
+  if (reviewCount > 0) parts.push(`${reviewCount}개의 회고`);
+  const subtitle = parts.join(' · ');
+
+  const handleMenuPress = useCallback(() => {
+    menuButtonRef.current?.measureInWindow((x, y, width, height) => {
+      onMenuPress?.({pageX: x, pageY: y, width, height});
+    });
+  }, [onMenuPress]);
 
   // List 레이아웃
   if (layout === 'list') {
@@ -65,10 +93,10 @@ export function RecipeCard({
               />
             ) : (
               <View style={styles.listPlaceholder}>
-                <IconPhoto
+                <PlaceholderIcon
                   width={24}
                   height={24}
-                  color={SemanticColorsLight['foreground-onsurfacemuted']}
+                  color={placeholderIconColor || colors['foreground-onsurfacemuted']}
                 />
               </View>
             )}
@@ -85,12 +113,13 @@ export function RecipeCard({
           </View>
 
           {/* 메뉴 버튼 */}
-          <View style={styles.listActions}>
+          <View ref={menuButtonRef}>
             <IconButton
-              icon={IconEllipsisVertical}
-              onPress={onMenuPress}
+              icon={trailingIcon || IconEllipsisVertical}
+              iconColor={trailingIconColor}
+              onPress={handleMenuPress}
               variant="ghost-secondary"
-              size="small"
+              size="medium"
             />
           </View>
         </Pressable>
@@ -116,7 +145,7 @@ export function RecipeCard({
           <IconPhoto
             width={40}
             height={40}
-            color={SemanticColorsLight['foreground-onsurfacemuted']}
+            color={colors['foreground-onsurfacemuted']}
           />
         </View>
       )}
@@ -137,6 +166,18 @@ export function RecipeCard({
         style={StyleSheet.absoluteFill}
       />
 
+      {/* 더보기 버튼 */}
+      {onMenuPress && (
+        <View ref={menuButtonRef} style={styles.gridMenuButton}>
+          <IconButton
+            icon={IconEllipsisVertical}
+            onPress={handleMenuPress}
+            variant="ghost-inverse"
+            size="medium"
+          />
+        </View>
+      )}
+
       {/* 콘텐츠 */}
       <View style={styles.gridContent}>
         <Text style={styles.gridTitle} numberOfLines={2}>
@@ -150,14 +191,13 @@ export function RecipeCard({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // Grid 레이아웃
   gridContainer: {
     width: '100%',
     aspectRatio: 292 / 194,
     borderRadius: 20,
     overflow: 'hidden',
-    // Shadow
     shadowColor: '#000000',
     shadowOffset: {width: 0, height: 6},
     shadowOpacity: 0.04,
@@ -171,11 +211,17 @@ const styles = StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: SemanticColorsLight['surface-surfacecontainer'],
+    backgroundColor: colors['surface-surfacecontainer'],
   },
   gridImage: {
     width: '100%',
     height: '100%',
+  },
+  gridMenuButton: {
+    position: 'absolute',
+    top: Spacing.xs,
+    right: Spacing.xs,
+    zIndex: 1,
   },
   gridContent: {
     position: 'absolute',
@@ -191,7 +237,7 @@ const styles = StyleSheet.create({
     fontWeight: Typography.title.medium.fontWeight as '700',
     lineHeight: Typography.title.medium.lineHeight,
     letterSpacing: 0,
-    color: SemanticColorsLight['foreground-onsurfaceinverse'],
+    color: colors['foreground-onimage'],
   },
   gridSubtitle: {
     fontFamily: Typography.label.medium.fontFamily,
@@ -199,10 +245,18 @@ const styles = StyleSheet.create({
     fontWeight: Typography.label.medium.fontWeight as '600',
     lineHeight: Typography.label.medium.lineHeight,
     letterSpacing: -0.25,
-    color: SemanticColorsLight['foreground-onsurfaceinversevar'],
+    color: colors['foreground-onimagevar'],
   },
 
   // List 레이아웃
+  listWrapper: {
+    position: 'relative',
+  },
+  listDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors['border-borderlight'],
+    marginLeft: 68 + Spacing.sm + Spacing.md,
+  },
   listContainer: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -210,12 +264,12 @@ const styles = StyleSheet.create({
     borderRadius: Radius['radius-lg'],
   },
   listContainerPressed: {
-    backgroundColor: SemanticColorsLight['background-statelayers-surfacefocus_press'],
+    backgroundColor: colors['background-statelayers-surfacefocus_press'],
   },
   listThumbnail: {
     width: 68,
     height: 68,
-    borderRadius: Radius['radius-sm'],
+    borderRadius: Radius['radius-md'],
     overflow: 'hidden',
   },
   listImage: {
@@ -227,12 +281,12 @@ const styles = StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: SemanticColorsLight['surface-surfacecontainer'],
+    backgroundColor: 'rgba(94, 94, 94, 0.08)',
   },
   listContent: {
     flex: 1,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.smd,
     gap: Spacing.xs,
   },
   listTitle: {
@@ -241,7 +295,7 @@ const styles = StyleSheet.create({
     fontWeight: Typography.title.large.fontWeight as '700',
     lineHeight: Typography.title.large.lineHeight,
     letterSpacing: -0.25,
-    color: SemanticColorsLight['foreground-onsurface'],
+    color: colors['foreground-onsurface'],
   },
   listSubtitle: {
     fontFamily: Typography.label.medium.fontFamily,
@@ -249,9 +303,6 @@ const styles = StyleSheet.create({
     fontWeight: Typography.label.medium.fontWeight as '600',
     lineHeight: Typography.label.medium.lineHeight,
     letterSpacing: -0.25,
-    color: SemanticColorsLight['foreground-onsurfacemuted'],
-  },
-  listActions: {
-    paddingVertical: Spacing.xs,
+    color: colors['foreground-onsurfacemuted'],
   },
 });

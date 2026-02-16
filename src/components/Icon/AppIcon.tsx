@@ -1,6 +1,6 @@
 import React from 'react';
 import {SvgProps} from 'react-native-svg';
-import {SemanticColorsLight} from '@constants/tokens';
+import {useColors} from '@contexts/ThemeContext';
 
 export type AppIconSize = 'xs' | 'sm' | 'md' | 'lg';
 
@@ -25,13 +25,14 @@ export interface AppIconProps {
  * - SVG는 fill="currentColor" 를 사용해야 함 (svgr.config에서 강제)
  */
 export function AppIcon({icon: Icon, size = 'md', color}: AppIconProps) {
+  const colors = useColors();
   const pixelSize = ICON_SIZE_MAP[size];
 
   return (
     <Icon
       width={pixelSize}
       height={pixelSize}
-      color={color ?? SemanticColorsLight['foreground-onsurface']}
+      color={color ?? colors['foreground-onsurface']}
     />
   );
 }

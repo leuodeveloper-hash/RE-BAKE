@@ -1,0 +1,131 @@
+import React, {useEffect, useState} from 'react';
+import {StyleSheet, View} from 'react-native';
+import {Dialog} from './Dialog';
+import {Button} from '@components/Button';
+import {Tabs} from '@components/Tabs';
+import {TextInput} from '@components/TextInput';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import type {SemanticColors} from '@constants/tokens';
+import {Spacing} from '@constants/spacing';
+import {IconUserFilled} from '@components/Icon/IconIndex';
+
+export interface ServingsDialogProps {
+  visible: boolean;
+  onClose: () => void;
+  value?: string;
+  onConfirm: (formatted: string) => void;
+}
+
+const UNIT_TABS = [
+  {id: 'serving', label: '인분'},
+  {id: 'piece', label: '개'},
+];
+
+const UNIT_SUFFIX: Record<string, string> = {
+  serving: '인분',
+  piece: '개',
+};
+
+/** "3호 4개" → {spec: "3호", amount: "4", unit: "piece"} */
+function parseServings(value?: string): {spec: string; amount: string; unit: string} {
+  if (!value) return {spec: '', amount: '', unit: 'piece'};
+
+  // "3호 4개", "1호 1개" 등 규격 + 수량
+  const specPieceMatch = value.match(/(.+?)\s+(\d+)\s*개/);
+  if (specPieceMatch) return {spec: specPieceMatch[1], amount: specPieceMatch[2], unit: 'piece'};
+
+  // "3인분"
+  const servingMatch = value.match(/(\d+)\s*인분/);
+  if (servingMatch) return {spec: '', amount: servingMatch[1], unit: 'serving'};
+
+  // "12개"
+  const pieceMatch = value.match(/(\d+)\s*개/);
+  if (pieceMatch) return {spec: '', amount: pieceMatch[1], unit: 'piece'};
+
+  // 숫자만
+  const numMatch = value.match(/(\d+)/);
+  if (numMatch) return {spec: '', amount: numMatch[1], unit: 'piece'};
+
+  return {spec: '', amount: '', unit: 'piece'};
+}
+
+export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDialogProps) {
+  const styles = useThemedStyles(createStyles);
+  const [spec, setSpec] = useState('');
+  const [amount, setAmount] = useState('');
+  const [unit, setUnit] = useState('piece');
+
+  useEffect(() => {
+    if (visible) {
+      const parsed = parseServings(value);
+      setSpec(parsed.spec);
+      setAmount(parsed.amount);
+      setUnit(parsed.unit);
+    }
+  }, [visible, value]);
+
+  const handleConfirm = () => {
+    const num = parseInt(amount, 10);
+    if (num > 0) {
+      const specPart = spec.trim();
+      const formatted = specPart
+        ? `${specPart} ${num}${UNIT_SUFFIX[unit]}`
+        : `${num}${UNIT_SUFFIX[unit]}`;
+      onConfirm(formatted);
+    }
+    onClose();
+  };
+
+  return (
+    <Dialog
+      visible={visible}
+      onClose={onClose}
+      icon={IconUserFilled}
+      avatarColor="brown"
+      title="분량"
+      actions={<>
+        <Button label="취소" variant="soft" onPress={onClose} />
+        <Button label="확인" variant="filled" onPress={handleConfirm} />
+      </>}
+    >
+      <View style={styles.content}>
+        <Tabs
+          tabs={UNIT_TABS}
+          selectedId={unit}
+          onSelect={setUnit}
+          fullWidth
+        />
+        <View style={styles.row}>
+          <TextInput
+            size="small"
+            value={spec}
+            onChangeText={setSpec}
+            placeholder="규격"
+            maxLength={10}
+            selectTextOnFocus
+          />
+          <TextInput
+            size="small"
+            value={amount}
+            onChangeText={setAmount}
+            keyboardType="number-pad"
+            placeholder="0"
+            maxLength={4}
+            selectTextOnFocus
+          />
+        </View>
+      </View>
+    </Dialog>
+  );
+}
+
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  content: {
+    gap: Spacing.md,
+  },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+});

@@ -25,14 +25,18 @@
       ],
       "@hooks/*": [
         "src/hooks/*"
+      ],
+      "@contexts/*": [
+        "src/contexts/*"
+      ],
+      "@config/*": [
+        "src/config/*"
       ]
     }
   },
   "include": [
     "**/*.ts",
-    "**/*.tsx",
-    "index.js",
-    "App.tsx"
+    "**/*.tsx"
   ],
   "exclude": [
     "node_modules"

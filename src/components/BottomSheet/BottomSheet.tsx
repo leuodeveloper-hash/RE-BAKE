@@ -8,8 +8,11 @@ import {
   StyleSheet,
   View,
 } from 'react-native';
-import {Radius, SemanticColorsLight} from '@constants/tokens';
+import {Radius} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {SheetHeader} from './SheetHeader';
 
 const {height: SCREEN_HEIGHT} = Dimensions.get('window');
 
@@ -43,6 +46,10 @@ export interface BottomSheetProps {
   visible: boolean;
   onClose: () => void;
   children: React.ReactNode;
+  /** 헤더 타이틀 (설정 시 핸들 바 대신 SheetHeader 표시) */
+  title?: string;
+  /** 헤더 상단 중앙 그래픽 (세로 레이아웃) */
+  headerGraphic?: React.ReactNode;
   /** 시트 높이 (기본: auto) */
   height?: number | 'auto';
   /** 드래그로 닫기 가능 여부 (기본: true) */
@@ -55,10 +62,13 @@ export function BottomSheet({
   visible,
   onClose,
   children,
+  title,
+  headerGraphic,
   height = 'auto',
   enableDragToDismiss = true,
   enableBackdropDismiss = true,
 }: BottomSheetProps) {
+  const styles = useThemedStyles(createStyles);
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const contentHeight = useRef(0);
@@ -186,6 +196,9 @@ export function BottomSheet({
             <View style={styles.handle} />
           </View>
 
+          {/* 헤더 (title이 있을 때) */}
+          {title && <SheetHeader title={title} onClose={onClose} headerGraphic={headerGraphic} />}
+
           {/* 콘텐츠 */}
           <View style={styles.content}>{children}</View>
         </Animated.View>
@@ -194,39 +207,42 @@ export function BottomSheet({
   );
 }
 
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    justifyContent: 'flex-end',
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: SemanticColorsLight.scrim,
-  },
-  sheetContainer: {
-    backgroundColor: SemanticColorsLight['surface-surfacebright'],
-    borderTopLeftRadius: Radius['radius-xl'],
-    borderTopRightRadius: Radius['radius-xl'],
-    // iOS shadow
-    shadowColor: SemanticColorsLight.shadow,
-    shadowOffset: {width: 0, height: -4},
-    shadowOpacity: 0.15,
-    shadowRadius: 20,
-    // Android shadow
-    elevation: 20,
-  },
-  handleContainer: {
-    alignItems: 'center',
-    paddingTop: Spacing.xl,
-    paddingBottom: Spacing.smd,
-  },
-  handle: {
-    width: 36,
-    height: 5,
-    borderRadius: Radius['radius-full'],
-    backgroundColor: SemanticColorsLight['border-border'],
-  },
-  content: {
-    paddingBottom: Spacing.xl,
-  },
-});
+const createStyles = (colors: SemanticColors) =>
+  StyleSheet.create({
+    container: {
+      flex: 1,
+      justifyContent: 'flex-end',
+      padding: Spacing.sm,
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: colors.scrim,
+    },
+    sheetContainer: {
+      maxWidth: 400,
+      width: '100%',
+      alignSelf: 'center',
+      backgroundColor: colors['surface-surfacebright'],
+      borderRadius: Radius['radius-xl'],
+      // iOS shadow
+      shadowColor: colors.shadow,
+      shadowOffset: {width: 0, height: -4},
+      shadowOpacity: 0.15,
+      shadowRadius: 20,
+      // Android shadow
+      elevation: 20,
+    },
+    handleContainer: {
+      alignItems: 'center',
+      paddingVertical: 4,
+    },
+    handle: {
+      width: 36,
+      height: 4,
+      borderRadius: Radius['radius-full'],
+      backgroundColor: colors['border-border'],
+    },
+    content: {
+      paddingBottom: Spacing.md,
+    },
+  });

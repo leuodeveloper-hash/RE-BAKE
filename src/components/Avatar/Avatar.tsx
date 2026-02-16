@@ -1,13 +1,17 @@
 import React, {useMemo} from 'react';
 import {Image, StyleSheet, Text, View, ViewStyle} from 'react-native';
-import {Radius, SemanticColorsLight} from '@constants/tokens';
+import {Radius, BaseColors, withOpacity} from '@constants/tokens';
 import {getRandomAvatar} from '@constants/avatars';
 import {SvgProps} from 'react-native-svg';
+import {useColors} from '@contexts/ThemeContext';
 
 export type AvatarSize = 'xsmall' | 'small' | 'medium' | 'large' | 'xlarge';
 export type AvatarShape = 'default' | 'rounded' | 'circle';
 export type AvatarType = 'monogram' | 'icon' | 'image' | 'random';
-export type AvatarColor = 'gray' | 'yellow' | 'brown';
+export type AvatarColor =
+  | 'gray' | 'greybrown' | 'brown' | 'darkred' | 'red'
+  | 'orange' | 'yellow' | 'lime' | 'green' | 'teal'
+  | 'lightblue' | 'blue' | 'purple' | 'lavender';
 
 export interface AvatarProps {
   /** 크기 */
@@ -53,20 +57,6 @@ const getShapeRadius = (shape: AvatarShape, size: AvatarSize): number => {
   return Radius['radius-8'];
 };
 
-// 색상별 배경색
-const BACKGROUND_COLORS = {
-  gray: SemanticColorsLight['surface-surfacecontainerhigh'],
-  yellow: '#F3EFC2', // custom/yellowcontainer
-  brown: '#F2EBE3', // base-brown-10
-};
-
-// 색상별 텍스트/아이콘 색상
-const FOREGROUND_COLORS = {
-  gray: SemanticColorsLight['foreground-onprimarycontainer'],
-  yellow: '#BFAC27', // custom/lime
-  brown: '#A87F43', // base-brown-50
-};
-
 export function Avatar({
   size = 'small',
   shape = 'default',
@@ -78,6 +68,44 @@ export function Avatar({
   seed,
   style,
 }: AvatarProps) {
+  const colors = useColors();
+
+  // 색상별 배경색 (베이스 컬러의 16% opacity → 라이트/다크 모두 자연스럽게 동작)
+  const BACKGROUND_COLORS: Record<AvatarColor, string> = {
+    gray:      withOpacity(BaseColors['color-base-grey-80'], 0.16),
+    greybrown: withOpacity(BaseColors['color-base-greybrown-80'], 0.16),
+    brown:     withOpacity(BaseColors['color-base-brown-80'], 0.16),
+    darkred:   withOpacity(BaseColors['color-base-darkred-80'], 0.16),
+    red:       withOpacity(BaseColors['color-base-red-80'], 0.16),
+    orange:    withOpacity(BaseColors['color-base-orange-80'], 0.16),
+    yellow:    withOpacity(BaseColors['color-base-yellow-80'], 0.16),
+    lime:      withOpacity(BaseColors['color-base-lime-80'], 0.16),
+    green:     withOpacity(BaseColors['color-base-green-80'], 0.16),
+    teal:      withOpacity(BaseColors['color-base-teal-80'], 0.16),
+    lightblue: withOpacity(BaseColors['color-base-lightblue-80'], 0.16),
+    blue:      withOpacity(BaseColors['color-base-blue-80'], 0.16),
+    purple:    withOpacity(BaseColors['color-base-purple-80'], 0.16),
+    lavender:  withOpacity(BaseColors['color-base-lavender-80'], 0.16),
+  };
+
+  // 색상별 텍스트/아이콘 색상 (시멘틱 토큰 매핑)
+  const FOREGROUND_COLORS: Record<AvatarColor, string> = {
+    gray:      colors['custom-grey'],
+    greybrown: colors['custom-greybrown'],
+    brown:     colors['custom-onbrowncontainer'],
+    darkred:   colors['custom-darkred'],
+    red:       colors['custom-red'],
+    orange:    colors['custom-orange'],
+    yellow:    colors['custom-yellow'],
+    lime:      colors['custom-lime'],
+    green:     colors['custom-green'],
+    teal:      colors['custom-teal'],
+    lightblue: colors['custom-lightblue'],
+    blue:      colors['custom-blue'],
+    purple:    colors['custom-purple'],
+    lavender:  colors['custom-lavendar'],
+  };
+
   const config = SIZE_CONFIG[size];
   const borderRadius = getShapeRadius(shape, size);
   const isImageType = type === 'image' || type === 'random';

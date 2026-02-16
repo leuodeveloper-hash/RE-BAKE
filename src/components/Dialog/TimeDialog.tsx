@@ -1,0 +1,100 @@
+import React, {useEffect, useState} from 'react';
+import {StyleSheet, View} from 'react-native';
+import {Dialog} from './Dialog';
+import {Button} from '@components/Button';
+import {TextInput} from '@components/TextInput';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import type {SemanticColors} from '@constants/tokens';
+import {Spacing} from '@constants/spacing';
+import {IconClockTwotone} from '@components/Icon/IconIndex';
+
+export interface TimeDialogProps {
+  visible: boolean;
+  onClose: () => void;
+  value?: string;
+  onConfirm: (formatted: string) => void;
+}
+
+/** "1시간 30분" → {hours: 1, minutes: 30} */
+function parseTime(value?: string): {hours: string; minutes: string} {
+  if (!value) return {hours: '', minutes: ''};
+  const hourMatch = value.match(/(\d+)\s*시간/);
+  const minMatch = value.match(/(\d+)\s*분/);
+  return {
+    hours: hourMatch ? hourMatch[1] : '',
+    minutes: minMatch ? minMatch[1] : '',
+  };
+}
+
+function formatTime(hours: string, minutes: string): string {
+  const h = parseInt(hours, 10) || 0;
+  const m = parseInt(minutes, 10) || 0;
+  if (h > 0 && m > 0) return `${h}시간 ${m}분`;
+  if (h > 0) return `${h}시간`;
+  if (m > 0) return `${m}분`;
+  return '';
+}
+
+export function TimeDialog({visible, onClose, value, onConfirm}: TimeDialogProps) {
+  const styles = useThemedStyles(createStyles);
+  const [hours, setHours] = useState('');
+  const [minutes, setMinutes] = useState('');
+
+  useEffect(() => {
+    if (visible) {
+      const parsed = parseTime(value);
+      setHours(parsed.hours);
+      setMinutes(parsed.minutes);
+    }
+  }, [visible, value]);
+
+  const handleConfirm = () => {
+    const formatted = formatTime(hours, minutes);
+    if (formatted) onConfirm(formatted);
+    onClose();
+  };
+
+  return (
+    <Dialog
+      visible={visible}
+      onClose={onClose}
+      icon={IconClockTwotone}
+      avatarColor="lime"
+      title="시간"
+      actions={<>
+        <Button label="취소" variant="soft" onPress={onClose} />
+        <Button label="확인" variant="filled" onPress={handleConfirm} />
+      </>}
+    >
+      <View style={styles.row}>
+        <TextInput
+          size="small"
+          label="시간"
+          value={hours}
+          onChangeText={setHours}
+          keyboardType="number-pad"
+          placeholder="0"
+          maxLength={2}
+          selectTextOnFocus
+        />
+        <TextInput
+          size="small"
+          label="분"
+          value={minutes}
+          onChangeText={setMinutes}
+          keyboardType="number-pad"
+          placeholder="0"
+          maxLength={2}
+          selectTextOnFocus
+        />
+      </View>
+    </Dialog>
+  );
+}
+
+const createStyles = (_colors: SemanticColors) => StyleSheet.create({
+  row: {
+    flexDirection: 'row',
+    gap: Spacing.sm,
+  },
+});

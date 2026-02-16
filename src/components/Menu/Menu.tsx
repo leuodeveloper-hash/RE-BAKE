@@ -1,17 +1,21 @@
 import React, {useEffect, useRef, useState} from 'react';
-import {Animated, Easing, StyleSheet, ViewStyle} from 'react-native';
+import {Animated, Easing, Pressable, StyleSheet, ViewStyle} from 'react-native';
 import {BlurView} from 'expo-blur';
 import {Radius} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {SvgProps} from 'react-native-svg';
 import {MenuItem} from './MenuItem';
 import {Subheader} from './Subheader';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useTheme} from '@contexts/ThemeContext';
 
 export interface MenuItemData {
   id: string;
   label: string;
-  icon: React.FC<SvgProps>;
+  icon?: React.FC<SvgProps>;
   destructive?: boolean;
+  disabled?: boolean;
 }
 
 export interface MenuProps {
@@ -19,6 +23,7 @@ export interface MenuProps {
   items: MenuItemData[];
   selectedId?: string;
   onSelect?: (id: string) => void;
+  onClose?: () => void;
   style?: ViewStyle;
   /** 메뉴 표시 여부 */
   visible?: boolean;
@@ -29,9 +34,12 @@ export function Menu({
   items,
   selectedId,
   onSelect,
+  onClose,
   style,
   visible = true,
 }: MenuProps) {
+  const styles = useThemedStyles(createStyles);
+  const {isDark} = useTheme();
   const scale = useRef(new Animated.Value(0.95)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
   const [shouldRender, setShouldRender] = useState(visible);
@@ -93,7 +101,7 @@ export function Menu({
       ]}
       pointerEvents={visible ? 'auto' : 'none'}>
       {/* BlurView는 별도 래퍼 - opacity 애니메이션 없음, 항상 intensity 64 */}
-      <BlurView intensity={64} tint="default" style={styles.blurView}>
+      <BlurView intensity={64} tint={isDark ? 'dark' : 'default'} style={styles.blurView}>
         {/* 콘텐츠에만 opacity 애니메이션 적용 */}
         <Animated.View style={[styles.backgroundLayer, {opacity: contentOpacity}]}>
           {title && <Subheader title={title} />}
@@ -105,6 +113,7 @@ export function Menu({
               icon={item.icon}
               selected={item.id === selectedId}
               destructive={item.destructive}
+              disabled={item.disabled}
               onPress={() => onSelect?.(item.id)}
             />
           ))}
@@ -114,7 +123,7 @@ export function Menu({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   container: {
     borderRadius: Radius['radius-lg'],
     overflow: 'hidden',
@@ -129,7 +138,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   backgroundLayer: {
-    backgroundColor: 'rgba(253, 253, 253, 0.88)',
+    backgroundColor: colors['background-transparent'],
     padding: Spacing.xs,
     minWidth: 200,
   },

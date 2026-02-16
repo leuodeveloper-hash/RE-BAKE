@@ -1,10 +1,11 @@
 import React from 'react';
 import {Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
-import {Radius, SemanticColorsLight} from '@constants/tokens';
+import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {IconChevronDown} from '@components/Icon/IconIndex';
+import {useColors} from '@contexts/ThemeContext';
 
 export type SelectorVariant = 'ghost' | 'filled' | 'outlined';
 
@@ -15,6 +16,9 @@ export interface SelectorProps {
   variant?: SelectorVariant;
   disabled?: boolean;
   forcePressed?: boolean;
+  /** 텍스트 색상 muted 적용 (disabled와 독립) */
+  muted?: boolean;
+  style?: import('react-native').ViewStyle;
 }
 
 export function Selector({
@@ -24,7 +28,11 @@ export function Selector({
   variant = 'ghost',
   disabled = false,
   forcePressed = false,
+  muted = false,
+  style,
 }: SelectorProps) {
+  const colors = useColors();
+
   const getContainerStyle = (pressed: boolean): ViewStyle => {
     const baseStyle: ViewStyle = {
       flexDirection: 'row',
@@ -39,16 +47,16 @@ export function Selector({
     switch (variant) {
       case 'filled':
         baseStyle.backgroundColor = disabled
-          ? SemanticColorsLight['background-statelayers-disabled']
-          : SemanticColorsLight['surface-surfaceinverse'];
+          ? colors['background-statelayers-disabled']
+          : colors['surface-surfaceinverse'];
         break;
       case 'outlined':
         baseStyle.backgroundColor =
-          SemanticColorsLight['surface-surfacecontainerlowest'];
+          colors['surface-surfacecontainerlowest'];
         baseStyle.borderWidth = 1;
         baseStyle.borderColor = disabled
-          ? SemanticColorsLight['border-borderlight']
-          : SemanticColorsLight['border-border'];
+          ? colors['border-borderlight']
+          : colors['border-border'];
         break;
       case 'ghost':
       default:
@@ -62,10 +70,10 @@ export function Selector({
     if ((pressed || forcePressed) && !disabled) {
       if (variant === 'filled') {
         baseStyle.backgroundColor =
-          SemanticColorsLight['background-statelayers-inversesurfacefocus_press'];
+          colors['background-statelayers-inversesurfacefocus_press'];
       } else {
         baseStyle.backgroundColor =
-          SemanticColorsLight['background-statelayers-surfacefocus_press'];
+          colors['background-statelayers-surfacefocus_press'];
       }
     }
 
@@ -73,30 +81,33 @@ export function Selector({
   };
 
   const getTextColor = (): string => {
+    if (muted) {
+      return colors['foreground-onsurfacemuted'];
+    }
     if (disabled) {
-      return SemanticColorsLight['foreground-onsurfacedisabled'];
+      return colors['foreground-onsurfacedisabled'];
     }
     if (variant === 'filled') {
-      return SemanticColorsLight['foreground-onsurfaceinverse'];
+      return colors['foreground-onsurfaceinverse'];
     }
-    return SemanticColorsLight['foreground-onsurface'];
+    return colors['foreground-onsurface'];
   };
 
   const getIconColor = (): string => {
     if (disabled) {
-      return SemanticColorsLight['foreground-onsurfacedisabled'];
+      return colors['foreground-onsurfacedisabled'];
     }
     if (variant === 'filled') {
-      return SemanticColorsLight['foreground-onsurfaceinverse'];
+      return colors['foreground-onsurfaceinverse'];
     }
-    return SemanticColorsLight['foreground-onsurfacemuted'];
+    return colors['foreground-onsurfacemuted'];
   };
 
   return (
-    <Pressable onPress={onPress} disabled={disabled}>
+    <Pressable onPress={onPress} disabled={disabled} style={style}>
       {({pressed}) => (
         <View style={getContainerStyle(pressed)}>
-          <Text style={[styles.label, {color: getTextColor()}]}>{label}</Text>
+          <Text style={[styles.label, {color: getTextColor()}]} numberOfLines={1}>{label}</Text>
           {showDropdown && (
             <View style={{width: 12}}>
               <AppIcon

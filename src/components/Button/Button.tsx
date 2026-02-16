@@ -1,8 +1,10 @@
 import React from 'react';
 import {Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
-import {Radius, SemanticColorsLight} from '@constants/tokens';
+import {SvgProps} from 'react-native-svg';
+import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
+import {useColors} from '@contexts/ThemeContext';
 
 export type ButtonVariant = 'filled' | 'soft' | 'outlined' | 'ghost';
 export type ButtonSize = 'small' | 'medium';
@@ -13,12 +15,16 @@ export interface ButtonProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
   disabled?: boolean;
+  /** 에러/삭제 등 위험한 액션 (빨간색 스타일) */
+  destructive?: boolean;
   style?: ViewStyle;
+  icon?: React.FC<SvgProps>;
+  trailingIcon?: React.FC<SvgProps>;
 }
 
 const SIZE_CONFIG = {
-  small: {height: 32, paddingHorizontal: Spacing.smd},
-  medium: {height: 40, paddingHorizontal: Spacing.md},
+  small: {height: 32, paddingHorizontal: Spacing.smd, gap: 4, borderRadius: Radius['radius-sm']},
+  medium: {height: 48, paddingHorizontal: 20, gap: 6, borderRadius: Radius['radius-md']},
 } as const;
 
 export function Button({
@@ -27,15 +33,19 @@ export function Button({
   variant = 'filled',
   size = 'medium',
   disabled = false,
+  destructive = false,
   style,
+  icon: Icon,
+  trailingIcon: TrailingIcon,
 }: ButtonProps) {
+  const colors = useColors();
   const sizeConfig = SIZE_CONFIG[size];
 
   const getContainerStyle = (pressed: boolean): ViewStyle => {
     const base: ViewStyle = {
       height: sizeConfig.height,
       paddingHorizontal: sizeConfig.paddingHorizontal,
-      borderRadius: Radius['radius-md'],
+      borderRadius: sizeConfig.borderRadius,
       alignItems: 'center',
       justifyContent: 'center',
     };
@@ -43,20 +53,22 @@ export function Button({
     switch (variant) {
       case 'filled':
         base.backgroundColor = disabled
-          ? SemanticColorsLight['background-statelayers-disabled']
-          : SemanticColorsLight['surface-surfaceinverse'];
+          ? colors['background-statelayers-disabled']
+          : destructive
+            ? colors['background-error']
+            : colors['surface-surfaceinverse'];
         break;
       case 'soft':
         base.backgroundColor = disabled
-          ? SemanticColorsLight['background-statelayers-disabled']
-          : SemanticColorsLight['surface-surfacecontainertransparent'];
+          ? colors['background-statelayers-disabled']
+          : colors['surface-surfacecontainertransparent'];
         break;
       case 'outlined':
-        base.backgroundColor = SemanticColorsLight['surface-surfacecontainerlowest'];
+        base.backgroundColor = colors['surface-surfacecontainerlowest'];
         base.borderWidth = 1;
         base.borderColor = disabled
-          ? SemanticColorsLight['border-borderlight']
-          : SemanticColorsLight['border-border'];
+          ? colors['border-borderlight']
+          : colors['border-border'];
         break;
       case 'ghost':
         base.backgroundColor = 'transparent';
@@ -65,26 +77,32 @@ export function Button({
 
     if (pressed && !disabled) {
       base.backgroundColor =
-        variant === 'filled'
-          ? SemanticColorsLight['background-statelayers-inversesurfacefocus_press']
-          : SemanticColorsLight['background-statelayers-surfacefocus_press'];
+        destructive && variant === 'filled'
+          ? colors['background-statelayers-errorfocused_pressed']
+          : variant === 'filled'
+            ? colors['background-statelayers-inversesurfacefocus_press']
+            : colors['background-statelayers-surfacefocus_press'];
     }
 
     return base;
   };
 
   const getTextColor = (): string => {
-    if (disabled) return SemanticColorsLight['foreground-onsurfacedisabled'];
-    if (variant === 'filled') return SemanticColorsLight['foreground-onsurfaceinverse'];
-    return SemanticColorsLight['foreground-onsurface'];
+    if (disabled) return colors['foreground-onsurfacedisabled'];
+    if (destructive && variant === 'filled') return colors['foreground-onerror'];
+    if (destructive) return colors['foreground-error'];
+    if (variant === 'filled') return colors['foreground-onsurfaceinverse'];
+    return colors['foreground-onsurface'];
   };
 
   return (
     <View style={[{flex: 1}, style]}>
       <Pressable onPress={onPress} disabled={disabled}>
         {({pressed}) => (
-          <View style={getContainerStyle(pressed)}>
+          <View style={[getContainerStyle(pressed), (Icon || TrailingIcon) && {flexDirection: 'row' as const, gap: sizeConfig.gap}]}>
+            {Icon && <Icon width={18} height={18} color={getTextColor()} />}
             <Text style={[styles.label, {color: getTextColor()}]}>{label}</Text>
+            {TrailingIcon && <TrailingIcon width={18} height={18} color={getTextColor()} />}
           </View>
         )}
       </Pressable>

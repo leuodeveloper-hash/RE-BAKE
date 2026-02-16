@@ -16,6 +16,9 @@ export interface SerializableRecipe {
   steps?: Step[];
   stepGroups?: StepGroup[];
   activeFieldIds?: string[];
+  reviews?: {evaluation: string; improvement: string}[];
+  /** 둘러보기에서 가져온 경우 원본 레시피 ID */
+  sourceId?: string;
 }
 
 /** JSON 내보내기 파일 형식 */

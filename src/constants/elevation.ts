@@ -58,7 +58,7 @@ const convertShadowToRN = (
     }
   });
 
-  const {color: shadowColor, opacity} = parseColor(maxShadow.color);
+  const {opacity} = parseColor(maxShadow.color);
   const offsetX = parsePx(maxShadow.offsetX);
   const offsetY = parsePx(maxShadow.offsetY);
   const blur = parsePx(maxShadow.blur);
@@ -68,7 +68,7 @@ const convertShadowToRN = (
   const elevation = Math.max(1, Math.round(blur / 4));
 
   return {
-    shadowColor: shadowColor,
+    shadowColor: '#000000',
     shadowOffset: {
       width: offsetX,
       height: offsetY,

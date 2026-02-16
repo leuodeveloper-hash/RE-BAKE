@@ -3,6 +3,7 @@ import {StyleSheet} from 'react-native';
 import {
   IconAdd,
   IconFilter,
+  IconSearch,
   IconEllipsisVertical,
 } from '@components/Icon/IconIndex';
 import {IconButton} from './IconButton';
@@ -16,12 +17,16 @@ export interface AppBarProps {
   onAddPress?: () => void;
   onFilterPress?: () => void;
   onMenuPress?: () => void;
+  onSearchPress?: () => void;
   showDropdown?: boolean;
   showAddButton?: boolean;
+  showSearchButton?: boolean;
   showFilterButton?: boolean;
   showMenuButton?: boolean;
   filterMenuOpen?: boolean;
   menuOpen?: boolean;
+  /** 좌측 캡슐 아래 메뉴 */
+  titleMenu?: React.ReactNode;
 }
 
 export function AppBar({
@@ -30,14 +35,17 @@ export function AppBar({
   onAddPress,
   onFilterPress,
   onMenuPress,
+  onSearchPress,
   showDropdown = true,
   showAddButton = true,
+  showSearchButton = false,
   showFilterButton = true,
   showMenuButton = true,
   filterMenuOpen = false,
   menuOpen = false,
+  titleMenu,
 }: AppBarProps) {
-  const hasRightButtons = showAddButton || showFilterButton || showMenuButton;
+  const hasRightButtons = showAddButton || showSearchButton || showFilterButton || showMenuButton;
 
   return (
     <FloatingNavBar
@@ -58,6 +66,14 @@ export function AppBar({
               <IconButton
                 icon={IconAdd}
                 onPress={onAddPress}
+                variant="ghost-secondary"
+                size="medium"
+              />
+            )}
+            {showSearchButton && (
+              <IconButton
+                icon={IconSearch}
+                onPress={onSearchPress}
                 variant="ghost-secondary"
                 size="medium"
               />
@@ -83,6 +99,7 @@ export function AppBar({
           </GlassContainer>
         ) : undefined
       }
+      leftMenu={titleMenu}
     />
   );
 }

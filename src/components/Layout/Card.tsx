@@ -1,6 +1,8 @@
 import React from 'react';
 import {StyleSheet, View, ViewStyle} from 'react-native';
-import {SemanticColorsLight, Radius} from '@constants/tokens';
+import {Radius} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
 
 export interface CardProps {
   children: React.ReactNode;
@@ -15,12 +17,13 @@ export interface CardProps {
  * - borderlight 테두리
  */
 export function Card({children, style}: CardProps) {
+  const styles = useThemedStyles(createStyles);
   return <View style={[styles.card, style]}>{children}</View>;
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   card: {
-    backgroundColor: SemanticColorsLight['surface-surfacebright'],
+    backgroundColor: colors['surface-surfacebright'],
     borderRadius: Radius['radius-lg'],
     overflow: 'hidden',
   },

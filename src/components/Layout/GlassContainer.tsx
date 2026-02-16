@@ -1,7 +1,10 @@
 import React from 'react';
 import {StyleSheet, View, ViewStyle} from 'react-native';
 import {BlurView} from 'expo-blur';
-import {Radius, SemanticColorsLight} from '@constants/tokens';
+import {Radius} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useTheme} from '@contexts/ThemeContext';
 
 export interface GlassContainerProps {
   children: React.ReactNode;
@@ -28,6 +31,8 @@ export function GlassContainer({
   contentStyle,
   intensity = 64,
 }: GlassContainerProps) {
+  const styles = useThemedStyles(createStyles);
+  const {isDark} = useTheme();
   const radiusValue = borderRadius === 'full'
     ? Radius['radius-full']
     : Radius['radius-xl'];
@@ -36,7 +41,7 @@ export function GlassContainer({
     <View style={[styles.shadowContainer, {borderRadius: radiusValue}, style]}>
       <BlurView
         intensity={intensity}
-        tint="default"
+        tint={isDark ? 'dark' : 'default'}
         style={[styles.blurView, {borderRadius: radiusValue}]}>
         <View
           style={[
@@ -51,7 +56,7 @@ export function GlassContainer({
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   shadowContainer: {
     // iOS shadow - SurfaceGlassElevated
     shadowColor: '#000000',
@@ -65,6 +70,6 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   backgroundLayer: {
-    backgroundColor: SemanticColorsLight['background-transparent'],
+    backgroundColor: colors['background-transparent'],
   },
 });

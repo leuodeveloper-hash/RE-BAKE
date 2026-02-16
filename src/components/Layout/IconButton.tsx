@@ -1,15 +1,17 @@
 import React from 'react';
 import {Pressable, View, ViewStyle} from 'react-native';
-import {Radius, SemanticColorsLight} from '@constants/tokens';
+import {Radius} from '@constants/tokens';
 import {SvgProps} from 'react-native-svg';
 import {AppIcon, AppIconSize} from '@components/Icon/AppIcon';
+import {useColors} from '@contexts/ThemeContext';
 
 export type IconButtonStyle =
   | 'filled'
   | 'soft'
   | 'outlined'
   | 'ghost'
-  | 'ghost-secondary';
+  | 'ghost-secondary'
+  | 'ghost-inverse';
 
 export type IconButtonSize = 'small' | 'medium' | 'large';
 
@@ -20,6 +22,8 @@ export interface IconButtonProps {
   size?: IconButtonSize;
   disabled?: boolean;
   forcePressed?: boolean; // 외부에서 pressed 상태 강제 (메뉴 열림 등)
+  /** 아이콘 색상 직접 지정 (variant 기본 색상 override) */
+  iconColor?: string;
   style?: ViewStyle;
 }
 
@@ -36,8 +40,10 @@ export function IconButton({
   size = 'medium',
   disabled = false,
   forcePressed = false,
+  iconColor,
   style,
 }: IconButtonProps) {
+  const colors = useColors();
   const sizeConfig = SIZE_CONFIG[size];
 
   const getIconSize = (): AppIconSize => {
@@ -68,36 +74,37 @@ export function IconButton({
     switch (variant) {
       case 'filled':
         baseStyle.backgroundColor = disabled
-          ? SemanticColorsLight['background-statelayers-disabled']
-          : SemanticColorsLight['surface-surfaceinverse'];
+          ? colors['background-statelayers-disabled']
+          : colors['surface-surfaceinverse'];
         break;
       case 'soft':
         baseStyle.backgroundColor = disabled
-          ? SemanticColorsLight['background-statelayers-disabled']
-          : SemanticColorsLight['surface-surfacecontainertransparent'];
+          ? colors['background-statelayers-disabled']
+          : colors['surface-surfacecontainertransparent'];
         break;
       case 'outlined':
         baseStyle.backgroundColor =
-          SemanticColorsLight['surface-surfacecontainerlowest'];
+          colors['surface-surfacecontainerlowest'];
         baseStyle.borderWidth = 1;
         baseStyle.borderColor = disabled
-          ? SemanticColorsLight['border-borderlight']
-          : SemanticColorsLight['border-border'];
+          ? colors['border-borderlight']
+          : colors['border-border'];
         break;
       case 'ghost':
       case 'ghost-secondary':
+      case 'ghost-inverse':
         baseStyle.backgroundColor = 'transparent';
         break;
     }
 
     // Pressed state (실제 pressed 또는 forcePressed)
     if ((pressed || forcePressed) && !disabled) {
-      if (variant === 'filled') {
+      if (variant === 'filled' || variant === 'ghost-inverse') {
         baseStyle.backgroundColor =
-          SemanticColorsLight['background-statelayers-inversesurfacefocus_press'];
+          colors['background-statelayers-inversesurfacefocus_press'];
       } else {
         baseStyle.backgroundColor =
-          SemanticColorsLight['background-statelayers-surfacefocus_press'];
+          colors['background-statelayers-surfacefocus_press'];
       }
     }
 
@@ -106,18 +113,21 @@ export function IconButton({
 
   const getIconColor = (): string => {
     if (disabled) {
-      return SemanticColorsLight['foreground-onsurfacedisabled'];
+      return colors['foreground-onsurfacedisabled'];
     }
     if (variant === 'filled') {
-      return SemanticColorsLight['foreground-onsurfaceinverse'];
+      return colors['foreground-onsurfaceinverse'];
     }
     if (variant === 'ghost-secondary') {
-      return SemanticColorsLight['foreground-onsurfacemuted'];
+      return colors['foreground-onsurfacemuted'];
+    }
+    if (variant === 'ghost-inverse') {
+      return colors['foreground-onsurfaceinverse'];
     }
     if (variant === 'soft') {
-      return SemanticColorsLight['foreground-onsurfacevar'];
+      return colors['foreground-onsurfacevar'];
     }
-    return SemanticColorsLight['foreground-onsurface'];
+    return colors['foreground-onsurface'];
   };
 
   return (
@@ -143,7 +153,7 @@ export function IconButton({
         }}>
         {({pressed}) => (
           <View style={getContainerStyle(pressed)}>
-            <AppIcon icon={Icon} size={getIconSize()} color={getIconColor()} />
+            <AppIcon icon={Icon} size={getIconSize()} color={iconColor || getIconColor()} />
           </View>
         )}
       </Pressable>

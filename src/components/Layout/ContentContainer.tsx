@@ -5,6 +5,16 @@ import {Spacing} from '@constants/spacing';
 // 공통 레이아웃 상수
 export const MAX_CONTENT_WIDTH = 800;
 
+// AppBar 아래, TabBar 위 영역 패딩 (FlatList contentContainerStyle용)
+const APPBAR_HEIGHT = 72;
+const TABBAR_BOTTOM_SPACE = 120;
+
+export const contentAreaPadding = {
+  paddingTop: APPBAR_HEIGHT,
+  paddingBottom: TABBAR_BOTTOM_SPACE,
+  paddingHorizontal: Spacing.md,
+};
+
 export interface ContentContainerProps {
   children: React.ReactNode;
   /** 추가 스타일 */

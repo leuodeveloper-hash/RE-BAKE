@@ -355,6 +355,7 @@ export type PrimitiveColorKey = keyof typeof PrimitiveColors;
 const ComputedColors = {
   'greenvar-64': withOpacity(BaseColors['color-base-green-80'], 0.64),
   'brownvar-64': withOpacity(BaseColors['color-base-brown-50'], 0.64),
+  'lightbluevar-64': withOpacity(BaseColors['color-base-lightblue-50'], 0.64),
   'yellowvar-light-64': withOpacity(BaseColors['color-base-yellow-90'], 0.64),
   'yellowvar-dark-64': withOpacity(BaseColors['color-base-yellow-70'], 0.64),
   'yellowcontainer-16': withOpacity(BaseColors['color-base-yellow-80'], 0.16),
@@ -403,6 +404,8 @@ export const SemanticColorsLight = {
   'foreground-onsurfacedisabled': '#1F21263D',
   'foreground-onsurfaceinverse': PrimitiveColors['color-neutral-5'],
   'foreground-onsurfaceinversevar': '#FCFCFDA3', // white 64% opacity
+  'foreground-onimage': '#FCFCFD',
+  'foreground-onimagevar': '#FCFCFDA3', // white 64% opacity
 
   // Border
   'border-borderlight': PrimitiveColors['color-neutral-20'],
@@ -414,9 +417,11 @@ export const SemanticColorsLight = {
   shadow: BaseColors['color-base-black'],
 
   // Custom hues
+  'custom-grey': BaseColors['color-base-grey-80'],
   'custom-greybrown': BaseColors['color-base-greybrown-80'],
-  'custom-brown': BaseColors['color-base-brown-80'],
+  'custom-brown': BaseColors['color-base-brown-50'],
   'custom-brownvar': ComputedColors['brownvar-64'],
+  'custom-onbrowncontainer': BaseColors['color-base-brown-60'],
   'custom-darkred': BaseColors['color-base-darkred-80'],
   'custom-red': BaseColors['color-base-red-80'],
   'custom-orange': BaseColors['color-base-orange-80'],
@@ -429,6 +434,7 @@ export const SemanticColorsLight = {
   'custom-greenvar': ComputedColors['greenvar-64'],
   'custom-teal': BaseColors['color-base-teal-80'],
   'custom-lightblue': BaseColors['color-base-lightblue-80'],
+  'custom-lightbluevar': ComputedColors['lightbluevar-64'],
   'custom-blue': BaseColors['color-base-blue-80'],
   'custom-purple': BaseColors['color-base-purple-80'],
   'custom-lavendar': BaseColors['color-base-lavender-80'],
@@ -495,12 +501,13 @@ export const SemanticColorsDark = {
   // Surfaces
   'surface-surface': PrimitiveColors['color-neutral-98'],
   'surface-surfacedim': PrimitiveColors['color-neutral-99'],
-  'surface-surfacebright': PrimitiveColors['color-neutral-96'],
+  'surface-surfacebright': PrimitiveColors['color-neutral-98'],
   'surface-surfacecontainerlowest': PrimitiveColors['color-neutral-98'],
   'surface-surfacecontainerlow': PrimitiveColors['color-neutral-96'],
   'surface-surfacecontainer': PrimitiveColors['color-neutral-95'],
   'surface-surfacecontainerhigh': PrimitiveColors['color-neutral-90'],
   'surface-surfacecontainerhighest': PrimitiveColors['color-neutral-80'],
+  'surface-surfacecontainertransparent': 'rgba(200, 200, 220, 0.12)',
   'surface-surfaceinverse': PrimitiveColors['color-neutral-10'],
 
   // Error
@@ -516,6 +523,9 @@ export const SemanticColorsDark = {
   'foreground-onsurfacemuted': '#FCFCFD60',
   'foreground-onsurfacedisabled': '#FCFCFD3D',
   'foreground-onsurfaceinverse': PrimitiveColors['color-neutral-98'],
+  'foreground-onsurfaceinversevar': '#1F2126A3',
+  'foreground-onimage': '#FCFCFD',
+  'foreground-onimagevar': '#FCFCFDA3',
 
   // Border
   'border-borderlight': PrimitiveColors['color-neutral-95'],
@@ -527,9 +537,11 @@ export const SemanticColorsDark = {
   shadow: BaseColors['color-base-black'],
 
   // Custom hues
+  'custom-grey': BaseColors['color-base-grey-70'],
   'custom-greybrown': BaseColors['color-base-greybrown-80'],
-  'custom-brown': BaseColors['color-base-brown-80'],
+  'custom-brown': BaseColors['color-base-brown-50'],
   'custom-brownvar': ComputedColors['brownvar-64'],
+  'custom-onbrowncontainer': BaseColors['color-base-brown-40'],
   'custom-darkred': BaseColors['color-base-darkred-80'],
   'custom-red': BaseColors['color-base-red-80'],
   'custom-orange': BaseColors['color-base-orange-80'],
@@ -542,6 +554,7 @@ export const SemanticColorsDark = {
   'custom-greenvar': ComputedColors['greenvar-64'],
   'custom-teal': BaseColors['color-base-teal-80'],
   'custom-lightblue': BaseColors['color-base-lightblue-80'],
+  'custom-lightbluevar': ComputedColors['lightbluevar-64'],
   'custom-blue': BaseColors['color-base-blue-80'],
   'custom-purple': BaseColors['color-base-purple-80'],
   'custom-lavendar': BaseColors['color-base-lavender-80'],
@@ -587,6 +600,7 @@ export const SemanticColorsDark = {
 } as const;
 
 export type SemanticDarkKey = keyof typeof SemanticColorsDark;
+export type SemanticColors = typeof SemanticColorsLight;
 
 // ---- Measurements: radius ----
 

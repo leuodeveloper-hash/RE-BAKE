@@ -4,16 +4,16 @@ import {
   Easing,
   Pressable,
   StyleSheet,
-  Text,
   View,
 } from 'react-native';
 import {SvgProps} from 'react-native-svg';
-import {Radius, SemanticColorsLight} from '@constants/tokens';
+import {Radius} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
-import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
-import {IconButton} from '@components/Layout/IconButton';
-import {IconClose} from '@components/Icon/IconIndex';
-import {Avatar, AvatarColor} from '@components/Avatar/Avatar';
+import type {AvatarColor} from '@components/Avatar/Avatar';
+import {SheetHeader} from '@components/BottomSheet/SheetHeader';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
 
 export interface DialogProps {
   visible: boolean;
@@ -22,6 +22,8 @@ export interface DialogProps {
   icon?: React.FC<SvgProps>;
   /** 아바타 색상 */
   avatarColor?: AvatarColor;
+  /** 상단 중앙 그래픽 (세로 레이아웃) */
+  headerGraphic?: React.ReactNode;
   /** 타이틀 텍스트 */
   title?: string;
   /** 커스텀 콘텐츠 */
@@ -45,6 +47,7 @@ export function Dialog({
   onClose,
   icon,
   avatarColor,
+  headerGraphic,
   title,
   children,
   actions,
@@ -53,6 +56,8 @@ export function Dialog({
   surface = 'bright',
   width,
 }: DialogProps) {
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.95)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
@@ -135,38 +140,22 @@ export function Dialog({
         style={[
           styles.card,
           width != null && {width},
-          surface === 'dim' && {backgroundColor: SemanticColorsLight['surface-surfacedim']},
+          surface === 'dim' && {backgroundColor: colors['surface-surfacedim']},
           {
             opacity: contentOpacity,
             transform: [{scale}],
           },
         ]}>
-        {/* Header: icon + close */}
-        {(icon || showCloseButton) && (
-          <View style={styles.header}>
-            {icon && (
-              <Avatar
-                type="icon"
-                icon={icon}
-                shape="circle"
-                size="medium"
-                color={avatarColor}
-              />
-            )}
-            <View style={styles.headerSpacer} />
-            {showCloseButton && (
-              <IconButton
-                icon={IconClose}
-                variant="soft"
-                size="small"
-                onPress={onClose}
-              />
-            )}
-          </View>
+        {/* Header: icon + title + close */}
+        {(icon || title || showCloseButton) && (
+          <SheetHeader
+            title={title ?? ''}
+            icon={icon}
+            avatarColor={avatarColor}
+            headerGraphic={headerGraphic}
+            onClose={showCloseButton ? onClose : undefined}
+          />
         )}
-
-        {/* Title */}
-        {title && <Text style={styles.title}>{title}</Text>}
 
         {/* Content */}
         {children && <View style={styles.content}>{children}</View>}
@@ -178,45 +167,31 @@ export function Dialog({
   );
 }
 
-const styles = StyleSheet.create({
-  overlay: {
-    ...StyleSheet.absoluteFillObject,
-    justifyContent: 'center',
-    alignItems: 'center',
-    zIndex: 1000,
-  },
-  backdrop: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: SemanticColorsLight.scrim,
-  },
-  card: {
-    width: 312,
-    backgroundColor: SemanticColorsLight['surface-surfacebright'],
-    borderRadius: Radius['radius-xl'],
-    padding: Spacing.md,
-  },
-  header: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingBottom: Spacing.md,
-  },
-  headerSpacer: {
-    flex: 1,
-  },
-  title: {
-    fontFamily: Typography.title.large.fontFamily,
-    fontSize: Typography.title.large.fontSize,
-    fontWeight: Typography.title.large.fontWeight as '700',
-    lineHeight: Typography.title.large.lineHeight,
-    color: SemanticColorsLight['foreground-onsurface'],
-    marginTop: FONT_BASELINE_OFFSET,
-  },
-  content: {
-    marginTop: Spacing.smd,
-  },
-  actions: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-    marginTop: Spacing.md,
-  },
-});
+const createStyles = (colors: SemanticColors) =>
+  StyleSheet.create({
+    overlay: {
+      ...StyleSheet.absoluteFillObject,
+      justifyContent: 'center',
+      alignItems: 'center',
+      zIndex: 1000,
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: colors.scrim,
+    },
+    card: {
+      width: 312,
+      backgroundColor: colors['surface-surfacebright'],
+      borderRadius: Radius['radius-xl'],
+      paddingBottom: Spacing.md,
+    },
+    content: {
+      paddingHorizontal: Spacing.md,
+    },
+    actions: {
+      flexDirection: 'row',
+      gap: Spacing.sm,
+      marginTop: Spacing.md,
+      paddingHorizontal: Spacing.md,
+    },
+  });

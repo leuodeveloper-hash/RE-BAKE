@@ -11,12 +11,14 @@ import {
   IconBookFilled,
   IconBookTwotone,
   IconChartNoAxesGantt,
+  IconDescription,
   IconClockFilled,
   IconLeafFilled,
   IconMinus,
-  IconOpenbook,
+  IconOpenbookFilled,
   IconPhoto,
   IconProcess,
+  IconToolCaseFilled,
   IconUserFilled,
   IconWind,
 } from '@components/Icon/IconIndex';
@@ -30,13 +32,14 @@ interface FieldDef {
 }
 
 const ALL_FIELDS: FieldDef[] = [
-  {id: 'info', label: '레시피 정보', icon: IconChartNoAxesGantt, fixed: true},
+  {id: 'info', label: '레시피 정보', icon: IconDescription, fixed: true},
   {id: 'photo', label: '사진', icon: IconPhoto, fixed: true},
   {id: 'time', label: '시간', icon: IconClockFilled, fixed: true},
   {id: 'ingredients', label: '재료', icon: IconLeafFilled, fixed: true},
+  {id: 'tools', label: '도구', icon: IconToolCaseFilled, fixed: false},
   {id: 'steps', label: '과정', icon: IconProcess, fixed: true},
   {id: 'servings', label: '분량', icon: IconUserFilled, fixed: true},
-  {id: 'method', label: '공법', icon: IconOpenbook, fixed: false},
+  {id: 'method', label: '공법', icon: IconOpenbookFilled, fixed: false},
   {id: 'ratio', label: '비중', icon: IconWind, fixed: false},
   {id: 'cookbook', label: '요리책', icon: IconBookFilled, fixed: false},
   {id: 'review', label: '회고', icon: IconChartNoAxesGantt, fixed: false},

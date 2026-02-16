@@ -16,6 +16,7 @@ export interface PdfStep {
   step: number;
   description: string;
   tip?: string;
+  caution?: string;
 }
 
 export interface PdfStepGroup {
@@ -126,6 +127,7 @@ function buildStepsHtml(steps: PdfStep[]): string {
         <div class="step-content">
           <div class="step-desc">${escapeHtml(step.description)}</div>
           ${step.tip ? `<div class="step-tip">${escapeHtml(step.tip)}</div>` : ''}
+          ${step.caution ? `<div class="step-caution">${escapeHtml(step.caution)}</div>` : ''}
         </div>
       </div>`,
     )

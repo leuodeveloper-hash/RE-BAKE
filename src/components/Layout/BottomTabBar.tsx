@@ -1,4 +1,4 @@
-import React, {useEffect, useRef} from 'react';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {
   Animated,
   Easing,
@@ -10,15 +10,18 @@ import {
   UIManager,
   View,
 } from 'react-native';
-import {Radius, SemanticColorsLight} from '@constants/tokens';
+import {Radius} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Typography} from '@constants/typography';
 import {Spacing} from '@constants/spacing';
 import {SvgProps} from 'react-native-svg';
 import {Avatar} from '@components/Avatar';
 import {GlassContainer} from './GlassContainer';
 import {AppIcon} from '@components/Icon/AppIcon';
-import {IconButton} from './IconButton';
-import {IconNoteFilled, IconBookFilled, IconClose} from '@components/Icon/IconIndex';
+import {IconNoteFilled, IconBookFilled} from '@components/Icon/IconIndex';
+import {SheetHeader} from '@components/BottomSheet/SheetHeader';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
 
 // Android에서 LayoutAnimation 활성화
 if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
@@ -43,22 +46,6 @@ export interface AddMenuItem {
   onPress?: () => void;
 }
 
-// 기본 추가 메뉴 아이템
-const DEFAULT_ADD_ITEMS: AddMenuItem[] = [
-  {
-    id: 'recipe',
-    label: '레시피',
-    icon: IconNoteFilled,
-    iconColor: SemanticColorsLight['custom-greenvar'],
-  },
-  {
-    id: 'cookbook',
-    label: '요리책',
-    icon: IconBookFilled,
-    iconColor: SemanticColorsLight['custom-brownvar'],
-  },
-];
-
 export interface BottomTabBarProps {
   tabs: TabItem[];
   activeTab?: string;
@@ -77,43 +64,57 @@ export function BottomTabBar({
   activeTab,
   expanded = false,
   onClose,
-  addMenuItems = DEFAULT_ADD_ITEMS,
+  addMenuItems,
   onAddItemPress,
 }: BottomTabBarProps) {
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const tabOpacity = useRef(new Animated.Value(1)).current;
   const menuOpacity = useRef(new Animated.Value(0)).current;
+  // expanded와 분리된 내부 상태: 닫을 때 애니메이션 완료 후 전환
+  const [showMenu, setShowMenu] = useState(false);
+
+  const resolvedAddItems = useMemo<AddMenuItem[]>(() => addMenuItems ?? [
+    {id: 'recipe', label: '레시피', icon: IconNoteFilled, iconColor: colors['custom-greenvar']},
+    {id: 'cookbook', label: '요리책', icon: IconBookFilled, iconColor: colors['custom-brownvar']},
+  ], [addMenuItems, colors]);
 
   useEffect(() => {
-    // 레이아웃 애니메이션 설정
-    LayoutAnimation.configureNext({
-      duration: 280,
-      update: {
-        type: LayoutAnimation.Types.easeInEaseOut,
-      },
-    });
-
     if (expanded) {
-      // 확장 시: opacity 값 리셋 (축소 전환 대비)
+      // 열기: 즉시 메뉴 표시
+      if (Platform.OS !== 'web') {
+        LayoutAnimation.configureNext({
+          duration: 280,
+          update: {type: LayoutAnimation.Types.easeInEaseOut},
+        });
+      }
+      setShowMenu(true);
       tabOpacity.setValue(0);
       menuOpacity.setValue(1);
-    } else {
-      // 메뉴 페이드 아웃 → 탭 페이드 인
-      Animated.sequence([
-        Animated.timing(menuOpacity, {
-          toValue: 0,
-          duration: 150,
-          easing: Easing.in(Easing.cubic),
-          useNativeDriver: true,
-        }),
+    } else if (showMenu) {
+      // 닫기: 메뉴 페이드아웃 → 컨테이너 축소 → 탭 페이드인
+      Animated.timing(menuOpacity, {
+        toValue: 0,
+        duration: 150,
+        easing: Easing.in(Easing.cubic),
+        useNativeDriver: true,
+      }).start(() => {
+        if (Platform.OS !== 'web') {
+          LayoutAnimation.configureNext({
+            duration: 200,
+            update: {type: LayoutAnimation.Types.easeInEaseOut},
+          });
+        }
+        setShowMenu(false);
         Animated.timing(tabOpacity, {
           toValue: 1,
           duration: 200,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
-        }),
-      ]).start();
+        }).start();
+      });
     }
-  }, [expanded, tabOpacity, menuOpacity]);
+  }, [expanded]);
 
   const handleAddItemPress = (item: AddMenuItem) => {
     if (item.onPress) {
@@ -127,27 +128,14 @@ export function BottomTabBar({
 
   return (
     <GlassContainer
-        borderRadius={expanded ? 'xl' : 'full'}
-        contentStyle={expanded ? styles.expandedContainer : styles.container}>
-        {/* 확장 상태: 메뉴만 표시 */}
-        {expanded ? (
-          <View style={styles.menuContentMain}>
-            {/* 헤더 */}
-            <View style={styles.menuHeader}>
-              <View style={styles.menuTitleContainer}>
-                <Text style={styles.menuTitle}>추가하기</Text>
-              </View>
-              <IconButton
-                icon={IconClose}
-                variant="soft"
-                size="small"
-                onPress={onClose}
-              />
-            </View>
-
-            {/* 메뉴 아이템들 */}
+        borderRadius={showMenu ? 'xl' : 'full'}
+        style={Platform.OS === 'web' ? styles.webTransition : undefined}
+        contentStyle={showMenu ? styles.expandedContainer : styles.container}>
+        {showMenu ? (
+          <Animated.View style={{opacity: menuOpacity}}>
+            <SheetHeader title="추가하기" onClose={onClose} />
             <View style={styles.menuItemsContainer}>
-              {addMenuItems.map(item => {
+              {resolvedAddItems.map(item => {
                 const IconComponent = item.icon;
                 return (
                   <Pressable
@@ -161,7 +149,7 @@ export function BottomTabBar({
                       <IconComponent
                         width={28}
                         height={28}
-                        color={item.iconColor || SemanticColorsLight['foreground-onsurface']}
+                        color={item.iconColor || colors['foreground-onsurface']}
                       />
                     </View>
                     <Text style={styles.menuItemLabel}>{item.label}</Text>
@@ -169,104 +157,67 @@ export function BottomTabBar({
                 );
               })}
             </View>
-          </View>
+          </Animated.View>
         ) : (
-          <>
-            {/* 탭 콘텐츠 (메인 - 높이 결정) */}
-            <Animated.View style={[styles.tabContent, {opacity: tabOpacity}]}>
-              {tabs.map(tab => {
-                const isActive = activeTab === tab.id;
-                const IconComponent =
-                  isActive && tab.activeIcon ? tab.activeIcon : tab.icon;
-                const iconColor = isActive
-                  ? SemanticColorsLight['foreground-onsurface']
-                  : SemanticColorsLight['foreground-onsurfacemuted'];
-                const textColor = isActive
-                  ? SemanticColorsLight['foreground-onsurface']
-                  : SemanticColorsLight['foreground-onsurfacemuted'];
+          <Animated.View style={[styles.tabContent, {opacity: tabOpacity}]}>
+            {tabs.map(tab => {
+              const isActive = activeTab === tab.id;
+              const IconComponent =
+                isActive && tab.activeIcon ? tab.activeIcon : tab.icon;
+              const iconColor = isActive
+                ? colors['foreground-onsurface']
+                : colors['foreground-onsurfacemuted'];
+              const textColor = isActive
+                ? colors['foreground-onsurface']
+                : colors['foreground-onsurfacemuted'];
 
-                return (
-                  <Pressable
-                    key={tab.id}
-                    style={styles.segment}
-                    onPress={tab.onPress}>
-                    {({pressed}) => (
+              return (
+                <Pressable
+                  key={tab.id}
+                  style={styles.segment}
+                  onPress={tab.onPress}>
+                  {({pressed, focused}: any) => (
+                    <View
+                      style={[
+                        styles.iconContainer,
+                        isActive && styles.iconContainerActive,
+                      ]}>
                       <View
                         style={[
-                          styles.iconContainer,
-                          isActive && styles.iconContainerActive,
+                          styles.stateLayer,
+                          (pressed || focused) && styles.stateLayerPressed,
                         ]}>
-                        <View
-                          style={[
-                            styles.stateLayer,
-                            pressed && styles.stateLayerPressed,
-                          ]}>
-                          {tab.avatar ? (
-                            <Avatar
-                              size="small"
-                              shape="circle"
-                              type="image"
-                              imageUrl={tab.avatar}
-                              style={styles.avatarStyle}
-                            />
-                          ) : tab.useRandomAvatar ? (
-                            <Avatar
-                              size="small"
-                              shape="circle"
-                              type="random"
-                              seed={tab.id}
-                              style={styles.avatarStyle}
-                            />
-                          ) : (
-                            <View style={styles.iconWrapper}>
-                              <AppIcon icon={IconComponent} size="md" color={iconColor} />
-                            </View>
-                          )}
-                          <Text style={[styles.label, {color: textColor}]}>
-                            {tab.label}
-                          </Text>
-                        </View>
+                        {tab.avatar ? (
+                          <Avatar
+                            size="small"
+                            shape="circle"
+                            type="image"
+                            imageUrl={tab.avatar}
+                            style={styles.avatarStyle}
+                          />
+                        ) : tab.useRandomAvatar ? (
+                          <Avatar
+                            size="small"
+                            shape="circle"
+                            type="random"
+                            seed={tab.id}
+                            style={styles.avatarStyle}
+                          />
+                        ) : (
+                          <View style={styles.iconWrapper}>
+                            <AppIcon icon={IconComponent} size="md" color={iconColor} />
+                          </View>
+                        )}
+                        <Text style={[styles.label, {color: textColor}]}>
+                          {tab.label}
+                        </Text>
                       </View>
-                    )}
-                  </Pressable>
-                );
-              })}
-            </Animated.View>
-
-            {/* 메뉴 콘텐츠 (absolute - 페이드 인 대기) */}
-            <Animated.View
-              style={[styles.menuContentAbsolute, {opacity: menuOpacity}]}
-              pointerEvents="none">
-              <View style={styles.menuHeader}>
-                <View style={styles.menuTitleContainer}>
-                  <Text style={styles.menuTitle}>추가하기</Text>
-                </View>
-                <IconButton
-                  icon={IconClose}
-                  variant="soft"
-                  size="small"
-                  onPress={onClose}
-                />
-              </View>
-              <View style={styles.menuItemsContainer}>
-                {addMenuItems.map(item => {
-                  const IconComponent = item.icon;
-                  return (
-                    <View key={item.id} style={styles.menuItem}>
-                      <View style={styles.menuIconContainer}>
-                        <IconComponent
-                          width={28}
-                          height={28}
-                          color={item.iconColor || SemanticColorsLight['foreground-onsurface']}
-                        />
-                      </View>
-                      <Text style={styles.menuItemLabel}>{item.label}</Text>
                     </View>
-                  );
-                })}
-              </View>
-            </Animated.View>
-          </>
+                  )}
+                </Pressable>
+              );
+            })}
+          </Animated.View>
         )}
     </GlassContainer>
   );
@@ -275,7 +226,7 @@ export function BottomTabBar({
 // 공통 너비
 const BOTTOM_MENU_WIDTH = 328;
 
-const styles = StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 탭바 컨테이너 (축소 상태)
   container: {
     width: BOTTOM_MENU_WIDTH,
@@ -292,16 +243,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  // 메뉴 콘텐츠 (메인 - 높이 결정)
-  menuContentMain: {
-    // normal flow - 높이 결정
-  },
-  // 메뉴 콘텐츠 (absolute - 축소 시)
-  menuContentAbsolute: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
+  // 웹: 컨테이너 크기 변화를 CSS transition으로 부드럽게
+  webTransition: {
+    ...Platform.select({web: {transition: 'all 0.25s ease-in-out'} as any}),
   },
   // 탭 세그먼트
   segment: {
@@ -309,6 +253,7 @@ const styles = StyleSheet.create({
     minWidth: 64,
     alignItems: 'center',
     justifyContent: 'center',
+    ...Platform.select({web: {outlineStyle: 'none'} as any}),
   },
   iconContainer: {
     width: '100%',
@@ -316,8 +261,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   iconContainerActive: {
-    backgroundColor:
-      SemanticColorsLight['background-statelayers-surfacehover'],
+    backgroundColor: colors['background-statelayers-surfacehover'],
   },
   stateLayer: {
     width: '100%',
@@ -329,8 +273,7 @@ const styles = StyleSheet.create({
     borderRadius: Radius['radius-full'],
   },
   stateLayerPressed: {
-    backgroundColor:
-      SemanticColorsLight['background-statelayers-surfacefocus_press'],
+    backgroundColor: colors['background-statelayers-surfacefocus_press'],
   },
   iconWrapper: {
     width: 24,
@@ -351,31 +294,13 @@ const styles = StyleSheet.create({
     textAlign: 'center' as const,
   },
   // 추가 메뉴 스타일
-  menuHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-  },
-  menuTitleContainer: {
-    flex: 1,
-    paddingHorizontal: 4,
-  },
-  menuTitle: {
-    fontFamily: Typography.title.medium.fontFamily,
-    fontSize: Typography.title.medium.fontSize,
-    fontWeight: Typography.title.medium.fontWeight as '700',
-    lineHeight: Typography.title.medium.lineHeight,
-    color: SemanticColorsLight['foreground-onsurface'],
-  },
   menuItemsContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    paddingHorizontal: 40,
+    paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
     paddingBottom: 32,
-    gap: 32,
+    gap: Spacing.md,
   },
   menuItem: {
     alignItems: 'center',
@@ -389,7 +314,7 @@ const styles = StyleSheet.create({
     width: 80,
     height: 80,
     borderRadius: 16,
-    backgroundColor: SemanticColorsLight['surface-surfacecontainertransparent'],
+    backgroundColor: colors['surface-surfacecontainertransparent'],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -399,7 +324,7 @@ const styles = StyleSheet.create({
     fontWeight: Typography.label.medium.fontWeight as '600',
     lineHeight: Typography.label.medium.lineHeight,
     letterSpacing: -0.25,
-    color: SemanticColorsLight['foreground-onsurfacevar'],
+    color: colors['foreground-onsurfacevar'],
     textAlign: 'center',
   },
 });

@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Bake Cycle",
+    "name": "bakecycle",
     "slug": "rebake",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -16,17 +16,31 @@
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.rebake.app"
+      "bundleIdentifier": "com.bakecycle.app",
+      "infoPlist": {
+        "ITSAppUsesNonExemptEncryption": false
+      }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FAF9F8"
       },
-      "package": "com.rebake.app"
+      "package": "com.bakecycle.app"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
-    }
+      "favicon": "./assets/favicon.png",
+      "bundler": "metro"
+    },
+    "scheme": "bakecycle",
+    "plugins": [
+      "expo-web-browser"
+    ],
+    "extra": {
+      "eas": {
+        "projectId": "27699c8b-30e7-4169-baa1-f39120d4221e"
+      }
+    },
+    "owner": "leuokim"
   }
 }

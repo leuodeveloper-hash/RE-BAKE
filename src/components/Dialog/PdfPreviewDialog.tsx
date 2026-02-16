@@ -2,7 +2,9 @@ import React, {useCallback} from 'react';
 import {Platform, StyleSheet, View} from 'react-native';
 import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
-import {SemanticColorsLight, Radius} from '@constants/tokens';
+import {Radius} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
 import {
   RecipePdfData,
   generateRecipeHtml,
@@ -41,6 +43,7 @@ export function PdfPreviewDialog({
   html: htmlProp,
   filename: filenameProp,
 }: PdfPreviewDialogProps) {
+  const styles = useThemedStyles(createStyles);
   const html = htmlProp ?? (data ? generateRecipeHtml(data) : '');
   const pdfFilename = filenameProp ?? data?.title ?? 'recipes';
 
@@ -151,12 +154,13 @@ function PreviewContent({html}: {html: string}) {
   );
 }
 
-const styles = StyleSheet.create({
-  previewContainer: {
-    width: CONTENT_WIDTH,
-    height: PREVIEW_HEIGHT,
-    borderRadius: Radius['radius-md'],
-    overflow: 'hidden',
-    backgroundColor: SemanticColorsLight['surface-surfacedim'],
-  },
-});
+const createStyles = (colors: SemanticColors) =>
+  StyleSheet.create({
+    previewContainer: {
+      width: CONTENT_WIDTH,
+      height: PREVIEW_HEIGHT,
+      borderRadius: Radius['radius-md'],
+      overflow: 'hidden',
+      backgroundColor: colors['surface-surfacedim'],
+    },
+  });

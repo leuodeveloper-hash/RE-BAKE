@@ -165,6 +165,71 @@ export const NewSpacing = {
 };
 ```
 
+## 📍 메뉴 정렬 규칙
+
+### 캡슐(Selector) 클릭 시 노출되는 메뉴
+
+AppBar의 캡슐을 클릭하면 노출되는 Menu는 **해당 캡슐 기준으로 정렬**합니다.
+
+#### 수평 정렬
+
+| 트리거 위치 | 메뉴 정렬 | 스타일 |
+|------------|-----------|--------|
+| 좌측 캡슐 (타이틀 셀렉터) | 캡슐 좌측 기준 정렬 | `left: Spacing.md` |
+| 우측 캡슐 (아이콘버튼 그룹) | 아이콘버튼 우측 기준 정렬 | `right: Spacing.md` |
+
+#### 수직 간격
+
+캡슐 하단 + 4px (`Spacing.xs`)
+
+```typescript
+// ✅ GOOD: 상수 사용
+import {APPBAR_CONTENT_BOTTOM} from '@components/Layout';
+
+// 좌측 캡슐 메뉴
+groupFilterMenu: {
+  position: 'absolute',
+  top: APPBAR_CONTENT_BOTTOM + Spacing.xs,
+  left: Spacing.md,
+  zIndex: 20,
+}
+
+// 우측 캡슐 메뉴
+moreMenu: {
+  position: 'absolute',
+  top: APPBAR_CONTENT_BOTTOM + Spacing.xs,
+  right: Spacing.md,
+  zIndex: 20,
+}
+
+// ❌ BAD: 하드코딩
+style={{ top: 60, left: 16 }}
+```
+
+#### 수직 방향 (위/아래)
+
+메뉴의 노출 방향은 트리거 위치와 화면 내 여유 공간에 따라 결정합니다.
+
+| 조건 | 메뉴 방향 |
+|------|-----------|
+| 기본 (AppBar 트리거) | 아래로 노출 |
+| 화면 하단 근처 트리거 | 위로 노출 |
+| 스크롤 컨텍스트 | 남은 공간이 많은 방향으로 노출 |
+
+### 메뉴 상호 배타
+- 메뉴는 한 번에 하나만 노출
+- 다른 메뉴를 열면 기존 메뉴는 닫힘
+- 메뉴 바깥 터치 시 닫기 위한 투명 오버레이 필요
+
+```typescript
+// 오버레이 패턴
+<Pressable
+  style={styles.overlay}  // absoluteFill + transparent
+  onPress={handleOverlayPress}
+  pointerEvents={anyMenuOpen ? 'auto' : 'none'}
+/>
+```
+
 ## 🎬 애니메이션 규칙
 
 ### BlurView (expo-blur) 주의사항

@@ -5,8 +5,9 @@ import {Card} from '@components/Layout/Card';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {IconButton} from '@components/Layout/IconButton';
 import {IconClose, IconCircleInfoFilled} from '@components/Icon/IconIndex';
-import {SemanticColorsLight} from '@constants/tokens';
-import {ElevationLight} from '@constants/elevation';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors, useTheme} from '@contexts/ThemeContext';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 
@@ -23,6 +24,9 @@ export interface SnackbarProps {
 }
 
 export function Snackbar({message, icon = IconCircleInfoFilled, action, onClose, visible = false, style}: SnackbarProps) {
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
+  const {elevation} = useTheme();
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(8)).current;
   const isVisible = useRef(false);
@@ -58,8 +62,8 @@ export function Snackbar({message, icon = IconCircleInfoFilled, action, onClose,
 
   return (
     <Animated.View style={{opacity, transform: [{translateY}]}} pointerEvents={visible ? 'auto' : 'none'}>
-      <Card style={[styles.container, style]}>
-        <AppIcon icon={icon} size="sm" color={SemanticColorsLight['foreground-onsurfacemuted']} />
+      <Card style={[styles.container, elevation['4'], style]}>
+        <AppIcon icon={icon} size="sm" color={colors['foreground-onsurfacemuted']} />
         <Text style={styles.message}>{message}</Text>
         {(action || onClose) && (
           <View style={styles.actions}>
@@ -83,7 +87,7 @@ export function Snackbar({message, icon = IconCircleInfoFilled, action, onClose,
   );
 }
 
-const styles = StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -94,7 +98,6 @@ const styles = StyleSheet.create({
     paddingRight: Spacing.sm,
     paddingVertical: Spacing.smd,
     gap: Spacing.sm,
-    ...ElevationLight['4'],
   },
   message: {
     flex: 1,
@@ -104,7 +107,7 @@ const styles = StyleSheet.create({
     fontWeight: Typography.body.medium.fontWeight as '500',
     lineHeight: Typography.body.medium.lineHeight,
     letterSpacing: -0.25,
-    color: SemanticColorsLight['foreground-onsurface'],
+    color: colors['foreground-onsurface'],
     marginTop: FONT_BASELINE_OFFSET,
   },
   actions: {
@@ -118,11 +121,11 @@ const styles = StyleSheet.create({
     paddingVertical: Spacing.xs,
   },
   actionText: {
-    fontFamily: Typography.label.medium.fontFamily,
-    fontSize: Typography.label.medium.fontSize,
-    fontWeight: Typography.label.medium.fontWeight as '600',
-    lineHeight: Typography.label.medium.lineHeight,
-    color: SemanticColorsLight['foreground-accent'],
+    fontFamily: Typography.label.large.fontFamily,
+    fontSize: Typography.label.large.fontSize,
+    fontWeight: Typography.label.large.fontWeight as '500',
+    lineHeight: Typography.label.large.lineHeight,
+    color: colors['foreground-accent'],
     marginTop: FONT_BASELINE_OFFSET,
   },
 });
