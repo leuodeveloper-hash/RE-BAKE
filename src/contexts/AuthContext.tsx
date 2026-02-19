@@ -7,12 +7,21 @@ import {
   signOut as firebaseSignOut,
   GoogleAuthProvider,
   signInWithPopup,
+  signInWithCredential,
   User,
 } from 'firebase/auth';
 import {doc, getDoc, setDoc} from 'firebase/firestore';
+import {
+  GoogleSignin,
+} from '@react-native-google-signin/google-signin';
 import {auth, db} from '@config/firebase';
 
+const GOOGLE_WEB_CLIENT_ID = '420587944388-nh09tqe1o1gmsreuf55qesjjmalgtmg0.apps.googleusercontent.com';
 const googleProvider = new GoogleAuthProvider();
+
+GoogleSignin.configure({
+  webClientId: GOOGLE_WEB_CLIENT_ID,
+});
 
 interface AuthContextValue {
   user: User | null;
@@ -62,7 +71,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
           setIsAdmin(true);
         } else {
           try {
-            const adminDoc = await getDoc(doc(db, 'admins', firebaseUser.uid));
+            const adminDoc = await getDoc(doc(db, 'admin', firebaseUser.uid));
             setIsAdmin(adminDoc.exists());
           } catch {
             setIsAdmin(false);
@@ -100,11 +109,14 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
   const signInWithGoogleFn = useCallback(async () => {
     if (Platform.OS === 'web') {
-      // 웹: Firebase 팝업 방식 (리디렉트 없이 바로 로그인)
       await signInWithPopup(auth, googleProvider);
     } else {
-      // 네이티브: expo-auth-session 사용 (추후 구현)
-      throw new Error('Google Sign-In on native requires expo-auth-session setup');
+      await GoogleSignin.hasPlayServices();
+      const response = await GoogleSignin.signIn();
+      if (response.type === 'success' && response.data.idToken) {
+        const credential = GoogleAuthProvider.credential(response.data.idToken);
+        await signInWithCredential(auth, credential);
+      }
     }
   }, []);
 

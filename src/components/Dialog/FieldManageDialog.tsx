@@ -2,7 +2,7 @@ import React, {useState, useEffect} from 'react';
 import {ScrollView, StyleSheet} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {Dialog} from './Dialog';
-import {Card} from '@components/Layout';
+import {Card} from '@components/Container';
 import {ListItem} from '@components/ListItem';
 import {Button} from '@components/Button';
 import {Spacing} from '@constants/spacing';

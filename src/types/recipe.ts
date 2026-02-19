@@ -4,10 +4,12 @@ import type {IngredientGroup, Step, StepGroup} from '@data/mockRecipes';
 export interface SerializableRecipe {
   id: string;
   title: string;
-  category: string;
+  cookbook: string;
   method: string;
   ratio?: string;
   reviewCount: number;
+  /** 사용자가 선택한 이미지 URI */
+  imageUri?: string;
   time?: string;
   servings?: string;
   session?: string;
@@ -19,6 +21,8 @@ export interface SerializableRecipe {
   reviews?: {evaluation: string; improvement: string}[];
   /** 둘러보기에서 가져온 경우 원본 레시피 ID */
   sourceId?: string;
+  /** 생성 시각 (ISO 문자열) */
+  createdAt?: string;
 }
 
 /** JSON 내보내기 파일 형식 */

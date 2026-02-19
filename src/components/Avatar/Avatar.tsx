@@ -1,7 +1,7 @@
-import React, {useMemo} from 'react';
-import {Image, StyleSheet, Text, View, ViewStyle} from 'react-native';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {Animated, Easing, Image, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {Radius, BaseColors, withOpacity} from '@constants/tokens';
-import {getRandomAvatar} from '@constants/avatars';
+import {getRandomAvatar} from './avatars';
 import {SvgProps} from 'react-native-svg';
 import {useColors} from '@contexts/ThemeContext';
 
@@ -92,7 +92,7 @@ export function Avatar({
   const FOREGROUND_COLORS: Record<AvatarColor, string> = {
     gray:      colors['custom-grey'],
     greybrown: colors['custom-greybrown'],
-    brown:     colors['custom-onbrowncontainer'],
+    brown:     colors['custom-brown'],
     darkred:   colors['custom-darkred'],
     red:       colors['custom-red'],
     orange:    colors['custom-orange'],
@@ -109,7 +109,7 @@ export function Avatar({
   const config = SIZE_CONFIG[size];
   const borderRadius = getShapeRadius(shape, size);
   const isImageType = type === 'image' || type === 'random';
-  const backgroundColor = isImageType ? '#4E525E' : BACKGROUND_COLORS[color];
+  const backgroundColor = isImageType ? 'transparent' : BACKGROUND_COLORS[color];
   const foregroundColor = FOREGROUND_COLORS[color];
 
   // 랜덤 아바타는 시드 기반으로 일관된 이미지 반환
@@ -119,6 +119,25 @@ export function Avatar({
     }
     return null;
   }, [type, seed]);
+
+  // 이미지 로딩 스켈레톤
+  const [imageLoaded, setImageLoaded] = useState(false);
+  const needsSkeleton = type === 'image' && !!imageUrl;
+  const pulseOpacity = useRef(new Animated.Value(0.3)).current;
+
+  useEffect(() => {
+    if (!needsSkeleton || imageLoaded) return;
+    const animation = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseOpacity, {toValue: 0.7, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true}),
+        Animated.timing(pulseOpacity, {toValue: 0.3, duration: 800, easing: Easing.inOut(Easing.ease), useNativeDriver: true}),
+      ]),
+    );
+    animation.start();
+    return () => animation.stop();
+  }, [needsSkeleton, imageLoaded, pulseOpacity]);
+
+  const handleImageLoad = useCallback(() => setImageLoaded(true), []);
 
   const containerStyle: ViewStyle = {
     width: config.container,
@@ -144,11 +163,17 @@ export function Avatar({
       case 'image':
         if (imageUrl) {
           return (
-            <Image
-              source={{uri: imageUrl}}
-              style={styles.image}
-              resizeMode="cover"
-            />
+            <>
+              {!imageLoaded && (
+                <Animated.View style={[StyleSheet.absoluteFill, {backgroundColor: colors['surface-surfacecontainer'], opacity: pulseOpacity}]} />
+              )}
+              <Image
+                source={{uri: imageUrl}}
+                style={styles.image}
+                resizeMode="cover"
+                onLoad={handleImageLoad}
+              />
+            </>
           );
         }
         return null;

@@ -26,7 +26,7 @@ export interface PdfStepGroup {
 
 export interface RecipePdfData {
   title: string;
-  category?: string;
+  cookbook?: string;
   method?: string;
   reviewCount?: number;
   time?: string;
@@ -59,7 +59,7 @@ function formatPercentage(value: number): string {
 
 function buildSubtitle(data: RecipePdfData): string {
   const parts: string[] = [];
-  if (data.category) parts.push(data.category);
+  if (data.cookbook) parts.push(data.cookbook);
   if (data.method) parts.push(data.method);
   if (data.reviewCount != null) parts.push(`${data.reviewCount}회차`);
   return parts.join(' · ');

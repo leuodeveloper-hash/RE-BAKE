@@ -14,13 +14,30 @@ export interface MenuItemData {
   id: string;
   label: string;
   icon?: React.FC<SvgProps>;
+  iconColor?: string;
+  /** 체크박스 표시 (undefined이면 체크박스 없음) */
+  checked?: boolean;
+  /** 하위 메뉴가 있는 항목 (우측 화살표 표시) */
+  hasChildren?: boolean;
+  /** 우측 텍스트 (예: 재료 양) */
+  trailingText?: string;
   destructive?: boolean;
   disabled?: boolean;
+  /** 하단 구분선 */
+  showDivider?: boolean;
+}
+
+export interface MenuSection {
+  title?: string;
+  items: MenuItemData[];
+  selectedId?: string;
 }
 
 export interface MenuProps {
   title?: string;
-  items: MenuItemData[];
+  items?: MenuItemData[];
+  /** 여러 섹션으로 구성된 메뉴 (title/items 대신 사용) */
+  sections?: MenuSection[];
   selectedId?: string;
   onSelect?: (id: string) => void;
   onClose?: () => void;
@@ -32,6 +49,7 @@ export interface MenuProps {
 export function Menu({
   title,
   items,
+  sections,
   selectedId,
   onSelect,
   onClose,
@@ -91,50 +109,99 @@ export function Menu({
   if (!shouldRender) return null;
 
   return (
-    <Animated.View
-      style={[
-        styles.container,
-        style,
-        {
-          transform: [{scale}],
-        },
-      ]}
-      pointerEvents={visible ? 'auto' : 'none'}>
-      {/* BlurView는 별도 래퍼 - opacity 애니메이션 없음, 항상 intensity 64 */}
-      <BlurView intensity={64} tint={isDark ? 'dark' : 'default'} style={styles.blurView}>
-        {/* 콘텐츠에만 opacity 애니메이션 적용 */}
-        <Animated.View style={[styles.backgroundLayer, {opacity: contentOpacity}]}>
-          {title && <Subheader title={title} />}
-          {items.map(item => (
-            <MenuItem
-              key={item.id}
-              id={item.id}
-              label={item.label}
-              icon={item.icon}
-              selected={item.id === selectedId}
-              destructive={item.destructive}
-              disabled={item.disabled}
-              onPress={() => onSelect?.(item.id)}
-            />
-          ))}
+    <>
+      {/* 바깥 터치 시 닫기 오버레이 */}
+      {visible && onClose && (
+        <Pressable
+          style={styles.backdrop}
+          onPress={onClose}
+        />
+      )}
+      <Animated.View
+        style={[
+          styles.container,
+          style,
+          {
+            transform: [{scale}],
+          },
+        ]}
+        pointerEvents={visible ? 'auto' : 'none'}>
+        {/* BlurView는 별도 래퍼 - opacity 애니메이션 없음, 항상 intensity 64 */}
+        <BlurView intensity={64} tint={isDark ? 'dark' : 'default'} style={styles.blurView}>
+          {/* 콘텐츠에만 opacity 애니메이션 적용 */}
+          <Animated.View style={[styles.backgroundLayer, {opacity: contentOpacity}]}>
+          {sections ? (
+            sections.map((section, idx) => (
+              <React.Fragment key={idx}>
+                {section.title && <Subheader title={section.title} />}
+                {section.items.map(item => (
+                  <MenuItem
+                    key={item.id}
+                    id={item.id}
+                    label={item.label}
+                    icon={item.icon}
+                    iconColor={item.iconColor}
+                    selected={item.id === (section.selectedId ?? selectedId)}
+                    checked={item.checked}
+                    hasChildren={item.hasChildren}
+                    trailingText={item.trailingText}
+                    destructive={item.destructive}
+                    disabled={item.disabled}
+                    showDivider={item.showDivider}
+                    onPress={() => onSelect?.(item.id)}
+                  />
+                ))}
+              </React.Fragment>
+            ))
+          ) : (
+            <>
+              {title && <Subheader title={title} />}
+              {items?.map(item => (
+                <MenuItem
+                  key={item.id}
+                  id={item.id}
+                  label={item.label}
+                  icon={item.icon}
+                  iconColor={item.iconColor}
+                  selected={item.id === selectedId}
+                  checked={item.checked}
+                  hasChildren={item.hasChildren}
+                  trailingText={item.trailingText}
+                  destructive={item.destructive}
+                  disabled={item.disabled}
+                  showDivider={item.showDivider}
+                  onPress={() => onSelect?.(item.id)}
+                />
+              ))}
+            </>
+          )}
         </Animated.View>
       </BlurView>
     </Animated.View>
+    </>
   );
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  backdrop: {
+    position: 'absolute' as const,
+    top: -9999,
+    left: -9999,
+    right: -9999,
+    bottom: -9999,
+  },
   container: {
     borderRadius: Radius['radius-lg'],
     overflow: 'hidden',
     // Shadow
     shadowColor: '#000000',
     shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.06,
+    shadowOpacity: 0.10,
     shadowRadius: 18,
-    elevation: 8,
+    elevation: 4,
   },
   blurView: {
+    borderRadius: Radius['radius-lg'],
     overflow: 'hidden',
   },
   backgroundLayer: {

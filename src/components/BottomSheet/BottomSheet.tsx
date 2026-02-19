@@ -1,9 +1,9 @@
-import React, {useEffect, useRef} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
   Animated,
   Dimensions,
+  GestureResponderEvent,
   Modal,
-  PanResponder,
   Pressable,
   StyleSheet,
   View,
@@ -12,50 +12,44 @@ import {Radius} from '@constants/tokens';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {SheetHeader} from './SheetHeader';
 
 const {height: SCREEN_HEIGHT} = Dimensions.get('window');
 
-// iOS 18 HIG 영감 애니메이션 설정
 const ANIMATION_CONFIG = {
-  // Spring animation - iOS 18 스타일의 자연스러운 바운스
   spring: {
     tension: 100,
     friction: 12,
     useNativeDriver: true,
   },
-  // 빠른 닫기용
   springFast: {
     tension: 150,
     friction: 15,
     useNativeDriver: true,
   },
-  // Timing animation for backdrop
   timing: {
     duration: 300,
     useNativeDriver: true,
   },
 };
 
-// 드래그 임계값 - 이 비율 이상 드래그하면 닫힘
 const DISMISS_THRESHOLD = 0.3;
-// 속도 임계값 - 빠르게 드래그하면 바로 닫힘
 const VELOCITY_THRESHOLD = 800;
 
 export interface BottomSheetProps {
   visible: boolean;
   onClose: () => void;
   children: React.ReactNode;
-  /** 헤더 타이틀 (설정 시 핸들 바 대신 SheetHeader 표시) */
   title?: string;
-  /** 헤더 상단 중앙 그래픽 (세로 레이아웃) */
+  description?: string;
   headerGraphic?: React.ReactNode;
-  /** 시트 높이 (기본: auto) */
+  headerType?: 'default' | 'center';
   height?: number | 'auto';
-  /** 드래그로 닫기 가능 여부 (기본: true) */
   enableDragToDismiss?: boolean;
-  /** 배경 탭으로 닫기 가능 여부 (기본: true) */
   enableBackdropDismiss?: boolean;
+  fullScreen?: boolean;
+  backgroundColor?: string;
 }
 
 export function BottomSheet({
@@ -63,37 +57,32 @@ export function BottomSheet({
   onClose,
   children,
   title,
+  description,
   headerGraphic,
+  headerType,
   height = 'auto',
   enableDragToDismiss = true,
   enableBackdropDismiss = true,
+  fullScreen = false,
+  backgroundColor,
 }: BottomSheetProps) {
   const styles = useThemedStyles(createStyles);
+  const {top: safeTop, bottom: safeBottom} = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const contentHeight = useRef(0);
+  // 내부 마운트 상태: 닫기 애니메이션 완료까지 유지
+  const [mounted, setMounted] = useState(false);
+  const closingRef = useRef(false);
 
-  // 열기/닫기 애니메이션
-  useEffect(() => {
-    if (visible) {
-      // 시트 올라오기 + 배경 페이드인
-      Animated.parallel([
-        Animated.spring(translateY, {
-          toValue: 0,
-          ...ANIMATION_CONFIG.spring,
-        }),
-        Animated.timing(backdropOpacity, {
-          toValue: 1,
-          ...ANIMATION_CONFIG.timing,
-        }),
-      ]).start();
-    }
-  }, [visible, translateY, backdropOpacity]);
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
 
   // 닫기 애니메이션
-  const animateClose = (velocity?: number) => {
+  const animateClose = useCallback((velocity?: number) => {
+    if (closingRef.current) return;
+    closingRef.current = true;
     const targetY = contentHeight.current || SCREEN_HEIGHT;
-
     Animated.parallel([
       Animated.spring(translateY, {
         toValue: targetY,
@@ -106,66 +95,97 @@ export function BottomSheet({
         useNativeDriver: true,
       }),
     ]).start(() => {
-      onClose();
-      // 다음 열기를 위해 초기화
+      closingRef.current = false;
+      setMounted(false);
       translateY.setValue(SCREEN_HEIGHT);
+      onCloseRef.current();
     });
-  };
+  }, [translateY, backdropOpacity]);
 
-  // 드래그 제스처 핸들러
-  const panResponder = useRef(
-    PanResponder.create({
-      onStartShouldSetPanResponder: () => enableDragToDismiss,
-      onMoveShouldSetPanResponder: (_, gestureState) => {
-        // 아래로 드래그할 때만 반응
-        return enableDragToDismiss && gestureState.dy > 10;
-      },
-      onPanResponderMove: (_, gestureState) => {
-        // 위로 드래그는 무시, 아래로만 따라감
-        if (gestureState.dy > 0) {
-          translateY.setValue(gestureState.dy);
-        }
-      },
-      onPanResponderRelease: (_, gestureState) => {
-        const {dy, vy} = gestureState;
-        const sheetHeight = contentHeight.current || 300;
+  // visible prop 변화 감지
+  useEffect(() => {
+    if (visible && !mounted) {
+      // 열기
+      closingRef.current = false;
+      setMounted(true);
+      translateY.setValue(SCREEN_HEIGHT);
+      backdropOpacity.setValue(0);
+      // 다음 프레임에서 애니메이션 시작 (마운트 후)
+      requestAnimationFrame(() => {
+        Animated.parallel([
+          Animated.spring(translateY, {toValue: 0, ...ANIMATION_CONFIG.spring}),
+          Animated.timing(backdropOpacity, {toValue: 1, ...ANIMATION_CONFIG.timing}),
+        ]).start();
+      });
+    } else if (!visible && mounted && !closingRef.current) {
+      // 외부에서 visible=false로 바뀜 → 애니메이션 후 닫기
+      animateClose();
+    }
+  }, [visible]);
 
-        // 빠른 플릭이거나 임계값 이상 드래그하면 닫기
-        if (vy > VELOCITY_THRESHOLD || dy > sheetHeight * DISMISS_THRESHOLD) {
-          animateClose(vy);
-        } else {
-          // 원래 위치로 스프링 백
-          Animated.spring(translateY, {
-            toValue: 0,
-            ...ANIMATION_CONFIG.spring,
-          }).start();
-        }
-      },
-    })
-  ).current;
+  // ── 드래그 제스처 (직접 Responder — 핸들 영역 전용) ──
+  const dragStartY = useRef(0);
+  const dragLastY = useRef(0);
+  const dragLastTime = useRef(0);
+  const dragVelocity = useRef(0);
+  const contentTouchStartY = useRef(0);
 
-  const handleBackdropPress = () => {
+  const onDragGrant = useCallback((e: GestureResponderEvent) => {
+    dragStartY.current = e.nativeEvent.pageY;
+    dragLastY.current = e.nativeEvent.pageY;
+    dragLastTime.current = Date.now();
+    dragVelocity.current = 0;
+  }, []);
+
+  const onDragMove = useCallback((e: GestureResponderEvent) => {
+    const dy = e.nativeEvent.pageY - dragStartY.current;
+    const now = Date.now();
+    const dt = (now - dragLastTime.current) / 1000;
+    if (dt > 0) {
+      dragVelocity.current = (e.nativeEvent.pageY - dragLastY.current) / dt;
+    }
+    dragLastY.current = e.nativeEvent.pageY;
+    dragLastTime.current = now;
+    if (dy > 0) translateY.setValue(dy);
+  }, [translateY]);
+
+  const onDragRelease = useCallback(() => {
+    const dy = dragLastY.current - dragStartY.current;
+    const vy = dragVelocity.current;
+    const sheetHeight = contentHeight.current || 300;
+    if (vy > VELOCITY_THRESHOLD || dy > sheetHeight * DISMISS_THRESHOLD) {
+      animateClose(vy);
+    } else {
+      Animated.spring(translateY, {toValue: 0, ...ANIMATION_CONFIG.spring}).start();
+    }
+  }, [translateY, animateClose]);
+
+  const onDragTerminate = useCallback(() => {
+    Animated.spring(translateY, {toValue: 0, ...ANIMATION_CONFIG.spring}).start();
+  }, [translateY]);
+
+  const handleBackdropPress = useCallback(() => {
     if (enableBackdropDismiss) {
       animateClose();
     }
-  };
+  }, [enableBackdropDismiss, animateClose]);
 
   const handleLayout = (event: {nativeEvent: {layout: {height: number}}}) => {
     contentHeight.current = event.nativeEvent.layout.height;
   };
 
-  if (!visible) {
+  if (!mounted) {
     return null;
   }
 
   return (
     <Modal
-      visible={visible}
+      visible={mounted}
       transparent
       animationType="none"
       statusBarTranslucent
       onRequestClose={handleBackdropPress}>
-      <View style={styles.container}>
+      <View style={[styles.container, !fullScreen && {paddingBottom: Math.max(Spacing.sm, safeBottom)}, fullScreen && styles.containerFullScreen]}>
         {/* 배경 오버레이 */}
         <Animated.View
           style={[
@@ -184,23 +204,53 @@ export function BottomSheet({
         <Animated.View
           style={[
             styles.sheetContainer,
-            height !== 'auto' && {height},
-            {
-              transform: [{translateY}],
-            },
+            fullScreen && styles.sheetFullScreen,
+            fullScreen && backgroundColor ? {backgroundColor} : undefined,
+            height !== 'auto' && !fullScreen && {height},
+            {transform: [{translateY}]},
           ]}
-          onLayout={handleLayout}
-          {...panResponder.panHandlers}>
-          {/* 핸들 바 */}
-          <View style={styles.handleContainer}>
-            <View style={styles.handle} />
+          onLayout={handleLayout}>
+          <View style={fullScreen ? styles.wrapperFullScreen : undefined}>
+            {/* 핸들: 터치 즉시 드래그 시작 */}
+            <View
+              onStartShouldSetResponder={() => enableDragToDismiss}
+              onResponderGrant={onDragGrant}
+              onResponderMove={onDragMove}
+              onResponderRelease={onDragRelease}
+              onResponderTerminate={onDragTerminate}
+              style={[styles.handleContainer, fullScreen && {paddingTop: safeTop}]}
+            >
+              <View style={styles.handle} />
+            </View>
+
+            <View
+              style={fullScreen ? {flex: 1} : undefined}
+              onStartShouldSetResponderCapture={(e: GestureResponderEvent) => {
+                contentTouchStartY.current = e.nativeEvent.pageY;
+                return false;
+              }}
+              onMoveShouldSetResponderCapture={(e: GestureResponderEvent) => {
+                if (!enableDragToDismiss) return false;
+                const dy = e.nativeEvent.pageY - contentTouchStartY.current;
+                return dy > 10;
+              }}
+              onResponderGrant={(e: GestureResponderEvent) => {
+                dragStartY.current = contentTouchStartY.current;
+                dragLastY.current = e.nativeEvent.pageY;
+                dragLastTime.current = Date.now();
+                dragVelocity.current = 0;
+                const dy = e.nativeEvent.pageY - contentTouchStartY.current;
+                if (dy > 0) translateY.setValue(dy);
+              }}
+              onResponderMove={onDragMove}
+              onResponderRelease={onDragRelease}
+              onResponderTerminate={onDragTerminate}
+            >
+              {title && <SheetHeader title={title} description={description} onClose={() => animateClose()} headerGraphic={headerGraphic} headerType={headerType} />}
+
+              <View style={[styles.content, fullScreen && styles.contentFullScreen]}>{children}</View>
+            </View>
           </View>
-
-          {/* 헤더 (title이 있을 때) */}
-          {title && <SheetHeader title={title} onClose={onClose} headerGraphic={headerGraphic} />}
-
-          {/* 콘텐츠 */}
-          <View style={styles.content}>{children}</View>
         </Animated.View>
       </View>
     </Modal>
@@ -224,17 +274,15 @@ const createStyles = (colors: SemanticColors) =>
       alignSelf: 'center',
       backgroundColor: colors['surface-surfacebright'],
       borderRadius: Radius['radius-xl'],
-      // iOS shadow
       shadowColor: colors.shadow,
       shadowOffset: {width: 0, height: -4},
       shadowOpacity: 0.15,
       shadowRadius: 20,
-      // Android shadow
       elevation: 20,
     },
     handleContainer: {
       alignItems: 'center',
-      paddingVertical: 4,
+      paddingVertical: 8,
     },
     handle: {
       width: 36,
@@ -243,6 +291,25 @@ const createStyles = (colors: SemanticColors) =>
       backgroundColor: colors['border-border'],
     },
     content: {
-      paddingBottom: Spacing.md,
+      paddingHorizontal: Spacing.xs,
+      paddingBottom: Spacing.lg,
+    },
+    containerFullScreen: {
+      padding: 0,
+    },
+    sheetFullScreen: {
+      flex: 1,
+      maxWidth: '100%' as any,
+      borderRadius: 0,
+      borderTopLeftRadius: Radius['radius-xl'],
+      borderTopRightRadius: Radius['radius-xl'],
+      overflow: 'hidden',
+    },
+    wrapperFullScreen: {
+      flex: 1,
+    },
+    contentFullScreen: {
+      flex: 1,
+      paddingBottom: 0,
     },
   });

@@ -1,7 +1,7 @@
 import React, {useCallback, useMemo, useState} from 'react';
 import {StyleSheet, Text} from 'react-native';
 import {useRouter} from 'expo-router';
-import {AppBar, APPBAR_CONTENT_BOTTOM} from '@components/Layout';
+import {AppBar} from '@components/Navigation';
 import {Menu} from '@components/Menu';
 import {RecipeListTemplate} from '@components/Recipe/RecipeListTemplate';
 import {Dialog, PdfPreviewDialog} from '@components/Dialog';
@@ -9,58 +9,61 @@ import {Button} from '@components/Button';
 import {EmptyState} from '@components/EmptyState';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import type {SemanticColors} from '@constants/tokens';
-import {Spacing} from '@constants/spacing';
-import {Typography} from '@constants/typography';
 import {MockRecipe} from '@data/mockRecipes';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
+import {useColors} from '@contexts/ThemeContext';
 import {generateRecipeListHtml, generateRecipeHtml} from '@utils/generateRecipeHtml';
 import {parseSession, formatSession} from '@utils/session';
+import {getRecipeMenuItems, getCookbookSubmenuItems} from '@utils/recipeMenuItems';
 import {
   IconBookFilled,
   IconTrash,
   IconTrashTwotone,
   IconArrowDownToLine,
-  IconHash,
-  IconEdit,
 } from '@components/Icon/IconIndex';
-const emptyRecipeImage = require('../../assets/images/empty_recipe.png');
 
 const MORE_MENU_ITEMS = [
   {id: 'downloadAll', label: 'PDF 다운로드', icon: IconArrowDownToLine},
   {id: 'deleteAll', label: '전체 삭제', icon: IconTrash, destructive: true},
 ];
 
-const getCardMenuItems = (recipe: MockRecipe) => {
-  const {total} = parseSession(recipe.session);
-  return [
-    {id: 'remake', label: `다시 만들기: ${total + 1}회차`, icon: IconHash},
-    {id: 'edit', label: '편집', icon: IconEdit},
-    {id: 'download', label: 'PDF 다운로드', icon: IconArrowDownToLine},
-    {id: 'delete', label: '삭제', icon: IconTrash, destructive: true},
-  ];
-};
+const getDefaultCardMenuItems = (recipe: MockRecipe) =>
+  getRecipeMenuItems({session: recipe.session, showRemake: true, showEdit: true, showDelete: true, showCookbook: true});
 
 export function HomeScreen() {
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
-  const {recipes, setRecipes, selectedCookbook, setSelectedCookbook, isLoading} = useRecipes();
+  const {recipes, setRecipes, selectedCookbook, setSelectedCookbook, availableCookbooks, cookbookColors, isLoading, reload} = useRecipes();
   const {showSnackbar} = useSnackbar();
+  const colors = useColors();
 
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showCookbookMenu, setShowCookbookMenu] = useState(false);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [pdfHtml, setPdfHtml] = useState('');
+  const [cookbookSubmenuRecipe, setCookbookSubmenuRecipe] = useState<MockRecipe | null>(null);
 
   const cookbookMenuItems = useMemo(() => {
-    const categories = new Set(recipes.map(r => r.category || '그룹없음'));
-    const items = [{id: '__all__', label: '모든 요리책', icon: IconBookFilled}];
-    for (const cat of categories) {
-      items.push({id: cat, label: cat, icon: IconBookFilled});
+    const recipeCounts = new Map<string, number>();
+    for (const r of recipes) {
+      const key = r.cookbook || '그룹없음';
+      recipeCounts.set(key, (recipeCounts.get(key) ?? 0) + 1);
+    }
+    const allNames = new Set([
+      ...recipeCounts.keys(),
+      ...availableCookbooks,
+    ]);
+    const items: (typeof MORE_MENU_ITEMS[number] & {icon: typeof IconBookFilled})[] = [
+      {id: '__all__', label: '모든 요리책', icon: IconBookFilled},
+    ];
+    for (const name of allNames) {
+      const count = recipeCounts.get(name) ?? 0;
+      items.push({id: name, label: name, icon: IconBookFilled, disabled: count === 0});
     }
     return items;
-  }, [recipes]);
+  }, [recipes, availableCookbooks]);
 
   // 리메이크 그룹에서 최신 회차만 표시 + 그룹 전체 회고 합산
   const visibleRecipes = useMemo(() => {
@@ -96,7 +99,7 @@ export function HomeScreen() {
 
   const filteredRecipes = useMemo(() => {
     if (!selectedCookbook) return visibleRecipes;
-    return visibleRecipes.filter(r => (r.category || '그룹없음') === selectedCookbook);
+    return visibleRecipes.filter(r => (r.cookbook || '그룹없음') === selectedCookbook);
   }, [visibleRecipes, selectedCookbook]);
 
   const handleCookbookSelect = (id: string) => {
@@ -109,7 +112,7 @@ export function HomeScreen() {
     if (id === 'downloadAll') {
       const pdfData = recipes.map(r => ({
         title: r.title,
-        category: r.category,
+        cookbook: r.cookbook,
         method: r.method,
         reviewCount: r.reviewCount,
         time: r.time,
@@ -137,7 +140,46 @@ export function HomeScreen() {
     });
   }, [recipes, setRecipes, showSnackbar]);
 
-  const handleCardMenuSelect = useCallback((id: string, recipe: MockRecipe) => {
+  const getCardMenuItems = useCallback((recipe: MockRecipe) => {
+    if (cookbookSubmenuRecipe?.id === recipe.id) {
+      return getCookbookSubmenuItems({
+        availableCookbooks,
+        cookbookColors,
+        currentCookbook: recipe.cookbook,
+        colors,
+      }).items;
+    }
+    return getDefaultCardMenuItems(recipe);
+  }, [cookbookSubmenuRecipe, availableCookbooks, cookbookColors, colors]);
+
+  const getCardMenuSelectedId = useCallback((recipe: MockRecipe): string | undefined => {
+    if (cookbookSubmenuRecipe?.id === recipe.id) {
+      return getCookbookSubmenuItems({
+        availableCookbooks,
+        cookbookColors,
+        currentCookbook: recipe.cookbook,
+        colors,
+      }).selectedId;
+    }
+    return undefined;
+  }, [cookbookSubmenuRecipe, availableCookbooks, cookbookColors, colors]);
+
+  const handleCardMenuSelect = useCallback((id: string, recipe: MockRecipe): void | false => {
+    if (id === 'cookbook') {
+      setCookbookSubmenuRecipe(recipe);
+      return false;
+    }
+    if (id.startsWith('cookbook:')) {
+      const cookbookName = id.slice('cookbook:'.length);
+      const newCookbook = cookbookName === '__none__' ? '' : cookbookName;
+      setRecipes(prev => prev.map(r =>
+        r.id === recipe.id ? {...r, cookbook: newCookbook} : r
+      ));
+      setCookbookSubmenuRecipe(null);
+      showSnackbar(`'${recipe.title}'을 '${newCookbook || '그룹없음'}'으로 이동했습니다`);
+      return;
+    }
+    setCookbookSubmenuRecipe(null);
     if (id === 'remake') {
       const {total} = parseSession(recipe.session);
       const newTotal = total + 1;
@@ -150,6 +192,7 @@ export function HomeScreen() {
         remakeGroupId: groupId,
         reviews: [],
         reviewCount: 0,
+        createdAt: new Date().toISOString(),
       };
       setRecipes(prev => [
         ...prev.map(r => {
@@ -182,7 +225,7 @@ export function HomeScreen() {
     } else if (id === 'download') {
       setPdfHtml(generateRecipeHtml({
         title: recipe.title,
-        category: recipe.category,
+        cookbook: recipe.cookbook,
         method: recipe.method,
         reviewCount: recipe.reviewCount,
         time: recipe.time,
@@ -197,39 +240,36 @@ export function HomeScreen() {
     }
   }, [router, setRecipes, showSnackbar]);
 
-  const closeLocalMenus = useCallback(() => {
+  const closeLocalMenus = useCallback((): void | false => {
+    if (cookbookSubmenuRecipe) {
+      setCookbookSubmenuRecipe(null);
+      return false;
+    }
     setShowMoreMenu(false);
     setShowCookbookMenu(false);
-  }, []);
+  }, [cookbookSubmenuRecipe]);
 
   return (
     <RecipeListTemplate
       data={isLoading ? [] : filteredRecipes}
+      loading={isLoading}
       onRecipePress={(item) => router.push(`/recipe/${item.id}`)}
       cardMenuItems={getCardMenuItems}
+      cardMenuSelectedId={getCardMenuSelectedId}
       onCardMenuSelect={handleCardMenuSelect}
       onOverlayPress={closeLocalMenus}
       extraOverlayVisible={showMoreMenu || showCookbookMenu}
+      onRefresh={reload}
       listEmptyComponent={
         !isLoading ? (
           <EmptyState
-            image={emptyRecipeImage}
+            category="no-recipe"
             title="저장된 레시피가 아직 없네요."
             subtitle="레시피를 저장하고 가져오면 여기에 표시 될거에요."
           />
         ) : undefined
       }
-      contentExtra={
-        <Menu
-          items={MORE_MENU_ITEMS.map(item =>
-            item.id === 'deleteAll' ? {...item, disabled: recipes.length === 0} : item
-          )}
-          onSelect={handleMoreMenuSelect}
-          style={styles.moreMenu}
-          visible={showMoreMenu}
-        />
-      }
-      renderAppBar={({handleFilterPress, showLayoutMenu, closeMenus}) => (
+      renderAppBar={({handleFilterPress, showLayoutMenu, closeMenus, layoutMenu}) => (
         <AppBar
           title={selectedCookbook || '모든 요리책'}
           showDropdown
@@ -258,6 +298,18 @@ export function HomeScreen() {
               visible={showCookbookMenu}
             />
           }
+          rightMenu={
+            <>
+              {layoutMenu}
+              <Menu
+                items={MORE_MENU_ITEMS.map(item =>
+                  item.id === 'deleteAll' ? {...item, disabled: recipes.length === 0} : item
+                )}
+                onSelect={handleMoreMenuSelect}
+                visible={showMoreMenu}
+              />
+            </>
+          }
         />
       )}
     >
@@ -267,15 +319,13 @@ export function HomeScreen() {
         onClose={() => setShowDeleteAllDialog(false)}
         icon={IconTrashTwotone}
         avatarColor="red"
-        title="전체 삭제"
+        title="삭제하기"
+        description={<>모든 레시피 <Text style={styles.deleteAllCount}>{recipes.length}개</Text>가 삭제됩니다.{'\n'}삭제한 레시피는 다시 되돌릴 수 없습니다.</>}
         actions={<>
           <Button label="취소" variant="soft" onPress={() => setShowDeleteAllDialog(false)} />
-          <Button label="삭제" variant="filled" destructive onPress={handleDeleteAll} />
-        </>}>
-        <Text style={styles.deleteAllDescription}>
-          모든 레시피 <Text style={styles.deleteAllCount}>{recipes.length}개</Text>가 삭제됩니다.{'\n'}이 작업은 되돌릴 수 있습니다.
-        </Text>
-      </Dialog>
+          <Button label="삭제" variant="soft" destructive onPress={handleDeleteAll} />
+        </>}
+      />
 
       {/* PDF 미리보기 다이얼로그 */}
       <PdfPreviewDialog
@@ -289,18 +339,6 @@ export function HomeScreen() {
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
-  moreMenu: {
-    position: 'absolute',
-    top: APPBAR_CONTENT_BOTTOM + Spacing.xs,
-    right: Spacing.md,
-  },
-  deleteAllDescription: {
-    fontFamily: Typography.body.medium.fontFamily,
-    fontSize: Typography.body.medium.fontSize,
-    fontWeight: Typography.body.medium.fontWeight as '400',
-    lineHeight: Typography.body.medium.lineHeight,
-    color: colors['foreground-onsurfacemuted'],
-  },
   deleteAllCount: {
     color: colors['foreground-onsurfacevar'],
   },

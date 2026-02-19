@@ -1,11 +1,12 @@
 import React, {useEffect, useState} from 'react';
-import {StyleSheet, View} from 'react-native';
+import {StyleSheet, Text, View} from 'react-native';
 import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
 import {TextInput} from '@components/TextInput';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
+import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {IconClockTwotone} from '@components/Icon/IconIndex';
 
 export interface TimeDialogProps {
@@ -60,41 +61,54 @@ export function TimeDialog({visible, onClose, value, onConfirm}: TimeDialogProps
       onClose={onClose}
       icon={IconClockTwotone}
       avatarColor="lime"
-      title="시간"
+      title="조리 시간 설정"
       actions={<>
         <Button label="취소" variant="soft" onPress={onClose} />
         <Button label="확인" variant="filled" onPress={handleConfirm} />
       </>}
     >
       <View style={styles.row}>
-        <TextInput
-          size="small"
-          label="시간"
-          value={hours}
-          onChangeText={setHours}
-          keyboardType="number-pad"
-          placeholder="0"
-          maxLength={2}
-          selectTextOnFocus
-        />
-        <TextInput
-          size="small"
-          label="분"
-          value={minutes}
-          onChangeText={setMinutes}
-          keyboardType="number-pad"
-          placeholder="0"
-          maxLength={2}
-          selectTextOnFocus
-        />
+        <View style={styles.inputWrap}>
+          <TextInput
+            label="시간"
+            value={hours}
+            onChangeText={setHours}
+            keyboardType="number-pad"
+            placeholder="0"
+            maxLength={2}
+            selectTextOnFocus
+          />
+        </View>
+        <Text style={styles.colon}>:</Text>
+        <View style={styles.inputWrap}>
+          <TextInput
+            label="분"
+            value={minutes}
+            onChangeText={setMinutes}
+            keyboardType="number-pad"
+            placeholder="0"
+            maxLength={2}
+            selectTextOnFocus
+          />
+        </View>
       </View>
     </Dialog>
   );
 }
 
-const createStyles = (_colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   row: {
     flexDirection: 'row',
+    alignItems: 'flex-end',
     gap: Spacing.sm,
+  },
+  inputWrap: {
+    flex: 1,
+  },
+  colon: {
+    ...Typography.title.large,
+    color: colors['foreground-onsurfacemuted'],
+    marginBottom: Spacing.smd,
+    marginTop: FONT_BASELINE_OFFSET,
   },
 });

@@ -23,8 +23,8 @@ export interface ButtonProps {
 }
 
 const SIZE_CONFIG = {
-  small: {height: 32, paddingHorizontal: Spacing.smd, gap: 4, borderRadius: Radius['radius-sm']},
-  medium: {height: 48, paddingHorizontal: 20, gap: 6, borderRadius: Radius['radius-md']},
+  small: {height: 32, paddingHorizontal: Spacing.smd, gap: 4, borderRadius: Radius['radius-full']},
+  medium: {height: 48, paddingHorizontal: 20, gap: 6, borderRadius: Radius['radius-full']},
 } as const;
 
 export function Button({
@@ -61,7 +61,9 @@ export function Button({
       case 'soft':
         base.backgroundColor = disabled
           ? colors['background-statelayers-disabled']
-          : colors['surface-surfacecontainertransparent'];
+          : destructive
+            ? colors['background-errorcontainer']
+            : colors['surface-surfacecontainertransparent'];
         break;
       case 'outlined':
         base.backgroundColor = colors['surface-surfacecontainerlowest'];
@@ -96,7 +98,7 @@ export function Button({
   };
 
   return (
-    <View style={[{flex: 1}, style]}>
+    <View style={style}>
       <Pressable onPress={onPress} disabled={disabled}>
         {({pressed}) => (
           <View style={[getContainerStyle(pressed), (Icon || TrailingIcon) && {flexDirection: 'row' as const, gap: sizeConfig.gap}]}>
@@ -112,10 +114,10 @@ export function Button({
 
 const styles = StyleSheet.create({
   label: {
-    fontFamily: Typography.label['large - semibold'].fontFamily,
-    fontSize: Typography.label['large - semibold'].fontSize,
-    fontWeight: Typography.label['large - semibold'].fontWeight as '600',
-    lineHeight: Typography.label['large - semibold'].lineHeight,
+    fontFamily: Typography.label['xlarge - semibold'].fontFamily,
+    fontSize: Typography.label['xlarge - semibold'].fontSize,
+    fontWeight: Typography.label['xlarge - semibold'].fontWeight as '600',
+    lineHeight: Typography.label['xlarge - semibold'].lineHeight,
     marginTop: FONT_BASELINE_OFFSET,
   },
 });

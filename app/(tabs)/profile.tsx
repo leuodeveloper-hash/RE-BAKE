@@ -6,13 +6,15 @@ import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useColors} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
+import {useAvatarSeed} from '@hooks/useAvatarSeed';
 
 export default function ProfileRoute() {
   const router = useRouter();
   const colors = useColors();
-  const {recipes, exportRecipes, importRecipes} = useRecipes();
+  const {recipes, exportRecipes, importRecipes, lastSyncedAt, lastSyncedDevice} = useRecipes();
   const {showSnackbar} = useSnackbar();
   const {user, handle, signIn, signUp, signInWithGoogle, signOut, updateHandle} = useAuth();
+  const avatarSeed = useAvatarSeed();
 
   const handleBack = useCallback(() => {
     router.navigate('/');
@@ -30,6 +32,8 @@ export default function ProfileRoute() {
         userEmail={user?.email ?? null}
         userDisplayName={user?.displayName ?? null}
         handle={handle}
+        lastSyncedAt={lastSyncedAt}
+        lastSyncedDevice={lastSyncedDevice}
         onBack={handleBack}
         onExport={exportRecipes}
         onImport={importRecipes}
@@ -39,6 +43,7 @@ export default function ProfileRoute() {
         onLogout={handleLogout}
         onUpdateHandle={updateHandle}
         onTermsPress={() => router.push('/terms')}
+        avatarSeed={avatarSeed}
       />
     </View>
   );

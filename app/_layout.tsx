@@ -1,14 +1,43 @@
-import React from 'react';
-import {Text, TextInput, ActivityIndicator, View} from 'react-native';
-import {Stack} from 'expo-router';
+import '../global.css';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {Text, TextInput, Animated, StyleSheet, View, Easing, Pressable} from 'react-native';
+import {Stack, usePathname, useRouter} from 'expo-router';
 import {StatusBar} from 'expo-status-bar';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {useFonts} from 'expo-font';
-import {ThemeProvider, useTheme} from '@contexts/ThemeContext';
+import * as SplashScreen from 'expo-splash-screen';
+import {BlurView} from 'expo-blur';
+import {ThemeProvider, useTheme, useColors} from '@contexts/ThemeContext';
 import {RecipeProvider} from '@contexts/RecipeContext';
-import {SnackbarProvider} from '@contexts/SnackbarContext';
-import {AddSheetProvider} from '@contexts/AddSheetContext';
-import {AuthProvider} from '@contexts/AuthContext';
+import {SnackbarProvider, useSnackbar} from '@contexts/SnackbarContext';
+import {AddSheetProvider, useAddSheet} from '@contexts/AddSheetContext';
+import {AuthProvider, useAuth} from '@contexts/AuthContext';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {BaseColors} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
+import {Spacing} from '@constants/spacing';
+import {ContentMask} from '@components/Container';
+import {BottomTabBar, type TabItem, type AddMenuItem} from '@components/Navigation/BottomTabBar';
+import {Snackbar} from '@components/Snackbar';
+import {CookbookDialog} from '@components/Dialog';
+import {
+  IconHomeFilled,
+  IconBookFilled,
+  IconAdd,
+  IconEarthFilled,
+  IconUserFilled,
+  IconNoteFilled,
+  IconExprolerBookFilled,
+} from '@components/Icon/IconIndex';
+import {collection, deleteDoc, doc, getDocs, query, setDoc, updateDoc, where} from 'firebase/firestore';
+import {db} from '@config/firebase';
+import {useRecipes} from '@contexts/RecipeContext';
+import type {AvatarColor} from '@components/Avatar/Avatar';
+import {useAvatarSeed} from '@hooks/useAvatarSeed';
+import LogoBadge from '../assets/images/logo_badge_reddark.svg';
+import LogoIcon from '../assets/images/logo_badge.svg';
+
+SplashScreen.preventAutoHideAsync();
 
 // 전역 Text 스타일 설정 (Android 폰트 패딩 제거)
 if ((Text as any).defaultProps == null) {
@@ -26,17 +55,380 @@ function ThemedStatusBar() {
   return <StatusBar style={isDark ? 'light' : 'dark'} />;
 }
 
+const LOGO_W = 104;
+const LOGO_H = 110;
+const STRIP_COUNT = 6;
+const STRIP_H = Math.ceil(LOGO_H / STRIP_COUNT);
+const DIAGONAL_PX = 6; // 사선 오프셋 (px)
+
+function AnimatedSplash({onFinish}: {onFinish: () => void}) {
+  const stripAnims = useRef(
+    Array.from({length: STRIP_COUNT}, () => new Animated.Value(0)),
+  ).current;
+  const scaleAnim = useRef(new Animated.Value(0.97)).current;
+  const tiltAnim = useRef(new Animated.Value(1)).current; // 1 = 기울임, 0 = 바로
+  const overlayOpacity = useRef(new Animated.Value(1)).current;
+
+  useEffect(() => {
+    // 1. 크레파스 쓱싹쓱싹: 한 줄씩 순서대로 칠하기
+    const brushStrokes = Animated.stagger(
+      180,
+      stripAnims.map(anim =>
+        Animated.timing(anim, {
+          toValue: 1,
+          duration: 220,
+          easing: Easing.inOut(Easing.quad),
+          useNativeDriver: false,
+        }),
+      ),
+    );
+
+    brushStrokes.start(() => {
+      // 2. 기울기 바로잡기 + 탄력 스케일
+      Animated.parallel([
+        Animated.spring(scaleAnim, {
+          toValue: 1,
+          friction: 9,
+          tension: 80,
+          useNativeDriver: true,
+        }),
+        Animated.timing(tiltAnim, {
+          toValue: 0,
+          duration: 250,
+          easing: Easing.out(Easing.quad),
+          useNativeDriver: true,
+        }),
+      ]).start(() => {
+        // 3. 잠시 유지 후 페이드 아웃
+        setTimeout(() => {
+          Animated.timing(overlayOpacity, {
+            toValue: 0,
+            duration: 300,
+            useNativeDriver: true,
+          }).start(onFinish);
+        }, 500);
+      });
+    });
+  }, []);
+
+  return (
+    <Animated.View
+      style={[splashStyles.container, {opacity: overlayOpacity}]}
+      pointerEvents="none"
+    >
+      <View>
+        <Animated.View style={{transform: [
+          {scale: scaleAnim},
+          {rotate: tiltAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: ['0deg', '-4deg'],
+          })},
+        ]}}>
+          {/* 고스트 뱃지 (연한 실루엣) */}
+          <LogoBadge width={LOGO_W} height={LOGO_H} opacity={0.1} />
+          {/* 크레파스 스트립들 */}
+          {stripAnims.map((anim, i) => {
+            const isLTR = i % 2 === 0;
+            // 사선 효과: 각 줄마다 약간씩 비스듬하게 이동
+            const diagonalOffset = isLTR
+              ? anim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [-DIAGONAL_PX, 0],
+                })
+              : anim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [DIAGONAL_PX, 0],
+                });
+            return (
+              <Animated.View
+                key={i}
+                style={{
+                  position: 'absolute',
+                  top: i * STRIP_H,
+                  left: 0,
+                  width: LOGO_W,
+                  height: STRIP_H + 1,
+                  overflow: 'hidden',
+                  transform: [{translateX: diagonalOffset}],
+                }}>
+                <Animated.View
+                  style={{
+                    position: 'absolute',
+                    [isLTR ? 'left' : 'right']: 0,
+                    top: 0,
+                    height: STRIP_H + 1,
+                    width: anim.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0, LOGO_W + DIAGONAL_PX],
+                    }),
+                    overflow: 'hidden',
+                  }}>
+                  <Animated.View
+                    style={{
+                      position: 'absolute',
+                      [isLTR ? 'left' : 'right']: 0,
+                      top: -i * STRIP_H,
+                      transform: [{translateX: isLTR
+                        ? anim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [DIAGONAL_PX, 0],
+                          })
+                        : anim.interpolate({
+                            inputRange: [0, 1],
+                            outputRange: [-DIAGONAL_PX, 0],
+                          }),
+                      }],
+                    }}>
+                    <LogoBadge width={LOGO_W} height={LOGO_H} />
+                  </Animated.View>
+                </Animated.View>
+              </Animated.View>
+            );
+          })}
+        </Animated.View>
+      </View>
+    </Animated.View>
+  );
+}
+
+const splashStyles = StyleSheet.create({
+  container: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: BaseColors['color-base-orange-10'],
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 999,
+  },
+});
+
+function NavigationContent() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const {showAddSheet, setShowAddSheet, hideTabBar, showCookbookDialog, setShowCookbookDialog, cookbookEditTarget, setCookbookEditTarget, onCookbookCreatedRef} = useAddSheet();
+  const {snackbar, clearSnackbar, showSnackbar} = useSnackbar();
+  const {user, isAdmin} = useAuth();
+  const {recipes, setRecipes, lastSyncedAt, setCookbookColor, renameCookbookColor} = useRecipes();
+  const avatarSeed = useAvatarSeed();
+  const prevUserRef = useRef(user);
+  const tabStyles = useThemedStyles(createTabBarStyles);
+  const colors = useColors();
+  const [activeTab, setActiveTab] = useState('home');
+  const [cookbookInitialOfficial, setCookbookInitialOfficial] = useState(false);
+
+  // 로그인 후 첫 싱크 완료 시 스낵바 표시
+  useEffect(() => {
+    if (!prevUserRef.current && user && lastSyncedAt) {
+      showSnackbar('클라우드 동기화 완료');
+    }
+    prevUserRef.current = user;
+  }, [user, lastSyncedAt, showSnackbar]);
+
+  useEffect(() => {
+    if (pathname === '/') setActiveTab('home');
+    else if (pathname === '/group') setActiveTab('group');
+    else if (pathname === '/explore') setActiveTab('explore');
+    else if (pathname === '/profile') setActiveTab('profile');
+  }, [pathname]);
+
+  const isEditRoute = pathname.startsWith('/recipe/edit');
+  const shouldShowTabBar = !isEditRoute && !hideTabBar;
+
+  const tabs = useMemo<TabItem[]>(() => [
+    {id: 'home', label: '홈', icon: IconHomeFilled, onPress: () => router.navigate('/' as any)},
+    {id: 'group', label: '그룹', icon: IconBookFilled, onPress: () => router.navigate('/group' as any)},
+    {id: 'add', label: '추가', icon: IconAdd, onPress: () => setShowAddSheet(true)},
+    {id: 'explore', label: '둘러보기', icon: IconEarthFilled, onPress: () => router.navigate('/explore' as any)},
+    {id: 'profile', label: user ? '나' : '게스트', icon: IconUserFilled, useRandomAvatar: true, avatarSeed: avatarSeed ?? undefined, onPress: () => router.navigate('/profile' as any)},
+  ], [router, setShowAddSheet, avatarSeed, user]);
+
+  const addMenuItems = useMemo<AddMenuItem[]>(() => {
+    const items: AddMenuItem[] = [
+      {id: 'recipe', label: '레시피', icon: IconNoteFilled, iconColor: colors['custom-greenvar']},
+    ];
+    if (isAdmin) {
+      items.push({id: 'official', label: '공식 레시피', icon: LogoIcon, iconColor: colors['custom-yellowvar']});
+    }
+    items.push({id: 'cookbook', label: '요리책', icon: IconBookFilled, iconColor: colors['custom-brownvar']});
+    if (isAdmin) {
+      items.push({id: 'official-cookbook', label: '공식 요리책', icon: IconExprolerBookFilled, iconColor: colors['custom-orangevar']});
+    }
+    return items;
+  }, [colors, isAdmin]);
+
+  const handleAddItemPress = useCallback((item: AddMenuItem) => {
+    setShowAddSheet(false);
+    if (item.id === 'recipe') {
+      router.push('/recipe/edit');
+    } else if (item.id === 'official') {
+      router.push('/recipe/edit?target=explore' as any);
+    } else if (item.id === 'cookbook') {
+      setCookbookEditTarget(null);
+      setCookbookInitialOfficial(false);
+      setShowCookbookDialog(true);
+    } else if (item.id === 'official-cookbook') {
+      setCookbookEditTarget(null);
+      setCookbookInitialOfficial(true);
+      setShowCookbookDialog(true);
+    }
+  }, [router, setShowAddSheet, setCookbookEditTarget, setShowCookbookDialog]);
+
+  const handleCookbookConfirm = useCallback(async (name: string, color: AvatarColor, isOfficial?: boolean) => {
+    if (cookbookEditTarget?.isExplore) {
+      // 둘러보기(공식) 요리책 편집
+      try {
+        const oldName = cookbookEditTarget.name;
+        if (name !== oldName) {
+          // 이름 변경: 기존 문서 삭제 + 새 문서 생성
+          await deleteDoc(doc(db, 'explore_cookbooks', oldName));
+          await setDoc(doc(db, 'explore_cookbooks', name), {
+            name,
+            color,
+            createdAt: new Date().toISOString(),
+          });
+          // 연결된 explore_recipes의 cookbook 필드 업데이트
+          const recipesQuery = query(collection(db, 'explore_recipes'), where('cookbook', '==', oldName));
+          const snapshot = await getDocs(recipesQuery);
+          const updates = snapshot.docs.map(d => updateDoc(d.ref, {cookbook: name}));
+          await Promise.all(updates);
+        } else {
+          // 색상만 변경
+          await setDoc(doc(db, 'explore_cookbooks', name), {name, color, createdAt: new Date().toISOString()});
+        }
+        showSnackbar(`공식 요리책 '${name}'이(가) 수정되었습니다`);
+      } catch (e) {
+        console.error('공식 요리책 수정 실패:', e);
+        showSnackbar('공식 요리책 수정에 실패했습니다');
+      }
+    } else if (cookbookEditTarget) {
+      if (name !== cookbookEditTarget.name) {
+        setRecipes(prev => prev.map(r =>
+          r.cookbook === cookbookEditTarget.name ? {...r, cookbook: name} : r,
+        ));
+        renameCookbookColor(cookbookEditTarget.name, name);
+      }
+      setCookbookColor(name, color);
+    } else if (isOfficial) {
+      try {
+        await setDoc(doc(db, 'explore_cookbooks', name), {
+          name,
+          color,
+          createdAt: new Date().toISOString(),
+        });
+        showSnackbar(`공식 요리책 '${name}'이(가) 추가되었습니다`);
+      } catch (e) {
+        console.error('공식 요리책 추가 실패:', e);
+        showSnackbar('공식 요리책 추가에 실패했습니다');
+      }
+    } else {
+      const exists = recipes.some(r => r.cookbook === name);
+      if (exists) {
+        showSnackbar('이미 존재하는 요리책입니다');
+      } else {
+        setCookbookColor(name, color);
+        showSnackbar(`'${name}' 요리책이 추가되었습니다`);
+      }
+    }
+    onCookbookCreatedRef.current?.(name, color);
+    onCookbookCreatedRef.current = null;
+    setShowCookbookDialog(false);
+    setCookbookEditTarget(null);
+  }, [cookbookEditTarget, recipes, setRecipes, renameCookbookColor, setCookbookColor, showSnackbar, setShowCookbookDialog, setCookbookEditTarget, onCookbookCreatedRef]);
+
+  const handleCookbookClose = useCallback(() => {
+    onCookbookCreatedRef.current = null;
+    setShowCookbookDialog(false);
+    setCookbookEditTarget(null);
+  }, [onCookbookCreatedRef, setShowCookbookDialog, setCookbookEditTarget]);
+
+  const handleAddSheetClose = useCallback(() => {
+    setShowAddSheet(false);
+  }, [setShowAddSheet]);
+
+  return (
+    <>
+      <Stack screenOptions={{headerShown: false}}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen
+          name="recipe/[id]"
+          options={{animation: 'none'}}
+        />
+        <Stack.Screen
+          name="recipe/edit"
+          options={{animation: 'slide_from_bottom', presentation: 'fullScreenModal'}}
+        />
+        <Stack.Screen
+          name="recipe/edit/[id]"
+          options={{animation: 'slide_from_bottom', presentation: 'fullScreenModal'}}
+        />
+      </Stack>
+
+      {/* 스낵바 */}
+      <View style={tabStyles.snackbarWrapper}>
+        <Snackbar
+          message={snackbar?.message ?? ''}
+          action={snackbar?.action}
+          icon={snackbar?.icon}
+          visible={!!snackbar}
+          onClose={clearSnackbar}
+        />
+      </View>
+
+      {/* 요리책 추가/편집 다이얼로그 */}
+      <CookbookDialog
+        visible={showCookbookDialog}
+        onClose={handleCookbookClose}
+        onConfirm={handleCookbookConfirm}
+        editTarget={cookbookEditTarget}
+        isAdmin={isAdmin}
+        initialOfficial={cookbookInitialOfficial}
+      />
+
+      {shouldShowTabBar && (
+        <>
+          {/* 스크림 */}
+          {showAddSheet && (
+            <Pressable style={tabStyles.scrim} onPress={handleAddSheetClose}>
+              <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+            </Pressable>
+          )}
+
+          {/* 하단 콘텐츠 마스크 그라디언트 */}
+          <ContentMask topHeight={0} />
+
+          {/* 탭바 */}
+          <View style={tabStyles.tabBarWrapper}>
+            <BottomTabBar
+              tabs={tabs}
+              activeTab={activeTab}
+              expanded={showAddSheet}
+              onClose={handleAddSheetClose}
+              addMenuItems={addMenuItems}
+              onAddItemPress={handleAddItemPress}
+            />
+          </View>
+        </>
+      )}
+    </>
+  );
+}
+
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    'IBMPlexSans': require('../assets/fonts/IBMPlexSans-VariableFont_wdth,wght.ttf'),
+    'IBMPlexSans-Regular': require('../assets/fonts/IBMPlexSans_400Regular.ttf'),
+    'IBMPlexSans-Medium': require('../assets/fonts/IBMPlexSans_500Medium.ttf'),
+    'IBMPlexSans-SemiBold': require('../assets/fonts/IBMPlexSans_600SemiBold.ttf'),
+    'IBMPlexSans-Bold': require('../assets/fonts/IBMPlexSans_700Bold.ttf'),
   });
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    if (fontsLoaded) {
+      SplashScreen.hideAsync();
+    }
+  }, [fontsLoaded]);
 
   if (!fontsLoaded) {
-    return (
-      <View style={{flex: 1, alignItems: 'center', justifyContent: 'center'}}>
-        <ActivityIndicator />
-      </View>
-    );
+    return null;
   }
 
   return (
@@ -47,21 +439,10 @@ export default function RootLayout() {
           <SnackbarProvider>
             <AddSheetProvider>
               <ThemedStatusBar />
-              <Stack screenOptions={{headerShown: false}}>
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen
-                  name="recipe/[id]"
-                  options={{animation: 'slide_from_right'}}
-                />
-                <Stack.Screen
-                  name="recipe/edit"
-                  options={{animation: 'slide_from_bottom', presentation: 'fullScreenModal'}}
-                />
-                <Stack.Screen
-                  name="recipe/edit/[id]"
-                  options={{animation: 'slide_from_bottom', presentation: 'fullScreenModal'}}
-                />
-              </Stack>
+              <NavigationContent />
+              {showSplash && (
+                <AnimatedSplash onFinish={() => setShowSplash(false)} />
+              )}
             </AddSheetProvider>
           </SnackbarProvider>
         </RecipeProvider>
@@ -70,3 +451,25 @@ export default function RootLayout() {
     </ThemeProvider>
   );
 }
+
+const createTabBarStyles = (colors: SemanticColors) => StyleSheet.create({
+  scrim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    zIndex: 20,
+  },
+  snackbarWrapper: {
+    position: 'absolute',
+    bottom: 100,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 10,
+  },
+  tabBarWrapper: {
+    position: 'absolute',
+    bottom: Spacing.lg,
+    alignSelf: 'center',
+    zIndex: 30,
+  },
+});

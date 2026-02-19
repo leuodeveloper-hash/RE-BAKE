@@ -1,12 +1,12 @@
 /**
  * 피그마 디자인 시스템의 타이포그래피 상수
  * 피그마 원본 네이밍을 그대로 유지하여 화면 매핑과 1:1로 대응됩니다
- * 
- * 폰트 이름 참고:
- * - React Native에서는 폰트 파일의 PostScript 이름을 사용합니다
- * - IBM Plex Sans의 경우 보통 'IBMPlexSans' 또는 'IBMPlexSans-Regular'입니다
- * - 폰트가 적용되지 않으면 폰트 파일을 열어서 실제 PostScript 이름을 확인하세요
- * - fontWeight를 사용하면 React Native가 자동으로 적절한 폰트 파일을 선택합니다
+ *
+ * 네이티브에서는 variable font가 지원되지 않아 weight별 static 폰트 사용:
+ * - IBMPlexSans-Regular (400)
+ * - IBMPlexSans-Medium (500)
+ * - IBMPlexSans-SemiBold (600)
+ * - IBMPlexSans-Bold (700)
  */
 
 // Helper function to parse fontSize and lineHeight (remove 'px')
@@ -19,17 +19,18 @@ const parseSize = (value: string | number): number => {
 const parseLetterSpacing = (value: string | number): number => {
   if (typeof value === 'number') return value;
   const num = parseFloat(value.replace(/px|%/g, ''));
-  // If it was a percentage, convert to relative value (React Native uses relative values)
   if (value.includes('%')) {
     return num / 100;
   }
   return num;
 };
 
-// Helper function to convert fontWeight number to React Native format
-const parseFontWeight = (weight: number | string): string => {
-  if (typeof weight === 'string') return weight;
-  return weight.toString();
+// Weight → fontFamily 매핑 (네이티브에서 weight별 폰트 파일 선택)
+const FONT: Record<number, string> = {
+  400: 'IBMPlexSans-Regular',
+  500: 'IBMPlexSans-Medium',
+  600: 'IBMPlexSans-SemiBold',
+  700: 'IBMPlexSans-Bold',
 };
 
 // IBM Plex Sans 폰트의 baseline 보정값 (폰트가 위로 올라가 보이는 현상 보정)
@@ -38,27 +39,27 @@ export const FONT_BASELINE_OFFSET = 2;
 export const Typography = {
   display: {
     large: {
-      fontFamily: 'IBMPlexSans', // 폰트가 적용되지 않으면 'IBMPlexSans-Regular'로 시도하세요
+      fontFamily: FONT[600],
       fontSize: parseSize('57px'),
-      fontWeight: parseFontWeight(600) as const,
+      fontWeight: '600' as const,
       letterSpacing: parseLetterSpacing('-1px'),
       lineHeight: parseSize('64px'),
       textTransform: 'none' as const,
       textDecoration: 'none' as const,
     },
     medium: {
-      fontFamily: 'IBMPlexSans', // 폰트가 적용되지 않으면 'IBMPlexSans-Regular'로 시도하세요
+      fontFamily: FONT[700],
       fontSize: parseSize('45px'),
-      fontWeight: parseFontWeight(700) as const,
+      fontWeight: '700' as const,
       letterSpacing: parseLetterSpacing('0%'),
       lineHeight: parseSize('52px'),
       textTransform: 'none' as const,
       textDecoration: 'none' as const,
     },
     small: {
-      fontFamily: 'IBMPlexSans', // 폰트가 적용되지 않으면 'IBMPlexSans-Regular'로 시도하세요
+      fontFamily: FONT[700],
       fontSize: parseSize('36px'),
-      fontWeight: parseFontWeight(700) as const,
+      fontWeight: '700' as const,
       letterSpacing: parseLetterSpacing('0%'),
       lineHeight: parseSize('44px'),
       textTransform: 'none' as const,
@@ -67,27 +68,27 @@ export const Typography = {
   },
   headline: {
     large: {
-      fontFamily: 'IBMPlexSans', // 폰트가 적용되지 않으면 'IBMPlexSans-Regular'로 시도하세요
+      fontFamily: FONT[700],
       fontSize: parseSize('32px'),
-      fontWeight: parseFontWeight(700) as const,
+      fontWeight: '700' as const,
       letterSpacing: parseLetterSpacing('0%'),
       lineHeight: parseSize('40px'),
       textTransform: 'none' as const,
       textDecoration: 'none' as const,
     },
     medium: {
-      fontFamily: 'IBMPlexSans', // 폰트가 적용되지 않으면 'IBMPlexSans-Regular'로 시도하세요
+      fontFamily: FONT[700],
       fontSize: parseSize('28px'),
-      fontWeight: parseFontWeight(700) as const,
+      fontWeight: '700' as const,
       letterSpacing: parseLetterSpacing('-0.25px'),
       lineHeight: parseSize('36px'),
       textTransform: 'none' as const,
       textDecoration: 'none' as const,
     },
     small: {
-      fontFamily: 'IBMPlexSans', // 폰트가 적용되지 않으면 'IBMPlexSans-Regular'로 시도하세요
+      fontFamily: FONT[600],
       fontSize: parseSize('22px'),
-      fontWeight: parseFontWeight(600) as const,
+      fontWeight: '600' as const,
       letterSpacing: parseLetterSpacing('-0.25px'),
       lineHeight: parseSize('28px'),
       textTransform: 'none' as const,
@@ -95,46 +96,64 @@ export const Typography = {
     },
   },
   label: {
+    'xlarge - semibold': {
+      fontFamily: FONT[600],
+      fontSize: parseSize('15px'),
+      fontWeight: '600' as const,
+      letterSpacing: parseLetterSpacing('0px'),
+      lineHeight: parseSize('20px'),
+      textTransform: 'none' as const,
+      textDecoration: 'none' as const,
+    },
+    xlarge: {
+      fontFamily: FONT[500],
+      fontSize: parseSize('15px'),
+      fontWeight: '500' as const,
+      letterSpacing: parseLetterSpacing('0px'),
+      lineHeight: parseSize('20px'),
+      textTransform: 'none' as const,
+      textDecoration: 'none' as const,
+    },
     'large - semibold': {
-      fontFamily: 'IBMPlexSans', // 폰트가 적용되지 않으면 'IBMPlexSans-Regular'로 시도하세요
+      fontFamily: FONT[600],
       fontSize: parseSize('14px'),
-      fontWeight: parseFontWeight(600) as const,
+      fontWeight: '600' as const,
       letterSpacing: parseLetterSpacing('0px'),
       lineHeight: parseSize('20px'),
       textTransform: 'none' as const,
       textDecoration: 'none' as const,
     },
     large: {
-      fontFamily: 'IBMPlexSans', // 폰트가 적용되지 않으면 'IBMPlexSans-Regular'로 시도하세요
+      fontFamily: FONT[500],
       fontSize: parseSize('14px'),
-      fontWeight: parseFontWeight(500) as const,
+      fontWeight: '500' as const,
       letterSpacing: parseLetterSpacing('0px'),
       lineHeight: parseSize('20px'),
       textTransform: 'none' as const,
       textDecoration: 'none' as const,
     },
     'medium - semibold': {
-      fontFamily: 'IBMPlexSans', // 폰트가 적용되지 않으면 'IBMPlexSans-Regular'로 시도하세요
+      fontFamily: FONT[600],
       fontSize: parseSize('12px'),
-      fontWeight: parseFontWeight(600) as const,
+      fontWeight: '600' as const,
       letterSpacing: parseLetterSpacing('0px'),
       lineHeight: parseSize('16px'),
       textTransform: 'none' as const,
       textDecoration: 'none' as const,
     },
     medium: {
-      fontFamily: 'IBMPlexSans', // 폰트가 적용되지 않으면 'IBMPlexSans-Regular'로 시도하세요
+      fontFamily: FONT[600],
       fontSize: parseSize('12px'),
-      fontWeight: parseFontWeight(600) as const,
+      fontWeight: '600' as const,
       letterSpacing: parseLetterSpacing('-0.25px'),
       lineHeight: parseSize('16px'),
       textTransform: 'none' as const,
       textDecoration: 'none' as const,
     },
     small: {
-      fontFamily: 'IBMPlexSans', // 폰트가 적용되지 않으면 'IBMPlexSans-Regular'로 시도하세요
+      fontFamily: FONT[500],
       fontSize: parseSize('11px'),
-      fontWeight: parseFontWeight(500) as const,
+      fontWeight: '500' as const,
       letterSpacing: parseLetterSpacing('0px'),
       lineHeight: parseSize('16px'),
       textTransform: 'none' as const,
@@ -143,27 +162,27 @@ export const Typography = {
   },
   title: {
     large: {
-      fontFamily: 'IBMPlexSans', // 폰트가 적용되지 않으면 'IBMPlexSans-Regular'로 시도하세요
+      fontFamily: FONT[700],
       fontSize: parseSize('18px'),
-      fontWeight: parseFontWeight(700) as const,
+      fontWeight: '700' as const,
       letterSpacing: parseLetterSpacing('-0.25px'),
       lineHeight: parseSize('24px'),
       textTransform: 'none' as const,
       textDecoration: 'none' as const,
     },
     medium: {
-      fontFamily: 'IBMPlexSans', // 폰트가 적용되지 않으면 'IBMPlexSans-Regular'로 시도하세요
+      fontFamily: FONT[700],
       fontSize: parseSize('16px'),
-      fontWeight: parseFontWeight(700) as const,
+      fontWeight: '700' as const,
       letterSpacing: parseLetterSpacing('0px'),
       lineHeight: parseSize('20px'),
       textTransform: 'none' as const,
       textDecoration: 'none' as const,
     },
     small: {
-      fontFamily: 'IBMPlexSans', // 폰트가 적용되지 않으면 'IBMPlexSans-Regular'로 시도하세요
+      fontFamily: FONT[600],
       fontSize: parseSize('14px'),
-      fontWeight: parseFontWeight(600) as const,
+      fontWeight: '600' as const,
       letterSpacing: parseLetterSpacing('0px'),
       lineHeight: parseSize('18px'),
       textTransform: 'none' as const,
@@ -171,28 +190,46 @@ export const Typography = {
     },
   },
   body: {
+    xxlarge: {
+      fontFamily: FONT[500],
+      fontSize: parseSize('20px'),
+      fontWeight: '500' as const,
+      letterSpacing: parseLetterSpacing('-0.25px'),
+      lineHeight: parseSize('28px'),
+      textTransform: 'none' as const,
+      textDecoration: 'none' as const,
+    },
+    xlarge: {
+      fontFamily: FONT[500],
+      fontSize: parseSize('18px'),
+      fontWeight: '500' as const,
+      letterSpacing: parseLetterSpacing('-0.25px'),
+      lineHeight: parseSize('24px'),
+      textTransform: 'none' as const,
+      textDecoration: 'none' as const,
+    },
     large: {
-      fontFamily: 'IBMPlexSans', // 폰트가 적용되지 않으면 'IBMPlexSans-Regular'로 시도하세요
+      fontFamily: FONT[500],
       fontSize: parseSize('16px'),
-      fontWeight: parseFontWeight(500) as const,
+      fontWeight: '500' as const,
       letterSpacing: parseLetterSpacing('-0.25px'),
       lineHeight: parseSize('22px'),
       textTransform: 'none' as const,
       textDecoration: 'none' as const,
     },
     medium: {
-      fontFamily: 'IBMPlexSans', // 폰트가 적용되지 않으면 'IBMPlexSans-Regular'로 시도하세요
+      fontFamily: FONT[500],
       fontSize: parseSize('15px'),
-      fontWeight: parseFontWeight(500) as const,
+      fontWeight: '500' as const,
       letterSpacing: parseLetterSpacing('-0.25px'),
       lineHeight: parseSize('20px'),
       textTransform: 'none' as const,
       textDecoration: 'none' as const,
     },
     small: {
-      fontFamily: 'IBMPlexSans', // 폰트가 적용되지 않으면 'IBMPlexSans-Regular'로 시도하세요
+      fontFamily: FONT[400],
       fontSize: parseSize('12px'),
-      fontWeight: parseFontWeight(400) as const,
+      fontWeight: '400' as const,
       letterSpacing: parseLetterSpacing('-0.25%'),
       lineHeight: parseSize('16px'),
       textTransform: 'none' as const,

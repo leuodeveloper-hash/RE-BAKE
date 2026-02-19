@@ -5,7 +5,8 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {SvgProps} from 'react-native-svg';
-import {IconButton} from '@components/Layout/IconButton';
+import {IconButton} from '@components/IconButton';
+import {IconCheckboxFilled, IconCheckboxBlank} from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 
@@ -14,6 +15,7 @@ import {useColors} from '@contexts/ThemeContext';
 export type ListItemElementType =
   | {type: 'icon'; icon: React.FC<SvgProps>}
   | {type: 'number'; value: number}
+  | {type: 'checkbox'; checked: boolean}
   | {type: 'iconButton'; icon: React.FC<SvgProps>; onPress?: () => void; variant?: 'soft' | 'ghost-secondary'}
   | {type: 'custom'; element: React.ReactNode};
 
@@ -62,6 +64,26 @@ function renderSlotElement(
       return (
         <View style={[styles.slotContainer, styles.numberContainer]}>
           <Text style={styles.numberText}>{element.value}</Text>
+        </View>
+      );
+    case 'checkbox':
+      return (
+        <View style={styles.slotContainer}>
+          {element.checked ? (
+            <IconCheckboxFilled
+              width={20}
+              height={20}
+              color={colors['custom-brown']}
+            />
+          ) : (
+            <View style={styles.checkboxBlankIcon}>
+              <IconCheckboxBlank
+                width={20}
+                height={20}
+                color={colors['foreground-onsurface']}
+              />
+            </View>
+          )}
         </View>
       );
     case 'iconButton':
@@ -161,6 +183,9 @@ const createStyles = (colors: SemanticColors) =>
     },
     numberContainer: {
       backgroundColor: colors['surface-surfacecontainer'],
+    },
+    checkboxBlankIcon: {
+      opacity: 0.56,
     },
     numberText: {
       fontFamily: Typography.body.medium.fontFamily,

@@ -25,3 +25,8 @@ export async function deleteRecipeImage(recipeId: string): Promise<void> {
     // 이미지가 없으면 무시
   }
 }
+
+/** 로컬 파일 경로인지 판별 (http/https가 아닌 모든 URI) */
+export function isLocalUri(uri: string): boolean {
+  return !uri.startsWith('http://') && !uri.startsWith('https://');
+}

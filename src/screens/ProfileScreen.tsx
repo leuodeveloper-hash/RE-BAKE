@@ -1,14 +1,10 @@
 import React, {useCallback, useMemo, useState} from 'react';
 import {Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {
-  GlassContainer,
-  IconButton,
-  ContentContainer,
-  Card,
-  FloatingNavBar,
-  navPillStyle,
-} from '@components/Layout';
+import {FloatingNavBar, navPillStyle} from '@components/Navigation';
+import {GlassContainer, ContentContainer, Card} from '@components/Container';
+import {IconButton} from '@components/IconButton';
+import {SectionHeader} from '@components/SectionHeader';
 import {ListItem} from '@components/ListItem';
 import {Avatar} from '@components/Avatar/Avatar';
 import {Tabs} from '@components/Tabs';
@@ -20,7 +16,7 @@ import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors, useTheme} from '@contexts/ThemeContext';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
-import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
+import {Typography} from '@constants/typography';
 import {
   IconArrowLeft,
   IconImport,
@@ -33,17 +29,23 @@ import {
   IconMoonFilled,
   IconGoogle,
   IconMailFilled,
+  IconCloudFilled,
 } from '@components/Icon/IconIndex';
 
-import LogoBakecycle from '../../assets/images/logo_bakecycle.svg';
+import Constants from 'expo-constants';
+import LogoBakecycle from '../../assets/images/logo_badge_colored.svg';
 import LogoText from '../../assets/images/logo_text.svg';
 import type {AppearanceMode} from '@contexts/ThemeContext';
+
+const APP_VERSION = Constants.expoConfig?.version ?? '0.0.0';
 
 export interface ProfileScreenProps {
   recipeCount: number;
   userEmail: string | null;
   userDisplayName: string | null;
   handle: string | null;
+  lastSyncedAt: Date | null;
+  lastSyncedDevice: string | null;
   onBack: () => void;
   onExport: () => Promise<void>;
   onImport: (onConfirmOverwrite?: (count: number) => Promise<boolean>) => Promise<boolean>;
@@ -53,14 +55,33 @@ export interface ProfileScreenProps {
   onLogout: () => void;
   onUpdateHandle: (newHandle: string) => Promise<void>;
   onTermsPress: () => void;
+  /** 고정 아바타 시드 (useAvatarSeed에서 가져온 값) */
+  avatarSeed?: number | null;
 }
 
 // ---- ProfileScreen ----
+
+function formatSyncTime(date: Date): string {
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMin = Math.floor(diffMs / 60000);
+  if (diffMin < 1) return '방금 전';
+  if (diffMin < 60) return `${diffMin}분 전`;
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return `${diffHour}시간 전`;
+  const month = date.getMonth() + 1;
+  const day = date.getDate();
+  const hours = date.getHours().toString().padStart(2, '0');
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  return `${month}/${day} ${hours}:${minutes}`;
+}
 
 export function ProfileScreen({
   recipeCount,
   userEmail,
   handle,
+  lastSyncedAt,
+  lastSyncedDevice,
   onBack,
   onExport,
   onImport,
@@ -70,10 +91,17 @@ export function ProfileScreen({
   onLogout,
   onUpdateHandle,
   onTermsPress,
+  avatarSeed,
 }: ProfileScreenProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const {appearanceMode, setAppearanceMode} = useTheme();
+
+  const syncLabel = lastSyncedAt
+    ? (lastSyncedDevice
+        ? `${lastSyncedDevice}, ${formatSyncTime(lastSyncedAt)}`
+        : formatSyncTime(lastSyncedAt))
+    : null;
 
   const APPEARANCE_TABS = useMemo(() => [
     {id: 'light' as AppearanceMode, label: '라이트', icon: IconSunDimFilled, activeIconColor: colors['custom-orange']},
@@ -204,7 +232,7 @@ export function ProfileScreen({
           showsVerticalScrollIndicator={false}>
           {/* 프로필 섹션 */}
           <ContentContainer style={styles.profileSection}>
-            <Avatar type="random" size="xlarge" shape="circle" seed={42} />
+            <Avatar type="random" size="xlarge" shape="circle" seed={avatarSeed ?? 42} />
             {userEmail ? (
               <>
                 <Pressable onPress={handleOpenHandleEdit}>
@@ -214,7 +242,7 @@ export function ProfileScreen({
               </>
             ) : (
               <>
-                <Text style={styles.profileName}>@hungry_baker</Text>
+                <Text style={styles.profileName}>@guest</Text>
                 <Button
                   label="로그인하고 동기화 하기"
                   size="small"
@@ -227,7 +255,7 @@ export function ProfileScreen({
 
           {/* 데이터 관리 섹션 */}
           <ContentContainer style={styles.section}>
-            <Text style={styles.sectionTitle}>데이터 관리</Text>
+            <SectionHeader title="데이터 관리" />
             <Card>
               <ListItem
                 title="내보내기"
@@ -240,15 +268,25 @@ export function ProfileScreen({
                 title="가져오기"
                 leading={{type: 'icon', icon: IconImport}}
                 trailing={{type: 'icon', icon: IconChevronRight}}
-                showDivider={false}
+                showDivider={!!(userEmail && lastSyncedAt)}
                 onPress={handleImport}
               />
+              {userEmail && lastSyncedAt && (
+                <ListItem
+                  title="마지막 동기화"
+                  leading={{type: 'icon', icon: IconCloudFilled}}
+                  trailing={{type: 'custom', element: (
+                    <Text style={styles.syncTime}>{syncLabel}</Text>
+                  )}}
+                  showDivider={false}
+                />
+              )}
             </Card>
           </ContentContainer>
 
           {/* 환경설정 섹션 */}
           <ContentContainer style={styles.section}>
-            <Text style={styles.sectionTitle}>환경설정</Text>
+            <SectionHeader title="환경설정" />
             <Card>
               <ListItem
                 title="외관"
@@ -286,7 +324,7 @@ export function ProfileScreen({
           <View style={styles.footer}>
             <LogoText width={89} height={20} color={colors['foreground-onsurfacemuted']} />
             <View style={styles.footerTextGroup}>
-              <Text style={styles.footerText}>버전 1.0.0</Text>
+              <Text style={styles.footerText}>버전 {APP_VERSION}</Text>
               <Text style={styles.footerLink} onPress={onTermsPress}>이용약관 및 개인정보 처리방침</Text>
             </View>
           </View>
@@ -298,6 +336,7 @@ export function ProfileScreen({
         visible={showAuthSheet}
         onClose={() => { setShowAuthSheet(false); setShowEmailForm(false); }}
         title={showEmailForm ? (isLoginMode ? '이메일로 로그인' : '이메일로 회원가입') : '로그인'}
+        description={showEmailForm ? undefined : '로그인하면 레시피를 여러 기기에서 동기화하고\n안전하게 보관할 수 있어요.'}
         headerGraphic={<LogoBakecycle width={48} height={48} />}
       >
         {showEmailForm ? (
@@ -333,32 +372,31 @@ export function ProfileScreen({
           </View>
         ) : (
           <View style={styles.authForm}>
-            <Text style={styles.authDescription}>
-              로그인하면 레시피를 여러 기기에서 동기화하고{'\n'}안전하게 보관할 수 있어요.
-            </Text>
-            <Button
-              label="Google로 계속하기"
-              variant="soft"
-              icon={IconGoogle}
-              onPress={async () => {
-                try {
-                  await onGoogleSignIn();
-                  setShowAuthSheet(false);
-                  showMessage('로그인 성공');
-                } catch (err: any) {
-                  console.error('Google sign-in error:', err);
-                  if (err?.code !== 'auth/popup-closed-by-user') {
-                    showMessage('Google 로그인에 실패했습니다');
+            <View style={styles.authLoginButtons}>
+              <Button
+                label="Google로 계속하기"
+                variant="soft"
+                icon={IconGoogle}
+                onPress={async () => {
+                  try {
+                    await onGoogleSignIn();
+                    setShowAuthSheet(false);
+                    showMessage('로그인 성공');
+                  } catch (err: any) {
+                    console.error('Google sign-in error:', err);
+                    if (err?.code !== 'auth/popup-closed-by-user') {
+                      showMessage('Google 로그인에 실패했습니다');
+                    }
                   }
-                }
-              }}
-            />
-            <Button
-              label="이메일로 하기"
-              variant="soft"
-              icon={IconMailFilled}
-              onPress={() => setShowEmailForm(true)}
-            />
+                }}
+              />
+              <Button
+                label="이메일로 계속하기"
+                variant="soft"
+                icon={IconMailFilled}
+                onPress={() => setShowEmailForm(true)}
+              />
+            </View>
             <Text style={styles.termsCaption}>
               계속하면 Bakecycle의{' '}
               <Text
@@ -453,20 +491,14 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   section: {
     paddingTop: Spacing.md,
   },
-  sectionTitle: {
-    fontFamily: Typography.label.large.fontFamily,
-    fontSize: Typography.label.large.fontSize,
-    fontWeight: Typography.label.large.fontWeight as '500',
-    lineHeight: Typography.label.large.lineHeight,
-    color: colors['foreground-onsurfacemuted'],
-    marginBottom: Spacing.sm,
-    paddingHorizontal: Spacing.xs,
-    marginTop: FONT_BASELINE_OFFSET,
-  },
   authForm: {
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.md,
+    gap: Spacing.md,
+  },
+  authLoginButtons: {
     gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
   },
   authButtons: {
     marginTop: Spacing.xs,
@@ -494,7 +526,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   termsLink: {
     color: colors['foreground-onsurfacevar'],
-    textDecorationLine: 'underline' as const,
   },
   footer: {
     alignItems: 'center',
@@ -520,6 +551,13 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     lineHeight: Typography.label.medium.lineHeight,
     letterSpacing: Typography.label.medium.letterSpacing,
     color: colors['foreground-onsurfacedisabled'],
+  },
+  syncTime: {
+    fontFamily: Typography.body.medium.fontFamily,
+    fontSize: Typography.body.medium.fontSize,
+    fontWeight: Typography.body.medium.fontWeight as '400',
+    lineHeight: Typography.body.medium.lineHeight,
+    color: colors['foreground-onsurfacemuted'],
   },
   snackbarWrapper: {
     position: 'absolute',

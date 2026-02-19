@@ -1,0 +1,4 @@
+/* Web: textarea 기본 2줄 최소 높이를 콘텐츠 기반으로 변경 */
+textarea {
+  field-sizing: content;
+}

@@ -4,7 +4,7 @@ import {SvgProps} from 'react-native-svg';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
-import {Card} from '@components/Layout/Card';
+import {Card} from '@components/Container/Card';
 import {AppIcon, AppIconSize} from '@components/Icon/AppIcon';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';

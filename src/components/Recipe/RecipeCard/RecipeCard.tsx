@@ -1,5 +1,7 @@
 import React, {useCallback, useRef} from 'react';
 import {
+  Animated,
+  Easing,
   Image,
   ImageSourcePropType,
   Pressable,
@@ -17,14 +19,54 @@ import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 import {SvgProps} from 'react-native-svg';
 import {IconEllipsisVertical, IconPhoto} from '@components/Icon/IconIndex';
-import {IconButton} from '@components/Layout/IconButton';
+import {IconButton} from '@components/IconButton';
+import {Thumbnail} from '@components/Thumbnail';
+
+// ---- 이미지 페이드인 (리모트 URI만, 로컬 번들은 즉시 표시) ----
+
+const loadedUris = new Set<string>();
+
+function FadeInImage(props: React.ComponentProps<typeof Image>) {
+  const source = props.source;
+  const uri = !!source && typeof source === 'object' && !Array.isArray(source) && 'uri' in source
+    ? (source as {uri: string}).uri
+    : null;
+  const needsFade = !!uri && !loadedUris.has(uri);
+
+  const opacity = useRef(new Animated.Value(needsFade ? 0 : 1)).current;
+
+  const handleLoad = useCallback(() => {
+    if (uri) loadedUris.add(uri);
+    if (needsFade) {
+      Animated.timing(opacity, {
+        toValue: 1,
+        duration: 280,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: true,
+      }).start();
+    }
+  }, []);
+
+  if (!needsFade) return <Image {...props} />;
+
+  return (
+    <Animated.Image
+      {...props}
+      style={[props.style, {opacity}]}
+      onLoad={handleLoad}
+    />
+  );
+}
 
 export type RecipeCardLayout = 'grid' | 'photoList' | 'list';
 
 export interface RecipeCardProps {
+  /** 레시피 ID (shared element transition tag 용) */
+  id?: string;
   title: string;
-  category?: string;
+  cookbook?: string;
   method?: string;
+  specificGravity?: string;
   reviewCount?: number;
   sessionCount?: number;
   imageUrl?: string;
@@ -43,9 +85,11 @@ export interface RecipeCardProps {
 }
 
 export function RecipeCard({
+  id,
   title,
-  category = '제과',
+  cookbook,
   method,
+  specificGravity,
   reviewCount = 0,
   sessionCount,
   imageUrl,
@@ -62,7 +106,8 @@ export function RecipeCard({
   const styles = useThemedStyles(createStyles);
   const menuButtonRef = useRef<View>(null);
   const hasImage = imageUrl || imageSource;
-  const parts = [category, method].filter(Boolean);
+  const parts = [cookbook, method].filter(Boolean);
+  if (specificGravity) parts.push(`비중 ${specificGravity}`);
   if (sessionCount && sessionCount > 1) parts.push(`${sessionCount}개의 회차`);
   if (reviewCount > 0) parts.push(`${reviewCount}개의 회고`);
   const subtitle = parts.join(' · ');
@@ -84,23 +129,17 @@ export function RecipeCard({
           ]}
           onPress={onPress}>
           {/* 썸네일 */}
-          <View style={styles.listThumbnail}>
-            {hasImage ? (
-              <Image
-                source={imageSource || {uri: imageUrl}}
+          <Thumbnail
+            icon={PlaceholderIcon}
+            iconColor={placeholderIconColor || colors['foreground-onsurfacemuted']}>
+            {hasImage && (
+              <FadeInImage
+                source={imageSource || {uri: imageUrl!}}
                 style={styles.listImage}
                 resizeMode="cover"
               />
-            ) : (
-              <View style={styles.listPlaceholder}>
-                <PlaceholderIcon
-                  width={24}
-                  height={24}
-                  color={placeholderIconColor || colors['foreground-onsurfacemuted']}
-                />
-              </View>
             )}
-          </View>
+          </Thumbnail>
 
           {/* 콘텐츠 */}
           <View style={styles.listContent}>
@@ -113,15 +152,17 @@ export function RecipeCard({
           </View>
 
           {/* 메뉴 버튼 */}
-          <View ref={menuButtonRef}>
-            <IconButton
-              icon={trailingIcon || IconEllipsisVertical}
-              iconColor={trailingIconColor}
-              onPress={handleMenuPress}
-              variant="ghost-secondary"
-              size="medium"
-            />
-          </View>
+          {(onMenuPress || trailingIcon) && (
+            <View ref={menuButtonRef}>
+              <IconButton
+                icon={trailingIcon || IconEllipsisVertical}
+                iconColor={trailingIconColor}
+                onPress={handleMenuPress}
+                variant="ghost-secondary"
+                size="medium"
+              />
+            </View>
+          )}
         </Pressable>
         <View style={styles.listDivider} />
       </View>
@@ -152,8 +193,8 @@ export function RecipeCard({
 
       {/* 썸네일 이미지 */}
       {hasImage && (
-        <Image
-          source={imageSource || {uri: imageUrl}}
+        <FadeInImage
+          source={imageSource || {uri: imageUrl!}}
           style={[StyleSheet.absoluteFill, styles.gridImage]}
           resizeMode="cover"
         />
@@ -255,7 +296,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   listDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors['border-borderlight'],
-    marginLeft: 68 + Spacing.sm + Spacing.md,
+    marginLeft: 62 + Spacing.sm + Spacing.md,
   },
   listContainer: {
     flexDirection: 'row',
@@ -266,22 +307,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   listContainerPressed: {
     backgroundColor: colors['background-statelayers-surfacefocus_press'],
   },
-  listThumbnail: {
-    width: 68,
-    height: 68,
-    borderRadius: Radius['radius-md'],
-    overflow: 'hidden',
-  },
   listImage: {
     width: '100%',
     height: '100%',
-  },
-  listPlaceholder: {
-    width: '100%',
-    height: '100%',
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(94, 94, 94, 0.08)',
   },
   listContent: {
     flex: 1,

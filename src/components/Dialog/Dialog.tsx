@@ -26,6 +26,8 @@ export interface DialogProps {
   headerGraphic?: React.ReactNode;
   /** 타이틀 텍스트 */
   title?: string;
+  /** 타이틀 아래 설명 텍스트 (문자열 또는 인라인 Text 노드) */
+  description?: React.ReactNode;
   /** 커스텀 콘텐츠 */
   children?: React.ReactNode;
   /** 하단 버튼 영역 */
@@ -49,6 +51,7 @@ export function Dialog({
   avatarColor,
   headerGraphic,
   title,
+  description,
   children,
   actions,
   showCloseButton = true,
@@ -150,6 +153,7 @@ export function Dialog({
         {(icon || title || showCloseButton) && (
           <SheetHeader
             title={title ?? ''}
+            description={description}
             icon={icon}
             avatarColor={avatarColor}
             headerGraphic={headerGraphic}
@@ -161,7 +165,16 @@ export function Dialog({
         {children && <View style={styles.content}>{children}</View>}
 
         {/* Actions */}
-        {actions && <View style={styles.actions}>{actions}</View>}
+        {actions && (
+          <View style={styles.actions}>
+            {React.Children.map(
+              (actions as any)?.type === React.Fragment
+                ? (actions as any).props.children
+                : actions,
+              child => child ? <View style={{flex: 1}}>{child}</View> : null,
+            )}
+          </View>
+        )}
       </Animated.View>
     </View>
   );
@@ -183,15 +196,16 @@ const createStyles = (colors: SemanticColors) =>
       width: 312,
       backgroundColor: colors['surface-surfacebright'],
       borderRadius: Radius['radius-xl'],
-      paddingBottom: Spacing.md,
+      paddingBottom: Spacing.lg,
     },
     content: {
-      paddingHorizontal: Spacing.md,
+      paddingHorizontal: Spacing.lg,
     },
     actions: {
       flexDirection: 'row',
       gap: Spacing.sm,
-      marginTop: Spacing.md,
-      paddingHorizontal: Spacing.md,
+      marginTop: Spacing.lg,
+      paddingTop: Spacing.xs,
+      paddingHorizontal: Spacing.lg,
     },
   });

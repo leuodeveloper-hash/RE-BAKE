@@ -1,14 +1,14 @@
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef} from 'react';
 import {View, StyleSheet} from 'react-native';
 import {useRouter} from 'expo-router';
-import {doc, deleteDoc, setDoc} from 'firebase/firestore';
+import {deleteDoc, doc} from 'firebase/firestore';
 import {ExploreScreen} from '@screens/ExploreScreen';
-import {RecipeEditScreen} from '@screens/RecipeEditScreen';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useColors} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
 import {useExploreRecipes} from '@hooks/useExploreRecipes';
+import {useOnlineStatus} from '@hooks/useOnlineStatus';
 import {db} from '@config/firebase';
 import {MockRecipe} from '@data/mockRecipes';
 
@@ -18,8 +18,16 @@ export default function ExploreRoute() {
   const {recipes, setRecipes} = useRecipes();
   const {showSnackbar} = useSnackbar();
   const {isAdmin} = useAuth();
-  const {recipes: exploreRecipes} = useExploreRecipes();
-  const [editingRecipe, setEditingRecipe] = useState<MockRecipe | null>(null);
+  const isOnline = useOnlineStatus();
+  const {recipes: exploreRecipes, exploreCookbooks, isLoading: exploreLoading, reload: exploreReload} = useExploreRecipes();
+
+  const prevOnlineRef = useRef(isOnline);
+  useEffect(() => {
+    if (prevOnlineRef.current && !isOnline) {
+      showSnackbar('네트워크 연결이 끊어졌어요');
+    }
+    prevOnlineRef.current = isOnline;
+  }, [isOnline, showSnackbar]);
 
   const myRecipeSourceIds = useMemo(() => recipes.map(r => r.sourceId ?? r.id), [recipes]);
 
@@ -28,6 +36,7 @@ export default function ExploreRoute() {
       ...recipe,
       id: `user_${Date.now()}`,
       sourceId: recipe.id,
+      createdAt: new Date().toISOString(),
     };
     setRecipes(prev => [...prev, copied]);
     showSnackbar('내 레시피에 저장했습니다', {
@@ -37,24 +46,16 @@ export default function ExploreRoute() {
   }, [setRecipes, showSnackbar, router]);
 
   const handleRecipePress = useCallback((recipe: MockRecipe) => {
-    router.push(`/recipe/${recipe.id}`);
+    router.push(`/recipe/${recipe.id}?from=explore` as any);
   }, [router]);
 
   const handleEditRecipe = useCallback((recipe: MockRecipe) => {
-    setEditingRecipe(recipe);
-  }, []);
+    router.push(`/recipe/edit/${recipe.id}?target=explore` as any);
+  }, [router]);
 
-  const handleEditSave = useCallback(async (data: any) => {
-    if (!editingRecipe) return;
-    try {
-      const {imageSource, ...serializable} = {...editingRecipe, ...data};
-      await setDoc(doc(db, 'explore_recipes', editingRecipe.id), serializable);
-      showSnackbar('레시피가 수정되었습니다');
-    } catch {
-      showSnackbar('수정에 실패했습니다');
-    }
-    setEditingRecipe(null);
-  }, [editingRecipe, showSnackbar]);
+  const handleAddRecipe = useCallback(() => {
+    router.push('/recipe/edit?target=explore' as any);
+  }, [router]);
 
   const handleDeleteRecipe = useCallback(async (recipe: MockRecipe) => {
     try {
@@ -69,30 +70,22 @@ export default function ExploreRoute() {
     showSnackbar('기능 추가 예정입니다');
   }, [showSnackbar]);
 
-  if (editingRecipe) {
-    return (
-      <View style={[styles.container, {backgroundColor: colors['surface-surfacedim']}]}>
-        <RecipeEditScreen
-          recipe={editingRecipe}
-          cookbooks={[]}
-          onClose={() => setEditingRecipe(null)}
-          onSave={handleEditSave}
-        />
-      </View>
-    );
-  }
-
   return (
     <View style={[styles.container, {backgroundColor: colors['surface-surfacedim']}]}>
       <ExploreScreen
         data={exploreRecipes}
+        loading={exploreLoading}
         isAdmin={isAdmin}
+        isOnline={isOnline}
         myRecipeIds={myRecipeSourceIds}
         onImportRecipe={handleImportRecipe}
         onRecipePress={handleRecipePress}
         onEditRecipe={isAdmin ? handleEditRecipe : undefined}
         onDeleteRecipe={isAdmin ? handleDeleteRecipe : undefined}
+        onAddRecipe={isAdmin ? handleAddRecipe : undefined}
         onComingSoon={handleComingSoon}
+        onRefresh={exploreReload}
+        exploreCookbooks={exploreCookbooks}
       />
     </View>
   );

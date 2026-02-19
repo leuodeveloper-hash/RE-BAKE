@@ -57,3 +57,7 @@ ios/Pods/
 # environment
 .env
 .env.local
+
+# Firebase
+GoogleService-Info.plist
+google-services.json

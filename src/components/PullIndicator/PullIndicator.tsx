@@ -1,0 +1,240 @@
+import React, {useCallback, useRef, useState} from 'react';
+import {Animated, Easing, NativeScrollEvent, NativeSyntheticEvent, StyleSheet, View} from 'react-native';
+import Svg, {Path} from 'react-native-svg';
+import * as Haptics from 'expo-haptics';
+import {useColors} from '@contexts/ThemeContext';
+import {APPBAR_CONTENT_BOTTOM} from '@components/Navigation';
+
+const REFRESH_THRESHOLD = 120;
+const LOGO_SIZE = 40;
+const STRIP_COUNT = 5;
+const STRIP_H = LOGO_SIZE / STRIP_COUNT; // 8px
+const DIAGONAL_PX = 2;
+const REFRESH_GAP = 52;
+/** 그리기/지우기 한 방향 소요시간 (스플래시와 비슷한 속도) */
+const DRAW_DURATION = 1000;
+/** 최소: 지우기→채우기 (phase 0=erase, 1=fill) */
+const MIN_REFRESH_DISPLAY_MS = DRAW_DURATION;
+const FADE_OUT_DURATION = 500;
+const GAP_CLOSE_DURATION = 600;
+
+export const LOGO_PATH_D = 'M17.1645 0.966538C18.5021 0.662958 19.995 1.12725 20.9203 2.15501C21.0342 2.27855 21.1482 2.4026 21.2621 2.52611C21.2789 2.6646 21.2952 2.80364 21.3119 2.94212L21.4125 3.08568C21.5145 3.21088 21.6197 3.28525 21.7211 3.34154C21.784 3.34192 21.8381 3.30351 21.8656 3.29173C21.9164 3.2716 21.9454 3.23438 21.9516 3.20287C22.3478 3.02587 22.7923 2.85023 23.269 2.67748C25.2783 1.82922 28.1489 3.44238 28.4477 5.71849C28.5347 6.20279 28.6176 6.67237 28.6977 7.114C28.6895 7.14526 28.7103 7.18649 28.7455 7.20189C28.8428 7.22573 28.9381 7.24913 29.0307 7.27123C29.2533 7.3243 29.6766 7.4025 30.1313 7.49095C31.0529 7.64473 31.9114 8.31892 32.0522 8.60326C32.1199 8.72144 32.0516 8.83198 32.1342 8.93626C32.9677 9.79166 33.3764 11.1031 33.1225 12.3503C33.0985 12.4211 33.0728 12.4913 33.0453 12.5613C32.8652 12.9964 32.7016 13.441 32.5483 13.8904C32.5197 13.9512 32.5401 14.0336 32.5942 14.0759C32.9456 14.39 33.3027 14.6992 33.6606 15.0066C34.334 15.5859 34.8089 16.4198 34.9477 17.3044C35.1642 18.5847 34.696 19.9728 33.7299 20.8581C33.3857 21.1817 33.0415 21.505 32.6977 21.8279C32.6944 21.8377 32.6996 21.8469 32.7055 21.8484C32.8549 22.2967 33.0041 22.7452 33.1528 23.1931C33.9354 25.3671 32.4443 27.9997 30.1625 28.4431C29.7156 28.5434 29.2684 28.643 28.8217 28.7419C28.7235 29.1906 28.6245 29.6389 28.5248 30.0867C28.4775 30.3 28.4141 30.5099 28.3334 30.7136C27.8793 32.0499 26.3098 33.3207 24.891 33.3318C24.3069 33.3404 24.1005 33.1464 23.3608 33.1052C23.3686 33.0514 23.3768 32.9977 23.3852 32.9441C23.3652 32.9403 23.3452 32.9362 23.3256 32.9324C22.8599 32.8537 22.526 32.868 22.0111 32.7165C21.9946 32.7116 21.9769 32.7064 21.9584 32.7009C21.7047 32.9797 21.4624 33.2406 21.3295 33.3728C21.1777 33.5243 21.1568 33.3977 21.0229 33.5456C20.9964 33.5751 20.9674 33.6096 20.9369 33.6482C20.6517 34.0269 20.041 34.6054 19.5111 34.7976C18.9797 35.0363 18.0167 35.0187 17.601 34.9704C16.66 34.9245 15.6319 34.5371 14.892 33.782C14.5665 33.4628 14.2477 33.1333 13.9516 32.7878C13.9143 32.8294 13.8788 32.8679 13.8246 32.8923C13.5293 33.0248 13.1439 33.1378 12.7475 33.241C12.0727 33.433 11.3434 33.4033 10.8236 33.3122C9.2092 33.0708 7.75116 31.7567 7.40373 30.0974C7.30501 29.6601 7.20652 29.2227 7.10978 28.7878C6.84829 28.7297 6.58822 28.6712 6.33049 28.612C6.16587 28.5743 5.98813 28.5338 5.80119 28.4919C3.72232 28.2289 2.12092 25.3637 2.66447 23.7995C2.75298 23.4275 2.86845 23.5585 2.95158 23.2644C2.95444 23.2552 2.95766 23.2461 2.96037 23.237C3.03332 22.991 2.99164 22.8282 3.02189 22.7087C3.07973 22.4797 3.15845 22.1767 3.24845 21.8415C3.23191 21.8407 3.21601 21.8631 3.22599 21.8835C2.83115 21.5396 2.4539 21.1953 2.18791 20.9206C2.10118 20.8337 2.02792 20.7497 1.96623 20.6706C1.83906 20.5065 1.83361 20.3224 1.7631 20.2273C1.72806 20.1792 1.58526 20.1096 1.47892 19.9451C0.585787 18.4738 0.709825 16.9244 1.66545 15.5593C1.83304 15.3313 2.02621 15.118 2.23967 14.9255C2.5834 14.6165 2.93256 14.2963 3.28459 13.9695C3.29253 13.9584 3.28934 13.9425 3.28166 13.9363C3.13322 13.4909 2.98261 13.0421 2.83342 12.5925C2.3418 11.1697 2.78556 9.48504 3.83537 8.5056C4.38213 7.98686 4.95197 7.97714 5.02873 7.93236C5.22019 7.84014 5.28985 7.6374 5.72209 7.48509C5.75884 7.47282 5.79629 7.46101 5.83439 7.44994C6.25102 7.32015 6.72493 7.21327 7.20939 7.114C7.21504 7.11821 7.23297 7.11975 7.24259 7.10716C7.35178 6.64877 7.44998 6.20756 7.5092 5.81712C7.51407 5.78502 7.51864 5.7521 7.52287 5.71849C7.60345 5.02447 7.9302 4.07978 8.42424 3.55345C8.79508 3.04157 10.1165 2.48049 10.3715 2.38744C10.5171 2.3001 10.5621 2.12798 10.7641 2.07494C10.9514 2.02719 11.2267 2.09691 11.4457 2.10228C12.0683 2.12223 12.4149 2.24218 12.7973 2.39134C12.9289 2.44974 13.0707 2.51138 13.2485 2.5808C13.4344 2.65341 13.7101 2.74455 14.0209 2.84935C14.5156 2.40107 14.9776 2.09307 15.2006 2.2888C15.1147 2.19946 15.1202 1.98049 14.976 1.94798C15.6913 1.08143 16.2981 0.968119 17.1645 0.966538ZM13.9799 32.7566C13.9966 32.7505 14.0124 32.7394 14.0219 32.7253C14.0275 32.718 14.0315 32.7101 14.0346 32.7029C14.0141 32.7203 13.9965 32.7386 13.9799 32.7566ZM17.9838 6.16087C14.605 6.1637 12.357 8.25797 11.0551 10.6326C9.75174 13.0099 9.25876 15.872 9.39396 17.9314L12.2319 17.7439C12.13 16.1925 12.5232 13.8784 13.5483 12.0085C14.5316 10.215 15.961 9.03173 17.9535 9.01537C18.1311 9.06835 18.2253 9.1584 18.2826 9.25072C18.3578 9.37194 18.4536 9.63947 18.3725 10.1277C18.2043 11.1402 17.2965 12.8361 14.7787 14.8386C14.2154 15.2866 14.0737 16.0865 14.4486 16.7019C14.8237 17.317 15.5973 17.5543 16.2514 17.2556C17.476 16.6964 19.5997 16.5267 21.2826 17.0652C22.1007 17.327 22.6926 17.7178 23.0434 18.1804C23.367 18.6073 23.5791 19.2148 23.4369 20.154C23.4368 20.155 23.4361 20.156 23.436 20.157C20.5353 19.6455 17.7984 19.871 15.6264 20.5652C13.9206 21.1103 12.4175 21.9935 11.518 23.1941C11.0574 23.8088 10.737 24.5347 10.6791 25.3415C10.6206 26.1577 10.8381 26.9522 11.2865 27.6745C12.2413 29.2121 13.8282 29.7491 15.3842 29.7126C16.9017 29.6771 18.5243 29.1119 19.9887 28.2976C21.4678 27.4751 22.8905 26.3405 24.0082 25.0427C24.4192 24.5655 24.7996 24.0534 25.1283 23.5144C25.8747 23.7573 26.6279 24.0616 27.3783 24.4353L28.643 21.8786C27.8313 21.4745 27.0139 21.1387 26.1996 20.864C26.218 20.7707 26.2352 20.6767 26.2494 20.5827C26.4951 18.9599 26.1437 17.5554 25.307 16.4519C24.4976 15.3844 23.331 14.7252 22.1479 14.3464C21.3662 14.0962 20.5233 13.9517 19.6772 13.9031C20.5083 12.7598 21.0053 11.6427 21.1791 10.5964C21.3483 9.57714 21.2133 8.57149 20.6967 7.73998C20.1719 6.89565 19.3359 6.36809 18.3832 6.18724C18.3245 6.17609 18.2651 6.16843 18.2055 6.16478L18.1449 6.16185L17.9838 6.16087ZM16.4897 23.2849C18.0239 22.7946 19.9878 22.5842 22.1274 22.8464C22.0405 22.9566 21.9497 23.0674 21.8549 23.1775C20.9686 24.2064 19.8134 25.1322 18.6098 25.8015C17.3911 26.4791 16.2247 26.8379 15.3178 26.8591C14.4493 26.8794 13.9753 26.6056 13.7016 26.1648C13.5361 25.8983 13.5053 25.6977 13.516 25.5466C13.5276 25.3861 13.5944 25.1719 13.7914 24.9089C14.2072 24.354 15.1003 23.729 16.4897 23.2849ZM15.2182 2.30541C15.3038 2.39567 15.2576 2.64767 15.3393 2.76634C15.3606 2.79715 15.4231 2.86036 15.5004 2.94115L15.6889 2.73412C15.7962 2.61613 15.9109 2.50832 16.0307 2.41087C15.7347 2.36841 15.3832 2.3496 15.2514 2.32103C15.2356 2.31612 15.2223 2.30784 15.2104 2.29759C15.213 2.30013 15.2156 2.30272 15.2182 2.30541Z';
+
+export const PULL_REFRESH_THRESHOLD = REFRESH_THRESHOLD;
+
+export function usePullProgress(onRefresh?: () => Promise<void> | void) {
+  const [pullProgress, setPullProgress] = useState(0);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+  const [refreshStripProgress, setRefreshStripProgress] = useState(0);
+  const [refreshOpacity, setRefreshOpacity] = useState(1);
+  const triggeredRef = useRef(false);
+  const refreshingRef = useRef(false);
+  const fadingRef = useRef(false);
+  const fadeStartRef = useRef(0);
+  const frameIdRef = useRef(0);
+  const onRefreshRef = useRef(onRefresh);
+  onRefreshRef.current = onRefresh;
+
+  const refreshGapHeight = useRef(new Animated.Value(0)).current;
+
+  const closeGap = useCallback(() => {
+    cancelAnimationFrame(frameIdRef.current);
+    refreshingRef.current = false;
+    fadingRef.current = false;
+
+    Animated.timing(refreshGapHeight, {
+      toValue: 0,
+      duration: GAP_CLOSE_DURATION,
+      easing: Easing.inOut(Easing.ease),
+      useNativeDriver: false,
+    }).start(() => {
+      triggeredRef.current = false;
+      setIsRefreshing(false);
+      setRefreshStripProgress(0);
+      setRefreshOpacity(1);
+      setPullProgress(0);
+    });
+  }, [refreshGapHeight]);
+
+  const handleScroll = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = e.nativeEvent.contentOffset.y;
+
+    if (refreshingRef.current) return;
+
+    const progress = Math.min(1, Math.max(0, -y / REFRESH_THRESHOLD));
+    setPullProgress(progress);
+
+    if (progress >= 1 && !triggeredRef.current) {
+      triggeredRef.current = true;
+      refreshingRef.current = true;
+      setIsRefreshing(true);
+
+      // 햅틱 피드백 (iOS 네이티브 pull-to-refresh와 동일)
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      // 갭 열기
+      Animated.timing(refreshGapHeight, {
+        toValue: REFRESH_GAP,
+        duration: 200,
+        easing: Easing.out(Easing.ease),
+        useNativeDriver: false,
+      }).start();
+
+      // onRefresh 호출
+      const startTime = Date.now();
+      const loadingDone = {current: false};
+      const result = onRefreshRef.current?.();
+      const markDone = () => { loadingDone.current = true; };
+      if (result && typeof result.then === 'function') {
+        result.then(markDone).catch(markDone);
+      } else {
+        markDone();
+      }
+
+      // 지우기→채우기 → 오퍼시티 페이드아웃
+      setRefreshStripProgress(1); // 풀 제스처로 이미 다 그려진 상태에서 시작
+      const animate = () => {
+        // 페이드아웃 모드
+        if (fadingRef.current) {
+          const fadeElapsed = Date.now() - fadeStartRef.current;
+          const fadeProgress = Math.min(1, fadeElapsed / FADE_OUT_DURATION);
+          setRefreshOpacity(1 - fadeProgress);
+          if (fadeProgress >= 1) {
+            setRefreshOpacity(0);
+            closeGap();
+            return;
+          }
+          frameIdRef.current = requestAnimationFrame(animate);
+          return;
+        }
+
+        const elapsed = Date.now() - startTime;
+        // phase 0=지우기, 1=채우기, 2=지우기, 3=채우기, ...
+        const phaseIndex = Math.floor(elapsed / DRAW_DURATION);
+        const phaseProgress = (elapsed % DRAW_DURATION) / DRAW_DURATION;
+        const isErase = phaseIndex % 2 === 0;
+        const p = isErase ? 1 - phaseProgress : phaseProgress;
+
+        setRefreshStripProgress(p);
+
+        // 채우기 완료(p≈1) 후 오퍼시티 페이드아웃 전환
+        if (loadingDone.current && elapsed >= MIN_REFRESH_DISPLAY_MS && !isErase && phaseProgress > 0.95) {
+          setRefreshStripProgress(1);
+          fadingRef.current = true;
+          fadeStartRef.current = Date.now();
+          frameIdRef.current = requestAnimationFrame(animate);
+          return;
+        }
+
+        frameIdRef.current = requestAnimationFrame(animate);
+      };
+
+      frameIdRef.current = requestAnimationFrame(animate);
+    }
+
+    if (progress === 0 && !refreshingRef.current) {
+      triggeredRef.current = false;
+    }
+  }, [refreshGapHeight, closeGap]);
+
+  return {pullProgress, isRefreshing, refreshStripProgress, refreshOpacity, refreshGapHeight, handleScroll};
+}
+
+/** FlatList ListHeaderComponent로 사용하는 리프레시 갭 */
+export function RefreshGap({height}: {height: Animated.Value}) {
+  return <Animated.View style={{height}} />;
+}
+
+export interface PullIndicatorProps {
+  progress: number;
+  isRefreshing?: boolean;
+  /** 리프레시 중 스트립 진행도 (0=지움, 1=다그림) */
+  refreshStripProgress?: number;
+  /** 리프레시 종료 시 페이드아웃 오퍼시티 (1→0) */
+  refreshOpacity?: number;
+}
+
+export function PullIndicator({progress, isRefreshing = false, refreshStripProgress = 0, refreshOpacity = 1}: PullIndicatorProps) {
+  const colors = useColors();
+
+  // 당기는 중이거나 리프레시 중이면 표시
+  const visible = progress > 0 || isRefreshing;
+  if (!visible) return null;
+
+  const displayProgress = isRefreshing ? refreshStripProgress : progress;
+
+  return (
+    <View
+      pointerEvents="none"
+      style={[styles.container, {
+        // 리프레시 중에는 리스트 뒤로 (갭 닫힐 때 리스트가 자연스럽게 덮음)
+        zIndex: isRefreshing ? 1 : 5,
+        opacity: isRefreshing ? refreshOpacity : (progress < 0.1 ? progress * 3 : Math.min(1, 0.3 + progress * 0.7)),
+        transform: [{scale: isRefreshing ? 1 : 0.2 + progress * 0.8}],
+      }]}
+    >
+      <View style={styles.logoWrapper}>
+        {/* 고스트 (연한 실루엣) */}
+        <Svg width={LOGO_SIZE} height={LOGO_SIZE} viewBox="0 0 36 36" style={{position: 'absolute'}}>
+          <Path d={LOGO_PATH_D} fill={colors['foreground-onsurfacemuted']} fillOpacity={0.1} />
+        </Svg>
+        {/* 크레파스 스트립 마스크 */}
+        {Array.from({length: STRIP_COUNT}, (_, i) => {
+          const stripStart = i / STRIP_COUNT;
+          const stripEnd = (i + 1) / STRIP_COUNT;
+          const localProgress = Math.min(1, Math.max(0, (displayProgress - stripStart) / (stripEnd - stripStart)));
+          const isLTR = i % 2 === 0;
+          const diagOffset = (isLTR ? -DIAGONAL_PX : DIAGONAL_PX) * (1 - localProgress);
+          const counterDiag = (isLTR ? DIAGONAL_PX : -DIAGONAL_PX) * (1 - localProgress);
+          return (
+            <View key={i} style={{
+              position: 'absolute',
+              top: i * STRIP_H,
+              left: 0,
+              width: LOGO_SIZE,
+              height: STRIP_H,
+              overflow: 'hidden',
+              transform: [{translateX: diagOffset}],
+            }}>
+              <View style={{
+                position: 'absolute',
+                ...(isLTR ? {left: 0} : {right: 0}),
+                top: 0,
+                height: STRIP_H,
+                width: localProgress * (LOGO_SIZE + DIAGONAL_PX),
+                overflow: 'hidden',
+              }}>
+                <View style={{
+                  position: 'absolute',
+                  ...(isLTR ? {left: 0} : {right: 0}),
+                  top: -i * STRIP_H,
+                  transform: [{translateX: counterDiag}],
+                }}>
+                  <Svg width={LOGO_SIZE} height={LOGO_SIZE} viewBox="0 0 36 36">
+                    <Path d={LOGO_PATH_D} fill={colors['foreground-onsurfacemuted']} />
+                  </Svg>
+                </View>
+              </View>
+            </View>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+const styles = StyleSheet.create({
+  container: {
+    position: 'absolute',
+    top: APPBAR_CONTENT_BOTTOM + 2,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    zIndex: 5,
+  },
+  logoWrapper: {
+    width: LOGO_SIZE,
+    height: LOGO_SIZE,
+    overflow: 'hidden',
+  },
+});

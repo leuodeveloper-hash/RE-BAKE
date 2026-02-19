@@ -23,7 +23,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   header: {
     height: 40,
     paddingHorizontal: Spacing.sm,
-    paddingVertical: 14,
     justifyContent: 'center',
   },
   headerText: {

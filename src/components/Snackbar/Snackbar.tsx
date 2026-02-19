@@ -1,10 +1,11 @@
 import React, {useEffect, useRef} from 'react';
-import {Animated, Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
+import {Animated, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {SvgProps} from 'react-native-svg';
-import {Card} from '@components/Layout/Card';
+import {Card} from '@components/Container/Card';
 import {AppIcon} from '@components/Icon/AppIcon';
-import {IconButton} from '@components/Layout/IconButton';
-import {IconClose, IconCircleInfoFilled} from '@components/Icon/IconIndex';
+import {Button} from '@components/Button/Button';
+import {IconButton} from '@components/IconButton';
+import {IconClose, IconCircleInfoFilled1} from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors, useTheme} from '@contexts/ThemeContext';
 import type {SemanticColors} from '@constants/tokens';
@@ -23,7 +24,7 @@ export interface SnackbarProps {
   style?: ViewStyle;
 }
 
-export function Snackbar({message, icon = IconCircleInfoFilled, action, onClose, visible = false, style}: SnackbarProps) {
+export function Snackbar({message, icon = IconCircleInfoFilled1, action, onClose, visible = false, style}: SnackbarProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const {elevation} = useTheme();
@@ -68,9 +69,12 @@ export function Snackbar({message, icon = IconCircleInfoFilled, action, onClose,
         {(action || onClose) && (
           <View style={styles.actions}>
             {action && (
-              <Pressable style={styles.actionButton} onPress={action.onPress}>
-                <Text style={styles.actionText}>{action.label}</Text>
-              </Pressable>
+              <Button
+                label={action.label}
+                onPress={action.onPress}
+                variant="soft"
+                size="small"
+              />
             )}
             {onClose && (
               <IconButton
@@ -90,7 +94,7 @@ export function Snackbar({message, icon = IconCircleInfoFilled, action, onClose,
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   container: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
+    flexWrap: 'nowrap',
     alignItems: 'center',
     minWidth: 360,
     maxWidth: 400,
@@ -101,7 +105,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   message: {
     flex: 1,
-    minWidth: '60%',
     fontFamily: Typography.body.medium.fontFamily,
     fontSize: Typography.body.medium.fontSize,
     fontWeight: Typography.body.medium.fontWeight as '500',
@@ -112,6 +115,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   actions: {
     flexDirection: 'row',
+    flexShrink: 0,
     alignItems: 'center',
     marginLeft: 'auto',
     gap: Spacing.xs,

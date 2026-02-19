@@ -1,9 +1,8 @@
-import React, {useCallback, useMemo, useState} from 'react';
-import {View, StyleSheet} from 'react-native';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {Animated, View, StyleSheet, Easing} from 'react-native';
 import {useLocalSearchParams, useRouter} from 'expo-router';
-import {doc, deleteDoc} from 'firebase/firestore';
+import {doc, deleteDoc, updateDoc} from 'firebase/firestore';
 import {RecipeDetailScreen} from '@screens/RecipeDetailScreen';
-import {BottomTabBar, type TabItem, type AddMenuItem} from '@components/Layout/BottomTabBar';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useAddSheet} from '@contexts/AddSheetContext';
@@ -11,89 +10,85 @@ import {useColors} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
 import {useExploreRecipes} from '@hooks/useExploreRecipes';
 import {db} from '@config/firebase';
-import {MOCK_RECIPES} from '@data/mockRecipes';
+import {EXPLORE_MOCK_RECIPES} from '@data/mockRecipes';
 import {parseSession, formatSession} from '@utils/session';
-import {Spacing} from '@constants/spacing';
-import {
-  IconHomeFilled,
-  IconBookFilled,
-  IconAdd,
-  IconEarthFilled,
-  IconUserFilled,
-  IconNoteFilled,
-} from '@components/Icon/IconIndex';
+import {IconTrashFilled} from '@components/Icon/IconIndex';
 
 export default function RecipeDetailRoute() {
-  const {id} = useLocalSearchParams<{id: string}>();
+  const {id, from} = useLocalSearchParams<{id: string; from?: string}>();
   const router = useRouter();
   const colors = useColors();
-  const {findRecipeById, recipes, setRecipes} = useRecipes();
+  const {findRecipeById, recipes, setRecipes, availableCookbooks, cookbookColors} = useRecipes();
   const {showSnackbar} = useSnackbar();
   const {isAdmin} = useAuth();
   const {recipes: exploreRecipes} = useExploreRecipes();
-  const {showAddSheet, setShowAddSheet} = useAddSheet();
+  const {setHideTabBar} = useAddSheet();
   const [isCookingMode, setIsCookingMode] = useState(false);
+  const fadeAnim = useRef(new Animated.Value(1)).current;
 
-  const recipe = findRecipeById(id) ?? exploreRecipes.find(r => r.id === id) ?? MOCK_RECIPES.find(r => r.id === id);
+  const recipe = findRecipeById(id) ?? exploreRecipes.find(r => r.id === id) ?? EXPLORE_MOCK_RECIPES.find(r => r.id === id);
   const isMyRecipe = recipes.some(r => r.id === id);
   const isExploreRecipe = !isMyRecipe && exploreRecipes.some(r => r.id === id);
   const alreadyImported = recipes.some(r => r.sourceId === id);
-  const activeTab = isExploreRecipe ? 'explore' : 'home';
 
-  const addMenuItems = useMemo<AddMenuItem[]>(() => {
-    const items: AddMenuItem[] = [
-      {id: 'recipe', label: '레시피', icon: IconNoteFilled, iconColor: colors['custom-greenvar']},
-      {id: 'cookbook', label: '요리책', icon: IconBookFilled, iconColor: colors['custom-brownvar']},
-    ];
-    if (isAdmin) {
-      items.push({id: 'official', label: '공식 레시피', icon: IconNoteFilled, iconColor: colors['custom-yellow']});
-    }
-    return items;
-  }, [colors, isAdmin]);
-
-  const handleAddItemPress = useCallback((item: AddMenuItem) => {
-    setShowAddSheet(false);
-    if (item.id === 'recipe') {
-      router.push('/recipe/edit');
-    } else if (item.id === 'official') {
-      router.push('/recipe/edit?official=true' as any);
-    }
-  }, [router, setShowAddSheet]);
-
-  const tabs = useMemo<TabItem[]>(() => [
-    {id: 'home', label: '홈', icon: IconHomeFilled, onPress: () => router.navigate('/')},
-    {id: 'group', label: '그룹', icon: IconBookFilled, onPress: () => router.navigate('/group')},
-    {id: 'add', label: '추가', icon: IconAdd, onPress: () => setShowAddSheet(true)},
-    {id: 'explore', label: '둘러보기', icon: IconEarthFilled, onPress: () => router.navigate('/explore')},
-    {id: 'profile', label: '나', icon: IconUserFilled, useRandomAvatar: true, onPress: () => router.navigate('/profile')},
-  ], [router, setShowAddSheet]);
+  // 쿠킹 모드일 때 탭바 숨기기
+  useEffect(() => {
+    setHideTabBar(isCookingMode);
+    return () => setHideTabBar(false);
+  }, [isCookingMode, setHideTabBar]);
 
   const handleBack = useCallback(() => {
     if (router.canGoBack()) {
       router.back();
+    } else if (from) {
+      router.navigate(`/${from}` as any);
     } else {
       router.replace('/');
     }
-  }, [router]);
+  }, [router, from]);
 
   const handleEdit = useCallback((section?: string) => {
-    const path = section ? `/recipe/edit/${id}?section=${section}` : `/recipe/edit/${id}`;
+    const params = new URLSearchParams();
+    if (section) params.set('section', section);
+    if (isExploreRecipe) params.set('target', 'explore');
+    const qs = params.toString();
+    const path = `/recipe/edit/${id}${qs ? `?${qs}` : ''}`;
     router.push(path as any);
-  }, [router, id]);
+  }, [router, id, isExploreRecipe]);
 
-  const handleExploreEdit = useCallback(() => {
-    router.back();
-  }, [router]);
-
-  const handleDelete = useCallback(async () => {
+const handleDelete = useCallback(async () => {
     if (!recipe) return;
     if (isMyRecipe) {
-      setRecipes(prev => prev.filter(r => r.id !== id));
-      showSnackbar(`'${recipe.title}' 삭제됨`);
+      const groupId = recipe.remakeGroupId;
+      setRecipes(prev => {
+        const filtered = prev.filter(r => r.id !== id);
+        if (!groupId) return filtered;
+        const remaining = filtered.filter(r => r.remakeGroupId === groupId || r.id === groupId);
+        const newTotal = remaining.length;
+        if (newTotal <= 1) {
+          return filtered.map(r => {
+            if (r.remakeGroupId === groupId || r.id === groupId) {
+              const {current} = parseSession(r.session);
+              return {...r, remakeGroupId: undefined, session: formatSession(current, 1)};
+            }
+            return r;
+          });
+        }
+        return filtered.map(r => {
+          if (r.remakeGroupId === groupId || r.id === groupId) {
+            const {current} = parseSession(r.session);
+            return {...r, session: formatSession(current, newTotal)};
+          }
+          return r;
+        });
+      });
+      const {current, total} = parseSession(recipe.session);
+      const sessionLabel = total > 1 ? ` ${current}회차` : '';
+      showSnackbar(`'${recipe.title}'${sessionLabel} 삭제됨`, {icon: IconTrashFilled});
     } else if (isExploreRecipe && isAdmin) {
       try {
         await deleteDoc(doc(db, 'explore_recipes', id!));
-        showSnackbar(`'${recipe.title}' 삭제됨`);
+        showSnackbar(`'${recipe.title}' 삭제됨`, {icon: IconTrashFilled});
       } catch {
         showSnackbar('삭제에 실패했습니다');
       }
@@ -115,6 +110,7 @@ export default function RecipeDetailRoute() {
       ...recipe,
       id: `user_${Date.now()}`,
       sourceId: recipe.id,
+      createdAt: new Date().toISOString(),
     };
     setRecipes(prev => [...prev, copied]);
     showSnackbar('내 레시피에 저장했습니다', {
@@ -138,6 +134,7 @@ export default function RecipeDetailRoute() {
       remakeGroupId: groupId,
       reviews: [] as {evaluation: string; improvement: string}[],
       reviewCount: 0,
+      createdAt: new Date().toISOString(),
     };
 
     setRecipes(prev => [
@@ -172,6 +169,14 @@ export default function RecipeDetailRoute() {
     router.replace(`/recipe/${recipeId}` as any);
   }, [router]);
 
+  const handleCookbookChange = useCallback((newCookbook: string) => {
+    if (!isMyRecipe) return;
+    setRecipes(prev => prev.map(r =>
+      r.id === id ? {...r, cookbook: newCookbook} : r
+    ));
+    showSnackbar(`요리책을 '${newCookbook || '그룹없음'}'으로 변경했습니다`);
+  }, [id, isMyRecipe, setRecipes, showSnackbar]);
+
   if (!recipe) return null;
 
   const canEdit = isMyRecipe || (isExploreRecipe && isAdmin);
@@ -180,12 +185,15 @@ export default function RecipeDetailRoute() {
   return (
     <View style={[styles.container, {backgroundColor: colors['surface-surfacedim']}]}>
       <RecipeDetailScreen
+        id={id}
         title={recipe.title}
-        category={recipe.category}
+        cookbook={recipe.cookbook}
         method={recipe.method}
+        ratio={recipe.specificGravity}
         reviewCount={recipe.reviewCount}
         reviews={recipe.reviews}
         imageSource={recipe.imageSource}
+        imageUri={recipe.imageUri}
         time={recipe.time}
         servings={recipe.servings}
         session={recipe.session}
@@ -196,30 +204,26 @@ export default function RecipeDetailRoute() {
         activeFieldIds={recipe.activeFieldIds}
         onBack={handleBack}
         onComingSoon={handleComingSoon}
-        onEdit={canEdit ? (isMyRecipe ? handleEdit : handleExploreEdit) : undefined}
+        onEdit={canEdit ? handleEdit : undefined}
         onDelete={canDelete ? handleDelete : undefined}
         onRemake={isMyRecipe ? handleRemake : undefined}
         onImport={!isMyRecipe && !alreadyImported ? handleImport : undefined}
+        onCookbookChange={isMyRecipe ? handleCookbookChange : undefined}
+        availableCookbooks={availableCookbooks}
+        cookbookColors={cookbookColors}
         sessionItems={sessionItems}
         onSessionSelect={handleSessionSelect}
-        onUpdate={isMyRecipe ? (data) => {
-          const updated = {...recipe, ...data};
-          setRecipes(prev => prev.map(r => r.id === id ? updated : r));
+        onUpdate={canEdit ? (data) => {
+          if (isMyRecipe) {
+            setRecipes(prev => prev.map(r => r.id === id ? {...r, ...data} : r));
+          } else if (isExploreRecipe && isAdmin) {
+            updateDoc(doc(db, 'explore_recipes', id!), data).catch(() => {
+              showSnackbar('수정에 실패했습니다');
+            });
+          }
         } : undefined}
         onCookingModeChange={setIsCookingMode}
       />
-      {!isCookingMode && (
-        <View style={styles.tabBarWrapper}>
-          <BottomTabBar
-            tabs={tabs}
-            activeTab={activeTab}
-            expanded={showAddSheet}
-            onClose={() => setShowAddSheet(false)}
-            addMenuItems={addMenuItems}
-            onAddItemPress={handleAddItemPress}
-          />
-        </View>
-      )}
     </View>
   );
 }
@@ -227,11 +231,5 @@ export default function RecipeDetailRoute() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-  },
-  tabBarWrapper: {
-    position: 'absolute',
-    bottom: Spacing.lg,
-    alignSelf: 'center',
-    zIndex: 30,
   },
 });

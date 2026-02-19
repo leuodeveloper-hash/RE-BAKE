@@ -1,15 +1,16 @@
 {
   "expo": {
-    "name": "bakecycle",
+    "newArchEnabled": false,
+    "name": "Bakecycle",
     "slug": "rebake",
-    "version": "1.0.0",
+    "version": "0.8.0",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
       "image": "./assets/splash.png",
       "resizeMode": "contain",
-      "backgroundColor": "#FAF9F8"
+      "backgroundColor": "#FCEEE3"
     },
     "assetBundlePatterns": [
       "**/*"
@@ -17,24 +18,55 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bakecycle.app",
+      "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": true,
+          "NSAllowsLocalNetworking": true
+        }
       }
     },
     "android": {
       "adaptiveIcon": {
         "foregroundImage": "./assets/adaptive-icon.png",
-        "backgroundColor": "#FAF9F8"
+        "backgroundColor": "#FCEEE3"
       },
-      "package": "com.bakecycle.app"
+      "package": "com.bakecycle.app",
+      "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
     "scheme": "bakecycle",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/27699c8b-30e7-4169-baa1-f39120d4221e"
+    },
     "plugins": [
-      "expo-web-browser"
+      "expo-dev-client",
+      "expo-updates",
+      "expo-web-browser",
+      [
+        "expo-font",
+        {
+          "fonts": [
+            "./assets/fonts/IBMPlexSans_400Regular.ttf",
+            "./assets/fonts/IBMPlexSans_500Medium.ttf",
+            "./assets/fonts/IBMPlexSans_600SemiBold.ttf",
+            "./assets/fonts/IBMPlexSans_700Bold.ttf"
+          ]
+        }
+      ],
+      [
+        "@react-native-google-signin/google-signin",
+        {
+          "iosUrlScheme": "com.googleusercontent.apps.420587944388-03rb31splmt5jrme91ntt4k5a1cn7dk7"
+        }
+      ]
     ],
     "extra": {
       "eas": {

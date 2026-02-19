@@ -1,9 +1,11 @@
-import React, {useEffect, useMemo, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   Animated,
   Easing,
   Image,
   ImageSourcePropType,
+  NativeScrollEvent,
+  NativeSyntheticEvent,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,8 +14,14 @@ import {
 } from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {LinearGradient} from 'expo-linear-gradient';
-import {GlassContainer, IconButton, ContentContainer, Card, ListItem, FloatingNavBar, Selector, navPillStyle, MAX_CONTENT_WIDTH, APPBAR_CONTENT_BOTTOM} from '@components/Layout';
+import {FloatingNavBar, navPillStyle, NAV_PILL_HEIGHT} from '@components/Navigation';
+import {GlassContainer, ContentContainer, Card} from '@components/Container';
+import {IconButton} from '@components/IconButton';
+import {SectionHeader} from '@components/SectionHeader';
+import {Selector} from '@components/Selector';
+import {ListItem} from '@components/ListItem';
 import {Menu} from '@components/Menu';
+import {Tabs} from '@components/Tabs';
 import {EditableChip} from '@components/EditableChip';
 import {OptionTile} from '@components/OptionTile';
 import {PdfPreviewDialog, TimeDialog, ServingsDialog} from '@components/Dialog';
@@ -21,18 +29,18 @@ import type {ReviewData} from '@components/Dialog';
 import {CookingMode} from '@components/CookingMode';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
+import {Radius} from '@constants/tokens';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
+import {getRecipeMenuItems, getCookbookSubmenuItems} from '@utils/recipeMenuItems';
 import {
-  IconArrowLeft,
+  IconClose,
   IconPlayFilled,
   IconEllipsisVertical,
   IconClockFilled,
-  IconUserFilled,
+  IconUsersRoundFilled,
   IconHash,
-  IconEdit,
-  IconTrash,
   IconArrowDownToLine,
   IconChevronRight,
   IconCornerDownRight,
@@ -67,6 +75,8 @@ interface ProcessStep {
   description: string;
   tip?: string;
   caution?: string;
+  photos?: string[];
+  images?: any[];
 }
 
 interface ProcessStepGroup {
@@ -75,12 +85,16 @@ interface ProcessStepGroup {
 }
 
 export interface RecipeDetailScreenProps {
+  /** 레시피 ID (shared element transition tag 용) */
+  id?: string;
   title?: string;
-  category?: string;
+  cookbook?: string;
   method?: string;
   reviewCount?: number;
+  ratio?: string;
   reviews?: ReviewData[];
   imageSource?: ImageSourcePropType;
+  imageUri?: string;
   time?: string;
   servings?: string;
   session?: string;
@@ -96,7 +110,7 @@ export interface RecipeDetailScreenProps {
   onEdit?: (section?: string) => void;
   onDelete?: () => void;
   onRemake?: () => void;
-  /** 둘러보기에서 진입 시: 내 레시피로 저장 */
+  /** 둘러보기에서 진입 시: 내 레시피로 복사 */
   onImport?: () => void;
   /** 인라인 편집 시: 변경 데이터 전달 */
   onUpdate?: (data: Record<string, any>) => void;
@@ -106,6 +120,12 @@ export interface RecipeDetailScreenProps {
   sessionItems?: {id: string; label: string}[];
   /** 회차 선택 시 이동 */
   onSessionSelect?: (recipeId: string) => void;
+  /** 요리책 변경 콜백 (있을 때만 요리책 메뉴 표시) */
+  onCookbookChange?: (cookbook: string) => void;
+  /** 요리책 목록 (요리책 서브메뉴용) */
+  availableCookbooks?: string[];
+  /** 요리책 색상 매핑 (요리책 서브메뉴용) */
+  cookbookColors?: Record<string, import('@components/Avatar/Avatar').AvatarColor>;
 }
 
 // 베이커스 퍼센티지 자동계산
@@ -176,7 +196,7 @@ const DEFAULT_TOOLS: Tool[] = [
 ];
 
 const DEFAULT_STEPS: ProcessStep[] = [
-  {step: 1, description: '가루 재료를 섞어서 체 쳐요.', tip: '박력분+베이킹소다+베이킹파우더+코코아파우더+탈지분유'},
+  {step: 1, description: '가루 재료를 섞어서 체 쳐요.', tip: '박력분·베이킹소다·베이킹파우더·코코아파우더·탈지분유'},
   {step: 2, description: '버터를 중탕으로 10% 정도 녹여요.', tip: '버터를 중탕한 물에 재료인 물을 따뜻해지게 담아놔요.'},
   {step: 3, description: '버터를 믹싱볼에 넣고 부드럽게 풀어주고 설탕과 소금을 넣고 섞어요.', tip: '설탕이 60% 정도 용해되고 아이보리색 될 때까지, 스크래핑해주며 충분히 믹싱해요!'},
   {step: 4, description: '달걀 3회 나눠서 넣어요.', tip: '1,2회는 노른자 위주, 3회에 흰자를 넣어요. 저속~중속~고속으로 섞어서 부드러워질 때까지!'},
@@ -189,13 +209,23 @@ const DEFAULT_STEPS: ProcessStep[] = [
   {step: 11, description: '다 구워진 후 팬에서 빼서 평철판 위에서 냉각시켜요.', tip: '나무꼬치로 꽂아서 반죽이 안 묻어 나오면 다 익은 것!'},
 ];
 
+const SECTION_TABS = [
+  {id: 'ingredients', label: '재료'},
+  {id: 'tools', label: '과정'},
+  {id: 'review', label: '회고'},
+];
+
+
 export function RecipeDetailScreen({
+  id,
   title = '레시피 이름',
-  category = '제과',
+  cookbook,
   method,
   reviewCount = 0,
+  ratio,
   reviews,
   imageSource,
+  imageUri,
   time = '1시간 30분',
   servings = '1개',
   session = '1/3 회차',
@@ -215,6 +245,9 @@ export function RecipeDetailScreen({
   onCookingModeChange,
   sessionItems,
   onSessionSelect,
+  onCookbookChange,
+  availableCookbooks,
+  cookbookColors,
 }: RecipeDetailScreenProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
@@ -225,13 +258,17 @@ export function RecipeDetailScreen({
 
   // 서브타이틀 (활성 필드에 따라 동적 구성)
   const subtitle = (() => {
-    const parts: string[] = [category];
+    const parts: string[] = [cookbook];
     if (method && isFieldActive('method')) parts.push(method);
-    parts.push(`${reviews?.length ?? 0}개의 회고`);
+    if (ratio && isFieldActive('ratio')) parts.push(`비중 ${ratio}`);
+    if (!onImport) {
+      parts.push(`${reviews?.length ?? 0}개의 회고`);
+    }
     return parts.join(' · ');
   })();
   const insets = useSafeAreaInsets();
   const [showMenu, setShowMenu] = useState(false);
+  const [showCookbookSubmenu, setShowCookbookSubmenu] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [showTimeDialog, setShowTimeDialog] = useState(false);
   const [showServingsDialog, setShowServingsDialog] = useState(false);
@@ -240,6 +277,33 @@ export function RecipeDetailScreen({
   const [showSessionMenu, setShowSessionMenu] = useState(false);
   const hasMultipleSessions = sessionItems && sessionItems.length > 1;
 
+  // ---- 스크롤 기반 탭 추적 ----
+  const scrollViewRef = useRef<ScrollView>(null);
+  const sectionPositions = useRef<Record<string, number>>({ingredients: 0, tools: 0, review: 0});
+  const [activeTab, setActiveTab] = useState('ingredients');
+  const activeTabRef = useRef('ingredients');
+
+  const handleDetailScroll = useCallback((event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const y = event.nativeEvent.contentOffset.y;
+
+    const positions = sectionPositions.current;
+    const navOffset = 100;
+    let newTab = 'ingredients';
+    if (positions.review > 0 && y + navOffset >= positions.review) newTab = 'review';
+    else if (positions.tools > 0 && y + navOffset >= positions.tools) newTab = 'tools';
+    if (newTab !== activeTabRef.current) {
+      activeTabRef.current = newTab;
+      setActiveTab(newTab);
+    }
+  }, []);
+
+  const handleTabPress = useCallback((tabId: string) => {
+    const y = sectionPositions.current[tabId];
+    if (y !== undefined && scrollViewRef.current) {
+      (scrollViewRef.current as any).scrollTo({y: Math.max(0, y - 80), animated: true});
+    }
+  }, []);
+
   useEffect(() => {
     onCookingModeChange?.(showCookingMode);
   }, [showCookingMode, onCookingModeChange]);
@@ -247,22 +311,46 @@ export function RecipeDetailScreen({
   // ---- 기존 로직 ----
   const computedGroups = useMemo(() => computeBakersPercentages(ingredientGroups), [ingredientGroups]);
 
-  const menuItems = useMemo(() => {
-    const items: {id: string; label: string; icon: React.FC<any>; destructive?: boolean}[] = [];
-    if (onImport) items.push({id: 'save', label: '내 레시피로 저장', icon: IconArrowDownToLine});
-    if (onRemake) items.push({id: 'remake', label: '다시 만들기', icon: IconHash});
-    if (onEdit) items.push({id: 'edit', label: '편집', icon: IconEdit});
-    items.push({id: 'download', label: 'PDF 다운로드', icon: IconArrowDownToLine});
-    if (onDelete) items.push({id: 'delete', label: '삭제', icon: IconTrash, destructive: true});
-    return items;
-  }, [onImport, onRemake, onEdit, onDelete]);
+  const menuItems = useMemo(() =>
+    getRecipeMenuItems({
+      session,
+      showImport: !!onImport,
+      showRemake: !!onRemake,
+      showEdit: !!onEdit,
+      showDelete: !!onDelete,
+      showCookbook: !!onCookbookChange,
+    }),
+  [onImport, onRemake, onEdit, onDelete, onCookbookChange, session]);
+
+  const cookbookSubmenu = useMemo(() => {
+    if (!onCookbookChange || !availableCookbooks) return null;
+    return getCookbookSubmenuItems({
+      availableCookbooks,
+      cookbookColors: cookbookColors ?? {},
+      currentCookbook: cookbook ?? '',
+      colors,
+    });
+  }, [onCookbookChange, availableCookbooks, cookbookColors, cookbook, colors]);
 
   const handleMenuPress = () => {
     setShowMenu(prev => !prev);
+    setShowCookbookSubmenu(false);
   };
 
   const handleMenuSelect = (id: string) => {
+    if (id === 'cookbook') {
+      setShowCookbookSubmenu(true);
+      return;
+    }
+    if (id.startsWith('cookbook:')) {
+      const cookbookName = id.slice('cookbook:'.length);
+      onCookbookChange?.(cookbookName === '__none__' ? '' : cookbookName);
+      setShowMenu(false);
+      setShowCookbookSubmenu(false);
+      return;
+    }
     setShowMenu(false);
+    setShowCookbookSubmenu(false);
     if (id === 'save') {
       onImport?.();
     } else if (id === 'remake') {
@@ -279,6 +367,10 @@ export function RecipeDetailScreen({
   };
 
   const handleOverlayPress = () => {
+    if (showCookbookSubmenu) {
+      setShowCookbookSubmenu(false);
+      return;
+    }
     setShowMenu(false);
     setShowSessionMenu(false);
   };
@@ -287,7 +379,7 @@ export function RecipeDetailScreen({
   const pageOpacity = useRef(new Animated.Value(0)).current;
 
   // 스태거드 콘텐츠 애니메이션
-  const SECTION_COUNT = 4;
+  const SECTION_COUNT = 5;
   const sectionAnims = useRef(
     Array.from({length: SECTION_COUNT}, () => ({
       opacity: new Animated.Value(0),
@@ -327,47 +419,38 @@ export function RecipeDetailScreen({
   // 메타 정보
   const metaInfo: MetaInfo[] = [
     {icon: IconClockFilled, label: time, onPress: canEdit ? () => setShowTimeDialog(true) : undefined},
-    {icon: IconUserFilled, label: servings, onPress: canEdit ? () => setShowServingsDialog(true) : undefined},
+    {icon: IconUsersRoundFilled, label: servings, onPress: canEdit ? () => setShowServingsDialog(true) : undefined},
     ...(canEdit ? [{icon: IconHash, label: session}] as MetaInfo[] : []),
   ];
 
   // ---- 섹션 헤더 렌더 ----
   const renderSectionHeader = (label: string, sectionId: string, breadcrumb?: string) => {
     return (
-      <View style={styles.sectionHeaderRow}>
-        {breadcrumb ? (
-          <View style={styles.sectionTitleRow}>
-            <Text style={styles.sectionTitleText}>{label}</Text>
-            <IconChevronRight width={8} height={8} color={colors['foreground-onsurfacevar']} />
-            <Text style={styles.sectionTitleText}>{breadcrumb}</Text>
-          </View>
-        ) : (
-          <Text style={styles.sectionTitle}>{label}</Text>
-        )}
-        {onEdit && (
-          <Pressable
-            onPress={() => onEdit(sectionId)}
-            hitSlop={8}
-          >
-            <Text style={styles.editButton}>편집</Text>
-          </Pressable>
-        )}
-      </View>
+      <SectionHeader
+        title={label}
+        breadcrumb={breadcrumb}
+        breadcrumbIcon={breadcrumb ? IconChevronRight : undefined}
+        actionLabel={onEdit ? '편집' : undefined}
+        onAction={onEdit ? () => onEdit(sectionId) : undefined}
+      />
     );
   };
 
   return (
     <Animated.View style={[styles.container, {opacity: pageOpacity}]}>
-      <ScrollView
+      <Animated.ScrollView
+        ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
+        onScroll={handleDetailScroll}
+        scrollEventThrottle={16}
       >
         {/* Hero Section */}
         <View style={styles.heroSection}>
-          {imageSource ? (
+          {imageUri || imageSource ? (
             <Image
-              source={imageSource}
+              source={imageUri ? {uri: imageUri} : imageSource!}
               style={styles.heroImage}
               resizeMode="cover"
             />
@@ -376,7 +459,7 @@ export function RecipeDetailScreen({
           )}
           <View style={styles.heroTextOverlay} />
           <LinearGradient
-            colors={['transparent', colors['surface-surfacedim']]}
+            colors={[colors['surface-surfacedim'] + '00', colors['surface-surfacedim']]}
             locations={[0.5, 1]}
             style={styles.heroGradient}
           />
@@ -399,7 +482,10 @@ export function RecipeDetailScreen({
 
         {/* Ingredients Section */}
         {isFieldActive('ingredients') && (
-          <Animated.View style={{opacity: sectionAnims[1].opacity, transform: [{translateY: sectionAnims[1].translateY}]}}>
+          <Animated.View
+            onLayout={(e) => { sectionPositions.current.ingredients = e.nativeEvent.layout.y; }}
+            style={{opacity: sectionAnims[1].opacity, transform: [{translateY: sectionAnims[1].translateY}]}}
+          >
             {computedGroups.map((group, groupIndex) => (
               <ContentContainer key={groupIndex} style={groupIndex === 0 ? styles.section : styles.sectionGap}>
                 {renderSectionHeader(
@@ -430,7 +516,10 @@ export function RecipeDetailScreen({
         )}
 
         {/* Tools Section */}
-        <Animated.View style={{opacity: sectionAnims[2].opacity, transform: [{translateY: sectionAnims[2].translateY}]}}>
+        <Animated.View
+          onLayout={(e) => { sectionPositions.current.tools = e.nativeEvent.layout.y; }}
+          style={{opacity: sectionAnims[2].opacity, transform: [{translateY: sectionAnims[2].translateY}]}}
+        >
           <ContentContainer style={styles.section}>
             {renderSectionHeader('도구', 'tools')}
             <Card>
@@ -475,6 +564,16 @@ export function RecipeDetailScreen({
                             <EditableChip label={step.caution} variant="yellow" />
                           </View>
                         )}
+                        {((step.images && step.images.length > 0) || (step.photos && step.photos.length > 0)) && (
+                          <View style={styles.stepThumbnails}>
+                            {step.images?.map((src, i) => (
+                              <Image key={`img-${i}`} source={src} style={styles.stepThumbnail} resizeMode="cover" />
+                            ))}
+                            {step.photos?.map((uri, i) => (
+                              <Image key={`photo-${i}`} source={{uri}} style={styles.stepThumbnail} resizeMode="cover" />
+                            ))}
+                          </View>
+                        )}
                       </ListItem>
                     ))}
                   </Card>
@@ -501,6 +600,21 @@ export function RecipeDetailScreen({
                           <EditableChip label={step.tip} variant="tip" />
                         </View>
                       )}
+                      {step.caution && (
+                        <View style={styles.tipChipInline}>
+                          <EditableChip label={step.caution} variant="yellow" />
+                        </View>
+                      )}
+                      {((step.images && step.images.length > 0) || (step.photos && step.photos.length > 0)) && (
+                        <View style={styles.stepThumbnails}>
+                          {step.images?.map((src, i) => (
+                            <Image key={`img-${i}`} source={src} style={styles.stepThumbnail} resizeMode="cover" />
+                          ))}
+                          {step.photos?.map((uri, i) => (
+                            <Image key={`photo-${i}`} source={{uri}} style={styles.stepThumbnail} resizeMode="cover" />
+                          ))}
+                        </View>
+                      )}
                     </ListItem>
                   ))}
                 </Card>
@@ -509,35 +623,46 @@ export function RecipeDetailScreen({
           </Animated.View>
         )}
 
-        {/* Review Section - 내용 있을 때만 표시 */}
-        {reviews && reviews.length > 0 && (
+        {/* Review Section */}
+        <Animated.View
+          onLayout={(e) => { sectionPositions.current.review = e.nativeEvent.layout.y; }}
+          style={{opacity: sectionAnims[4].opacity, transform: [{translateY: sectionAnims[4].translateY}]}}
+        >
           <ContentContainer style={styles.section}>
             {renderSectionHeader('회고', 'review')}
-            <Card>
-              {reviews[reviews.length - 1].evaluation ? (
-                <ListItem
-                  titleNumberOfLines={0}
-                  showDivider={!!reviews[reviews.length - 1].improvement}
-                >
-                  <Text style={styles.stepDescription}>{reviews[reviews.length - 1].evaluation}</Text>
-                </ListItem>
-              ) : null}
-              {reviews[reviews.length - 1].improvement ? (
-                <ListItem
-                  leading={{type: 'icon', icon: IconCornerDownRight}}
-                  titleNumberOfLines={0}
-                  showDivider={false}
-                >
-                  <Text style={styles.stepDescription}>{reviews[reviews.length - 1].improvement}</Text>
-                </ListItem>
-              ) : null}
-            </Card>
+            {reviews && reviews.length > 0 ? (
+              <Card>
+                {reviews[reviews.length - 1].evaluation ? (
+                  <ListItem
+                    titleNumberOfLines={0}
+                    showDivider={!!reviews[reviews.length - 1].improvement}
+                  >
+                    <Text style={styles.stepDescription}>{reviews[reviews.length - 1].evaluation}</Text>
+                  </ListItem>
+                ) : null}
+                {reviews[reviews.length - 1].improvement ? (
+                  <ListItem
+                    leading={{type: 'icon', icon: IconCornerDownRight}}
+                    titleNumberOfLines={0}
+                    showDivider={false}
+                  >
+                    <Text style={styles.stepDescription}>{reviews[reviews.length - 1].improvement}</Text>
+                  </ListItem>
+                ) : null}
+              </Card>
+            ) : (
+              <Card>
+                <View style={styles.emptyReview}>
+                  <Text style={styles.emptyReviewText}>아직 작성된 회고가 없습니다</Text>
+                </View>
+              </Card>
+            )}
           </ContentContainer>
-        )}
+        </Animated.View>
 
         {/* Bottom Padding for Tab Bar */}
         <View style={{height: 100 + insets.bottom}} />
-      </ScrollView>
+      </Animated.ScrollView>
 
       {/* Overlay for Menu */}
       <Pressable
@@ -552,21 +677,41 @@ export function RecipeDetailScreen({
           <View style={styles.navLeftRow}>
             <GlassContainer contentStyle={navPillStyle}>
               <IconButton
-                icon={IconArrowLeft}
+                icon={IconClose}
                 onPress={onBack}
                 variant="ghost-secondary"
                 size="medium"
               />
             </GlassContainer>
             {hasMultipleSessions && (
-              <GlassContainer contentStyle={navPillStyle}>
-                <Selector
-                  label={session}
-                  showDropdown
-                  onPress={() => setShowSessionMenu(prev => !prev)}
+              <View>
+                <GlassContainer contentStyle={navPillStyle}>
+                  <Selector
+                    label={session?.replace(/\/\d+/, '')}
+                    showDropdown
+                    onPress={() => setShowSessionMenu(prev => !prev)}
+                  />
+                </GlassContainer>
+                <Menu
+                  items={sessionItems!}
+                  selectedId={sessionItems!.find(s => {
+                    const m = session?.match(/(\d+)/);
+                    return s.label === `${m?.[1] ?? '1'}회차`;
+                  })?.id}
+                  onSelect={id => { setShowSessionMenu(false); onSessionSelect?.(id); }}
+                  visible={showSessionMenu}
+                  style={styles.sessionMenu}
                 />
-              </GlassContainer>
+              </View>
             )}
+            <GlassContainer contentStyle={styles.tabPillContent}>
+              <Tabs
+                tabs={SECTION_TABS}
+                selectedId={activeTab}
+                onSelect={handleTabPress}
+                variant="text"
+              />
+            </GlassContainer>
           </View>
         }
         right={
@@ -592,35 +737,24 @@ export function RecipeDetailScreen({
             />
           </GlassContainer>
         }
-      />
-
-      {/* Session Menu */}
-      {hasMultipleSessions && (
-        <View style={[styles.menuLayer, {top: insets.top + APPBAR_CONTENT_BOTTOM + Spacing.xs}]} pointerEvents="box-none">
-          <View style={styles.sessionMenuAligner} pointerEvents="box-none">
+        rightMenu={
+          showCookbookSubmenu && cookbookSubmenu ? (
             <Menu
-              items={sessionItems!}
-              selectedId={sessionItems!.find(s => {
-                const m = session?.match(/(\d+)/);
-                return s.label === `${m?.[1] ?? '1'}회차`;
-              })?.id}
-              onSelect={id => { setShowSessionMenu(false); onSessionSelect?.(id); }}
-              visible={showSessionMenu}
+              title="요리책"
+              items={cookbookSubmenu.items}
+              selectedId={cookbookSubmenu.selectedId}
+              onSelect={handleMenuSelect}
+              visible={showMenu}
             />
-          </View>
-        </View>
-      )}
-
-      {/* Context Menu */}
-      <View style={[styles.menuLayer, {top: insets.top + APPBAR_CONTENT_BOTTOM + Spacing.xs}]} pointerEvents="box-none">
-        <View style={styles.menuAligner} pointerEvents="box-none">
-          <Menu
-            items={menuItems}
-            onSelect={handleMenuSelect}
-            visible={showMenu}
-          />
-        </View>
-      </View>
+          ) : (
+            <Menu
+              items={menuItems}
+              onSelect={handleMenuSelect}
+              visible={showMenu}
+            />
+          )
+        }
+      />
 
       {/* PDF 미리보기 다이얼로그 */}
       <PdfPreviewDialog
@@ -628,7 +762,7 @@ export function RecipeDetailScreen({
         onClose={() => setShowPdfPreview(false)}
         data={{
           title: title ?? '레시피 이름',
-          category,
+          cookbook,
           method,
           reviewCount,
           time,
@@ -693,11 +827,19 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     height: HERO_HEIGHT,
     position: 'relative',
     width: '100%',
+    backgroundColor: colors['surface-surfacedim'],
+    overflow: 'hidden',
   },
   navLeftRow: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: Spacing.smd,
+    gap: Spacing.sm,
+  },
+  sessionMenu: {
+    position: 'absolute' as const,
+    top: NAV_PILL_HEIGHT + Spacing.xs,
+    left: 0,
+    zIndex: 20,
   },
   placeholderBg: {
     position: 'absolute',
@@ -706,7 +848,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     right: 0,
     width: '100%',
     height: HERO_HEIGHT,
-    backgroundColor: colors['surface-surfacecontainer'],
   },
   heroImage: {
     position: 'absolute',
@@ -741,7 +882,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   heroContent: {
     paddingHorizontal: 28,
-    gap: Spacing.smd,
+    gap: Spacing.xs,
   },
   heroTitle: {
     fontFamily: Typography.headline.small.fontFamily,
@@ -750,9 +891,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     lineHeight: Typography.headline.small.lineHeight,
     letterSpacing: Typography.headline.small.letterSpacing,
     color: colors['foreground-onsurfaceinverse'],
-    textShadowColor: 'rgba(0, 0, 0, 0.08)',
-    textShadowOffset: {width: 0, height: 2},
-    textShadowRadius: 14,
+    textShadowColor: 'rgba(0, 0, 0, 0.25)',
+    textShadowOffset: {width: 0, height: 1},
+    textShadowRadius: 4,
   },
   heroDescription: {
     fontFamily: Typography.body.medium.fontFamily,
@@ -761,9 +902,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     lineHeight: Typography.body.medium.lineHeight,
     letterSpacing: Typography.body.medium.letterSpacing,
     color: colors['foreground-onsurfaceinverse'],
-    textShadowColor: 'rgba(0, 0, 0, 0.08)',
-    textShadowOffset: {width: 0, height: 2},
-    textShadowRadius: 14,
+    textShadowColor: 'rgba(0, 0, 0, 0.25)',
+    textShadowOffset: {width: 0, height: 1},
+    textShadowRadius: 4,
   },
 
   // Meta Section
@@ -772,52 +913,17 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingTop: 0,
     paddingBottom: 0,
     marginTop: -40,
-    gap: Spacing.sm,
+    gap: Spacing.xs,
   },
 
   // Section
   section: {
-    paddingTop: 24,
+    paddingTop: Spacing.sm,
   },
   sectionGap: {
-    paddingTop: 24,
+    paddingTop: Spacing.sm,
   },
 
-  // Section Header
-  sectionHeaderRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingLeft: Spacing.smd,
-    paddingRight: Spacing.smd,
-    marginBottom: Spacing.sm,
-  },
-  sectionTitle: {
-    fontFamily: Typography.label.large.fontFamily,
-    fontSize: Typography.label.large.fontSize,
-    fontWeight: Typography.label.large.fontWeight as '500',
-    lineHeight: Typography.label.large.lineHeight,
-    color: colors['foreground-onsurfacemuted'],
-  },
-  sectionTitleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-  },
-  sectionTitleText: {
-    fontFamily: Typography.label.large.fontFamily,
-    fontSize: Typography.label.large.fontSize,
-    fontWeight: Typography.label.large.fontWeight as '500',
-    lineHeight: Typography.label.large.lineHeight,
-    color: colors['foreground-onsurfacemuted'],
-  },
-  editButton: {
-    fontFamily: Typography.label.large.fontFamily,
-    fontSize: Typography.label.large.fontSize,
-    fontWeight: Typography.label.large.fontWeight as '500',
-    lineHeight: Typography.label.large.lineHeight,
-    color: colors['foreground-onsurfacemuted'],
-  },
 
   // Ingredients
   ingredientRow: {
@@ -874,6 +980,16 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   tipChipInline: {
     paddingTop: Spacing.sm,
   },
+  stepThumbnails: {
+    flexDirection: 'row' as const,
+    gap: Spacing.xs,
+    paddingTop: Spacing.sm,
+  },
+  stepThumbnail: {
+    width: 48,
+    height: 32,
+    borderRadius: Radius['radius-sm'],
+  },
 
   // Group title
   groupTitleRow: {
@@ -895,27 +1011,30 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     color: colors['foreground-onsurfacemuted'],
   },
 
+  // Tab pill
+  tabPillContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 2,
+  },
+
+  // Empty review
+  emptyReview: {
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    alignItems: 'center',
+  },
+  emptyReviewText: {
+    fontFamily: Typography.body.medium.fontFamily,
+    fontSize: Typography.body.medium.fontSize,
+    fontWeight: Typography.body.medium.fontWeight as '500',
+    lineHeight: Typography.body.medium.lineHeight,
+    color: colors['foreground-onsurfacemuted'],
+  },
+
   // Overlay & Menu
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'transparent',
-  },
-  menuLayer: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  sessionMenuAligner: {
-    width: '100%',
-    maxWidth: MAX_CONTENT_WIDTH,
-    paddingHorizontal: Spacing.md,
-    alignItems: 'flex-start',
-  },
-  menuAligner: {
-    width: '100%',
-    maxWidth: MAX_CONTENT_WIDTH,
-    paddingHorizontal: Spacing.md,
-    alignItems: 'flex-end',
   },
 });

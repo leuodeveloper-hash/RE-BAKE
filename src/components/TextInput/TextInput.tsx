@@ -164,6 +164,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   label: {
     ...Typography.label.medium,
     color: colors['foreground-onsurfacemuted'],
+    paddingHorizontal: Spacing.sm,
     marginBottom: Spacing.xs,
   },
   inputContainer: {

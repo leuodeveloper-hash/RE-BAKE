@@ -6,23 +6,44 @@ import {useThemedStyles} from '@hooks/useThemedStyles';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
+const emptyRecipeImage = require('../../../assets/images/empty_recipe.png');
+const emptyNoResultsImage = require('../../../assets/images/empty_no_results.png');
+const emptyNetworkImage = require('../../../assets/images/empty_network.png');
+
+export type EmptyStateCategory = 'no-results' | 'no-recipe' | 'network-error' | 'error';
 
 export interface EmptyStateProps {
-  /** 상단 이미지 (png 등) */
+  /** 카테고리별 기본 일러스트레이션 */
+  category?: EmptyStateCategory;
+  /** 커스텀 이미지 (category 미지정시) */
   image?: ImageSourcePropType;
-  /** 상단 아이콘 (이미지 대신 사용) */
+  /** 커스텀 아이콘 (category/image 미지정시) */
   icon?: React.FC<SvgProps>;
   title: string;
   subtitle?: string;
 }
 
-export function EmptyState({image, icon, title, subtitle}: EmptyStateProps) {
+function CategoryIllustration({category, styles}: {category: EmptyStateCategory; styles: any}) {
+  switch (category) {
+    case 'no-results':
+      return <Image source={emptyNoResultsImage} style={styles.image} />;
+    case 'no-recipe':
+      return <Image source={emptyRecipeImage} style={styles.image} />;
+    case 'network-error':
+      return <Image source={emptyNetworkImage} style={styles.image} />;
+    case 'error':
+      return null;
+  }
+}
+
+export function EmptyState({category, image, icon, title, subtitle}: EmptyStateProps) {
   const styles = useThemedStyles(createStyles);
 
   return (
     <View style={styles.container}>
-      {image && <Image source={image} style={styles.image} />}
-      {icon && !image && (
+      {category && <CategoryIllustration category={category} styles={styles} />}
+      {!category && image && <Image source={image} style={styles.image} />}
+      {!category && !image && icon && (
         <AppIcon icon={icon} size="lg" color={styles.iconColor.color} />
       )}
       <View style={styles.textGroup}>
