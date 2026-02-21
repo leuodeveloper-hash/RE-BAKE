@@ -282,7 +282,8 @@ const createStyles = (colors: SemanticColors) =>
     },
     handleContainer: {
       alignItems: 'center',
-      paddingVertical: 8,
+      paddingTop: 8,
+      paddingBottom: 4,
     },
     handle: {
       width: 36,

@@ -9,13 +9,13 @@ import {Button} from '@components/Button';
 import {EmptyState} from '@components/EmptyState';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import type {SemanticColors} from '@constants/tokens';
-import {MockRecipe} from '@data/mockRecipes';
+import type {Recipe} from '../types/recipe';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
-import {useColors} from '@contexts/ThemeContext';
 import {generateRecipeListHtml, generateRecipeHtml} from '@utils/generateRecipeHtml';
 import {parseSession, formatSession} from '@utils/session';
-import {getRecipeMenuItems, getCookbookSubmenuItems} from '@utils/recipeMenuItems';
+import {getRecipeMenuItems} from '@utils/recipeMenuItems';
+import {CookbookSelectSheet} from '@components/BottomSheet';
 import {
   IconBookFilled,
   IconTrash,
@@ -23,27 +23,28 @@ import {
   IconArrowDownToLine,
 } from '@components/Icon/IconIndex';
 
+const emptyCookbookImage = require('../../assets/images/empty_no_cookbook_recipe.png');
+
 const MORE_MENU_ITEMS = [
   {id: 'downloadAll', label: 'PDF 다운로드', icon: IconArrowDownToLine},
   {id: 'deleteAll', label: '전체 삭제', icon: IconTrash, destructive: true},
 ];
 
-const getDefaultCardMenuItems = (recipe: MockRecipe) =>
+const getDefaultCardMenuItems = (recipe: Recipe) =>
   getRecipeMenuItems({session: recipe.session, showRemake: true, showEdit: true, showDelete: true, showCookbook: true});
 
 export function HomeScreen() {
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
-  const {recipes, setRecipes, selectedCookbook, setSelectedCookbook, availableCookbooks, cookbookColors, isLoading, reload} = useRecipes();
+  const {recipes, setRecipes, selectedCookbook, setSelectedCookbook, availableCookbooks, cookbookColors, setCookbookColor, isLoading, reload} = useRecipes();
   const {showSnackbar} = useSnackbar();
-  const colors = useColors();
 
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showCookbookMenu, setShowCookbookMenu] = useState(false);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [pdfHtml, setPdfHtml] = useState('');
-  const [cookbookSubmenuRecipe, setCookbookSubmenuRecipe] = useState<MockRecipe | null>(null);
+  const [cookbookSheetRecipe, setCookbookSheetRecipe] = useState<Recipe | null>(null);
 
   const cookbookMenuItems = useMemo(() => {
     const recipeCounts = new Map<string, number>();
@@ -55,7 +56,7 @@ export function HomeScreen() {
       ...recipeCounts.keys(),
       ...availableCookbooks,
     ]);
-    const items: (typeof MORE_MENU_ITEMS[number] & {icon: typeof IconBookFilled})[] = [
+    const items: {id: string; label: string; icon: typeof IconBookFilled; disabled?: boolean}[] = [
       {id: '__all__', label: '모든 요리책', icon: IconBookFilled},
     ];
     for (const name of allNames) {
@@ -67,9 +68,9 @@ export function HomeScreen() {
 
   // 리메이크 그룹에서 최신 회차만 표시 + 그룹 전체 회고 합산
   const visibleRecipes = useMemo(() => {
-    const latestByGroup = new Map<string, MockRecipe>();
+    const latestByGroup = new Map<string, Recipe>();
     const reviewsByGroup = new Map<string, number>();
-    const standalone: MockRecipe[] = [];
+    const standalone: Recipe[] = [];
     for (const r of recipes) {
       if (!r.remakeGroupId) {
         standalone.push(r);
@@ -89,7 +90,7 @@ export function HomeScreen() {
       }
     }
     // 최신 회차에 그룹 전체 회고 수 반영
-    const result: MockRecipe[] = [...standalone];
+    const result: Recipe[] = [...standalone];
     for (const [groupId, recipe] of latestByGroup) {
       const totalReviews = reviewsByGroup.get(groupId) ?? 0;
       result.push({...recipe, reviewCount: totalReviews});
@@ -140,52 +141,17 @@ export function HomeScreen() {
     });
   }, [recipes, setRecipes, showSnackbar]);
 
-  const getCardMenuItems = useCallback((recipe: MockRecipe) => {
-    if (cookbookSubmenuRecipe?.id === recipe.id) {
-      return getCookbookSubmenuItems({
-        availableCookbooks,
-        cookbookColors,
-        currentCookbook: recipe.cookbook,
-        colors,
-      }).items;
-    }
-    return getDefaultCardMenuItems(recipe);
-  }, [cookbookSubmenuRecipe, availableCookbooks, cookbookColors, colors]);
-
-  const getCardMenuSelectedId = useCallback((recipe: MockRecipe): string | undefined => {
-    if (cookbookSubmenuRecipe?.id === recipe.id) {
-      return getCookbookSubmenuItems({
-        availableCookbooks,
-        cookbookColors,
-        currentCookbook: recipe.cookbook,
-        colors,
-      }).selectedId;
-    }
-    return undefined;
-  }, [cookbookSubmenuRecipe, availableCookbooks, cookbookColors, colors]);
-
-  const handleCardMenuSelect = useCallback((id: string, recipe: MockRecipe): void | false => {
+  const handleCardMenuSelect = useCallback((id: string, recipe: Recipe): void => {
     if (id === 'cookbook') {
-      setCookbookSubmenuRecipe(recipe);
-      return false;
-    }
-    if (id.startsWith('cookbook:')) {
-      const cookbookName = id.slice('cookbook:'.length);
-      const newCookbook = cookbookName === '__none__' ? '' : cookbookName;
-      setRecipes(prev => prev.map(r =>
-        r.id === recipe.id ? {...r, cookbook: newCookbook} : r
-      ));
-      setCookbookSubmenuRecipe(null);
-      showSnackbar(`'${recipe.title}'을 '${newCookbook || '그룹없음'}'으로 이동했습니다`);
+      setCookbookSheetRecipe(recipe);
       return;
     }
-    setCookbookSubmenuRecipe(null);
     if (id === 'remake') {
       const {total} = parseSession(recipe.session);
       const newTotal = total + 1;
       const groupId = recipe.remakeGroupId || recipe.id;
       const newId = `remake_${Date.now()}`;
-      const newRecipe: MockRecipe = {
+      const newRecipe: Recipe = {
         ...recipe,
         id: newId,
         session: formatSession(newTotal, newTotal),
@@ -240,33 +206,61 @@ export function HomeScreen() {
     }
   }, [router, setRecipes, showSnackbar]);
 
-  const closeLocalMenus = useCallback((): void | false => {
-    if (cookbookSubmenuRecipe) {
-      setCookbookSubmenuRecipe(null);
-      return false;
+  const handleCookbookSheetSelect = useCallback((cookbookName: string) => {
+    if (!cookbookSheetRecipe) return;
+    const newCookbook = cookbookName === '__none__' ? '' : cookbookName;
+    setRecipes(prev => prev.map(r =>
+      r.id === cookbookSheetRecipe.id ? {...r, cookbook: newCookbook} : r
+    ));
+    setCookbookSheetRecipe(null);
+    showSnackbar(`'${cookbookSheetRecipe.title}'을 '${newCookbook || '그룹없음'}'으로 이동했습니다`);
+  }, [cookbookSheetRecipe, setRecipes, showSnackbar]);
+
+  const handleAddCookbook = useCallback((name: string, color: import('@components/Avatar/Avatar').AvatarColor) => {
+    setCookbookColor(name, color);
+    if (cookbookSheetRecipe) {
+      setRecipes(prev => prev.map(r =>
+        r.id === cookbookSheetRecipe.id ? {...r, cookbook: name} : r
+      ));
+      setCookbookSheetRecipe(null);
+      showSnackbar(`'${cookbookSheetRecipe.title}'을 '${name}'으로 이동했습니다`);
     }
+  }, [cookbookSheetRecipe, setCookbookColor, setRecipes, showSnackbar]);
+
+  const closeLocalMenus = useCallback(() => {
     setShowMoreMenu(false);
     setShowCookbookMenu(false);
-  }, [cookbookSubmenuRecipe]);
+  }, []);
 
   return (
     <RecipeListTemplate
       data={isLoading ? [] : filteredRecipes}
       loading={isLoading}
       onRecipePress={(item) => router.push(`/recipe/${item.id}`)}
-      cardMenuItems={getCardMenuItems}
-      cardMenuSelectedId={getCardMenuSelectedId}
+      cardMenuItems={getDefaultCardMenuItems}
       onCardMenuSelect={handleCardMenuSelect}
       onOverlayPress={closeLocalMenus}
       extraOverlayVisible={showMoreMenu || showCookbookMenu}
       onRefresh={reload}
       listEmptyComponent={
         !isLoading ? (
-          <EmptyState
-            category="no-recipe"
-            title="저장된 레시피가 아직 없네요."
-            subtitle="레시피를 저장하고 가져오면 여기에 표시 될거에요."
-          />
+          selectedCookbook ? (
+            <EmptyState
+              image={emptyCookbookImage}
+              title="요리책이 비어 있어요."
+              subtitle="첫 레시피를 추가해보세요."
+              actionLabel="레시피 추가하기"
+              onAction={() => router.push(`/recipe/edit?cookbook=${encodeURIComponent(selectedCookbook)}` as any)}
+            />
+          ) : (
+            <EmptyState
+              category="no-recipe"
+              title="저장된 레시피가 아직 없네요."
+              subtitle="레시피를 작성하거나 가져오면 여기에 표시 될거에요."
+              actionLabel="레시피 둘러보기"
+              onAction={() => router.push('/(tabs)/explore' as any)}
+            />
+          )
         ) : undefined
       }
       renderAppBar={({handleFilterPress, showLayoutMenu, closeMenus, layoutMenu}) => (
@@ -333,6 +327,17 @@ export function HomeScreen() {
         onClose={() => setShowPdfPreview(false)}
         html={pdfHtml}
         filename="모든 요리책"
+      />
+
+      {/* 요리책 선택 바텀시트 */}
+      <CookbookSelectSheet
+        visible={!!cookbookSheetRecipe}
+        onClose={() => setCookbookSheetRecipe(null)}
+        cookbooks={availableCookbooks}
+        cookbookColors={cookbookColors}
+        selectedCookbook={cookbookSheetRecipe?.cookbook}
+        onSelect={handleCookbookSheetSelect}
+        onAddCookbook={handleAddCookbook}
       />
     </RecipeListTemplate>
   );

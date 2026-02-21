@@ -12,47 +12,39 @@ import {
 } from 'firebase/firestore';
 import {db} from '@config/firebase';
 import {useAuth} from '@contexts/AuthContext';
-import {EXPLORE_MOCK_RECIPES, MockRecipe} from '@data/mockRecipes';
-import type {RecipeExportData, SerializableRecipe} from '../types/recipe';
-import {addToQueue, processQueue} from '@utils/syncQueue';
+import type {Recipe, RecipeExportData} from '../types/recipe';
+import {addToQueue, hasPendingOps, processQueue} from '@utils/syncQueue';
 import {getDeviceName} from '@utils/deviceInfo';
+import {uploadRecipeImage, isLocalUri} from '@utils/imageUpload';
 import {useOnlineStatus} from './useOnlineStatus';
 
 const STORAGE_KEY = 'bakecycle_recipes_v4';
 
-/** imageSource를 제거하여 직렬화 가능한 형태로 변환 */
-function toSerializable(recipe: MockRecipe): SerializableRecipe {
-  const {imageSource, ...rest} = recipe;
-  return rest;
-}
-
 /** 기존 category 필드를 cookbook으로 마이그레이션 */
-function migrateCategory(recipe: any): SerializableRecipe {
-  if ('category' in recipe && !('cookbook' in recipe)) {
-    const {category, ...rest} = recipe;
-    return {...rest, cookbook: category};
+function migrateRecipe(recipe: any): Recipe {
+  let result = recipe;
+  if ('category' in result && !('cookbook' in result)) {
+    const {category, ...rest} = result;
+    result = {...rest, cookbook: category};
   }
-  // createdAt이 없으면 ID의 타임스탬프에서 추출, 없으면 epoch
-  if (!recipe.createdAt) {
-    const tsMatch = recipe.id?.match(/(\d{13,})/);
+  if (!result.createdAt) {
+    const tsMatch = result.id?.match(/(\d{13,})/);
     const ts = tsMatch ? Number(tsMatch[1]) : 0;
-    return {...recipe, createdAt: new Date(ts).toISOString()};
+    result = {...result, createdAt: new Date(ts).toISOString()};
   }
-  return recipe;
-}
-
-/** EXPLORE_MOCK_RECIPES에서 id 또는 sourceId가 일치하는 레시피의 imageSource(썸네일)만 복원 */
-function restoreImageSources(recipes: SerializableRecipe[]): MockRecipe[] {
-  const mockMap = new Map(EXPLORE_MOCK_RECIPES.map(r => [r.id, r]));
-  return recipes.map(r => {
-    const migrated = migrateCategory(r);
-    const mockRecipe = mockMap.get(migrated.id) ?? mockMap.get(migrated.sourceId ?? '');
-
-    return {
-      ...migrated,
-      imageSource: mockRecipe?.imageSource,
-    };
-  });
+  // 레거시 imageSource / step images (번들 require 결과) 제거
+  const {imageSource, ...withoutImageSource} = result;
+  result = withoutImageSource;
+  if (result.steps) {
+    result = {...result, steps: result.steps.map(({images, ...s}: any) => s)};
+  }
+  if (result.stepGroups) {
+    result = {...result, stepGroups: result.stepGroups.map((g: any) => ({
+      ...g,
+      steps: g.steps.map(({images, ...s}: any) => s),
+    }))};
+  }
+  return result;
 }
 
 /** 가져온 데이터가 유효한 RecipeExportData인지 검증 */
@@ -69,8 +61,54 @@ function validateExportData(data: unknown): data is RecipeExportData {
   );
 }
 
+/** 레시피 내 로컬 이미지를 Firebase Storage에 업로드하고 URL로 교체 */
+async function uploadLocalImages(recipe: Recipe): Promise<Recipe> {
+  let updated = {...recipe};
+  let changed = false;
+
+  // 메인 이미지
+  if (updated.imageUri && isLocalUri(updated.imageUri)) {
+    try {
+      updated.imageUri = await uploadRecipeImage(updated.imageUri, `${recipe.id}_thumb`);
+      changed = true;
+    } catch (e) {
+      console.warn('[Storage] thumb upload failed:', e);
+    }
+  }
+
+  // stepGroups 내 사진
+  if (updated.stepGroups) {
+    const newGroups = [];
+    for (let gIdx = 0; gIdx < updated.stepGroups.length; gIdx++) {
+      const g = updated.stepGroups[gIdx];
+      const newSteps = [];
+      for (let sIdx = 0; sIdx < g.steps.length; sIdx++) {
+        const s = g.steps[sIdx];
+        if (!s.photos?.some(isLocalUri)) {
+          newSteps.push(s);
+          continue;
+        }
+        const photos = await Promise.all(
+          s.photos!.map(async (uri, pIdx) => {
+            if (!isLocalUri(uri)) return uri;
+            try {
+              changed = true;
+              return await uploadRecipeImage(uri, `${recipe.id}_g${gIdx}_s${sIdx}_p${pIdx}`);
+            } catch { return uri; }
+          }),
+        );
+        newSteps.push({...s, photos});
+      }
+      newGroups.push({...g, steps: newSteps});
+    }
+    if (changed) updated.stepGroups = newGroups;
+  }
+
+  return changed ? updated : recipe;
+}
+
 /** Firestore에 레시피 배열을 동기화 (batch write) */
-async function syncToFirestore(uid: string, recipes: SerializableRecipe[]) {
+async function syncToFirestore(uid: string, recipes: Recipe[]) {
   const colRef = collection(db, 'user_recipes', uid, 'recipes');
   const batch = writeBatch(db);
   for (const recipe of recipes) {
@@ -87,7 +125,7 @@ async function syncToFirestore(uid: string, recipes: SerializableRecipe[]) {
 export function useRecipeStorage() {
   const {user} = useAuth();
   const isOnline = useOnlineStatus();
-  const [recipes, setRecipesState] = useState<MockRecipe[]>([]);
+  const [recipes, setRecipesState] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
   const [lastSyncedDevice, setLastSyncedDevice] = useState<string | null>(null);
@@ -109,17 +147,15 @@ export function useRecipeStorage() {
       const colRef = collection(db, 'user_recipes', user.uid, 'recipes');
       const unsub = onSnapshot(colRef, (snapshot) => {
         if (snapshot.empty && !initialized.current) {
-          // 첫 로그인: 로컬 데이터를 Firestore에 시딩 (둘러보기 목데이터 제외)
+          // 첫 로그인: 로컬 데이터를 Firestore에 시딩
           (async () => {
             try {
               const stored = await AsyncStorage.getItem(STORAGE_KEY);
               const localRecipes = stored
-                ? (JSON.parse(stored) as SerializableRecipe[])
+                ? (JSON.parse(stored) as Recipe[]).map(migrateRecipe)
                 : [];
-              const exploreMockIds = new Set(EXPLORE_MOCK_RECIPES.map(r => r.id));
-              const userOnly = localRecipes.filter(r => !exploreMockIds.has(r.id));
-              if (userOnly.length > 0) {
-                await syncToFirestore(user.uid, userOnly);
+              if (localRecipes.length > 0) {
+                await syncToFirestore(user.uid, localRecipes);
               }
             } catch {}
             initialized.current = true;
@@ -128,10 +164,10 @@ export function useRecipeStorage() {
         }
         // 로컬 쓰기 중이면 onSnapshot이 이전 데이터로 state를 덮어쓰지 않도록 스킵
         if (localWritePending.current && initialized.current) return;
-        const firestoreRecipes: SerializableRecipe[] = snapshot.docs.map(
-          d => ({id: d.id, ...d.data()}) as SerializableRecipe,
+        const firestoreRecipes: Recipe[] = snapshot.docs.map(
+          d => migrateRecipe({id: d.id, ...d.data()}),
         );
-        setRecipesState(restoreImageSources(firestoreRecipes));
+        setRecipesState(firestoreRecipes);
         if (!initialized.current) {
           // 첫 스냅샷: 마지막 동기화 기기 정보 읽기
           getDoc(doc(db, 'users', user.uid)).then(userDoc => {
@@ -165,7 +201,10 @@ export function useRecipeStorage() {
   // 온라인 복귀 시 큐에 쌓인 작업 처리
   useEffect(() => {
     if (isOnline && user) {
-      processQueue().then(async allSuccess => {
+      (async () => {
+        const hadPending = await hasPendingOps();
+        if (!hadPending) return;
+        const allSuccess = await processQueue();
         if (allSuccess) {
           setLastSyncedAt(new Date());
           setLastSyncedDevice(getDeviceName());
@@ -174,7 +213,7 @@ export function useRecipeStorage() {
             lastSyncedAt: new Date().toISOString(),
           }, {merge: true}).catch(() => {});
         }
-      });
+      })();
     }
   }, [isOnline, user]);
 
@@ -182,8 +221,8 @@ export function useRecipeStorage() {
     try {
       const stored = await AsyncStorage.getItem(STORAGE_KEY);
       if (stored) {
-        const parsed: SerializableRecipe[] = JSON.parse(stored);
-        setRecipesState(restoreImageSources(parsed));
+        const parsed: Recipe[] = JSON.parse(stored);
+        setRecipesState(parsed.map(migrateRecipe));
       } else {
         setRecipesState([]);
       }
@@ -194,47 +233,56 @@ export function useRecipeStorage() {
 
   // 레시피 업데이트 (state + 저장소 동시)
   const setRecipes = useCallback(
-    (updater: MockRecipe[] | ((prev: MockRecipe[]) => MockRecipe[])) => {
+    (updater: Recipe[] | ((prev: Recipe[]) => Recipe[])) => {
       setRecipesState(prev => {
         const next =
           typeof updater === 'function' ? updater(prev) : updater;
-        const serialized = next.map(toSerializable);
-        const prevSerialized = prev.map(toSerializable);
 
         // 실제 변경이 없으면 저장소 동기화 스킵
-        const hasChange = JSON.stringify(serialized) !== JSON.stringify(prevSerialized);
+        const hasChange = JSON.stringify(next) !== JSON.stringify(prev);
         if (!hasChange) return prev;
 
         if (user) {
-          // Firestore에 동기화 (추가/수정 + 삭제)
+          // Firestore에 동기화 (이미지 업로드 → 동기화)
           localWritePending.current = true;
           const nextIds = new Set(next.map(r => r.id));
           const removed = prev.filter(r => !nextIds.has(r.id));
-          const writePromises: Promise<void>[] = [
-            syncToFirestore(user.uid, serialized).then(() => {
+
+          (async () => {
+            try {
+              // 로컬 이미지 → Storage 업로드 후 URL로 교체
+              const uploaded = await Promise.all(next.map(uploadLocalImages));
+              const hasUploads = JSON.stringify(uploaded) !== JSON.stringify(next);
+              if (hasUploads) {
+                setRecipesState(uploaded);
+                AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(uploaded)).catch(() => {});
+              }
+              // Firestore 동기화 (URL 포함)
+              await syncToFirestore(user.uid, uploaded);
               setLastSyncedDevice(getDeviceName());
-            }).catch(() => {
-              addToQueue({type: 'sync', uid: user.uid, data: serialized});
-            }),
-          ];
-          if (removed.length > 0) {
-            const colRef = collection(db, 'user_recipes', user.uid, 'recipes');
-            const batch = writeBatch(db);
-            removed.forEach(r => batch.delete(doc(colRef, r.id)));
-            writePromises.push(
-              batch.commit().catch(() => {
+            } catch {
+              addToQueue({type: 'sync', uid: user.uid, data: next});
+            }
+
+            // 삭제 처리
+            if (removed.length > 0) {
+              const colRef = collection(db, 'user_recipes', user.uid, 'recipes');
+              const batch = writeBatch(db);
+              removed.forEach(r => batch.delete(doc(colRef, r.id)));
+              try {
+                await batch.commit();
+              } catch {
                 addToQueue({type: 'delete', uid: user.uid, data: removed.map(r => r.id)});
-              }),
-            );
-          }
-          Promise.all(writePromises).finally(() => {
+              }
+            }
+
             localWritePending.current = false;
-          });
+          })();
         }
         // AsyncStorage에도 항상 백업
         AsyncStorage.setItem(
           STORAGE_KEY,
-          JSON.stringify(serialized),
+          JSON.stringify(next),
         ).catch(() => {});
 
         return next;
@@ -248,7 +296,7 @@ export function useRecipeStorage() {
     const exportData: RecipeExportData = {
       version: 1,
       exportedAt: new Date().toISOString(),
-      recipes: recipes.map(toSerializable),
+      recipes,
     };
     const json = JSON.stringify(exportData, null, 2);
     const filename = `bakecycle_recipes_${new Date().toISOString().slice(0, 10)}.json`;
@@ -290,9 +338,9 @@ export function useRecipeStorage() {
             resolve(false);
             return;
           }
-          const imported = restoreImageSources(data.recipes);
+          const imported = data.recipes.map(migrateRecipe);
           const existingIds = new Set(recipes.map(r => r.id));
-          const overlapCount = imported.filter(r => existingIds.has(r.id)).length;
+          const overlapCount = imported.filter((r: Recipe) => existingIds.has(r.id)).length;
 
           let shouldOverwrite = false;
           if (overlapCount > 0 && onConfirmOverwrite) {
@@ -301,9 +349,9 @@ export function useRecipeStorage() {
 
           setRecipes(prev => {
             const prevIds = new Set(prev.map(r => r.id));
-            const newRecipes = imported.filter(r => !prevIds.has(r.id));
+            const newRecipes = imported.filter((r: Recipe) => !prevIds.has(r.id));
             if (shouldOverwrite) {
-              const importedMap = new Map(imported.map(r => [r.id, r]));
+              const importedMap = new Map(imported.map((r: Recipe) => [r.id, r]));
               const updated = prev.map(r => importedMap.get(r.id) ?? r);
               return [...updated, ...newRecipes];
             }
@@ -366,10 +414,10 @@ export function useRecipeStorage() {
         const {getDocs} = require('firebase/firestore');
         const colRef = collection(db, 'user_recipes', user.uid, 'recipes');
         const snapshot = await getDocs(colRef);
-        const firestoreRecipes: SerializableRecipe[] = snapshot.docs.map(
-          (d: any) => ({id: d.id, ...d.data()}) as SerializableRecipe,
+        const firestoreRecipes: Recipe[] = snapshot.docs.map(
+          (d: any) => migrateRecipe({id: d.id, ...d.data()}),
         );
-        setRecipesState(restoreImageSources(firestoreRecipes));
+        setRecipesState(firestoreRecipes);
         setLastSyncedAt(new Date());
       } catch {
         await loadFromAsyncStorage();

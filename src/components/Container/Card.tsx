@@ -25,6 +25,5 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   card: {
     backgroundColor: colors['surface-surfacebright'],
     borderRadius: Radius['radius-lg'],
-    overflow: 'hidden',
   },
 });

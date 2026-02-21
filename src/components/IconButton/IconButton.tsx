@@ -22,6 +22,8 @@ export interface IconButtonProps {
   size?: IconButtonSize;
   disabled?: boolean;
   forcePressed?: boolean; // 외부에서 pressed 상태 강제 (메뉴 열림 등)
+  /** 이미지 위에 배치될 때 on-image 컬러 적용 */
+  onImage?: boolean;
   /** 아이콘 색상 직접 지정 (variant 기본 색상 override) */
   iconColor?: string;
   style?: ViewStyle;
@@ -40,6 +42,7 @@ export function IconButton({
   size = 'medium',
   disabled = false,
   forcePressed = false,
+  onImage = false,
   iconColor,
   style,
 }: IconButtonProps) {
@@ -80,7 +83,9 @@ export function IconButton({
       case 'soft':
         baseStyle.backgroundColor = disabled
           ? colors['background-statelayers-disabled']
-          : colors['surface-surfacecontainertransparent'];
+          : onImage
+            ? colors['surface-surfacecontainertransparent-onimage']
+            : colors['surface-surfacecontainertransparent'];
         break;
       case 'outlined':
         baseStyle.backgroundColor =
@@ -99,7 +104,7 @@ export function IconButton({
 
     // Pressed state (실제 pressed 또는 forcePressed)
     if ((pressed || forcePressed) && !disabled) {
-      if (variant === 'filled' || variant === 'ghost-inverse') {
+      if (variant === 'filled' || variant === 'ghost-inverse' || onImage) {
         baseStyle.backgroundColor =
           colors['background-statelayers-inversesurfacefocus_press'];
       } else {
@@ -114,6 +119,9 @@ export function IconButton({
   const getIconColor = (): string => {
     if (disabled) {
       return colors['foreground-onsurfacedisabled'];
+    }
+    if (onImage) {
+      return colors['foreground-onimage'];
     }
     if (variant === 'filled') {
       return colors['foreground-onsurfaceinverse'];
@@ -151,8 +159,8 @@ export function IconButton({
           alignItems: 'center',
           justifyContent: 'center',
         }}>
-        {({pressed}) => (
-          <View style={getContainerStyle(pressed)}>
+        {({pressed, focused}: {pressed: boolean; focused: boolean}) => (
+          <View style={getContainerStyle(pressed || focused)}>
             <AppIcon icon={Icon} size={getIconSize()} color={iconColor || getIconColor()} />
           </View>
         )}

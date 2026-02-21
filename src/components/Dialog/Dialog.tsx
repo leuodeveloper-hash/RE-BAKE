@@ -2,18 +2,26 @@ import React, {useEffect, useRef, useState} from 'react';
 import {
   Animated,
   Easing,
+  Image,
+  ImageSourcePropType,
   Pressable,
   StyleSheet,
+  Text,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {Radius} from '@constants/tokens';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
+import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import type {AvatarColor} from '@components/Avatar/Avatar';
+import {IconClose} from '@components/Icon/IconIndex';
+import {IconButton} from '@components/IconButton';
 import {SheetHeader} from '@components/BottomSheet/SheetHeader';
+import {BlurView} from 'expo-blur';
 import {useThemedStyles} from '@hooks/useThemedStyles';
-import {useColors} from '@contexts/ThemeContext';
+import {useColors, useTheme} from '@contexts/ThemeContext';
 
 export interface DialogProps {
   visible: boolean;
@@ -24,6 +32,8 @@ export interface DialogProps {
   avatarColor?: AvatarColor;
   /** 상단 중앙 그래픽 (세로 레이아웃) */
   headerGraphic?: React.ReactNode;
+  /** 상단 풀폭 이미지 (이미지 헤더 타입) */
+  headerImage?: ImageSourcePropType;
   /** 타이틀 텍스트 */
   title?: string;
   /** 타이틀 아래 설명 텍스트 (문자열 또는 인라인 Text 노드) */
@@ -40,6 +50,8 @@ export interface DialogProps {
   surface?: 'bright' | 'dim';
   /** 카드 너비 (기본: 312) */
   width?: number;
+  /** 배경 블러 (기본: false) */
+  blurBackdrop?: boolean;
 }
 
 const ANIMATION_DURATION = 200;
@@ -50,6 +62,7 @@ export function Dialog({
   icon,
   avatarColor,
   headerGraphic,
+  headerImage,
   title,
   description,
   children,
@@ -58,9 +71,12 @@ export function Dialog({
   enableBackdropDismiss = true,
   surface = 'bright',
   width,
+  blurBackdrop = false,
 }: DialogProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
+  const {isDark} = useTheme();
+  const {height: windowHeight} = useWindowDimensions();
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.95)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
@@ -131,17 +147,22 @@ export function Dialog({
           {
             opacity: backdropOpacity.interpolate({
               inputRange: [0, 1],
-              outputRange: [0, 0.4],
+              outputRange: [0, blurBackdrop ? 1 : 0.4],
             }),
           },
         ]}>
+        {blurBackdrop && (
+          <BlurView intensity={20} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+        )}
         <Pressable style={StyleSheet.absoluteFill} onPress={handleBackdropPress} />
       </Animated.View>
 
       {/* Dialog Card */}
+      <Animated.View style={{alignSelf: 'center'}}>
       <Animated.View
         style={[
           styles.card,
+          {maxHeight: windowHeight * 0.85},
           width != null && {width},
           surface === 'dim' && {backgroundColor: colors['surface-surfacedim']},
           {
@@ -149,8 +170,23 @@ export function Dialog({
             transform: [{scale}],
           },
         ]}>
-        {/* Header: icon + title + close */}
-        {(icon || title || showCloseButton) && (
+        {/* Header: image type or default */}
+        {headerImage ? (
+          <>
+            <View style={styles.imageHeader}>
+              <Image source={headerImage} style={styles.headerImage} resizeMode="cover" />
+              {showCloseButton && (
+                <View style={styles.imageCloseButton}>
+                  <IconButton icon={IconClose} variant="soft" onImage size="small" onPress={onClose} />
+                </View>
+              )}
+            </View>
+            <View style={styles.imageHeaderText}>
+              {title && <Text style={styles.imageTitle}>{title}</Text>}
+              {description && <Text style={styles.imageDescription}>{typeof description === 'string' ? description : description}</Text>}
+            </View>
+          </>
+        ) : (icon || title || showCloseButton) && (
           <SheetHeader
             title={title ?? ''}
             description={description}
@@ -176,6 +212,7 @@ export function Dialog({
           </View>
         )}
       </Animated.View>
+      </Animated.View>
     </View>
   );
 }
@@ -194,18 +231,53 @@ const createStyles = (colors: SemanticColors) =>
     },
     card: {
       width: 312,
+      minHeight: 250,
       backgroundColor: colors['surface-surfacebright'],
       borderRadius: Radius['radius-xl'],
       paddingBottom: Spacing.lg,
     },
     content: {
+      gap: Spacing.sm,
       paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.lg,
+      marginBottom: Spacing.sm,
     },
     actions: {
       flexDirection: 'row',
       gap: Spacing.sm,
-      marginTop: Spacing.lg,
-      paddingTop: Spacing.xs,
       paddingHorizontal: Spacing.lg,
+    },
+    imageHeader: {
+      alignSelf: 'stretch',
+      aspectRatio: 2,
+      overflow: 'hidden' as const,
+      borderTopLeftRadius: Radius['radius-xl'],
+      borderTopRightRadius: Radius['radius-xl'],
+    },
+    headerImage: {
+      width: '100%' as any,
+      height: '100%' as any,
+    },
+    imageCloseButton: {
+      position: 'absolute' as const,
+      top: Spacing.smd,
+      right: Spacing.smd,
+    },
+    imageHeaderText: {
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.lg,
+      alignItems: 'center' as const,
+    },
+    imageTitle: {
+      ...Typography.title.large,
+      color: colors['foreground-onsurface'],
+      marginTop: FONT_BASELINE_OFFSET,
+      textAlign: 'center' as const,
+    },
+    imageDescription: {
+      ...Typography.body.medium,
+      color: colors['foreground-onsurfacemuted'],
+      marginTop: Spacing.sm,
+      textAlign: 'center' as const,
     },
   });

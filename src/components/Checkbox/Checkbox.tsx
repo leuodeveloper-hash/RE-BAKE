@@ -4,8 +4,8 @@ import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 import type {SemanticColors} from '@constants/tokens';
 import {
-  IconCheckboxFilled,
-  IconCheckboxBlank,
+  IconCheckSquareFilled,
+  IconSquare,
   IconCheckboxIndeterminateFilled,
 } from '@components/Icon/IconIndex';
 
@@ -39,10 +39,10 @@ export function Checkbox({
   // 아이콘 색상: 선택 상태에 따라 다름
   const iconColor = (() => {
     if (!isSelected) {
-      // Unselected: red는 error 색상, 나머지는 onsurface
+      // Unselected: red는 error 색상, 나머지는 muted
       return color === 'red'
         ? colors['foreground-error']
-        : colors['foreground-onsurface'];
+        : colors['foreground-onsurfacemuted'];
     }
     switch (color) {
       case 'red':
@@ -57,27 +57,33 @@ export function Checkbox({
   const Icon = indeterminate
     ? IconCheckboxIndeterminateFilled
     : checked
-      ? IconCheckboxFilled
-      : IconCheckboxBlank;
+      ? IconCheckSquareFilled
+      : IconSquare;
 
   const pressedStyle =
     color === 'red' ? styles.stateLayerError : styles.stateLayer;
+
+  const iconView = (
+    <View
+      style={
+        !isSelected && color !== 'red' ? styles.unselectedIcon : undefined
+      }>
+      <Icon width={20} height={20} color={iconColor} />
+    </View>
+  );
+
+  if (!onPress) return iconView;
 
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled}
-      style={({pressed}) => [
+      style={({pressed, focused}: {pressed: boolean; focused: boolean}) => [
         styles.container,
-        pressed && pressedStyle,
+        (pressed || focused) && pressedStyle,
         disabled && styles.disabled,
       ]}>
-      <View
-        style={
-          !isSelected && color !== 'red' ? styles.unselectedIcon : undefined
-        }>
-        <Icon width={20} height={20} color={iconColor} />
-      </View>
+      {iconView}
     </Pressable>
   );
 }

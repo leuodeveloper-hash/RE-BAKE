@@ -18,18 +18,18 @@ import type {AvatarColor} from '@components/Avatar/Avatar';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {MockRecipe} from '@data/mockRecipes';
+import type {Recipe} from '../types/recipe';
 import {IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconChartNoAxesGantt, IconColliections} from '@components/Icon/IconIndex';
 import type {ExploreCookbook} from '@hooks/useExploreRecipes';
 
 export interface GroupScreenProps {
-  recipes: MockRecipe[];
+  recipes: Recipe[];
   cookbookColors: Record<string, AvatarColor>;
   onComingSoon: () => void;
   onDeleteCookbook?: (name: string) => void;
   onCookbookPress?: (cookbookName: string) => void;
   /** 둘러보기 레시피 (어드민 전용) */
-  exploreRecipes?: MockRecipe[];
+  exploreRecipes?: Recipe[];
   /** 둘러보기 요리책 목록 (Firestore explore_cookbooks) */
   exploreCookbooks?: ExploreCookbook[];
   /** 어드민 여부 */
@@ -82,7 +82,7 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
 
   // 레시피를 카테고리별로 그룹핑 → 요리책 섹션
   const cookbooks = useMemo(() => {
-    const map = new Map<string, MockRecipe[]>();
+    const map = new Map<string, Recipe[]>();
     // '그룹없음'을 기본으로 항상 포함
     map.set('그룹없음', []);
     // cookbookColors에 등록된 빈 요리책도 포함
@@ -113,7 +113,7 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
   // 둘러보기 요리책 (어드민 전용): 레시피 그룹 + explore_cookbooks의 빈 요리책 포함
   const exploreGroups = useMemo(() => {
     if (!isAdmin) return [];
-    const map = new Map<string, MockRecipe[]>();
+    const map = new Map<string, Recipe[]>();
     // explore_cookbooks에 등록된 빈 요리책도 포함
     for (const cb of exploreCookbooks ?? []) {
       if (!map.has(cb.name)) map.set(cb.name, []);
@@ -311,7 +311,7 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
                         cookbook={recipe.cookbook}
                         method={recipe.method}
                         reviewCount={recipe.reviewCount}
-                        imageSource={recipe.imageSource}
+                        imageUrl={recipe.imageUri}
                         layout="list"
                         placeholderIcon={IconChartNoAxesGantt}
                         placeholderIconColor={colors['custom-lightbluevar']}

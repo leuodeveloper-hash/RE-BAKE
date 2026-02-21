@@ -7,7 +7,7 @@ import {AppIcon} from '@components/Icon/AppIcon';
 import {IconChevronDown} from '@components/Icon/IconIndex';
 import {useColors} from '@contexts/ThemeContext';
 
-export type SelectorVariant = 'ghost' | 'filled' | 'outlined';
+export type SelectorVariant = 'ghost' | 'filled' | 'outlined' | 'soft';
 
 export interface SelectorProps {
   label: string;
@@ -58,6 +58,12 @@ export function Selector({
           ? colors['border-borderlight']
           : colors['border-border'];
         break;
+      case 'soft':
+        baseStyle.backgroundColor = colors['surface-surfacecontainer'];
+        baseStyle.borderRadius = Radius['radius-md'];
+        baseStyle.paddingHorizontal = Spacing.smd;
+        baseStyle.minHeight = 48;
+        break;
       case 'ghost':
       default:
         baseStyle.backgroundColor = 'transparent';
@@ -105,8 +111,8 @@ export function Selector({
 
   return (
     <Pressable onPress={onPress} disabled={disabled} style={style}>
-      {({pressed}) => (
-        <View style={getContainerStyle(pressed)}>
+      {({pressed, focused}: {pressed: boolean; focused: boolean}) => (
+        <View style={getContainerStyle(pressed || focused)}>
           <Text style={[styles.label, {color: getTextColor()}]} numberOfLines={1}>{label}</Text>
           {showDropdown && (
             <View style={{width: 12}}>

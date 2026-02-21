@@ -1,15 +1,15 @@
 import React, {createContext, useCallback, useContext, useEffect, useMemo, useRef, useState} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useRecipeStorage} from '@hooks/useRecipeStorage';
-import {MockRecipe} from '@data/mockRecipes';
+import type {Recipe} from '../types/recipe';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 
 const COOKBOOK_COLORS_KEY = 'bakecycle_cookbook_colors_v1';
 export const DEFAULT_COOKBOOK_COLOR: AvatarColor = 'brown';
 
 interface RecipeContextValue {
-  recipes: MockRecipe[];
-  setRecipes: (updater: MockRecipe[] | ((prev: MockRecipe[]) => MockRecipe[])) => void;
+  recipes: Recipe[];
+  setRecipes: (updater: Recipe[] | ((prev: Recipe[]) => Recipe[])) => void;
   exportRecipes: () => Promise<void>;
   importRecipes: () => Promise<boolean>;
   isLoading: boolean;
@@ -21,7 +21,7 @@ interface RecipeContextValue {
   setSelectedExploreCookbook: (cookbook: string | null) => void;
   availableCookbooks: string[];
   /** id로 레시피 찾기 */
-  findRecipeById: (id: string) => MockRecipe | undefined;
+  findRecipeById: (id: string) => Recipe | undefined;
   /** 요리책별 색상 매핑 */
   cookbookColors: Record<string, AvatarColor>;
   /** 요리책 색상 설정 */

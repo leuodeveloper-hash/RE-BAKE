@@ -11,7 +11,7 @@ import {useColors} from '@contexts/ThemeContext';
 import {useRecipes} from '@contexts/RecipeContext';
 import {Typography} from '@constants/typography';
 import {Spacing} from '@constants/spacing';
-import {MockRecipe} from '@data/mockRecipes';
+import type {Recipe} from '../types/recipe';
 import {getRecipeMenuItems} from '@utils/recipeMenuItems';
 import {
   IconExprolerBookFilled,
@@ -22,24 +22,29 @@ import {
 import {getColorVarKey} from '@components/ColorPicker/ColorPicker';
 import type {ExploreCookbook} from '@hooks/useExploreRecipes';
 
+const FREE_RECIPE_COUNT = 3;
+
+const emptyCookbookImage = require('../../assets/images/empty_no_cookbook_recipe.png');
 const BASE_CARD_MENU_ITEMS = getRecipeMenuItems({showImport: true});
 const ADMIN_CARD_MENU_ITEMS = getRecipeMenuItems({showImport: true, showEdit: true, showDelete: true});
 
 export interface ExploreScreenProps {
-  data: MockRecipe[];
+  data: Recipe[];
   loading?: boolean;
   isAdmin?: boolean;
   isOnline?: boolean;
   myRecipeIds: string[];
-  onImportRecipe: (recipe: MockRecipe) => void;
-  onRecipePress: (recipe: MockRecipe) => void;
-  onEditRecipe?: (recipe: MockRecipe) => void;
-  onDeleteRecipe?: (recipe: MockRecipe) => void;
-  onAddRecipe?: () => void;
+  onImportRecipe: (recipe: Recipe) => void;
+  onRecipePress: (recipe: Recipe, locked?: boolean) => void;
+  onEditRecipe?: (recipe: Recipe) => void;
+  onDeleteRecipe?: (recipe: Recipe) => void;
+  onAddRecipe?: (cookbook?: string) => void;
   onComingSoon: () => void;
   onRefresh?: () => void;
   /** 둘러보기 요리책 목록 (이름+컬러) */
   exploreCookbooks?: ExploreCookbook[];
+  /** 무료 유저 여부 (true면 3개 제한 + paywall) */
+  isFreeUser?: boolean;
 }
 
 export function ExploreScreen({
@@ -55,10 +60,11 @@ export function ExploreScreen({
   onComingSoon,
   onRefresh,
   exploreCookbooks,
+  isFreeUser = false,
 }: ExploreScreenProps) {
   const colors = useColors();
   const {selectedExploreCookbook, setSelectedExploreCookbook} = useRecipes();
-  const [selectedCategory, setSelectedCategory] = useState(selectedExploreCookbook ?? '__all__');
+  const [selectedCategory, setSelectedCategory] = useState(selectedExploreCookbook ?? '제과기능사');
 
   // 외부에서 요리책 필터가 설정되면 반영 후 초기화
   React.useEffect(() => {
@@ -70,7 +76,7 @@ export function ExploreScreen({
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const [pdfRecipe, setPdfRecipe] = useState<MockRecipe | null>(null);
+  const [pdfRecipe, setPdfRecipe] = useState<Recipe | null>(null);
 
   const cardMenuItems = useMemo(
     () => isAdmin ? ADMIN_CARD_MENU_ITEMS : BASE_CARD_MENU_ITEMS,
@@ -132,12 +138,26 @@ export function ExploreScreen({
     );
   }, [data, selectedCategory, searchQuery]);
 
+  // 무료 유저: 전체 표시하되 잠금 처리
+  const paywallData = filteredData;
+
+  const lockedRecipeIds = useMemo(() => {
+    if (!isFreeUser) return undefined;
+    const ids = new Set<string>();
+    filteredData.slice(FREE_RECIPE_COUNT).forEach(r => ids.add(r.id));
+    return ids;
+  }, [filteredData, isFreeUser]);
+
+  const handleRecipePress = useCallback((recipe: Recipe) => {
+    onRecipePress(recipe, lockedRecipeIds?.has(recipe.id));
+  }, [lockedRecipeIds, onRecipePress]);
+
   const closeSearch = useCallback(() => {
     setShowSearch(false);
     setSearchQuery('');
   }, []);
 
-  const handleCardMenuSelect = useCallback((id: string, recipe: MockRecipe) => {
+  const handleCardMenuSelect = useCallback((id: string, recipe: Recipe) => {
     if (id === 'save') {
       onImportRecipe(recipe);
     } else if (id === 'download') {
@@ -154,15 +174,17 @@ export function ExploreScreen({
   return (
     <>
     <RecipeListTemplate
-      data={filteredData}
+      data={paywallData}
       loading={loading}
-      onRecipePress={onRecipePress}
+      onRecipePress={handleRecipePress}
       cardMenuItems={cardMenuItems}
       onCardMenuSelect={handleCardMenuSelect}
       onRefresh={onRefresh}
       onOverlayPress={() => setShowCategoryMenu(false)}
       extraOverlayVisible={showCategoryMenu}
       forceLayout={showSearch && searchQuery.trim() ? 'list' : undefined}
+      scrollEnabled
+      lockedRecipeIds={lockedRecipeIds}
       listEmptyComponent={
         !isOnline && data.length === 0 ? (
           <EmptyState
@@ -175,6 +197,14 @@ export function ExploreScreen({
             category="no-results"
             title="검색된 결과가 없네요."
             subtitle={`'${searchQuery.trim()}'에 해당하는 레시피를 찾지 못했어요.`}
+          />
+        ) : selectedCategory && selectedCategory !== '__all__' ? (
+          <EmptyState
+            image={emptyCookbookImage}
+            title="요리책이 비어 있어요."
+            subtitle="첫 레시피를 추가해보세요."
+            actionLabel={onAddRecipe ? '레시피 추가하기' : undefined}
+            onAction={onAddRecipe ? () => onAddRecipe(selectedCategory) : undefined}
           />
         ) : data.length === 0 ? (
           <EmptyState
@@ -266,6 +296,7 @@ export function ExploreScreen({
         )
       }
     />
+
     <PdfPreviewDialog
       visible={!!pdfRecipe}
       onClose={() => setPdfRecipe(null)}

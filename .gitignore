@@ -31,6 +31,9 @@ local.properties
 *.keystore
 !debug.keystore
 
+# Expo
+.expo/
+
 # node.js
 node_modules/
 npm-debug.log

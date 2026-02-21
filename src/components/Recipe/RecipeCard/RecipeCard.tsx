@@ -3,13 +3,13 @@ import {
   Animated,
   Easing,
   Image,
-  ImageSourcePropType,
   Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+
 import {LinearGradient} from 'expo-linear-gradient';
 import {Radius} from '@constants/tokens';
 import type {SemanticColors} from '@constants/tokens';
@@ -18,7 +18,7 @@ import {Typography} from '@constants/typography';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 import {SvgProps} from 'react-native-svg';
-import {IconEllipsisVertical, IconPhoto} from '@components/Icon/IconIndex';
+import {IconEllipsisVertical, IconLockFilled, IconPhoto} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
 import {Thumbnail} from '@components/Thumbnail';
 
@@ -70,7 +70,6 @@ export interface RecipeCardProps {
   reviewCount?: number;
   sessionCount?: number;
   imageUrl?: string;
-  imageSource?: ImageSourcePropType;
   onPress?: () => void;
   onMenuPress?: (position: {pageX: number; pageY: number; width: number; height: number}) => void;
   layout?: RecipeCardLayout;
@@ -82,6 +81,8 @@ export interface RecipeCardProps {
   trailingIcon?: React.FC<SvgProps>;
   /** trailing 아이콘 색상 */
   trailingIconColor?: string;
+  /** 잠금 상태 (paywall용): BlurView 오버레이 + 잠금 아이콘 표시 */
+  locked?: boolean;
 }
 
 export function RecipeCard({
@@ -93,7 +94,6 @@ export function RecipeCard({
   reviewCount = 0,
   sessionCount,
   imageUrl,
-  imageSource,
   onPress,
   onMenuPress,
   layout = 'grid',
@@ -101,11 +101,12 @@ export function RecipeCard({
   placeholderIconColor,
   trailingIcon,
   trailingIconColor,
+  locked = false,
 }: RecipeCardProps) {
   const colors = useColors();
   const styles = useThemedStyles(createStyles);
   const menuButtonRef = useRef<View>(null);
-  const hasImage = imageUrl || imageSource;
+  const hasImage = !!imageUrl;
   const parts = [cookbook, method].filter(Boolean);
   if (specificGravity) parts.push(`비중 ${specificGravity}`);
   if (sessionCount && sessionCount > 1) parts.push(`${sessionCount}개의 회차`);
@@ -123,9 +124,9 @@ export function RecipeCard({
     return (
       <View style={styles.listWrapper}>
         <Pressable
-          style={({pressed}) => [
+          style={({pressed, focused}: {pressed: boolean; focused: boolean}) => [
             styles.listContainer,
-            pressed && styles.listContainerPressed,
+            (pressed || focused) && styles.listContainerPressed,
           ]}
           onPress={onPress}>
           {/* 썸네일 */}
@@ -134,7 +135,7 @@ export function RecipeCard({
             iconColor={placeholderIconColor || colors['foreground-onsurfacemuted']}>
             {hasImage && (
               <FadeInImage
-                source={imageSource || {uri: imageUrl!}}
+                source={{uri: imageUrl!}}
                 style={styles.listImage}
                 resizeMode="cover"
               />
@@ -151,8 +152,15 @@ export function RecipeCard({
             </Text>
           </View>
 
-          {/* 메뉴 버튼 */}
-          {(onMenuPress || trailingIcon) && (
+          {/* 메뉴 버튼 / 잠금 아이콘 */}
+          {locked ? (
+            <IconButton
+              icon={IconLockFilled}
+              iconColor={colors['foreground-onsurfacemuted']}
+              variant="ghost-secondary"
+              size="medium"
+            />
+          ) : (onMenuPress || trailingIcon) ? (
             <View ref={menuButtonRef}>
               <IconButton
                 icon={trailingIcon || IconEllipsisVertical}
@@ -162,7 +170,7 @@ export function RecipeCard({
                 size="medium"
               />
             </View>
-          )}
+          ) : null}
         </Pressable>
         <View style={styles.listDivider} />
       </View>
@@ -194,7 +202,7 @@ export function RecipeCard({
       {/* 썸네일 이미지 */}
       {hasImage && (
         <FadeInImage
-          source={imageSource || {uri: imageUrl!}}
+          source={{uri: imageUrl!}}
           style={[StyleSheet.absoluteFill, styles.gridImage]}
           resizeMode="cover"
         />
@@ -207,8 +215,16 @@ export function RecipeCard({
         style={StyleSheet.absoluteFill}
       />
 
-      {/* 더보기 버튼 */}
-      {onMenuPress && (
+      {/* 더보기 버튼 / 잠금 아이콘 */}
+      {locked ? (
+        <View style={styles.gridMenuButton}>
+          <IconButton
+            icon={IconLockFilled}
+            variant="ghost-inverse"
+            size="medium"
+          />
+        </View>
+      ) : onMenuPress ? (
         <View ref={menuButtonRef} style={styles.gridMenuButton}>
           <IconButton
             icon={IconEllipsisVertical}
@@ -217,7 +233,7 @@ export function RecipeCard({
             size="medium"
           />
         </View>
-      )}
+      ) : null}
 
       {/* 콘텐츠 */}
       <View style={styles.gridContent}>
@@ -333,4 +349,5 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     letterSpacing: -0.25,
     color: colors['foreground-onsurfacemuted'],
   },
+
 });

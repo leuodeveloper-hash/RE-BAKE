@@ -6,3 +6,4 @@ export * from './TimeDialog';
 export * from './ServingsDialog';
 export * from './ReviewDialog';
 export * from './IngredientAmountDialog';
+export * from './UnlockDialog';

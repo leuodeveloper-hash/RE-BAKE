@@ -175,9 +175,9 @@ export function BottomTabBar({
                 return (
                   <Pressable
                     key={item.id}
-                    style={({pressed}) => [
+                    style={({pressed, focused}: {pressed: boolean; focused: boolean}) => [
                       styles.menuItem,
-                      pressed && styles.menuItemPressed,
+                      (pressed || focused) && styles.menuItemPressed,
                     ]}
                     onPress={() => handleAddItemPress(item)}>
                     <Thumbnail

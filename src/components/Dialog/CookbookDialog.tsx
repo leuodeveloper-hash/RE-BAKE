@@ -15,7 +15,7 @@ import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 
 const COOKBOOK_COLORS: AvatarColor[] = [
   'gray', 'greybrown', 'brown', 'yellow', 'red',
-  'lime', 'green', 'lightblue', 'purple',
+  'orange', 'lime', 'green', 'lightblue', 'purple',
 ];
 
 export interface CookbookDialogProps {
@@ -23,7 +23,7 @@ export interface CookbookDialogProps {
   onClose: () => void;
   onConfirm: (name: string, color: AvatarColor, isOfficial?: boolean) => void;
   /** 편집 대상 (null이면 추가 모드) */
-  editTarget?: {name: string; color: AvatarColor} | null;
+  editTarget?: {name: string; color: AvatarColor; isExplore?: boolean} | null;
   /** 어드민 여부 (true일 때 공식 요리책 토글 표시) */
   isAdmin?: boolean;
   /** 공식 요리책 토글 초기값 */
@@ -42,13 +42,14 @@ export function CookbookDialog({visible, onClose, onConfirm, editTarget, isAdmin
       if (editTarget) {
         setName(editTarget.name);
         setColor(editTarget.color);
+        setIsOfficial(!!editTarget.isExplore);
       } else {
         setName('');
         setColor(initialOfficial ? 'orange' : DEFAULT_COOKBOOK_COLOR);
+        setIsOfficial(!!initialOfficial);
       }
-      setIsOfficial(!!initialOfficial);
     }
-  }, [visible, editTarget]);
+  }, [visible, editTarget, initialOfficial]);
 
   const handleConfirm = () => {
     const trimmed = name.trim();
@@ -76,8 +77,11 @@ export function CookbookDialog({visible, onClose, onConfirm, editTarget, isAdmin
         </>
       }>
       <View style={s.content}>
-        {isAdmin && !editTarget && (
-          <Pressable style={s.officialRow} onPress={() => setIsOfficial(prev => !prev)}>
+        {(isAdmin && !editTarget || editTarget?.isExplore) && (
+          <Pressable
+            style={[s.officialRow, editTarget?.isExplore && {opacity: 0.5}]}
+            onPress={editTarget?.isExplore ? undefined : () => setIsOfficial(prev => !prev)}
+            disabled={!!editTarget?.isExplore}>
             <Text style={s.officialLabel}>공식 요리책</Text>
             <View style={[s.toggleTrack, isOfficial && {backgroundColor: colors['custom-orangevar']}]}>
               <Animated.View style={[s.toggleThumb, isOfficial && {transform: [{translateX: 16}]}]} />

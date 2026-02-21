@@ -1,5 +1,5 @@
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Animated, View, StyleSheet, Easing} from 'react-native';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import {View, StyleSheet} from 'react-native';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import {doc, deleteDoc, updateDoc} from 'firebase/firestore';
 import {RecipeDetailScreen} from '@screens/RecipeDetailScreen';
@@ -9,24 +9,26 @@ import {useAddSheet} from '@contexts/AddSheetContext';
 import {useColors} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
 import {useExploreRecipes} from '@hooks/useExploreRecipes';
+import {useRewardedAd} from '@hooks/useRewardedAd';
 import {db} from '@config/firebase';
-import {EXPLORE_MOCK_RECIPES} from '@data/mockRecipes';
 import {parseSession, formatSession} from '@utils/session';
 import {IconTrashFilled} from '@components/Icon/IconIndex';
 
 export default function RecipeDetailRoute() {
-  const {id, from} = useLocalSearchParams<{id: string; from?: string}>();
+  const {id, from, locked: lockedParam} = useLocalSearchParams<{id: string; from?: string; locked?: string}>();
   const router = useRouter();
   const colors = useColors();
   const {findRecipeById, recipes, setRecipes, availableCookbooks, cookbookColors} = useRecipes();
   const {showSnackbar} = useSnackbar();
   const {isAdmin} = useAuth();
   const {recipes: exploreRecipes} = useExploreRecipes();
-  const {setHideTabBar} = useAddSheet();
+  const {setHideTabBar, setHideContentMask} = useAddSheet();
+  const {isLoaded: adLoaded, isLoading: adLoading, show: showAd} = useRewardedAd();
   const [isCookingMode, setIsCookingMode] = useState(false);
-  const fadeAnim = useRef(new Animated.Value(1)).current;
+  const [unlocked, setUnlocked] = useState(false);
+  const isLocked = lockedParam === '1' && !unlocked;
 
-  const recipe = findRecipeById(id) ?? exploreRecipes.find(r => r.id === id) ?? EXPLORE_MOCK_RECIPES.find(r => r.id === id);
+  const recipe = findRecipeById(id) ?? exploreRecipes.find(r => r.id === id);
   const isMyRecipe = recipes.some(r => r.id === id);
   const isExploreRecipe = !isMyRecipe && exploreRecipes.some(r => r.id === id);
   const alreadyImported = recipes.some(r => r.sourceId === id);
@@ -36,6 +38,12 @@ export default function RecipeDetailRoute() {
     setHideTabBar(isCookingMode);
     return () => setHideTabBar(false);
   }, [isCookingMode, setHideTabBar]);
+
+  // locked일 때 레이아웃 기존 하단 블러 숨기기 (잠금 전용 블러로 대체)
+  useEffect(() => {
+    setHideContentMask(isLocked);
+    return () => setHideContentMask(false);
+  }, [isLocked, setHideContentMask]);
 
   const handleBack = useCallback(() => {
     if (router.canGoBack()) {
@@ -177,6 +185,16 @@ const handleDelete = useCallback(async () => {
     showSnackbar(`요리책을 '${newCookbook || '그룹없음'}'으로 변경했습니다`);
   }, [id, isMyRecipe, setRecipes, showSnackbar]);
 
+  const handleUnlock = useCallback(() => {
+    if (!adLoaded) {
+      showSnackbar('광고를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.');
+      return;
+    }
+    showAd(() => {
+      setUnlocked(true);
+    });
+  }, [adLoaded, showAd, showSnackbar]);
+
   if (!recipe) return null;
 
   const canEdit = isMyRecipe || (isExploreRecipe && isAdmin);
@@ -192,7 +210,6 @@ const handleDelete = useCallback(async () => {
         ratio={recipe.specificGravity}
         reviewCount={recipe.reviewCount}
         reviews={recipe.reviews}
-        imageSource={recipe.imageSource}
         imageUri={recipe.imageUri}
         time={recipe.time}
         servings={recipe.servings}
@@ -223,6 +240,9 @@ const handleDelete = useCallback(async () => {
           }
         } : undefined}
         onCookingModeChange={setIsCookingMode}
+        locked={isLocked}
+        onUnlock={handleUnlock}
+        adLoading={adLoading}
       />
     </View>
   );

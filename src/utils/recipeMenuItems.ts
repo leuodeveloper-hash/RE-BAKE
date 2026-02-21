@@ -29,7 +29,7 @@ export function getRecipeMenuItems(options: RecipeMenuOptions): MenuItemData[] {
     items.push({id: 'remake', label: `다시 만들기: ${total + 1}회차`, icon: IconHash});
   }
   if (options.showEdit) items.push({id: 'edit', label: '편집', icon: IconEdit});
-  if (options.showCookbook) items.push({id: 'cookbook', label: '요리책', icon: IconBookFilled, hasChildren: true});
+  if (options.showCookbook) items.push({id: 'cookbook', label: '요리책', icon: IconBookFilled});
   items.push({id: 'download', label: 'PDF 다운로드', icon: IconArrowDownToLine});
   if (options.showDelete) items.push({id: 'delete', label: '삭제', icon: IconTrash, destructive: true});
   return items;

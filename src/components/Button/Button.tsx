@@ -1,10 +1,11 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {useColors} from '@contexts/ThemeContext';
+import {GradientGlow} from './GradientGlow';
 
 export type ButtonVariant = 'filled' | 'soft' | 'outlined' | 'ghost';
 export type ButtonSize = 'small' | 'medium';
@@ -17,6 +18,10 @@ export interface ButtonProps {
   disabled?: boolean;
   /** 에러/삭제 등 위험한 액션 (빨간색 스타일) */
   destructive?: boolean;
+  /** 강조 액션 (파란색 스타일) */
+  accent?: boolean;
+  /** 그라디언트 그림자 (플로팅 CTA용) */
+  gradientShadow?: boolean;
   style?: ViewStyle;
   icon?: React.FC<SvgProps>;
   trailingIcon?: React.FC<SvgProps>;
@@ -34,6 +39,8 @@ export function Button({
   size = 'medium',
   disabled = false,
   destructive = false,
+  accent = false,
+  gradientShadow = false,
   style,
   icon: Icon,
   trailingIcon: TrailingIcon,
@@ -78,30 +85,51 @@ export function Button({
     }
 
     if (pressed && !disabled) {
-      base.backgroundColor =
-        destructive && variant === 'filled'
+      if (variant === 'filled') {
+        base.opacity = 0.85;
+      } else {
+        base.backgroundColor = destructive
           ? colors['background-statelayers-errorfocused_pressed']
-          : variant === 'filled'
-            ? colors['background-statelayers-inversesurfacefocus_press']
-            : colors['background-statelayers-surfacefocus_press'];
+          : colors['background-statelayers-surfacefocus_press'];
+      }
     }
 
     return base;
   };
 
   const getTextColor = (): string => {
-    if (disabled) return colors['foreground-onsurfacedisabled'];
+    if (disabled) {
+      if (variant === 'filled') return colors['foreground-onsurfaceinversevar'];
+      return colors['foreground-onsurfacedisabled'];
+    }
     if (destructive && variant === 'filled') return colors['foreground-onerror'];
     if (destructive) return colors['foreground-error'];
+    if (accent) return colors['foreground-accent'];
     if (variant === 'filled') return colors['foreground-onsurfaceinverse'];
     return colors['foreground-onsurface'];
   };
 
+  const showGlow = gradientShadow && !disabled;
+  const [layoutSize, setLayoutSize] = useState<{w: number; h: number} | null>(null);
+
   return (
-    <View style={style}>
+    <View
+      style={[style, showGlow && {overflow: 'visible' as const}]}
+      onLayout={showGlow ? (e) => {
+        const {width, height} = e.nativeEvent.layout;
+        setLayoutSize({w: width, h: height});
+      } : undefined}
+    >
+      {showGlow && layoutSize && (
+        <GradientGlow
+          width={layoutSize.w}
+          height={layoutSize.h}
+          borderRadius={sizeConfig.borderRadius}
+        />
+      )}
       <Pressable onPress={onPress} disabled={disabled}>
-        {({pressed}) => (
-          <View style={[getContainerStyle(pressed), (Icon || TrailingIcon) && {flexDirection: 'row' as const, gap: sizeConfig.gap}]}>
+        {({pressed, focused}: {pressed: boolean; focused: boolean}) => (
+          <View style={[getContainerStyle(pressed || focused), (Icon || TrailingIcon) && {flexDirection: 'row' as const, gap: sizeConfig.gap}]}>
             {Icon && <Icon width={18} height={18} color={getTextColor()} />}
             <Text style={[styles.label, {color: getTextColor()}]}>{label}</Text>
             {TrailingIcon && <TrailingIcon width={18} height={18} color={getTextColor()} />}

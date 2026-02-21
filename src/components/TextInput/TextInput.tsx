@@ -50,7 +50,7 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
   const hasValue = value && value.length > 0;
   const isGhost = style === 'ghost';
   const isSmall = size === 'small';
-  const autoResize = isGhost && multiline;
+  const autoResize = multiline;
 
   // Internal ref for web textarea resize
   const internalRef = useRef<any>(null);
@@ -86,8 +86,12 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
 
   const handleChangeText = useCallback((text: string) => {
     onChangeText?.(text);
-    if (autoResize && Platform.OS === 'web') {
-      requestAnimationFrame(resizeWeb);
+    if (autoResize) {
+      if (Platform.OS === 'web') {
+        requestAnimationFrame(resizeWeb);
+      } else {
+        setContentHeight(undefined);
+      }
     }
   }, [onChangeText, autoResize, resizeWeb]);
 

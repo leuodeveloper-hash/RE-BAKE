@@ -57,3 +57,7 @@ ios/Pods/
 # environment
 .env
 .env.local
+
+# CNG - native project folders (managed by expo prebuild)
+/ios
+/android

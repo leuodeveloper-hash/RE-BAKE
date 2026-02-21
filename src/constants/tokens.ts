@@ -380,6 +380,7 @@ export const SemanticColorsLight = {
   'surface-surfacecontainerhigh': PrimitiveColors['color-neutral-20'],
   'surface-surfacecontainerhighest': PrimitiveColors['color-neutral-30'],
   'surface-surfacecontainertransparent': withOpacity(BaseColors['color-base-grey-70'], 0.12),
+  'surface-surfacecontainertransparent-onimage': withOpacity(PrimitiveColors['color-neutral-5'], 0.16),
   'surface-surfaceinverse': PrimitiveColors['color-neutral-96'],
 
   // Error
@@ -510,6 +511,7 @@ export const SemanticColorsDark = {
   'surface-surfacecontainerhigh': PrimitiveColors['color-neutral-90'],
   'surface-surfacecontainerhighest': PrimitiveColors['color-neutral-80'],
   'surface-surfacecontainertransparent': withOpacity(BaseColors['color-base-grey-50'], 0.12), // Dark: ~#C8C8DC
+  'surface-surfacecontainertransparent-onimage': withOpacity(PrimitiveColors['color-neutral-5'], 0.16),
   'surface-surfaceinverse': PrimitiveColors['color-neutral-10'],
 
   // Error

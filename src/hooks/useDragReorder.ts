@@ -28,6 +28,8 @@ export function useDragReorder() {
       return PanResponder.create({
         onStartShouldSetPanResponder: () => true,
         onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dy) > 5,
+        onPanResponderTerminationRequest: () => false,
+        onShouldBlockNativeResponder: () => true,
         onPanResponderGrant: () => {
           setScrollEnabled(false);
           setDraggingId(callbacksRef.itemId);

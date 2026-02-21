@@ -10,6 +10,7 @@ import {
   IconAdd,
   IconBookFilled,
   IconBookTwotone,
+  IconExprolerBookFilled,
   IconChartNoAxesGantt,
   IconDescription,
   IconClockFilled,
@@ -50,6 +51,8 @@ export interface FieldManageDialogProps {
   onClose: () => void;
   activeFieldIds: string[];
   onConfirm: (activeFieldIds: string[]) => void;
+  /** 공식 요리책 편집 모드 */
+  isExplore?: boolean;
 }
 
 export function FieldManageDialog({
@@ -57,6 +60,7 @@ export function FieldManageDialog({
   onClose,
   activeFieldIds,
   onConfirm,
+  isExplore,
 }: FieldManageDialogProps) {
   const [localActiveIds, setLocalActiveIds] = useState<string[]>(activeFieldIds);
 
@@ -66,8 +70,11 @@ export function FieldManageDialog({
     }
   }, [visible, activeFieldIds]);
 
-  const fixedFields = ALL_FIELDS.filter(f => f.fixed);
-  const optionalFields = ALL_FIELDS.filter(f => !f.fixed);
+  const fields = isExplore
+    ? ALL_FIELDS.map(f => f.id === 'cookbook' ? {...f, fixed: true, icon: IconExprolerBookFilled} : f)
+    : ALL_FIELDS;
+  const fixedFields = fields.filter(f => f.fixed);
+  const optionalFields = fields.filter(f => !f.fixed);
   const activeOptional = optionalFields.filter(f =>
     localActiveIds.includes(f.id),
   );

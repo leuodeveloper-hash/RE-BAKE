@@ -232,7 +232,7 @@ export function ProfileScreen({
           showsVerticalScrollIndicator={false}>
           {/* 프로필 섹션 */}
           <ContentContainer style={styles.profileSection}>
-            <Avatar type="random" size="xlarge" shape="circle" seed={avatarSeed ?? 42} />
+            <Avatar type="random" size="xlarge" shape="circle" seed={avatarSeed ?? 0} />
             {userEmail ? (
               <>
                 <Pressable onPress={handleOpenHandleEdit}>

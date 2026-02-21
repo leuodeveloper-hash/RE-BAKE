@@ -9,7 +9,7 @@ import {useTheme} from '@contexts/ThemeContext';
 export interface GlassContainerProps {
   children: React.ReactNode;
   /** border-radius 스타일 (기본: full) */
-  borderRadius?: 'full' | 'xl';
+  borderRadius?: 'full' | 'xl' | 'lg';
   /** 추가 스타일 */
   style?: ViewStyle;
   /** 내부 콘텐츠 스타일 */
@@ -35,7 +35,9 @@ export function GlassContainer({
   const {isDark} = useTheme();
   const radiusValue = borderRadius === 'full'
     ? Radius['radius-full']
-    : Radius['radius-xl'];
+    : borderRadius === 'xl'
+    ? Radius['radius-xl']
+    : Radius['radius-lg'];
 
   return (
     <View style={[styles.shadowContainer, {borderRadius: radiusValue}, style]}>

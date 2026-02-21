@@ -3,7 +3,6 @@ import {
   Animated,
   Easing,
   Image,
-  ImageSourcePropType,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Pressable,
@@ -12,6 +11,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import {LockedBottomBar} from '@components/LockedBottomBar';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {LinearGradient} from 'expo-linear-gradient';
 import {FloatingNavBar, navPillStyle, NAV_PILL_HEIGHT} from '@components/Navigation';
@@ -24,7 +24,7 @@ import {Menu} from '@components/Menu';
 import {Tabs} from '@components/Tabs';
 import {EditableChip} from '@components/EditableChip';
 import {OptionTile} from '@components/OptionTile';
-import {PdfPreviewDialog, TimeDialog, ServingsDialog} from '@components/Dialog';
+import {PdfPreviewDialog, TimeDialog, ServingsDialog, UnlockDialog} from '@components/Dialog';
 import type {ReviewData} from '@components/Dialog';
 import {CookingMode} from '@components/CookingMode';
 import {useThemedStyles} from '@hooks/useThemedStyles';
@@ -76,7 +76,7 @@ interface ProcessStep {
   tip?: string;
   caution?: string;
   photos?: string[];
-  images?: any[];
+  ingredients?: {name: string; amount: string}[];
 }
 
 interface ProcessStepGroup {
@@ -93,7 +93,6 @@ export interface RecipeDetailScreenProps {
   reviewCount?: number;
   ratio?: string;
   reviews?: ReviewData[];
-  imageSource?: ImageSourcePropType;
   imageUri?: string;
   time?: string;
   servings?: string;
@@ -126,6 +125,12 @@ export interface RecipeDetailScreenProps {
   availableCookbooks?: string[];
   /** 요리책 색상 매핑 (요리책 서브메뉴용) */
   cookbookColors?: Record<string, import('@components/Avatar/Avatar').AvatarColor>;
+  /** 잠금 상태 (paywall): 스크롤 비활성 + 하단 잠금해제 버튼 */
+  locked?: boolean;
+  /** 잠금 해제 요청 (광고 시청) */
+  onUnlock?: () => void;
+  /** 광고 로딩 중 여부 */
+  adLoading?: boolean;
 }
 
 // 베이커스 퍼센티지 자동계산
@@ -224,7 +229,6 @@ export function RecipeDetailScreen({
   reviewCount = 0,
   ratio,
   reviews,
-  imageSource,
   imageUri,
   time = '1시간 30분',
   servings = '1개',
@@ -248,6 +252,9 @@ export function RecipeDetailScreen({
   onCookbookChange,
   availableCookbooks,
   cookbookColors,
+  locked = false,
+  onUnlock,
+  adLoading = false,
 }: RecipeDetailScreenProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
@@ -276,6 +283,7 @@ export function RecipeDetailScreen({
   const [cookingModeInitialIndex, setCookingModeInitialIndex] = useState(0);
   const [showSessionMenu, setShowSessionMenu] = useState(false);
   const hasMultipleSessions = sessionItems && sessionItems.length > 1;
+  const [showUnlockDialog, setShowUnlockDialog] = useState(false);
 
   // ---- 스크롤 기반 탭 추적 ----
   const scrollViewRef = useRef<ScrollView>(null);
@@ -445,12 +453,13 @@ export function RecipeDetailScreen({
         showsVerticalScrollIndicator={false}
         onScroll={handleDetailScroll}
         scrollEventThrottle={16}
+        scrollEnabled={!locked}
       >
         {/* Hero Section */}
         <View style={styles.heroSection}>
-          {imageUri || imageSource ? (
+          {imageUri ? (
             <Image
-              source={imageUri ? {uri: imageUri} : imageSource!}
+              source={{uri: imageUri}}
               style={styles.heroImage}
               resizeMode="cover"
             />
@@ -564,12 +573,9 @@ export function RecipeDetailScreen({
                             <EditableChip label={step.caution} variant="yellow" />
                           </View>
                         )}
-                        {((step.images && step.images.length > 0) || (step.photos && step.photos.length > 0)) && (
+                        {step.photos && step.photos.length > 0 && (
                           <View style={styles.stepThumbnails}>
-                            {step.images?.map((src, i) => (
-                              <Image key={`img-${i}`} source={src} style={styles.stepThumbnail} resizeMode="cover" />
-                            ))}
-                            {step.photos?.map((uri, i) => (
+                            {step.photos.map((uri, i) => (
                               <Image key={`photo-${i}`} source={{uri}} style={styles.stepThumbnail} resizeMode="cover" />
                             ))}
                           </View>
@@ -605,12 +611,9 @@ export function RecipeDetailScreen({
                           <EditableChip label={step.caution} variant="yellow" />
                         </View>
                       )}
-                      {((step.images && step.images.length > 0) || (step.photos && step.photos.length > 0)) && (
+                      {step.photos && step.photos.length > 0 && (
                         <View style={styles.stepThumbnails}>
-                          {step.images?.map((src, i) => (
-                            <Image key={`img-${i}`} source={src} style={styles.stepThumbnail} resizeMode="cover" />
-                          ))}
-                          {step.photos?.map((uri, i) => (
+                          {step.photos.map((uri, i) => (
                             <Image key={`photo-${i}`} source={{uri}} style={styles.stepThumbnail} resizeMode="cover" />
                           ))}
                         </View>
@@ -718,19 +721,19 @@ export function RecipeDetailScreen({
           <GlassContainer contentStyle={navPillStyle}>
             <IconButton
               icon={IconPlayFilled}
-              onPress={() => setShowCookingMode(true)}
+              onPress={locked ? () => setShowUnlockDialog(true) : () => setShowCookingMode(true)}
               variant="ghost-secondary"
               size="medium"
             />
             <IconButton
               icon={IconArrowDownToLine}
-              onPress={() => setShowPdfPreview(true)}
+              onPress={locked ? () => setShowUnlockDialog(true) : () => setShowPdfPreview(true)}
               variant="ghost-secondary"
               size="medium"
             />
             <IconButton
               icon={IconEllipsisVertical}
-              onPress={handleMenuPress}
+              onPress={locked ? () => setShowUnlockDialog(true) : handleMenuPress}
               variant="ghost-secondary"
               size="medium"
               forcePressed={showMenu}
@@ -801,6 +804,22 @@ export function RecipeDetailScreen({
         canEdit={canEdit}
         onUpdate={onUpdate}
         initialIndex={cookingModeInitialIndex}
+      />
+
+      {/* 잠금 해제 하단 바: 블러 배경 + 버튼 세트 */}
+      {locked && (
+        <LockedBottomBar onUnlock={() => setShowUnlockDialog(true)} />
+      )}
+
+      {/* 잠금 해제 다이얼로그 */}
+      <UnlockDialog
+        visible={showUnlockDialog}
+        onClose={() => setShowUnlockDialog(false)}
+        onWatchAd={() => {
+          setShowUnlockDialog(false);
+          onUnlock?.();
+        }}
+        adLoading={adLoading}
       />
     </Animated.View>
   );
@@ -913,7 +932,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingTop: 0,
     paddingBottom: 0,
     marginTop: -40,
-    gap: Spacing.xs,
+    gap: Spacing.sm,
   },
 
   // Section

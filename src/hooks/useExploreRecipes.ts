@@ -1,79 +1,62 @@
-import {useCallback, useEffect, useRef, useState} from 'react';
+import {useCallback, useEffect, useState} from 'react';
 import {collection, getDocs, onSnapshot} from 'firebase/firestore';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {db} from '@config/firebase';
-import {EXPLORE_MOCK_RECIPES, MockRecipe} from '@data/mockRecipes';
-import {seedExploreRecipes} from '@utils/seedExploreRecipes';
-import type {SerializableRecipe} from '../types/recipe';
+import type {Recipe} from '../types/recipe';
 
-/** 기존 category 필드를 cookbook으로 마이그레이션 */
-function migrateCategory(recipe: any): SerializableRecipe {
-  if ('category' in recipe && !('cookbook' in recipe)) {
-    const {category, ...rest} = recipe;
-    recipe = {...rest, cookbook: category};
+const CACHE_KEY = 'explore_recipes_cache';
+
+/** 기존 category 필드를 cookbook으로 마이그레이션 + 레거시 필드 제거 */
+function migrateRecipe(recipe: any): Recipe {
+  let result = recipe;
+  if ('category' in result && !('cookbook' in result)) {
+    const {category, ...rest} = result;
+    result = {...rest, cookbook: category};
   }
-  // createdAt이 없으면 ID의 타임스탬프에서 추출, 없으면 epoch
-  if (!recipe.createdAt) {
-    const tsMatch = recipe.id?.match(/(\d{13,})/);
+  if (!result.createdAt) {
+    const tsMatch = result.id?.match(/(\d{13,})/);
     const ts = tsMatch ? Number(tsMatch[1]) : 0;
-    return {...recipe, createdAt: new Date(ts).toISOString()};
+    result = {...result, createdAt: new Date(ts).toISOString()};
   }
-  return recipe;
-}
-
-/** EXPLORE_MOCK_RECIPES에서 id가 일치하는 레시피의 imageSource 및 step images를 머지 */
-function restoreImageSources(recipes: SerializableRecipe[]): MockRecipe[] {
-  const mockMap = new Map(EXPLORE_MOCK_RECIPES.map(r => [r.id, r]));
-  return recipes.map(r => {
-    const migrated = migrateCategory(r);
-    const mockRecipe = mockMap.get(migrated.id);
-
-    // step images: mock이 최신이므로 항상 mock 값으로 머지
-    let {stepGroups, steps} = migrated;
-    if (mockRecipe?.stepGroups && stepGroups) {
-      stepGroups = stepGroups.map((g, gIdx) => {
-        const mockGroup = mockRecipe.stepGroups?.[gIdx];
-        if (!mockGroup) return g;
-        return {
-          ...g,
-          steps: g.steps.map((s, sIdx) => {
-            const mockImages = mockGroup.steps[sIdx]?.images;
-            return mockImages ? {...s, images: mockImages} : s;
-          }),
-        };
-      });
-    }
-    if (mockRecipe?.steps && steps) {
-      steps = steps.map((s, sIdx) => {
-        const mockImages = mockRecipe.steps?.[sIdx]?.images;
-        return mockImages ? {...s, images: mockImages} : s;
-      });
-    }
-
-    return {
-      ...migrated,
-      ...(stepGroups ? {stepGroups} : {}),
-      ...(steps ? {steps} : {}),
-      imageSource: mockRecipe?.imageSource,
-    };
-  });
+  // 레거시 imageSource / step images (번들 require 결과) 제거
+  const {imageSource, ...withoutImageSource} = result;
+  result = withoutImageSource;
+  if (result.steps) {
+    result = {...result, steps: result.steps.map(({images, ...s}: any) => s)};
+  }
+  if (result.stepGroups) {
+    result = {...result, stepGroups: result.stepGroups.map((g: any) => ({
+      ...g,
+      steps: g.steps.map(({images, ...s}: any) => s),
+    }))};
+  }
+  return result;
 }
 
 /**
  * 둘러보기 레시피를 Firestore explore_recipes 컬렉션에서 구독.
- * 앱 시작 시 seed 버전을 확인하여 자동 업데이트.
- * 시딩 완료 후 구독을 시작하여 중간 스냅샷으로 인한 깜빡임 방지.
- * Firestore 연결 실패 시 EXPLORE_MOCK_RECIPES 폴백.
+ * Firestore 연결 실패 시 캐시 사용.
  */
 export interface ExploreCookbook {
   name: string;
   color: string;
 }
 
-export function useExploreRecipes() {
-  const [recipes, setRecipes] = useState<MockRecipe[]>([]);
+export function useExploreRecipes(onError?: (msg: string) => void) {
+  const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [exploreCookbooks, setExploreCookbooks] = useState<ExploreCookbook[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const seededRef = useRef(false);
+
+  /** Firestore 데이터를 캐시에 저장 */
+  const cacheRecipes = useCallback((firestoreRecipes: Recipe[]) => {
+    AsyncStorage.setItem(CACHE_KEY, JSON.stringify(firestoreRecipes)).catch(() => {});
+  }, []);
+
+  /** Firestore 성공 시: 상태 업데이트 + 캐시 저장 */
+  const applyFirestoreRecipes = useCallback((firestoreRecipes: Recipe[]) => {
+    setRecipes(firestoreRecipes);
+    cacheRecipes(firestoreRecipes);
+  }, [cacheRecipes]);
 
   // explore_cookbooks 구독
   useEffect(() => {
@@ -89,33 +72,33 @@ export function useExploreRecipes() {
     let cancelled = false;
 
     const init = async () => {
-      // 버전 체크 후 필요하면 시딩/업데이트 (배치 쓰기)
-      if (!seededRef.current) {
-        seededRef.current = true;
-        try {
-          const result = await seedExploreRecipes();
-          console.log('Seed result:', result);
-        } catch (e) {
-          console.error('Seed failed:', e);
+      // 캐시에서 먼저 로드
+      try {
+        const cached = await AsyncStorage.getItem(CACHE_KEY);
+        if (cached && !cancelled) {
+          const parsed: Recipe[] = JSON.parse(cached);
+          if (parsed.length > 0) {
+            setRecipes(parsed.map(migrateRecipe));
+          }
         }
-      }
+      } catch {}
 
       if (cancelled) return;
 
-      // 시딩 완료 후 구독 시작 → 첫 스냅샷에 전체 데이터가 포함됨
+      // Firestore 구독 시작
       const colRef = collection(db, 'explore_recipes');
       unsub = onSnapshot(colRef, (snapshot) => {
         if (snapshot.empty) {
-          setRecipes(EXPLORE_MOCK_RECIPES);
+          setRecipes([]);
         } else {
-          const firestoreRecipes: SerializableRecipe[] = snapshot.docs.map(
-            d => ({id: d.id, ...d.data()}) as SerializableRecipe,
+          const firestoreRecipes: Recipe[] = snapshot.docs.map(
+            d => migrateRecipe({id: d.id, ...d.data()}),
           );
-          setRecipes(restoreImageSources(firestoreRecipes));
+          applyFirestoreRecipes(firestoreRecipes);
         }
         setIsLoading(false);
       }, () => {
-        setRecipes(EXPLORE_MOCK_RECIPES);
+        onError?.('레시피를 불러오지 못했어요');
         setIsLoading(false);
       });
     };
@@ -126,24 +109,24 @@ export function useExploreRecipes() {
       cancelled = true;
       unsub?.();
     };
-  }, []);
+  }, [applyFirestoreRecipes]);
 
   const reload = useCallback(async () => {
     try {
       const colRef = collection(db, 'explore_recipes');
       const snapshot = await getDocs(colRef);
       if (snapshot.empty) {
-        setRecipes(EXPLORE_MOCK_RECIPES);
+        setRecipes([]);
       } else {
-        const firestoreRecipes: SerializableRecipe[] = snapshot.docs.map(
-          d => ({id: d.id, ...d.data()}) as SerializableRecipe,
+        const firestoreRecipes: Recipe[] = snapshot.docs.map(
+          d => migrateRecipe({id: d.id, ...d.data()}),
         );
-        setRecipes(restoreImageSources(firestoreRecipes));
+        applyFirestoreRecipes(firestoreRecipes);
       }
     } catch {
-      setRecipes(EXPLORE_MOCK_RECIPES);
+      onError?.('새로고침에 실패했어요');
     }
-  }, []);
+  }, [applyFirestoreRecipes]);
 
   return {recipes, exploreCookbooks, isLoading, reload};
 }

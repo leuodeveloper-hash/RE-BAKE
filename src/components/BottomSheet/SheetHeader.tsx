@@ -120,7 +120,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   titleBelowGraphic: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.smd,
-    paddingBottom: Spacing.lg,
   },
   titleRow: {
     flexDirection: 'row',
@@ -178,5 +177,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     ...Typography.body.medium,
     color: colors['foreground-onsurfacemuted'],
     marginTop: Spacing.sm,
+    marginBottom: Spacing.md,
   },
 });

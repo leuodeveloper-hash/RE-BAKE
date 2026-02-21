@@ -1,14 +1,31 @@
-import type {IngredientGroup, Step, StepGroup} from '@data/mockRecipes';
+export interface IngredientGroup {
+  title: string;
+  ingredients: {name: string; amount: string}[];
+}
 
-/** AsyncStorage / JSON 직렬화 가능한 레시피 타입 (imageSource 제외) */
-export interface SerializableRecipe {
+export interface Step {
+  step: number;
+  description: string;
+  tip?: string;
+  caution?: string;
+  /** 사진 URI (최대 3장) */
+  photos?: string[];
+}
+
+export interface StepGroup {
+  title: string;
+  steps: Step[];
+}
+
+export interface Recipe {
   id: string;
   title: string;
   cookbook: string;
   method: string;
+  specificGravity?: string;
   ratio?: string;
   reviewCount: number;
-  /** 사용자가 선택한 이미지 URI */
+  /** 이미지 URI (Firebase Storage URL 또는 로컬 URI) */
   imageUri?: string;
   time?: string;
   servings?: string;
@@ -21,6 +38,8 @@ export interface SerializableRecipe {
   reviews?: {evaluation: string; improvement: string}[];
   /** 둘러보기에서 가져온 경우 원본 레시피 ID */
   sourceId?: string;
+  /** 다시 만들기 회차 그룹 식별자 */
+  remakeGroupId?: string;
   /** 생성 시각 (ISO 문자열) */
   createdAt?: string;
 }
@@ -29,5 +48,5 @@ export interface SerializableRecipe {
 export interface RecipeExportData {
   version: 1;
   exportedAt: string;
-  recipes: SerializableRecipe[];
+  recipes: Recipe[];
 }

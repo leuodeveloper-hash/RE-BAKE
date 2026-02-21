@@ -4,7 +4,6 @@ import {SvgProps} from 'react-native-svg';
 import {IconAstriks, IconCircleAlertFilled, IconCloseCircleFilled} from '@components/Icon/IconIndex';
 import {Radius} from '@constants/tokens';
 import {useColors} from '@contexts/ThemeContext';
-import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 
@@ -46,12 +45,12 @@ const SIZE_CONFIG = {
     borderRadius: Radius['radius-sm'],
   },
   large: {
-    lineHeight: Typography.body.xxlarge.lineHeight,
-    fontFamily: Typography.body.xxlarge.fontFamily,
-    fontSize: Typography.body.xxlarge.fontSize,
-    fontWeight: Typography.body.xxlarge.fontWeight as '500',
-    iconSize: 20,
-    padding: Spacing.smd,
+    lineHeight: Typography.body.xlarge.lineHeight,
+    fontFamily: Typography.body.xlarge.fontFamily,
+    fontSize: Typography.body.xlarge.fontSize,
+    fontWeight: Typography.body.xlarge.fontWeight as '500',
+    iconSize: 18,
+    padding: Spacing.sm,
     gap: Spacing.sm,
     borderRadius: Radius['radius-md'],
   },

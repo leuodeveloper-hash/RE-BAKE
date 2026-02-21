@@ -13,6 +13,8 @@ interface AddSheetContextValue {
   setShowAddSheet: (show: boolean) => void;
   hideTabBar: boolean;
   setHideTabBar: (hide: boolean) => void;
+  hideContentMask: boolean;
+  setHideContentMask: (hide: boolean) => void;
   showCookbookDialog: boolean;
   setShowCookbookDialog: (show: boolean) => void;
   /** 편집 대상 (null이면 추가 모드) */
@@ -27,6 +29,7 @@ const AddSheetContext = createContext<AddSheetContextValue | null>(null);
 export function AddSheetProvider({children}: {children: React.ReactNode}) {
   const [showAddSheet, setShowAddSheet] = useState(false);
   const [hideTabBar, setHideTabBar] = useState(false);
+  const [hideContentMask, setHideContentMask] = useState(false);
   const [showCookbookDialog, setShowCookbookDialog] = useState(false);
   const [cookbookEditTarget, setCookbookEditTarget] = useState<CookbookEditTarget | null>(null);
   const onCookbookCreatedRef = useRef<((name: string, color: AvatarColor) => void) | null>(null);
@@ -36,12 +39,14 @@ export function AddSheetProvider({children}: {children: React.ReactNode}) {
     setShowAddSheet,
     hideTabBar,
     setHideTabBar,
+    hideContentMask,
+    setHideContentMask,
     showCookbookDialog,
     setShowCookbookDialog,
     cookbookEditTarget,
     setCookbookEditTarget,
     onCookbookCreatedRef,
-  }), [showAddSheet, hideTabBar, showCookbookDialog, cookbookEditTarget]);
+  }), [showAddSheet, hideTabBar, hideContentMask, showCookbookDialog, cookbookEditTarget]);
 
   return (
     <AddSheetContext.Provider value={value}>{children}</AddSheetContext.Provider>

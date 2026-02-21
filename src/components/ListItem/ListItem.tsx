@@ -6,7 +6,7 @@ import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {SvgProps} from 'react-native-svg';
 import {IconButton} from '@components/IconButton';
-import {IconCheckboxFilled, IconCheckboxBlank} from '@components/Icon/IconIndex';
+import {Checkbox} from '@components/Checkbox/Checkbox';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 
@@ -69,21 +69,7 @@ function renderSlotElement(
     case 'checkbox':
       return (
         <View style={styles.slotContainer}>
-          {element.checked ? (
-            <IconCheckboxFilled
-              width={20}
-              height={20}
-              color={colors['custom-brown']}
-            />
-          ) : (
-            <View style={styles.checkboxBlankIcon}>
-              <IconCheckboxBlank
-                width={20}
-                height={20}
-                color={colors['foreground-onsurface']}
-              />
-            </View>
-          )}
+          <Checkbox checked={element.checked} />
         </View>
       );
     case 'iconButton':
@@ -121,10 +107,10 @@ export function ListItem({
   const wrapperProps = isClickable
     ? {
         onPress,
-        style: ({pressed}: {pressed: boolean}) => [
+        style: ({pressed, focused}: {pressed: boolean; focused: boolean}) => [
           styles.stateLayer,
           multiline && styles.stateLayerTop,
-          pressed && styles.stateLayerPressed,
+          (pressed || focused) && styles.stateLayerPressed,
           disabled && styles.disabled,
         ],
       }
@@ -183,9 +169,6 @@ const createStyles = (colors: SemanticColors) =>
     },
     numberContainer: {
       backgroundColor: colors['surface-surfacecontainer'],
-    },
-    checkboxBlankIcon: {
-      opacity: 0.56,
     },
     numberText: {
       fontFamily: Typography.body.medium.fontFamily,

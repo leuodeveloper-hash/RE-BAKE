@@ -10,7 +10,6 @@ import {useColors} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
 import {useExploreRecipes} from '@hooks/useExploreRecipes';
 import {db} from '@config/firebase';
-import {EXPLORE_MOCK_RECIPES} from '@data/mockRecipes';
 import {uploadRecipeImage, deleteRecipeImage, isLocalUri} from '@utils/imageUpload';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 
@@ -50,10 +49,9 @@ export default function RecipeEditRoute() {
     return merged;
   }, [isExploreTarget, cookbookColors, exploreCookbooks]);
 
-  // 레시피 찾기: 로컬 → explore 구독 → EXPLORE_MOCK_RECIPES 폴백
+  // 레시피 찾기: 로컬 → explore 구독
   const recipe = findRecipeById(id)
-    ?? exploreRecipes.find(r => r.id === id)
-    ?? EXPLORE_MOCK_RECIPES.find(r => r.id === id);
+    ?? exploreRecipes.find(r => r.id === id);
 
   const navigateBack = useCallback(() => {
     if (router.canGoBack()) {
@@ -85,7 +83,7 @@ export default function RecipeEditRoute() {
     if (isExploreTarget && isAdmin) {
       // 둘러보기 레시피 편집 → explore_recipes에 저장
       try {
-        const {imageSource, ...rest} = data;
+        const {imageSource: _imgSrc, ...rest} = data;
         const serializable = stripUndefined(rest);
         await setDoc(doc(db, 'explore_recipes', id!), serializable, {merge: true});
       } catch (e: any) {

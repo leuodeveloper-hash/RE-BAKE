@@ -2,7 +2,6 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   Animated,
   Image,
-  ImageSourcePropType,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -17,7 +16,7 @@ import {ContentContainer, Card, GlassContainer} from '@components/Container';
 import {IconButton} from '@components/IconButton';
 import {ListItem} from '@components/ListItem';
 import {Menu} from '@components/Menu';
-import {BottomSheet} from '@components/BottomSheet';
+import {CookbookSelectSheet} from '@components/BottomSheet';
 import {EditableChip} from '@components/EditableChip';
 import {OptionTile} from '@components/OptionTile';
 import {FieldManageDialog, TimeDialog, ServingsDialog, IngredientAmountDialog} from '@components/Dialog';
@@ -123,7 +122,7 @@ export interface RecipeEditScreenProps {
     steps?: {step: number; description: string; tip?: string; caution?: string}[];
     stepGroups?: {title: string; steps: {step: number; description: string; tip?: string; caution?: string}[]}[];
     activeFieldIds?: string[];
-    imageSource?: ImageSourcePropType;
+    imageUri?: string;
     reviews?: ReviewData[];
     time?: string;
     servings?: string;
@@ -137,6 +136,8 @@ export interface RecipeEditScreenProps {
   onSetCookbookColor?: (name: string, color: AvatarColor) => void;
   /** 열릴 때 스크롤할 섹션 ID (ingredients, tools, steps, review) */
   initialSection?: string;
+  /** 생성 시 초기 요리책 */
+  initialCookbook?: string;
   /** 둘러보기(공식) 레시피 편집 모드 */
   isExplore?: boolean;
   /** 요리책 삭제 콜백 */
@@ -166,7 +167,7 @@ const noOutline: any = {outlineStyle: 'none'};
 
 // ---- Component ----
 
-export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookColors: cookbookColorsProp, onSetCookbookColor, initialSection, isExplore, onDeleteCookbook}: RecipeEditScreenProps) {
+export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookColors: cookbookColorsProp, onSetCookbookColor, initialSection, initialCookbook, isExplore, onDeleteCookbook}: RecipeEditScreenProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const {setShowCookbookDialog, setCookbookEditTarget, onCookbookCreatedRef} = useAddSheet();
@@ -178,7 +179,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   const [title, setTitle] = useState(() => recipe?.title ?? '');
   const [titleError, setTitleError] = useState(false);
   const titleInputRef = useRef<RNTextInput>(null);
-  const [cookbook, setCookbook] = useState(() => recipe?.cookbook ?? '');
+  const [cookbook, setCookbook] = useState(() => recipe?.cookbook ?? initialCookbook ?? '');
   const [method, setMethod] = useState(() => recipe?.method ?? '');
   const [ratio, setRatio] = useState(() => recipe?.specificGravity ?? '');
   const [time, setTime] = useState(() => recipe?.time ?? '');
@@ -248,8 +249,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   const [fieldManageVisible, setFieldManageVisible] = useState(false);
   const [reviews, setReviews] = useState<ReviewData[]>(recipe?.reviews ?? []);
   const [slashMenu, setSlashMenu] = useState<{groupId: string; stepId: string} | null>(null);
-  const [imageUri, setImageUri] = useState<string | null>(null);
-  const [imageSource] = useState<ImageSourcePropType | undefined>(recipe?.imageSource);
+  const [imageUri, setImageUri] = useState<string | null>(recipe?.imageUri ?? null);
   const [showPhotoMenu, setShowPhotoMenu] = useState(false);
   const [activeFieldIds, setActiveFieldIds] = useState<string[]>(
     recipe?.activeFieldIds ?? [
@@ -272,7 +272,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
       title: g.title,
       ingredients: g.ingredients
         .filter(i => i.name.trim())
-        .map(i => ({name: i.name, amount: i.amount})),
+        .map(i => ({name: i.name, amount: i.amount ? `${i.amount}${i.unit}` : i.unit})),
     })),
     tools: tools.filter(t => t.name.trim()).map(t => ({name: t.name})),
     stepGroups: stepGroups.map(g => ({
@@ -327,15 +327,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     setShowCookbookMenu(false);
   };
 
-  const handleAddCookbookPress = () => {
-    setShowCookbookMenu(false);
-    onCookbookCreatedRef.current = (name: string, color: AvatarColor) => {
-      setLocalCookbooks(prev => [...prev, name]);
-      setCookbook(name);
-      onSetCookbookColor?.(name, color);
-    };
-    setShowCookbookDialog(true);
-  };
+
 
   const handleCookbookOverflow = (name: string) => {
     const layout = cookbookItemLayouts.current[name];
@@ -384,9 +376,12 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
       if (y != null) {
         scrollViewRef.current?.scrollTo({y: y - 80, animated: true});
       }
-      // 해당 섹션의 첫 번째 인풋에 포커스
+      // 해당 섹션의 첫 번째 인풋에 포커스 & 커서를 맨 끝으로
       setTimeout(() => {
-        sectionInputRefs.current[initialSection]?.focus();
+        const input = sectionInputRefs.current[initialSection];
+        if (!input) return;
+        input.focus();
+        setTimeout(() => (input as any).setSelection?.(99999, 99999), 50);
       }, 200);
     }, 400);
     return () => clearTimeout(timer);
@@ -401,6 +396,13 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     setInputHeights(prev => {
       if (prev[key] === h) return prev;
       return {...prev, [key]: h};
+    });
+  }, []);
+  const resetInputHeight = useCallback((key: string) => {
+    setInputHeights(prev => {
+      if (!(key in prev)) return prev;
+      const {[key]: _, ...rest} = prev;
+      return rest;
     });
   }, []);
 
@@ -686,7 +688,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                   placeholderTextColor={titleError ? colors['foreground-error'] : colors['foreground-onsurfacemuted']}
                   selectionColor={colors['foreground-primary']}
                   value={title}
-                  onChangeText={t => { setTitle(t); if (titleError) setTitleError(false); }}
+                  onChangeText={t => { setTitle(t); if (titleError) setTitleError(false); resetInputHeight('title'); }}
                   multiline
                   numberOfLines={1}
                   blurOnSubmit={false}
@@ -712,7 +714,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 placeholderTextColor={colors['foreground-onsurfacemuted']}
                 selectionColor={colors['foreground-primary']}
                 value={description}
-                onChangeText={setDescription}
+                onChangeText={v => { setDescription(v); resetInputHeight('desc'); }}
                 multiline
                 numberOfLines={1}
                 blurOnSubmit={false}
@@ -727,10 +729,10 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           <View style={styles.optionTilesRow}>
             <View style={styles.photoTileWrap}>
               <Pressable style={{flex: 1}} onPress={() => setShowPhotoMenu(prev => !prev)}>
-                {imageUri || imageSource ? (
+                {imageUri ? (
                   <Card style={styles.photoTileFilled}>
                     <Image
-                      source={imageUri ? {uri: imageUri} : imageSource!}
+                      source={{uri: imageUri}}
                       style={styles.photoTileImage}
                     />
                   </Card>
@@ -774,7 +776,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                     <RNTextInput
                       style={[styles.editableRowInput, noOutline, inputHeights[`igt-${group.id}`] != null && {height: inputHeights[`igt-${group.id}`]}]}
                       value={group.title}
-                      onChangeText={v => updateIngredientGroupTitle(group.id, v)}
+                      onChangeText={v => { updateIngredientGroupTitle(group.id, v); resetInputHeight(`igt-${group.id}`); }}
                       placeholder="그룹 이름"
                       placeholderTextColor={colors['foreground-onsurfacemuted']}
                       selectionColor={colors['foreground-primary']}
@@ -838,9 +840,10 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                             placeholderTextColor={colors['foreground-onsurfacemuted']}
                             selectionColor={colors['foreground-primary']}
                             value={ingredient.name}
-                            onChangeText={v =>
-                              updateIngredient(group.id, ingredient.id, 'name', v)
-                            }
+                            onChangeText={v => {
+                              updateIngredient(group.id, ingredient.id, 'name', v);
+                              resetInputHeight(ingredient.id);
+                            }}
                             multiline
                             numberOfLines={1}
                             blurOnSubmit={false}
@@ -914,7 +917,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                     <RNTextInput
                       style={[styles.editableRowInput, noOutline, inputHeights[`sgt-${group.id}`] != null && {height: inputHeights[`sgt-${group.id}`]}]}
                       value={group.title}
-                      onChangeText={v => updateStepGroupTitle(group.id, v)}
+                      onChangeText={v => { updateStepGroupTitle(group.id, v); resetInputHeight(`sgt-${group.id}`); }}
                       placeholder="그룹 이름"
                       placeholderTextColor={colors['foreground-onsurfacemuted']}
                       selectionColor={colors['foreground-primary']}
@@ -1117,7 +1120,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                         placeholderTextColor={colors['foreground-onsurfacemuted']}
                         selectionColor={colors['foreground-primary']}
                         value={tool.name}
-                        onChangeText={v => updateTool(tool.id, v)}
+                        onChangeText={v => { updateTool(tool.id, v); resetInputHeight(tool.id); }}
                         multiline
                         numberOfLines={1}
                         blurOnSubmit={false}
@@ -1243,79 +1246,44 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
       </ScrollView>
 
       {/* Overlay for Menu */}
-      <Pressable
-        style={styles.overlay}
-        onPress={handleOverlayPress}
-        pointerEvents={showMenu ? 'auto' : 'none'}
-      />
+      {showMenu && (
+        <Pressable
+          style={styles.overlay}
+          onPress={handleOverlayPress}
+        />
+      )}
 
       {/* 사진 선택 메뉴는 photoTileWrap 내부로 이동됨 */}
 
       {/* 요리책 선택 바텀시트 */}
-      <BottomSheet visible={showCookbookMenu} onClose={() => { setShowCookbookMenu(false); setCookbookOverflowTarget(null); }} title="요리책" headerType="center">
-        <View style={styles.cookbookSheetContent}>
-          <Pressable
-            style={({pressed}) => [
-              styles.cookbookSheetItem,
-              !cookbook && styles.cookbookSheetItemSelected,
-              pressed && styles.cookbookSheetItemPressed,
-            ]}
-            onPress={() => handleCookbookSelect('__none__')}>
-            {React.createElement(isExplore ? IconExprolerBookFilled : IconBookFilled, {
-              width: 20,
-              height: 20,
-              color: colors['foreground-onsurfacemuted'],
-            })}
-            <Text style={styles.cookbookSheetItemLabel}>그룹없음</Text>
-          </Pressable>
-          {allCookbooks.map(name => {
-            const cbColor = cookbookColorsProp?.[name] || (isExplore ? 'orange' as AvatarColor : undefined);
-            return (
-            <Pressable
-              key={name}
-              onLayout={(e) => {
-                cookbookItemLayouts.current[name] = {
-                  y: e.nativeEvent.layout.y,
-                  height: e.nativeEvent.layout.height,
-                };
-              }}
-              style={({pressed}) => [
-                styles.cookbookSheetItem,
-                cookbook === name && styles.cookbookSheetItemSelected,
-                pressed && styles.cookbookSheetItemPressed,
-              ]}
-              onPress={() => handleCookbookSelect(name)}>
-              {React.createElement(isExplore ? IconExprolerBookFilled : IconBookFilled, {
-                width: 20,
-                height: 20,
-                color: cbColor
-                  ? colors[getColorVarKey(cbColor)]
-                  : colors['foreground-onsurfacemuted'],
-              })}
-              <Text style={styles.cookbookSheetItemLabel}>{name}</Text>
-              <IconButton
-                icon={IconEllipsisVertical}
-                size="small"
-                variant="ghost"
-                onPress={() => handleCookbookOverflow(name)}
-              />
-            </Pressable>
-            );
-          })}
-          <Pressable
-            style={({pressed}) => [
-              styles.cookbookSheetItem,
-              pressed && styles.cookbookSheetItemPressed,
-            ]}
-            onPress={handleAddCookbookPress}>
-            <IconAdd
-              width={20}
-              height={20}
-              color={colors['foreground-onsurfacemuted']}
-            />
-            <Text style={styles.cookbookSheetItemLabel}>요리책 추가</Text>
-          </Pressable>
-        </View>
+      <CookbookSelectSheet
+        visible={showCookbookMenu}
+        onClose={() => { setShowCookbookMenu(false); setCookbookOverflowTarget(null); }}
+        cookbooks={allCookbooks}
+        cookbookColors={cookbookColorsProp}
+        selectedCookbook={cookbook}
+        onSelect={handleCookbookSelect}
+        onAddCookbook={(name, color) => {
+          setLocalCookbooks(prev => [...prev, name]);
+          setCookbook(name);
+          onSetCookbookColor?.(name, color);
+        }}
+        bookIcon={isExplore ? IconExprolerBookFilled : IconBookFilled}
+        renderItemTrailing={(name) => (
+          <IconButton
+            icon={IconEllipsisVertical}
+            size="small"
+            variant="ghost"
+            onPress={() => handleCookbookOverflow(name)}
+          />
+        )}
+        onItemLayout={(name, e) => {
+          cookbookItemLayouts.current[name] = {
+            y: e.nativeEvent.layout.y,
+            height: e.nativeEvent.layout.height,
+          };
+        }}
+      >
         {cookbookOverflowTarget && (
           <Pressable style={StyleSheet.absoluteFill} onPress={() => setCookbookOverflowTarget(null)} />
         )}
@@ -1328,7 +1296,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
             style={{position: 'absolute', top: cookbookMenuPos.top, right: cookbookMenuPos.right, zIndex: 50}}
           />
         )}
-      </BottomSheet>
+      </CookbookSelectSheet>
 
 
       {/* 필드관리 다이얼로그 */}
@@ -1337,6 +1305,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
         onClose={() => setFieldManageVisible(false)}
         activeFieldIds={activeFieldIds}
         onConfirm={setActiveFieldIds}
+        isExplore={isExplore}
       />
 
       {/* 시간 다이얼로그 */}
@@ -1408,10 +1377,11 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 forcePressed={showMenu}
               />
             </GlassContainer>
-            <IconButton
-              icon={IconTick}
-              disabled={!isDirty}
-              onPress={() => {
+            <GlassContainer>
+              <IconButton
+                icon={IconTick}
+                disabled={!isDirty}
+                onPress={() => {
                 if (!title.trim()) {
                   setTitleError(true);
                   scrollViewRef.current?.scrollTo({y: 0, animated: true});
@@ -1461,6 +1431,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
               variant="filled"
               size="large"
             />
+            </GlassContainer>
           </>
         }
       />
@@ -1508,7 +1479,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     color: colors['foreground-onsurface'],
     padding: 0,
     marginTop: FONT_BASELINE_OFFSET,
-    maxHeight: 100,
   },
   dividerFull: {
     height: StyleSheet.hairlineWidth,
@@ -1527,7 +1497,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     color: colors['foreground-onsurface'],
     padding: 0,
     marginTop: FONT_BASELINE_OFFSET,
-    maxHeight: 100,
   },
 
   // Option Tiles
@@ -1537,7 +1506,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   optionTilesRow: {
     flexDirection: 'row',
-    gap: Spacing.md,
+    gap: Spacing.sm,
   },
   photoTileWrap: {
     flex: 1,
@@ -1592,7 +1561,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     color: colors['foreground-onsurface'],
     padding: 0,
     marginTop: FONT_BASELINE_OFFSET,
-    maxHeight: 100,
   },
   amountInputContainer: {
     flexDirection: 'row',
@@ -1701,32 +1669,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'transparent',
-  },
-  cookbookSheetContent: {
-  },
-  cookbookSheetItem: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.smd,
-    paddingHorizontal: Spacing.smd,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius['radius-md'],
-  },
-  cookbookSheetItemSelected: {
-    backgroundColor: colors['background-statelayers-surfacefocus_press'],
-  },
-  cookbookSheetItemPressed: {
-    backgroundColor: colors['background-statelayers-surfacefocus_press'],
-  },
-  cookbookSheetItemLabel: {
-    flex: 1,
-    fontFamily: Typography.body.large.fontFamily,
-    fontSize: Typography.body.large.fontSize,
-    fontWeight: Typography.body.large.fontWeight as '500',
-    lineHeight: Typography.body.large.lineHeight,
-    letterSpacing: -0.25,
-    color: colors['foreground-onsurface'],
-    marginTop: FONT_BASELINE_OFFSET,
   },
   cookbookLeadingSlot: {
     width: 28,

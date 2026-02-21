@@ -11,7 +11,7 @@ import {useColors} from '@contexts/ThemeContext';
 import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
-import {MockRecipe} from '@data/mockRecipes';
+import type {Recipe} from '../../../types/recipe';
 import {parseSession} from '@utils/session';
 import {
   IconLayoutGridFilled,
@@ -36,7 +36,7 @@ const SKELETON_COUNT = 6;
 const STAGGER_DELAY = 70;
 
 // 스켈레톤 placeholder 데이터
-const SKELETON_DATA: MockRecipe[] = Array.from({length: SKELETON_COUNT}, (_, i) => ({
+const SKELETON_DATA: Recipe[] = Array.from({length: SKELETON_COUNT}, (_, i) => ({
   id: `__skeleton_${i}__`,
   title: '',
   cookbook: '',
@@ -223,11 +223,11 @@ export interface RecipeListHelpers {
 }
 
 export interface RecipeListTemplateProps {
-  data: MockRecipe[];
+  data: Recipe[];
   loading?: boolean;
-  onRecipePress: (recipe: MockRecipe) => void;
-  cardMenuItems?: MenuItemData[] | ((recipe: MockRecipe) => MenuItemData[]);
-  onCardMenuSelect?: (id: string, recipe: MockRecipe) => void | false;
+  onRecipePress: (recipe: Recipe) => void;
+  cardMenuItems?: MenuItemData[] | ((recipe: Recipe) => MenuItemData[]);
+  onCardMenuSelect?: (id: string, recipe: Recipe) => void | false;
   renderAppBar: (helpers: RecipeListHelpers) => React.ReactNode;
   onOverlayPress?: () => void | false;
   extraOverlayVisible?: boolean;
@@ -236,9 +236,13 @@ export interface RecipeListTemplateProps {
   /** 외부에서 레이아웃 강제 (검색 결과 등) */
   forceLayout?: RecipeCardLayout;
   /** 카드 메뉴 선택 하이라이트 */
-  cardMenuSelectedId?: string | ((recipe: MockRecipe) => string | undefined);
+  cardMenuSelectedId?: string | ((recipe: Recipe) => string | undefined);
   /** Pull-to-refresh 시 호출 */
   onRefresh?: () => void;
+  /** 스크롤 비활성화 (paywall 등) */
+  scrollEnabled?: boolean;
+  /** 잠금 표시할 레시피 ID 목록 (paywall용) */
+  lockedRecipeIds?: Set<string>;
   children?: React.ReactNode;
 }
 
@@ -256,6 +260,8 @@ export function RecipeListTemplate({
   forceLayout,
   cardMenuSelectedId,
   onRefresh,
+  scrollEnabled,
+  lockedRecipeIds,
   children,
 }: RecipeListTemplateProps) {
   const styles = useThemedStyles(createStyles);
@@ -297,7 +303,7 @@ export function RecipeListTemplate({
 
   // Pull-to-refresh
   const {pullProgress, isRefreshing, refreshStripProgress, refreshOpacity, refreshGapHeight, handleScroll} = usePullProgress(onRefresh);
-  const [cardMenuTarget, setCardMenuTarget] = useState<MockRecipe | null>(null);
+  const [cardMenuTarget, setCardMenuTarget] = useState<Recipe | null>(null);
   const [cardMenuPosition, setCardMenuPosition] = useState<{top: number; right: number} | null>(null);
 
   const activeLayout = forceLayout ?? layout;
@@ -335,7 +341,7 @@ export function RecipeListTemplate({
     setShowLayoutMenu(false);
   }, []);
 
-  const handleCardMenuPress = useCallback((recipe: MockRecipe, position: {pageX: number; pageY: number; width: number; height: number}) => {
+  const handleCardMenuPress = useCallback((recipe: Recipe, position: {pageX: number; pageY: number; width: number; height: number}) => {
     setShowLayoutMenu(false);
     const screenWidth = Dimensions.get('window').width;
     const menuMinWidth = 200;
@@ -384,7 +390,7 @@ export function RecipeListTemplate({
     }
     const sliced = sortedData.slice(0, visibleCount);
     if (activeLayout === 'grid' && sliced.length % 2 === 1) {
-      return [...sliced, {id: '__placeholder__'} as MockRecipe];
+      return [...sliced, {id: '__placeholder__'} as Recipe];
     }
     return sliced;
   }, [loading, isRefreshing, sortedData, visibleCount, activeLayout]);
@@ -421,7 +427,7 @@ export function RecipeListTemplate({
     layoutMenu: layoutMenuNode,
   };
 
-  const renderItem = useCallback(({item, index}: {item: MockRecipe; index: number}) => {
+  const renderItem = useCallback(({item, index}: {item: Recipe; index: number}) => {
     // 스켈레톤
     if (item.id.startsWith('__skeleton_')) {
       return (
@@ -438,6 +444,8 @@ export function RecipeListTemplate({
     const isNew = !animatedIdsRef.current.has(item.id);
     if (isNew) animatedIdsRef.current.add(item.id);
 
+    const isLocked = lockedRecipeIds?.has(item.id) ?? false;
+
     const card = (
       <RecipeCard
         id={item.id}
@@ -447,10 +455,11 @@ export function RecipeListTemplate({
         specificGravity={item.specificGravity}
         reviewCount={item.reviewCount || item.reviews?.length || 0}
         sessionCount={parseSession(item.session).total}
-        imageSource={item.imageSource}
+        imageUrl={item.imageUri}
         layout={activeLayout}
+        locked={isLocked}
         onPress={() => onRecipePress(item)}
-        onMenuPress={cardMenuItems ? (pos) => handleCardMenuPress(item, pos) : undefined}
+        onMenuPress={!isLocked && cardMenuItems ? (pos) => handleCardMenuPress(item, pos) : undefined}
       />
     );
 
@@ -463,7 +472,7 @@ export function RecipeListTemplate({
         ) : card}
       </View>
     );
-  }, [activeLayout, styles, onRecipePress, cardMenuItems, handleCardMenuPress]);
+  }, [activeLayout, styles, onRecipePress, cardMenuItems, handleCardMenuPress, lockedRecipeIds]);
 
   return (
     <>
@@ -474,6 +483,7 @@ export function RecipeListTemplate({
           <FlatList
             style={{flex: 1, zIndex: 2}}
             showsVerticalScrollIndicator={false}
+            scrollEnabled={scrollEnabled !== false}
             key={activeLayout}
             data={displayData}
             numColumns={numColumns}

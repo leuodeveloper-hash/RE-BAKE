@@ -6,12 +6,14 @@ import {StatusBar} from 'expo-status-bar';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {useFonts} from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Updates from 'expo-updates';
 import {BlurView} from 'expo-blur';
 import {ThemeProvider, useTheme, useColors} from '@contexts/ThemeContext';
 import {RecipeProvider} from '@contexts/RecipeContext';
 import {SnackbarProvider, useSnackbar} from '@contexts/SnackbarContext';
 import {AddSheetProvider, useAddSheet} from '@contexts/AddSheetContext';
 import {AuthProvider, useAuth} from '@contexts/AuthContext';
+import {SubscriptionProvider} from '@contexts/SubscriptionContext';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {BaseColors} from '@constants/tokens';
 import type {SemanticColors} from '@constants/tokens';
@@ -90,13 +92,13 @@ function AnimatedSplash({onFinish}: {onFinish: () => void}) {
           toValue: 1,
           friction: 9,
           tension: 80,
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
         Animated.timing(tiltAnim, {
           toValue: 0,
           duration: 250,
           easing: Easing.out(Easing.quad),
-          useNativeDriver: true,
+          useNativeDriver: false,
         }),
       ]).start(() => {
         // 3. 잠시 유지 후 페이드 아웃
@@ -104,7 +106,7 @@ function AnimatedSplash({onFinish}: {onFinish: () => void}) {
           Animated.timing(overlayOpacity, {
             toValue: 0,
             duration: 300,
-            useNativeDriver: true,
+            useNativeDriver: false,
           }).start(onFinish);
         }, 500);
       });
@@ -204,7 +206,7 @@ const splashStyles = StyleSheet.create({
 function NavigationContent() {
   const router = useRouter();
   const pathname = usePathname();
-  const {showAddSheet, setShowAddSheet, hideTabBar, showCookbookDialog, setShowCookbookDialog, cookbookEditTarget, setCookbookEditTarget, onCookbookCreatedRef} = useAddSheet();
+  const {showAddSheet, setShowAddSheet, hideTabBar, hideContentMask, showCookbookDialog, setShowCookbookDialog, cookbookEditTarget, setCookbookEditTarget, onCookbookCreatedRef} = useAddSheet();
   const {snackbar, clearSnackbar, showSnackbar} = useSnackbar();
   const {user, isAdmin} = useAuth();
   const {recipes, setRecipes, lastSyncedAt, setCookbookColor, renameCookbookColor} = useRecipes();
@@ -238,7 +240,7 @@ function NavigationContent() {
     {id: 'group', label: '그룹', icon: IconBookFilled, onPress: () => router.navigate('/group' as any)},
     {id: 'add', label: '추가', icon: IconAdd, onPress: () => setShowAddSheet(true)},
     {id: 'explore', label: '둘러보기', icon: IconEarthFilled, onPress: () => router.navigate('/explore' as any)},
-    {id: 'profile', label: user ? '나' : '게스트', icon: IconUserFilled, useRandomAvatar: true, avatarSeed: avatarSeed ?? undefined, onPress: () => router.navigate('/profile' as any)},
+    {id: 'profile', label: user ? '나' : '게스트', icon: IconUserFilled, useRandomAvatar: true, avatarSeed: avatarSeed ?? 0, onPress: () => router.navigate('/profile' as any)},
   ], [router, setShowAddSheet, avatarSeed, user]);
 
   const addMenuItems = useMemo<AddMenuItem[]>(() => {
@@ -346,12 +348,9 @@ function NavigationContent() {
 
   return (
     <>
-      <Stack screenOptions={{headerShown: false}}>
+      <Stack screenOptions={{headerShown: false, animation: 'fade'}}>
         <Stack.Screen name="(tabs)" />
-        <Stack.Screen
-          name="recipe/[id]"
-          options={{animation: 'none'}}
-        />
+        <Stack.Screen name="recipe/[id]" />
         <Stack.Screen
           name="recipe/edit"
           options={{animation: 'slide_from_bottom', presentation: 'fullScreenModal'}}
@@ -363,7 +362,7 @@ function NavigationContent() {
       </Stack>
 
       {/* 스낵바 */}
-      <View style={tabStyles.snackbarWrapper}>
+      <View style={tabStyles.snackbarWrapper} pointerEvents="box-none">
         <Snackbar
           message={snackbar?.message ?? ''}
           action={snackbar?.action}
@@ -393,7 +392,7 @@ function NavigationContent() {
           )}
 
           {/* 하단 콘텐츠 마스크 그라디언트 */}
-          <ContentMask topHeight={0} />
+          {!hideContentMask && <ContentMask topHeight={0} />}
 
           {/* 탭바 */}
           <View style={tabStyles.tabBarWrapper}>
@@ -422,6 +421,21 @@ export default function RootLayout() {
   const [showSplash, setShowSplash] = useState(true);
 
   useEffect(() => {
+    if (__DEV__) return;
+    (async () => {
+      try {
+        const update = await Updates.checkForUpdateAsync();
+        if (update.isAvailable) {
+          await Updates.fetchUpdateAsync();
+          await Updates.reloadAsync();
+        }
+      } catch (e) {
+        console.log('OTA update check failed:', e);
+      }
+    })();
+  }, []);
+
+  useEffect(() => {
     if (fontsLoaded) {
       SplashScreen.hideAsync();
     }
@@ -434,6 +448,7 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       <AuthProvider>
+      <SubscriptionProvider>
       <SafeAreaProvider>
         <RecipeProvider>
           <SnackbarProvider>
@@ -447,6 +462,7 @@ export default function RootLayout() {
           </SnackbarProvider>
         </RecipeProvider>
       </SafeAreaProvider>
+      </SubscriptionProvider>
       </AuthProvider>
     </ThemeProvider>
   );

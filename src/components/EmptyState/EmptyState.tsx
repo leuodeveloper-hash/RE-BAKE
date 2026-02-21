@@ -2,6 +2,7 @@ import React from 'react';
 import {Image, ImageSourcePropType, StyleSheet, Text, View} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {AppIcon} from '@components/Icon/AppIcon';
+import {Button} from '@components/Button';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
@@ -21,6 +22,9 @@ export interface EmptyStateProps {
   icon?: React.FC<SvgProps>;
   title: string;
   subtitle?: string;
+  /** 액션 링크 */
+  actionLabel?: string;
+  onAction?: () => void;
 }
 
 function CategoryIllustration({category, styles}: {category: EmptyStateCategory; styles: any}) {
@@ -36,7 +40,7 @@ function CategoryIllustration({category, styles}: {category: EmptyStateCategory;
   }
 }
 
-export function EmptyState({category, image, icon, title, subtitle}: EmptyStateProps) {
+export function EmptyState({category, image, icon, title, subtitle, actionLabel, onAction}: EmptyStateProps) {
   const styles = useThemedStyles(createStyles);
 
   return (
@@ -50,6 +54,9 @@ export function EmptyState({category, image, icon, title, subtitle}: EmptyStateP
         <Text style={styles.title}>{title}</Text>
         {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
       </View>
+      {actionLabel && onAction && (
+        <Button label={actionLabel} variant="ghost" accent size="small" onPress={onAction} />
+      )}
     </View>
   );
 }

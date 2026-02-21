@@ -31,7 +31,7 @@ function stripUndefined(obj: any): any {
 export default function RecipeNewRoute() {
   const router = useRouter();
   const colors = useColors();
-  const {target} = useLocalSearchParams<{target?: string}>();
+  const {target, cookbook} = useLocalSearchParams<{target?: string; cookbook?: string}>();
   const isExploreTarget = target === 'explore';
   const {user} = useAuth();
   const {setRecipes, availableCookbooks, cookbookColors, setCookbookColor} = useRecipes();
@@ -101,6 +101,7 @@ export default function RecipeNewRoute() {
           onClose={handleClose}
           onSave={handleSave}
           onSetCookbookColor={setCookbookColor}
+          initialCookbook={cookbook}
           isExplore={isExploreTarget}
         />
       </View>

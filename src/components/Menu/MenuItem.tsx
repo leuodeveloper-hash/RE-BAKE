@@ -5,7 +5,8 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {SvgProps} from 'react-native-svg';
-import {IconCaretRight, IconCheckboxFilled, IconCheckboxBlank} from '@components/Icon/IconIndex';
+import {IconCaretRight} from '@components/Icon/IconIndex';
+import {Checkbox} from '@components/Checkbox/Checkbox';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 
@@ -49,34 +50,28 @@ export function MenuItem({
   const colors = useColors();
   const styles = useThemedStyles(createStyles);
 
-  const iconColor = iconColorProp ?? (disabled
-    ? colors['foreground-onsurfacedisabled']
-    : destructive
-      ? colors['foreground-error']
-      : selected
-        ? colors['foreground-onsurfacevar']
-        : colors['foreground-onsurfacemuted']);
+  const iconColor = iconColorProp ?? (destructive
+    ? colors['foreground-error']
+    : selected
+      ? colors['foreground-onsurfacevar']
+      : colors['foreground-onsurfacemuted']);
 
   return (
     <View style={style}>
       <Pressable
         onPress={onPress}
         disabled={disabled}
-        style={({pressed}) => [
+        style={({pressed, focused}: {pressed: boolean; focused: boolean}) => [
           styles.menuItem,
           (selected || checked) && styles.menuItemSelected,
-          pressed && !disabled && styles.menuItemPressed,
+          (pressed || focused) && !disabled && styles.menuItemPressed,
         ]}>
         {checked !== undefined ? (
-          checked ? (
-            <IconCheckboxFilled width={20} height={20} color={colors['custom-brown']} />
-          ) : (
-            <View style={styles.checkboxBlankIcon}>
-              <IconCheckboxBlank width={20} height={20} color={colors['foreground-onsurface']} />
-            </View>
-          )
+          <Checkbox checked={checked} />
         ) : Icon ? (
-          <Icon width={20} height={20} color={iconColor} />
+          <View style={disabled ? styles.disabledIcon : undefined}>
+            <Icon width={20} height={20} color={iconColor} />
+          </View>
         ) : null}
         <Text style={[
           styles.menuItemLabel,
@@ -144,8 +139,8 @@ const createStyles = (colors: SemanticColors) =>
     disabledLabel: {
       color: colors['foreground-onsurfacedisabled'],
     },
-    checkboxBlankIcon: {
-      opacity: 0.56,
+    disabledIcon: {
+      opacity: 0.38,
     },
     trailingText: {
       fontFamily: Typography.body.large.fontFamily,

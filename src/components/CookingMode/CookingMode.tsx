@@ -17,6 +17,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {GlassContainer, Card, MAX_CONTENT_WIDTH} from '@components/Container';
 import {BottomSheet} from '@components/BottomSheet';
 import {Snackbar} from '@components/Snackbar';
+import {Tooltip} from '@components/Tooltip';
 import {IconButton} from '@components/IconButton';
 import {Selector} from '@components/Selector';
 import {navPillStyle} from '@components/Navigation';
@@ -37,6 +38,9 @@ import {
   IconTrash,
   IconUndo,
   IconRedo,
+  IconCircleInfoFilled,
+  IconEllipsisVertical,
+  IconCloseCircleFilled,
 } from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useKeyboardHeight} from '@hooks/useKeyboardHeight';
@@ -54,8 +58,8 @@ interface ProcessStep {
   tip?: string;
   caution?: string;
   photos?: string[];
-  /** 번들 이미지 (require) */
-  images?: any[];
+  /** 과정별 수동 지정 재료 */
+  ingredients?: IngredientInput[];
 }
 
 interface ProcessStepGroup {
@@ -84,7 +88,6 @@ interface CookingCard {
   tip?: string;
   caution?: string;
   photos?: string[];
-  images?: any[];
   matchedIngredients: IngredientInput[];
   editIngredients?: IngredientInput[];
 }
@@ -148,8 +151,7 @@ function buildCards(
           tip: step.tip,
           caution: step.caution,
           photos: step.photos,
-          images: step.images,
-          matchedIngredients: matchIngredients(step.description, ingredientGroups),
+          matchedIngredients: step.ingredients ?? matchIngredients(step.description, ingredientGroups),
         });
         globalIdx++;
       });
@@ -166,8 +168,7 @@ function buildCards(
         tip: step.tip,
         caution: step.caution,
         photos: step.photos,
-        images: step.images,
-        matchedIngredients: matchIngredients(step.description, ingredientGroups),
+        matchedIngredients: step.ingredients ?? matchIngredients(step.description, ingredientGroups),
       });
       globalIdx++;
     });
@@ -201,6 +202,7 @@ export function CookingMode({
   }, []);
   const clearLocalSnackbar = useCallback(() => setLocalSnackbar(null), []);
   const descInputRef = useRef<RNTextInput>(null);
+  const lastTapRef = useRef(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
   const fadeAnim = useRef(new Animated.Value(1)).current;
@@ -218,6 +220,7 @@ export function CookingMode({
   // Refs for latest state (stale closure 방지)
   const editCardsRef = useRef<CookingCard[]>([]);
   const isEditingRef = useRef(false);
+  const savedSnapshotRef = useRef<string | null>(null);
   editCardsRef.current = editCards;
   isEditingRef.current = isEditing;
 
@@ -227,6 +230,9 @@ export function CookingMode({
   const [historyVersion, setHistoryVersion] = useState(0);
   const [photoExpanded, setPhotoExpanded] = useState(false);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
+  const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
+  const [showInfoTooltip, setShowInfoTooltip] = useState(false);
+  const [showCardOverflow, setShowCardOverflow] = useState(false);
 
   const toggleIngredient = useCallback((name: string) => {
     setCheckedIngredients(prev => {
@@ -316,9 +322,20 @@ export function CookingMode({
     prevVisible.current = visible;
   }, [visible, initialIndex, flatCards.length, scrollToIndex]);
 
+  // editCards → 비교용 스냅샷 문자열
+  const snapshotEditCards = useCallback((cards: CookingCard[]) => {
+    return JSON.stringify(cards.map(c => ({
+      d: c.description, t: c.tip, ca: c.caution,
+      p: c.photos, ei: c.editIngredients,
+    })));
+  }, []);
+
   // 렌더링용 isDirty (버튼 disabled 등 UI 반영)
   const isDirty = useMemo(() => {
     if (!isEditing) return false;
+    const current = snapshotEditCards(editCards);
+    if (savedSnapshotRef.current) return current !== savedSnapshotRef.current;
+    // 아직 저장 안 됨 → flatCards 기준 비교
     return editCards.some((card, i) => {
       const orig = flatCards[i];
       if (!orig) return true;
@@ -326,12 +343,14 @@ export function CookingMode({
         || JSON.stringify(card.photos) !== JSON.stringify(orig.photos)
         || JSON.stringify(card.editIngredients) !== JSON.stringify(orig.matchedIngredients);
     });
-  }, [isEditing, editCards, flatCards]);
+  }, [isEditing, editCards, flatCards, snapshotEditCards, lastSavedAt]);
 
   // isDirty를 ref 기반으로 즉시 계산 (stale closure 방지)
   const computeIsDirty = useCallback(() => {
     if (!isEditingRef.current) return false;
     const cards = editCardsRef.current;
+    const current = snapshotEditCards(cards);
+    if (savedSnapshotRef.current) return current !== savedSnapshotRef.current;
     return cards.some((card, i) => {
       const orig = flatCards[i];
       if (!orig) return true;
@@ -339,7 +358,7 @@ export function CookingMode({
         || JSON.stringify(card.photos) !== JSON.stringify(orig.photos)
         || JSON.stringify(card.editIngredients) !== JSON.stringify(orig.matchedIngredients);
     });
-  }, [flatCards]);
+  }, [flatCards, snapshotEditCards]);
 
   const saveEdits = useCallback((silent = false) => {
     if (!onUpdate || !computeIsDirty()) return;
@@ -388,7 +407,7 @@ export function CookingMode({
             ...(card.tip ? {tip: card.tip} : {}),
             ...(card.caution ? {caution: card.caution} : {}),
             ...(card.photos?.length ? {photos: card.photos} : {}),
-            ...(card.images?.length ? {images: card.images} : {}),
+            ...(card.editIngredients?.length ? {ingredients: card.editIngredients} : {}),
           })),
       }));
       onUpdate({stepGroups: newStepGroups, ...ingData});
@@ -399,12 +418,22 @@ export function CookingMode({
         ...(card.tip ? {tip: card.tip} : {}),
         ...(card.caution ? {caution: card.caution} : {}),
         ...(card.photos?.length ? {photos: card.photos} : {}),
-        ...(card.images?.length ? {images: card.images} : {}),
+        ...(card.editIngredients?.length ? {ingredients: card.editIngredients} : {}),
       }));
       onUpdate({steps: newSteps, ...ingData});
     }
+    savedSnapshotRef.current = snapshotEditCards(cards);
+    setLastSavedAt(new Date());
     showSnackbar(silent ? '자동저장 되었습니다' : '변경사항이 저장되었습니다');
-  }, [onUpdate, computeIsDirty, stepGroups, ingredientGroups, showSnackbar]);
+  }, [onUpdate, computeIsDirty, stepGroups, ingredientGroups, showSnackbar, snapshotEditCards]);
+
+  const exitEditing = useCallback(() => {
+    if (computeIsDirty()) saveEdits(true);
+    setIsEditing(false);
+    setShowAddMenu(false);
+    setShowPhotoSubmenu(false);
+    setShowInfoTooltip(false);
+  }, [computeIsDirty, saveEdits]);
 
   const handleClose = useCallback(() => {
     if (isEditingRef.current) saveEdits();
@@ -464,38 +493,45 @@ export function CookingMode({
 
   const goPrev = useCallback(() => {
     if (currentIndex <= 0) return;
-    if (isEditingRef.current) saveEdits(true);
+    if (isEditingRef.current) exitEditing();
     setShowAddMenu(false);
     setShowPhotoSubmenu(false);
+    setShowCardOverflow(false);
+    setShowInfoTooltip(false);
     const newIndex = currentIndex - 1;
     setCurrentIndex(newIndex);
     scrollToIndex(newIndex);
-  }, [currentIndex, scrollToIndex, saveEdits]);
+  }, [currentIndex, scrollToIndex, exitEditing]);
 
   const goNext = useCallback(() => {
     if (currentIndex >= totalCards - 1) return;
-    if (isEditingRef.current) saveEdits(true);
+    if (isEditingRef.current) exitEditing();
     setShowAddMenu(false);
     setShowPhotoSubmenu(false);
+    setShowCardOverflow(false);
+    setShowInfoTooltip(false);
     const newIndex = currentIndex + 1;
     setCurrentIndex(newIndex);
     scrollToIndex(newIndex);
-  }, [currentIndex, totalCards, scrollToIndex, saveEdits]);
+  }, [currentIndex, totalCards, scrollToIndex, exitEditing]);
 
   const handleScrollEnd = useCallback((e: NativeSyntheticEvent<NativeScrollEvent>) => {
     const offsetX = e.nativeEvent.contentOffset.x;
     const newIndex = Math.max(0, Math.min(Math.round(offsetX / itemWidth), totalCards - 1));
-    if (isEditingRef.current) saveEdits(true);
+    if (isEditingRef.current) exitEditing();
     setCurrentIndex(newIndex);
     setShowAddMenu(false);
     setShowPhotoSubmenu(false);
-  }, [itemWidth, totalCards, saveEdits]);
+    setShowCardOverflow(false);
+    setShowInfoTooltip(false);
+  }, [itemWidth, totalCards, exitEditing]);
 
   // Editing
   const startEditing = useCallback(() => {
     setEditCards(flatCards.map(c => ({...c, editIngredients: [...c.matchedIngredients]})));
     undoStackRef.current = [];
     redoStackRef.current = [];
+    savedSnapshotRef.current = null;
     setHistoryVersion(0);
     setIsEditing(true);
     setTimeout(() => {
@@ -517,6 +553,15 @@ export function CookingMode({
       }
     }, 100);
   }, [flatCards, currentIndex]);
+
+  const handleDoubleTap = useCallback(() => {
+    if (!canEdit || isEditing) return;
+    const now = Date.now();
+    if (now - lastTapRef.current < 300) {
+      startEditing();
+    }
+    lastTapRef.current = now;
+  }, [canEdit, isEditing, startEditing]);
 
   const updateCardField = useCallback((globalIndex: number, field: 'description' | 'tip' | 'caution', value: string | undefined) => {
     setEditCards(prev => prev.map(card =>
@@ -588,35 +633,6 @@ export function CookingMode({
     }
   }, [updateCardPhotos]);
 
-  // 번들 이미지 삭제
-  const removeImage = useCallback((globalIndex: number, imageIndex: number) => {
-    updateEditCards(prev => prev.map(card => {
-      if (card.globalIndex !== globalIndex) return card;
-      const newImages = (card.images ?? []).filter((_: any, i: number) => i !== imageIndex);
-      return {...card, images: newImages.length > 0 ? newImages : undefined};
-    }));
-  }, [updateEditCards]);
-
-  // 번들 이미지 교체 (번들 제거 → 사용자 사진으로 추가)
-  const replaceImage = useCallback(async (globalIndex: number, imageIndex: number) => {
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'],
-      quality: 0.8,
-    });
-    if (!result.canceled && result.assets.length > 0) {
-      updateEditCards(prev => prev.map(card => {
-        if (card.globalIndex !== globalIndex) return card;
-        const newImages = (card.images ?? []).filter((_: any, i: number) => i !== imageIndex);
-        const newPhotos = [...(card.photos ?? []), result.assets[0].uri];
-        return {
-          ...card,
-          images: newImages.length > 0 ? newImages : undefined,
-          photos: newPhotos,
-        };
-      }));
-    }
-  }, [updateEditCards]);
-
   // 메뉴 아이템
   const addMenuItems = useMemo((): MenuItemData[] => {
     const card = editCards[currentIndex];
@@ -655,6 +671,61 @@ export function CookingMode({
     }
   }, [editCards, currentIndex, updateEditCards, pickPhoto]);
 
+  const formatSavedTime = useCallback((date: Date) => {
+    const h = date.getHours();
+    const m = date.getMinutes();
+    const period = h < 12 ? '오전' : '오후';
+    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
+    return `마지막 저장 ${period} ${h12}:${String(m).padStart(2, '0')}`;
+  }, []);
+
+  // 카드 오버플로우 메뉴
+  const cardOverflowItems = useMemo((): MenuItemData[] => [
+    {id: 'delete', label: '과정 삭제', icon: IconTrash, destructive: true},
+  ], []);
+
+  const handleCardOverflowSelect = useCallback((menuId: string) => {
+    setShowCardOverflow(false);
+    if (menuId === 'delete') {
+      const card = displayCards[currentIndex];
+      if (!card || displayCards.length <= 1) return;
+
+      if (isEditing) {
+        // 편집 모드: editCards에서 삭제
+        updateEditCards(prev => {
+          const next = prev.filter(c => c.globalIndex !== card.globalIndex);
+          return next.map((c, i) => ({...c, globalIndex: i, stepNumber: i + 1}));
+        });
+      }
+
+      // 원본 데이터도 즉시 반영
+      if (onUpdate) {
+        if (stepGroups && stepGroups.length > 0) {
+          const newStepGroups = stepGroups.map((group, gIdx) => ({
+            title: group.title,
+            steps: group.steps
+              .filter((_, sIdx) => !(gIdx === card.groupIndex && sIdx === card.stepIndex))
+              .map((s, i) => ({...s, step: i + 1})),
+          })).filter(g => g.steps.length > 0);
+          onUpdate({stepGroups: newStepGroups});
+        } else if (steps) {
+          const newSteps = steps
+            .filter((_, i) => i !== card.stepIndex)
+            .map((s, i) => ({...s, step: i + 1}));
+          onUpdate({steps: newSteps});
+        }
+      }
+
+      // 인덱스 조정
+      if (currentIndex >= displayCards.length - 1) {
+        const newIdx = Math.max(0, currentIndex - 1);
+        setCurrentIndex(newIdx);
+        scrollToIndex(newIdx);
+      }
+      showSnackbar('과정이 삭제되었습니다');
+    }
+  }, [displayCards, currentIndex, isEditing, updateEditCards, onUpdate, stepGroups, steps, scrollToIndex, showSnackbar]);
+
   // Render a single card (only active card can be edited)
   const renderCard = useCallback((item: CookingCard, isActive = false) => {
     const isCurrentEditing = isEditing && isActive;
@@ -662,11 +733,24 @@ export function CookingMode({
     return (
       <View style={styles.cardOuter}>
         <Card style={styles.mainCard}>
-          {/* Step count + undo/redo/add buttons */}
+          {/* Step count + actions */}
           <View style={styles.cardHeader}>
             <Text style={[styles.stepCount, {flex: 1}]}>{item.globalIndex + 1}/{totalCards}</Text>
-            {isCurrentEditing && (
+            {isCurrentEditing ? (
               <View style={styles.cardHeaderActions}>
+                <Tooltip
+                  message={lastSavedAt ? formatSavedTime(lastSavedAt) : '아직 저장된 내역이 없습니다'}
+                  visible={showInfoTooltip && isActive}
+                  onClose={() => setShowInfoTooltip(false)}
+                  position="bottom"
+                >
+                  <IconButton
+                    icon={IconCircleInfoFilled}
+                    onPress={() => setShowInfoTooltip(prev => !prev)}
+                    variant="ghost-secondary"
+                    size="small"
+                  />
+                </Tooltip>
                 <IconButton
                   icon={IconUndo}
                   onPress={undo}
@@ -691,7 +775,17 @@ export function CookingMode({
                   />
                 </View>
               </View>
-            )}
+            ) : isActive && canEdit ? (
+              <View style={styles.cardHeaderActions}>
+                <IconButton
+                  icon={IconEllipsisVertical}
+                  onPress={() => setShowCardOverflow(prev => !prev)}
+                  variant="ghost-secondary"
+                  size="small"
+                  forcePressed={showCardOverflow}
+                />
+              </View>
+            ) : null}
           </View>
 
           {/* Scrollable content: description + chips */}
@@ -715,7 +809,9 @@ export function CookingMode({
                 selectionColor={colors['custom-yellow']}
               />
             ) : (
-              <Text style={styles.description}>{item.description}</Text>
+              <Pressable onPress={canEdit ? handleDoubleTap : undefined}>
+                <Text style={styles.description}>{item.description}</Text>
+              </Pressable>
             )}
 
             {/* Tip */}
@@ -754,50 +850,27 @@ export function CookingMode({
           </ScrollView>
 
           {/* Photos + Ingredients pinned to bottom */}
-          {((item.photos && item.photos.length > 0) || (item.images && item.images.length > 0)) && (
+          {item.photos && item.photos.length > 0 && (
             <Pressable style={styles.photosSection} onPress={isCurrentEditing ? undefined : () => setPhotoExpanded(prev => !prev)}>
-              {item.images?.map((src, iIdx) => (
-                <View key={`img-${iIdx}`} style={styles.photoWrapper}>
-                  <Image source={src} style={[containerWidth >= 600 ? styles.photoPadBase : styles.photoBase, photoExpanded && (containerWidth >= 600 ? styles.photoPadExpanded : styles.photoExpanded)]} />
-                  {isCurrentEditing && (
-                    <View style={styles.photoActions}>
-                      <IconButton
-                        icon={IconCameraFilled}
-                        onPress={() => replaceImage(item.globalIndex, iIdx)}
-                        variant="ghost-secondary"
-                        size="small"
-                      />
-                      <IconButton
-                        icon={IconTrash}
-                        onPress={() => removeImage(item.globalIndex, iIdx)}
-                        variant="ghost-secondary"
-                        size="small"
-                      />
-                    </View>
-                  )}
-                </View>
-              ))}
-              {item.photos?.map((uri, pIdx) => (
-                <View key={`photo-${pIdx}`} style={styles.photoWrapper}>
-                  <Image source={{uri}} style={[containerWidth >= 600 ? styles.photoPadBase : styles.photoBase, photoExpanded && (containerWidth >= 600 ? styles.photoPadExpanded : styles.photoExpanded)]} />
-                  {isCurrentEditing && (
-                    <View style={styles.photoActions}>
-                      <IconButton
-                        icon={IconCameraFilled}
-                        onPress={() => replacePhoto(item.globalIndex, pIdx, item.photos)}
-                        variant="ghost-secondary"
-                        size="small"
-                      />
-                      <IconButton
-                        icon={IconTrash}
-                        onPress={() => removePhoto(item.globalIndex, pIdx, item.photos)}
-                        variant="ghost-secondary"
-                        size="small"
-                      />
-                    </View>
-                  )}
-                </View>
-              ))}
+              {item.photos?.map((uri, pIdx) => {
+                const Wrapper = isCurrentEditing ? Pressable : View;
+                return (
+                  <Wrapper key={`photo-${pIdx}`} style={styles.photoWrapper} onPress={isCurrentEditing ? () => replacePhoto(item.globalIndex, pIdx, item.photos) : undefined}>
+                    <Image source={{uri}} style={[containerWidth >= 600 ? styles.photoPadBase : styles.photoBase, photoExpanded && (containerWidth >= 600 ? styles.photoPadExpanded : styles.photoExpanded)]} />
+                    {isCurrentEditing && (
+                      <View style={styles.photoDeleteButton}>
+                        <IconButton
+                          icon={IconCloseCircleFilled}
+                          onPress={() => removePhoto(item.globalIndex, pIdx, item.photos)}
+                          variant="ghost"
+                          onImage
+                          size="medium"
+                        />
+                      </View>
+                    )}
+                  </Wrapper>
+                );
+              })}
             </Pressable>
           )}
           {isCurrentEditing ? (
@@ -807,7 +880,7 @@ export function CookingMode({
                   {(item.editIngredients ?? []).map(ing => `${ing.name} ${ing.amount}`).join(', ')}
                 </Text>
               ) : (
-                <Text style={styles.ingredientPlaceholder}>과정에 필요한 재료를 추가할 수 있어요.</Text>
+                <Text style={styles.ingredientEmpty}>과정에 필요한 재료를 선택하세요.</Text>
               )}
             </Pressable>
           ) : item.matchedIngredients.length > 0 ? (
@@ -846,10 +919,20 @@ export function CookingMode({
               style={styles.addMenu}
             />
           )}
+          {/* Overflow menu (non-editing) */}
+          {!isCurrentEditing && isActive && canEdit && (
+            <Menu
+              items={cardOverflowItems}
+              visible={showCardOverflow}
+              onSelect={handleCardOverflowSelect}
+              onClose={() => setShowCardOverflow(false)}
+              style={styles.overflowMenu}
+            />
+          )}
         </Card>
       </View>
     );
-  }, [isEditing, styles, colors, updateCardField, totalCards, removePhoto, replacePhoto, removeImage, replaceImage, photoExpanded, checkedIngredients, toggleIngredient, undo, redo, canUndo, canRedo, showAddMenu, showPhotoSubmenu, addMenuItems, photoSubmenuItems, handleAddMenuSelect, removeCardField]);
+  }, [isEditing, styles, colors, updateCardField, totalCards, removePhoto, replacePhoto, photoExpanded, checkedIngredients, toggleIngredient, undo, redo, canUndo, canRedo, showAddMenu, showPhotoSubmenu, addMenuItems, photoSubmenuItems, handleAddMenuSelect, removeCardField, canEdit, handleDoubleTap, lastSavedAt, formatSavedTime, showInfoTooltip, showCardOverflow, cardOverflowItems, handleCardOverflowSelect]);
 
   return (
     <BottomSheet
@@ -860,7 +943,7 @@ export function CookingMode({
       backgroundColor={colors['surface-surfacedim']}
     >
         {/* Top nav */}
-        <View style={[styles.topNav, {paddingTop: Spacing.smd}]}>
+        <Pressable style={[styles.topNav, {paddingTop: Spacing.smd}]} onPress={isEditing ? exitEditing : undefined}>
           <View style={styles.navInner}>
             <View style={styles.topLeft}>
               <GlassContainer contentStyle={navPillStyle}>
@@ -908,13 +991,15 @@ export function CookingMode({
             <View style={styles.topRight}>
               {canEdit && (
                 isEditing ? (
-                  <IconButton
-                    icon={IconTick}
-                    disabled={!isDirty}
-                    onPress={() => { saveEdits(); setIsEditing(false); setShowAddMenu(false); setShowPhotoSubmenu(false); }}
-                    variant="filled"
-                    size="large"
-                  />
+                  <GlassContainer>
+                    <IconButton
+                      icon={IconTick}
+                      disabled={!isDirty}
+                      onPress={exitEditing}
+                      variant="filled"
+                      size="large"
+                    />
+                  </GlassContainer>
                 ) : (
                   <GlassContainer contentStyle={navPillStyle}>
                     <IconButton
@@ -928,12 +1013,13 @@ export function CookingMode({
               )}
             </View>
           </View>
-        </View>
+        </Pressable>
 
         {/* Cards with horizontal scroll */}
         <Animated.View
-          style={{flex: 1, paddingTop: 72, paddingBottom: insets.bottom + Spacing.md * 2 + 48 + 24, opacity: contentReady ? fadeAnim : 0}}
+          style={{flex: 1, opacity: contentReady ? fadeAnim : 0}}
           onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
+          <Pressable style={{height: 72}} onPress={isEditing ? exitEditing : undefined} />
           <Animated.ScrollView
             ref={scrollViewRef as any}
             horizontal
@@ -970,7 +1056,7 @@ export function CookingMode({
               );
             })}
           </Animated.ScrollView>
-
+          <Pressable style={{height: insets.bottom + Spacing.md * 2 + 48 + 24}} onPress={isEditing ? exitEditing : undefined} />
         </Animated.View>
 
         {/* 재료 선택 바텀시트 */}
@@ -1136,6 +1222,12 @@ const createStyles = (colors: SemanticColors) =>
       right: 28,
       zIndex: 20,
     },
+    overflowMenu: {
+      position: 'absolute' as const,
+      top: 28 + 28 + 4,
+      right: 28,
+      zIndex: 20,
+    },
     photosSection: {
       flexDirection: 'row',
       gap: Spacing.sm,
@@ -1168,10 +1260,15 @@ const createStyles = (colors: SemanticColors) =>
       flexDirection: 'row' as const,
       gap: Spacing.xs,
     },
+    photoDeleteButton: {
+      position: 'absolute' as const,
+      top: Spacing.xs,
+      right: Spacing.xs,
+    },
     ingredientsSection: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: Spacing.sm,
+      gap: Spacing.xs,
       paddingHorizontal: Spacing.xs,
     },
     ingredientsText: {
@@ -1184,6 +1281,12 @@ const createStyles = (colors: SemanticColors) =>
       ...Typography.body.large,
       color: colors['foreground-onsurfacemuted'],
       opacity: 0.5,
+      marginTop: FONT_BASELINE_OFFSET,
+    },
+    ingredientEmpty: {
+      ...Typography.body.xlarge,
+      fontWeight: Typography.body.xlarge.fontWeight as '500',
+      color: colors['foreground-onsurfacedisabled'],
       marginTop: FONT_BASELINE_OFFSET,
     },
     ingredientChecked: {

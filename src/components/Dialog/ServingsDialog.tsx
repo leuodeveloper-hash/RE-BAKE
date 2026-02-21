@@ -2,8 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
-import {Selector} from '@components/Selector';
-import {Menu} from '@components/Menu';
+import {Tabs} from '@components/Tabs';
 import {TextInput} from '@components/TextInput';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import type {SemanticColors} from '@constants/tokens';
@@ -56,7 +55,6 @@ export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDia
   const [spec, setSpec] = useState('');
   const [amount, setAmount] = useState('');
   const [unit, setUnit] = useState('piece');
-  const [showUnitMenu, setShowUnitMenu] = useState(false);
 
   useEffect(() => {
     if (visible) {
@@ -64,7 +62,6 @@ export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDia
       setSpec(parsed.spec);
       setAmount(parsed.amount);
       setUnit(parsed.unit);
-      setShowUnitMenu(false);
     }
   }, [visible, value]);
 
@@ -93,6 +90,12 @@ export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDia
       </>}
     >
       <View style={styles.content}>
+        <Tabs
+          tabs={UNIT_OPTIONS}
+          selectedId={unit}
+          onSelect={setUnit}
+          fullWidth
+        />
         <View style={styles.row}>
           <View style={styles.inputWrap}>
             <TextInput
@@ -114,23 +117,6 @@ export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDia
               placeholder="0"
               maxLength={4}
               selectTextOnFocus
-            />
-          </View>
-          <View style={styles.unitWrap}>
-            <Selector
-              label={UNIT_SUFFIX[unit]}
-              showDropdown
-              onPress={() => setShowUnitMenu(prev => !prev)}
-              variant="outlined"
-              forcePressed={showUnitMenu}
-            />
-            <Menu
-              items={UNIT_OPTIONS}
-              selectedId={unit}
-              visible={showUnitMenu}
-              onSelect={(id) => { setUnit(id); setShowUnitMenu(false); }}
-              onClose={() => setShowUnitMenu(false)}
-              style={styles.unitMenu}
             />
           </View>
         </View>
@@ -156,14 +142,5 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     color: colors['foreground-onsurfacemuted'],
     marginBottom: Spacing.sm,
     marginTop: FONT_BASELINE_OFFSET,
-  },
-  unitWrap: {
-    position: 'relative' as const,
-  },
-  unitMenu: {
-    position: 'absolute' as const,
-    top: '100%' as unknown as number,
-    right: 0,
-    zIndex: 10,
   },
 });
