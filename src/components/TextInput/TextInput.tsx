@@ -3,15 +3,17 @@ import {
   View,
   TextInput as RNTextInput,
   Text,
+  Pressable,
   StyleSheet,
   TextInputProps as RNTextInputProps,
   NativeSyntheticEvent,
   TextInputContentSizeChangeEventData,
   Platform,
 } from 'react-native';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import {useColors} from '@contexts/ThemeContext';
-import type {SemanticColors} from '@constants/tokens';
+import {IconCloseCircleFilled} from '@components/Icon/IconIndex';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useColorsV2} from '@contexts/ThemeContext';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
@@ -27,6 +29,10 @@ export interface TextInputProps extends RNTextInputProps {
   style?: 'outlined' | 'ghost';
   size?: 'medium' | 'small';
   multiline?: boolean;
+  /** 컬러 배리언트 (yellow: 조언 등 옐로우 카드 내부용) */
+  variant?: 'default' | 'yellow';
+  /** 내용 지우기 (x) 버튼 표시 */
+  clearable?: boolean;
 }
 
 export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
@@ -40,16 +46,18 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
   style = 'outlined',
   size = 'medium',
   multiline = false,
+  variant = 'default',
+  clearable = false,
   value,
   onChangeText,
   onContentSizeChange,
   ...props
 }, ref) => {
-  const styles = useThemedStyles(createStyles);
-  const colors = useColors();
-  const hasValue = value && value.length > 0;
+  const styles = useThemedStylesV2(createStyles);
+  const colors = useColorsV2();
   const isGhost = style === 'ghost';
   const isSmall = size === 'small';
+  const isYellow = variant === 'yellow';
   const autoResize = multiline;
 
   // Internal ref for web textarea resize
@@ -126,12 +134,12 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
           style={[
             isGhost ? styles.inputGhost : (isSmall ? styles.inputSmall : styles.input),
             multiline && !isGhost && styles.inputMultiline,
-            hasValue ? styles.inputFilled : styles.inputPlaceholder,
+            isYellow && styles.inputYellow,
             autoResize && contentHeight != null ? {height: contentHeight} : undefined,
           ]}
           placeholder={placeholder}
-          placeholderTextColor={colors['foreground-onsurfacemuted']}
-          selectionColor={colors['foreground-primary']}
+          placeholderTextColor={isYellow ? colors['custom/yellow-var'] + '80' : colors['foreground/on-surface-muted']}
+          selectionColor={isYellow ? colors['custom/yellow-var'] : colors['foreground/on-surface']}
           multiline={multiline}
           textAlignVertical={multiline ? 'top' : undefined}
           value={value}
@@ -139,9 +147,13 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
           onContentSizeChange={handleContentSizeChange}
           {...props}
         />
-        {trailingIcon && (
+        {clearable && value && value.length > 0 ? (
+          <Pressable onPress={() => onChangeText?.('')} hitSlop={8} style={styles.clearButton}>
+            {React.createElement(IconCloseCircleFilled as any, {width: 16, height: 16, color: colors['foreground/on-surface-muted']})}
+          </Pressable>
+        ) : trailingIcon ? (
           <View style={styles.trailingIcon}>{trailingIcon}</View>
-        )}
+        ) : null}
       </View>
       {error && errorText && (
         <View style={styles.errorContainer}>
@@ -155,7 +167,7 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
   );
 });
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   container: {
     width: '100%',
   },
@@ -167,14 +179,14 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   label: {
     ...Typography.label.medium,
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
     paddingHorizontal: Spacing.sm,
     marginBottom: Spacing.xs,
   },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: colors['surface-surfacecontainer'],
+    backgroundColor: colors['surface/container'],
     borderRadius: Radius['radius-md'],
     paddingHorizontal: Spacing.md,
     minHeight: 48,
@@ -190,20 +202,22 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   inputContainerError: {
     borderWidth: 1,
-    borderColor: colors['foreground-error'],
+    borderColor: colors['foreground/negative'],
   },
   input: {
     flex: 1,
+    minWidth: 0,
     ...Typography.body.medium,
-    color: colors['foreground-onsurface'],
+    color: colors['foreground/on-surface'],
     paddingVertical: Spacing.sm,
     minHeight: 24,
     outlineStyle: 'none',
   } as any,
   inputSmall: {
     flex: 1,
+    minWidth: 0,
     ...Typography.body.medium,
-    color: colors['foreground-onsurface'],
+    color: colors['foreground/on-surface'],
     paddingVertical: Spacing.xs,
     minHeight: 20,
     textAlign: 'center',
@@ -211,12 +225,13 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   } as any,
   inputGhost: {
     flex: 1,
+    minWidth: 0,
     fontFamily: Typography.body.medium.fontFamily,
     fontSize: Typography.body.medium.fontSize,
     fontWeight: Typography.body.medium.fontWeight as '500',
     lineHeight: Typography.body.medium.lineHeight,
     letterSpacing: -0.25,
-    color: colors['foreground-onsurface'],
+    color: colors['foreground/on-surface'],
     padding: 0,
     marginTop: FONT_BASELINE_OFFSET,
     outlineStyle: 'none',
@@ -225,17 +240,22 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     minHeight: 60,
     textAlignVertical: 'top',
   },
-  inputFilled: {
-    color: colors['foreground-onsurface'],
-  },
-  inputPlaceholder: {
-    color: colors['foreground-onsurfacemuted'],
+  inputYellow: {
+    color: colors['custom/yellow-var'],
   },
   leadingIcon: {
     marginRight: Spacing.sm,
   },
   trailingIcon: {
     marginLeft: Spacing.sm,
+  },
+  clearButton: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 4,
+    flexShrink: 0,
   },
   errorContainer: {
     flexDirection: 'row',
@@ -244,11 +264,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   errorText: {
     ...Typography.body.small,
-    color: colors['foreground-error'],
+    color: colors['foreground/negative'],
   },
   supportingText: {
     ...Typography.body.small,
-    color: colors['foreground-onsurfacevar'],
+    color: colors['foreground/on-surface-var'],
     marginTop: Spacing.xs,
   },
 });

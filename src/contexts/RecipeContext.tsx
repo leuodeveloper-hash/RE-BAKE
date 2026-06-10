@@ -22,22 +22,24 @@ interface RecipeContextValue {
   availableCookbooks: string[];
   /** id로 레시피 찾기 */
   findRecipeById: (id: string) => Recipe | undefined;
-  /** 요리책별 색상 매핑 */
+  /** 레시피 북별 색상 매핑 */
   cookbookColors: Record<string, AvatarColor>;
-  /** 요리책 색상 설정 */
+  /** 레시피 북 색상 설정 */
   setCookbookColor: (name: string, color: AvatarColor) => void;
-  /** 요리책 이름 변경 시 색상도 이전 */
+  /** 레시피 북 이름 변경 시 색상도 이전 */
   renameCookbookColor: (oldName: string, newName: string) => void;
-  /** 요리책 색상 삭제 */
+  /** 레시피 북 색상 삭제 */
   removeCookbookColor: (name: string) => void;
   /** Pull-to-refresh 시 데이터 다시 로드 */
   reload: () => Promise<void>;
+  /** 레시피 추가 가능 여부 (로그인 유저 30개 제한) */
+  canAddRecipe: () => boolean;
 }
 
 const RecipeContext = createContext<RecipeContextValue | null>(null);
 
 export function RecipeProvider({children}: {children: React.ReactNode}) {
-  const {recipes, setRecipes, exportRecipes, importRecipes, isLoading, lastSyncedAt, lastSyncedDevice, reload} = useRecipeStorage();
+  const {recipes, setRecipes, exportRecipes, importRecipes, isLoading, lastSyncedAt, lastSyncedDevice, reload, canAddRecipe} = useRecipeStorage();
   const [selectedCookbook, setSelectedCookbook] = useState<string | null>(null);
   const [selectedExploreCookbook, setSelectedExploreCookbook] = useState<string | null>(null);
   const [cookbookColors, setCookbookColorsState] = useState<Record<string, AvatarColor>>({});
@@ -109,7 +111,8 @@ export function RecipeProvider({children}: {children: React.ReactNode}) {
     renameCookbookColor,
     removeCookbookColor,
     reload,
-  }), [recipes, setRecipes, exportRecipes, importRecipes, isLoading, lastSyncedAt, lastSyncedDevice, selectedCookbook, selectedExploreCookbook, availableCookbooks, findRecipeById, cookbookColors, setCookbookColor, renameCookbookColor, removeCookbookColor, reload]);
+    canAddRecipe,
+  }), [recipes, setRecipes, exportRecipes, importRecipes, isLoading, lastSyncedAt, lastSyncedDevice, selectedCookbook, selectedExploreCookbook, availableCookbooks, findRecipeById, cookbookColors, setCookbookColor, renameCookbookColor, removeCookbookColor, reload, canAddRecipe]);
 
   return (
     <RecipeContext.Provider value={value}>{children}</RecipeContext.Provider>

@@ -6,13 +6,14 @@ import {ContentContainer, contentAreaPadding} from '@components/Container';
 import {RecipeCard, RecipeCardLayout} from '@components/Recipe/RecipeCard';
 import {Menu, MenuItemData} from '@components/Menu';
 import {PullIndicator, RefreshGap, usePullProgress} from '@components/PullIndicator';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import {useColors} from '@contexts/ThemeContext';
-import type {SemanticColors} from '@constants/tokens';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useColorsV2} from '@contexts/ThemeContext';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import type {Recipe} from '../../../types/recipe';
 import {parseSession} from '@utils/session';
+import {recipeToPdfData} from '@utils/generateRecipeHtml';
 import {
   IconLayoutGridFilled,
   IconLayoutPanelTop,
@@ -47,7 +48,7 @@ const SKELETON_DATA: Recipe[] = Array.from({length: SKELETON_COUNT}, (_, i) => (
 // ---- Skeleton Card ----
 
 function SkeletonCard({layout}: {layout: RecipeCardLayout}) {
-  const colors = useColors();
+  const colors = useColorsV2();
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -74,10 +75,22 @@ function SkeletonCard({layout}: {layout: RecipeCardLayout}) {
   if (layout === 'list') {
     return (
       <Animated.View style={[skStyles.listRow, {opacity}]}>
-        <View style={[skStyles.listThumb, {backgroundColor: colors['surface-surfacecontainer']}]} />
+        <View style={[skStyles.listThumb, {backgroundColor: colors['surface/container']}]} />
         <View style={skStyles.listTexts}>
-          <View style={[skStyles.textLine, skStyles.textLong, {backgroundColor: colors['surface-surfacecontainer']}]} />
-          <View style={[skStyles.textLine, skStyles.textShort, {backgroundColor: colors['surface-surfacecontainer']}]} />
+          <View style={[skStyles.textLine, skStyles.textLong, {backgroundColor: colors['surface/container']}]} />
+          <View style={[skStyles.textLine, skStyles.textShort, {backgroundColor: colors['surface/container']}]} />
+        </View>
+      </Animated.View>
+    );
+  }
+
+  if (layout === 'grid') {
+    return (
+      <Animated.View style={[skStyles.gridCardWrapper, {opacity}]}>
+        <View style={[skStyles.gridThumb, {backgroundColor: colors['surface/container']}]} />
+        <View style={skStyles.gridTexts}>
+          <View style={[skStyles.textLine, skStyles.textLong, {backgroundColor: colors['surface/container']}]} />
+          <View style={[skStyles.textLine, skStyles.textShort, {backgroundColor: colors['surface/container']}]} />
         </View>
       </Animated.View>
     );
@@ -87,8 +100,8 @@ function SkeletonCard({layout}: {layout: RecipeCardLayout}) {
     <Animated.View
       style={[
         skStyles.gridCard,
-        layout === 'photoList' && skStyles.photoListCard,
-        {backgroundColor: colors['surface-surfacecontainer'], opacity},
+        skStyles.photoListCard,
+        {backgroundColor: colors['surface/container'], opacity},
       ]}
     />
   );
@@ -124,6 +137,21 @@ const skStyles = StyleSheet.create({
     width: '100%',
     aspectRatio: 292 / 194,
     borderRadius: 20,
+  },
+  gridCardWrapper: {
+    width: '100%',
+  },
+  gridThumb: {
+    width: '100%',
+    aspectRatio: 2,
+    borderRadius: 20,
+  },
+  gridTexts: {
+    minHeight: 64,
+    paddingHorizontal: 4,
+    paddingVertical: 12,
+    gap: 6,
+    justifyContent: 'center',
   },
   photoListCard: {
     aspectRatio: 292 / 117,
@@ -243,6 +271,8 @@ export interface RecipeListTemplateProps {
   scrollEnabled?: boolean;
   /** 잠금 표시할 레시피 ID 목록 (paywall용) */
   lockedRecipeIds?: Set<string>;
+  /** FlatList 헤더 영역에 추가 콘텐츠 (인라인 배너 등) */
+  listHeaderExtra?: React.ReactNode;
   children?: React.ReactNode;
 }
 
@@ -262,9 +292,10 @@ export function RecipeListTemplate({
   onRefresh,
   scrollEnabled,
   lockedRecipeIds,
+  listHeaderExtra,
   children,
 }: RecipeListTemplateProps) {
-  const styles = useThemedStyles(createStyles);
+  const styles = useThemedStylesV2(createStyles);
   const [layout, setLayoutState] = useState<RecipeCardLayout>('grid');
   const [sortId, setSortIdState] = useState('default');
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
@@ -371,17 +402,25 @@ export function RecipeListTemplate({
     }
   }, [closeMenus, onOverlayPress]);
 
-  // 정렬된 데이터
+  // 정렬된 데이터 — 잠금 여부를 1차 키로 (잠금 해제된 것 먼저), 2차 정렬은 사용자 선택
   const sortedData = useMemo(() => {
     const sorted = [...data];
+    const lockRank = (r: Recipe) => (lockedRecipeIds?.has(r.id) ? 1 : 0);
     if (sortId === 'default') {
-      // 최신순: createdAt 내림차순 (없으면 뒤로)
-      sorted.sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
+      sorted.sort((a, b) => {
+        const lockDiff = lockRank(a) - lockRank(b);
+        if (lockDiff !== 0) return lockDiff;
+        return (b.createdAt ?? '').localeCompare(a.createdAt ?? '');
+      });
       return sorted;
     }
-    sorted.sort((a, b) => (a.title ?? '').localeCompare(b.title ?? '', 'ko'));
+    sorted.sort((a, b) => {
+      const lockDiff = lockRank(a) - lockRank(b);
+      if (lockDiff !== 0) return lockDiff;
+      return (a.title ?? '').localeCompare(b.title ?? '', 'ko');
+    });
     return sorted;
-  }, [data, sortId]);
+  }, [data, sortId, lockedRecipeIds]);
 
   // Paginated display data (리프레시 중에는 스켈레톤 표시하지 않음)
   const displayData = useMemo(() => {
@@ -446,6 +485,28 @@ export function RecipeListTemplate({
 
     const isLocked = lockedRecipeIds?.has(item.id) ?? false;
 
+    const paperPreview = (activeLayout === 'grid' || activeLayout === 'list')
+      ? (() => {
+          const parts: string[] = [];
+          item.ingredientGroups?.forEach(g => {
+            g.ingredients.forEach(i => {
+              parts.push(i.amount ? `${i.name} ${i.amount}` : i.name);
+            });
+          });
+          item.toolGroups?.forEach(g => g.tools.forEach(t => parts.push(t.name)));
+          item.tools?.forEach(t => parts.push(t.name));
+          const pushStep = (s: {description?: string; tip?: string; caution?: string}) => {
+            if (s.description) parts.push(s.description);
+            if (s.tip) parts.push(s.tip);
+            if (s.caution) parts.push(s.caution);
+          };
+          item.stepGroups?.forEach(g => g.steps.forEach(pushStep));
+          item.steps?.forEach(pushStep);
+          if (item.advice) parts.push(item.advice);
+          return parts;
+        })()
+      : undefined;
+
     const card = (
       <RecipeCard
         id={item.id}
@@ -458,8 +519,11 @@ export function RecipeListTemplate({
         imageUrl={item.imageUri}
         layout={activeLayout}
         locked={isLocked}
+        paperPreview={paperPreview}
+        paperTitle={(activeLayout === 'grid' || activeLayout === 'list') ? item.title : undefined}
+        recipePdfData={activeLayout === 'grid' ? recipeToPdfData(item) : undefined}
         onPress={() => onRecipePress(item)}
-        onMenuPress={!isLocked && cardMenuItems ? (pos) => handleCardMenuPress(item, pos) : undefined}
+        onMenuPress={cardMenuItems ? (pos) => handleCardMenuPress(item, pos) : undefined}
       />
     );
 
@@ -497,7 +561,7 @@ export function RecipeListTemplate({
             scrollEventThrottle={16}
             onEndReached={handleEndReached}
             onEndReachedThreshold={0.5}
-            ListHeaderComponent={<RefreshGap height={refreshGapHeight} />}
+            ListHeaderComponent={<>{<RefreshGap height={refreshGapHeight} />}{listHeaderExtra}</>}
             ListEmptyComponent={loading && !isRefreshing ? undefined : listEmptyComponent}
             ListFooterComponent={loadingMore ? <SkeletonFooter layout={activeLayout} /> : undefined}
             renderItem={renderItem}
@@ -536,11 +600,11 @@ export function RecipeListTemplate({
   );
 }
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   safeArea: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: colors['surface-surfacedim'],
+    backgroundColor: colors['surface/normal'],
   },
   contentWrapper: {
     flex: 1,

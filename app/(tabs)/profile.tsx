@@ -1,20 +1,33 @@
-import React, {useCallback} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {View, StyleSheet} from 'react-native';
-import {useRouter} from 'expo-router';
+import {useRouter, useLocalSearchParams} from 'expo-router';
 import {ProfileScreen} from '@screens/ProfileScreen';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
-import {useColors} from '@contexts/ThemeContext';
+import {useColorsV2} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
-import {useAvatarSeed} from '@hooks/useAvatarSeed';
+import {useSubscription} from '@contexts/SubscriptionContext';
 
 export default function ProfileRoute() {
   const router = useRouter();
-  const colors = useColors();
+  const colors = useColorsV2();
+  const params = useLocalSearchParams<{openPlan?: string}>();
+  const [planSheetTrigger, setPlanSheetTrigger] = useState(0);
   const {recipes, exportRecipes, importRecipes, lastSyncedAt, lastSyncedDevice} = useRecipes();
   const {showSnackbar} = useSnackbar();
-  const {user, handle, signIn, signUp, signInWithGoogle, signOut, updateHandle} = useAuth();
-  const avatarSeed = useAvatarSeed();
+  const {user, handle, signIn, signUp, signInWithGoogle, signOut, updateHandle, avatarSeed, isAdmin} = useAuth();
+  const {isPro} = useSubscription();
+
+  useEffect(() => {
+    if (params.openPlan === '1') {
+      setPlanSheetTrigger(t => t + 1);
+      router.setParams({openPlan: undefined});
+    }
+  }, [params.openPlan, router]);
+
+  const reviewCount = useMemo(() =>
+    recipes.reduce((sum, r) => sum + (r.reviews?.length ?? 0), 0),
+  [recipes]);
 
   const handleBack = useCallback(() => {
     router.navigate('/');
@@ -26,11 +39,11 @@ export default function ProfileRoute() {
   }, [signOut, showSnackbar]);
 
   return (
-    <View style={[styles.container, {backgroundColor: colors['surface-surfacedim']}]}>
+    <View style={[styles.container, {backgroundColor: colors['surface/normal']}]}>
       <ProfileScreen
         recipeCount={recipes.length}
+        reviewCount={reviewCount}
         userEmail={user?.email ?? null}
-        userDisplayName={user?.displayName ?? null}
         handle={handle}
         lastSyncedAt={lastSyncedAt}
         lastSyncedDevice={lastSyncedDevice}
@@ -43,7 +56,12 @@ export default function ProfileRoute() {
         onLogout={handleLogout}
         onUpdateHandle={updateHandle}
         onTermsPress={() => router.push('/terms')}
+        onPrivacyPress={() => router.push('/privacy')}
+        onLabsPress={() => router.push('/labs' as any)}
+        isPro={isPro}
+        isAdmin={isAdmin}
         avatarSeed={avatarSeed}
+        openPlanSheetSignal={planSheetTrigger}
       />
     </View>
   );

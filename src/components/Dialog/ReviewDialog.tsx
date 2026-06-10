@@ -2,9 +2,9 @@ import React, {useEffect, useState} from 'react';
 import {StyleSheet, Text, TextInput as RNTextInput, View} from 'react-native';
 import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import {useColors} from '@contexts/ThemeContext';
-import type {SemanticColors} from '@constants/tokens';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useColorsV2} from '@contexts/ThemeContext';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
@@ -13,6 +13,8 @@ import {IconChatStarFilled} from '@components/Icon/IconIndex';
 export interface ReviewData {
   evaluation: string;
   improvement: string;
+  /** 회고 사진 URI (최대 3장) */
+  photos?: string[];
 }
 
 export interface ReviewDialogProps {
@@ -23,8 +25,8 @@ export interface ReviewDialogProps {
 }
 
 export function ReviewDialog({visible, onClose, value, onConfirm}: ReviewDialogProps) {
-  const styles = useThemedStyles(createStyles);
-  const colors = useColors();
+  const styles = useThemedStylesV2(createStyles);
+  const colors = useColorsV2();
   const [evaluation, setEvaluation] = useState('');
   const [improvement, setImprovement] = useState('');
 
@@ -57,11 +59,11 @@ export function ReviewDialog({visible, onClose, value, onConfirm}: ReviewDialogP
           <Text style={styles.label}>평가</Text>
           <View style={styles.inputContainer}>
             <RNTextInput
-              style={[styles.input, {color: colors['foreground-onsurface']}]}
+              style={[styles.input, {color: colors['foreground/on-surface']}]}
               value={evaluation}
               onChangeText={setEvaluation}
               placeholder="이번 결과에 대한 평가를 입력하세요."
-              placeholderTextColor={colors['foreground-onsurfacemuted']}
+              placeholderTextColor={colors['foreground/on-surface-muted']}
               multiline
               textAlignVertical="top"
             />
@@ -71,11 +73,11 @@ export function ReviewDialog({visible, onClose, value, onConfirm}: ReviewDialogP
           <Text style={styles.label}>다음 개선 점</Text>
           <View style={styles.inputContainer}>
             <RNTextInput
-              style={[styles.input, {color: colors['foreground-onsurface']}]}
+              style={[styles.input, {color: colors['foreground/on-surface']}]}
               value={improvement}
               onChangeText={setImprovement}
               placeholder="다음에 개선할 점을 입력하세요."
-              placeholderTextColor={colors['foreground-onsurfacemuted']}
+              placeholderTextColor={colors['foreground/on-surface-muted']}
               multiline
               textAlignVertical="top"
             />
@@ -86,7 +88,7 @@ export function ReviewDialog({visible, onClose, value, onConfirm}: ReviewDialogP
   );
 }
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   content: {
     gap: Spacing.md,
   },
@@ -98,12 +100,12 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontSize: Typography.label.medium.fontSize,
     fontWeight: Typography.label.medium.fontWeight as '600',
     lineHeight: Typography.label.medium.lineHeight,
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
     marginTop: FONT_BASELINE_OFFSET,
     paddingHorizontal: Spacing.xs,
   },
   inputContainer: {
-    backgroundColor: colors['surface-surfacecontainer'],
+    backgroundColor: colors['surface/container'],
     borderRadius: Radius['radius-md'],
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.smd,

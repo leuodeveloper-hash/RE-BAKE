@@ -1,23 +1,19 @@
 import React, {useCallback, useMemo, useState} from 'react';
-import {StyleSheet, TextInput as RNTextInput, View} from 'react-native';
-import {AppBar, FloatingNavBar, navPillStyle} from '@components/Navigation';
-import {GlassContainer} from '@components/Container';
-import {IconButton} from '@components/IconButton';
+import {AppBar} from '@components/Navigation';
 import {EmptyState} from '@components/EmptyState';
 import {Menu} from '@components/Menu';
-import {PdfPreviewDialog} from '@components/Dialog';
+import {Dialog, PdfPreviewDialog} from '@components/Dialog';
+import {Button} from '@components/Button';
+import {SearchCommandBar} from '@components/SearchCommandBar';
 import {RecipeListTemplate} from '@components/Recipe/RecipeListTemplate';
-import {useColors} from '@contexts/ThemeContext';
+import {useColorsV2} from '@contexts/ThemeContext';
 import {useRecipes} from '@contexts/RecipeContext';
-import {Typography} from '@constants/typography';
-import {Spacing} from '@constants/spacing';
 import type {Recipe} from '../types/recipe';
 import {getRecipeMenuItems} from '@utils/recipeMenuItems';
 import {
   IconExprolerBookFilled,
-  IconSearch,
-  IconClose,
-  IconCloseCircleFilled,
+  IconNoteFilled,
+  IconTrashTwotone,
 } from '@components/Icon/IconIndex';
 import {getColorVarKey} from '@components/ColorPicker/ColorPicker';
 import type {ExploreCookbook} from '@hooks/useExploreRecipes';
@@ -41,7 +37,7 @@ export interface ExploreScreenProps {
   onAddRecipe?: (cookbook?: string) => void;
   onComingSoon: () => void;
   onRefresh?: () => void;
-  /** 둘러보기 요리책 목록 (이름+컬러) */
+  /** 둘러보기 레시피 북 목록 (이름+컬러) */
   exploreCookbooks?: ExploreCookbook[];
   /** 무료 유저 여부 (true면 3개 제한 + paywall) */
   isFreeUser?: boolean;
@@ -62,11 +58,11 @@ export function ExploreScreen({
   exploreCookbooks,
   isFreeUser = false,
 }: ExploreScreenProps) {
-  const colors = useColors();
+  const colors = useColorsV2();
   const {selectedExploreCookbook, setSelectedExploreCookbook} = useRecipes();
   const [selectedCategory, setSelectedCategory] = useState(selectedExploreCookbook ?? '제과기능사');
 
-  // 외부에서 요리책 필터가 설정되면 반영 후 초기화
+  // 외부에서 레시피 북 필터가 설정되면 반영 후 초기화
   React.useEffect(() => {
     if (selectedExploreCookbook) {
       setSelectedCategory(selectedExploreCookbook);
@@ -75,8 +71,8 @@ export function ExploreScreen({
   }, [selectedExploreCookbook, setSelectedExploreCookbook]);
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
   const [pdfRecipe, setPdfRecipe] = useState<Recipe | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
 
   const cardMenuItems = useMemo(
     () => isAdmin ? ADMIN_CARD_MENU_ITEMS : BASE_CARD_MENU_ITEMS,
@@ -90,22 +86,22 @@ export function ExploreScreen({
   }, [exploreCookbooks]);
 
   const categoryMenuItems = useMemo(() => {
-    // 레시피가 있는 요리책 카운트
+    // 레시피가 있는 레시피 북 카운트
     const recipeCounts = new Map<string, number>();
     for (const r of data) {
-      const key = r.cookbook || '그룹없음';
+      const key = r.cookbook || '공식 레시피 북 없음';
       recipeCounts.set(key, (recipeCounts.get(key) ?? 0) + 1);
     }
-    // exploreCookbooks의 빈 요리책도 포함
+    // exploreCookbooks의 빈 레시피 북도 포함
     const allNames = new Set([
       ...recipeCounts.keys(),
       ...(exploreCookbooks ?? []).map(c => c.name),
     ]);
     const items: {id: string; label: string; icon?: React.FC<any>; iconColor?: string; disabled?: boolean}[] = [
-      {id: '__all__', label: '모든 요리책'},
+      {id: '__all__', label: '모든 레시피 북'},
     ];
     for (const name of allNames) {
-      if (name === '그룹없음') continue;
+      if (name === '공식 레시피 북 없음') continue;
       const ecColor = exploreCookbookMap.get(name);
       const count = recipeCounts.get(name) ?? 0;
       items.push({
@@ -116,27 +112,21 @@ export function ExploreScreen({
         disabled: count === 0,
       });
     }
-    if (recipeCounts.has('그룹없음')) {
-      items.push({id: '그룹없음', label: '그룹없음'});
+    if (recipeCounts.has('공식 레시피 북 없음')) {
+      items.push({id: '공식 레시피 북 없음', label: '공식 레시피 북 없음'});
     }
     return items;
   }, [data, exploreCookbookMap, exploreCookbooks, colors]);
 
   const filteredData = useMemo(() => {
     let result = data;
-    if (selectedCategory === '그룹없음') {
+    if (selectedCategory === '공식 레시피 북 없음') {
       result = result.filter(r => !r.cookbook);
     } else if (selectedCategory && selectedCategory !== '__all__') {
       result = result.filter(r => r.cookbook === selectedCategory);
     }
-    if (!searchQuery.trim()) return result;
-    const q = searchQuery.trim().toLowerCase();
-    return result.filter(r =>
-      r.title.toLowerCase().includes(q) ||
-      r.method?.toLowerCase().includes(q) ||
-      r.cookbook?.toLowerCase().includes(q),
-    );
-  }, [data, selectedCategory, searchQuery]);
+    return result;
+  }, [data, selectedCategory]);
 
   // 무료 유저: 전체 표시하되 잠금 처리
   const paywallData = filteredData;
@@ -152,10 +142,19 @@ export function ExploreScreen({
     onRecipePress(recipe, lockedRecipeIds?.has(recipe.id));
   }, [lockedRecipeIds, onRecipePress]);
 
-  const closeSearch = useCallback(() => {
-    setShowSearch(false);
-    setSearchQuery('');
-  }, []);
+  const searchItems = useMemo(() =>
+    data.map(r => {
+      const ecColor = r.cookbook ? exploreCookbookMap.get(r.cookbook) : undefined;
+      return {
+        id: r.id,
+        label: r.title,
+        locked: lockedRecipeIds?.has(r.id),
+        iconColor: r.cookbook ? colors[getColorVarKey((ecColor ?? 'orange') as any)] : undefined,
+        searchableTexts: [r.cookbook, r.method, r.specificGravity].filter(Boolean) as string[],
+      };
+    }),
+    [data, lockedRecipeIds, exploreCookbookMap, colors],
+  );
 
   const handleCardMenuSelect = useCallback((id: string, recipe: Recipe) => {
     if (id === 'save') {
@@ -165,7 +164,7 @@ export function ExploreScreen({
     } else if (id === 'edit' && onEditRecipe) {
       onEditRecipe(recipe);
     } else if (id === 'delete' && onDeleteRecipe) {
-      onDeleteRecipe(recipe);
+      setDeleteTarget(recipe);
     } else {
       onComingSoon();
     }
@@ -182,7 +181,6 @@ export function ExploreScreen({
       onRefresh={onRefresh}
       onOverlayPress={() => setShowCategoryMenu(false)}
       extraOverlayVisible={showCategoryMenu}
-      forceLayout={showSearch && searchQuery.trim() ? 'list' : undefined}
       scrollEnabled
       lockedRecipeIds={lockedRecipeIds}
       listEmptyComponent={
@@ -192,16 +190,10 @@ export function ExploreScreen({
             title="네트워크에 연결할 수 없어요."
             subtitle="인터넷 연결을 확인하고 다시 시도해 주세요."
           />
-        ) : showSearch && searchQuery.trim() ? (
-          <EmptyState
-            category="no-results"
-            title="검색된 결과가 없네요."
-            subtitle={`'${searchQuery.trim()}'에 해당하는 레시피를 찾지 못했어요.`}
-          />
         ) : selectedCategory && selectedCategory !== '__all__' ? (
           <EmptyState
             image={emptyCookbookImage}
-            title="요리책이 비어 있어요."
+            title="레시피 북이 비어 있어요."
             subtitle="첫 레시피를 추가해보세요."
             actionLabel={onAddRecipe ? '레시피 추가하기' : undefined}
             onAction={onAddRecipe ? () => onAddRecipe(selectedCategory) : undefined}
@@ -215,85 +207,44 @@ export function ExploreScreen({
         ) : undefined
       }
       renderAppBar={({handleFilterPress, showLayoutMenu, closeMenus, layoutMenu}) =>
-        showSearch ? (
-          <FloatingNavBar
-            leftFull
-            left={
-              <View style={styles.searchBar}>
-                <GlassContainer contentStyle={navPillStyle}>
-                  <IconButton
-                    icon={IconClose}
-                    onPress={closeSearch}
-                    variant="ghost-secondary"
-                    size="medium"
-                  />
-                </GlassContainer>
-                <GlassContainer style={styles.searchPillOuter} contentStyle={styles.searchPill}>
-                  <IconButton
-                    icon={IconSearch}
-                    variant="ghost-secondary"
-                    size="medium"
-                  />
-                  <RNTextInput
-                    value={searchQuery}
-                    onChangeText={setSearchQuery}
-                    placeholder="검색어를 입력하세요."
-                    placeholderTextColor={colors['foreground-onsurfacemuted']}
-                    autoFocus
-                    style={[styles.searchInput, {color: colors['foreground-onsurface']}]}
-                  />
-                  {searchQuery.length > 0 && (
-                    <IconButton
-                      icon={IconCloseCircleFilled}
-                      onPress={() => setSearchQuery('')}
-                      variant="ghost-secondary"
-                      size="medium"
-                    />
-                  )}
-                </GlassContainer>
-              </View>
-            }
-          />
-        ) : (
-          <AppBar
-            title={categoryMenuItems.find(c => c.id === selectedCategory)?.label ?? selectedCategory}
-            showDropdown
-            showAddButton={!!onAddRecipe}
-            showSearchButton
-            showMenuButton={false}
-            onTitlePress={() => {
-              closeMenus();
-              setShowCategoryMenu(prev => !prev);
-            }}
-            onAddPress={() => {
-              closeMenus();
-              setShowCategoryMenu(false);
-              onAddRecipe?.();
-            }}
-            onSearchPress={() => {
-              closeMenus();
-              setShowCategoryMenu(false);
-              setShowSearch(true);
-            }}
-            onFilterPress={() => {
-              setShowCategoryMenu(false);
-              handleFilterPress();
-            }}
-            filterMenuOpen={showLayoutMenu}
-            titleMenu={
-              <Menu
-                items={categoryMenuItems}
-                selectedId={selectedCategory}
-                onSelect={(id) => {
-                  setSelectedCategory(id);
-                  setShowCategoryMenu(false);
-                }}
-                visible={showCategoryMenu}
-              />
-            }
-            rightMenu={layoutMenu}
-          />
-        )
+        <AppBar
+          title={categoryMenuItems.find(c => c.id === selectedCategory)?.label ?? selectedCategory}
+          showDropdown
+          showAddButton={!!onAddRecipe}
+          showSearchButton
+          showMenuButton={false}
+          onTitlePress={() => {
+            closeMenus();
+            setShowCategoryMenu(prev => !prev);
+          }}
+          onAddPress={() => {
+            closeMenus();
+            setShowCategoryMenu(false);
+            onAddRecipe?.(selectedCategory !== '__all__' ? selectedCategory : undefined);
+          }}
+          onSearchPress={() => {
+            closeMenus();
+            setShowCategoryMenu(false);
+            setShowSearch(true);
+          }}
+          onFilterPress={() => {
+            setShowCategoryMenu(false);
+            handleFilterPress();
+          }}
+          filterMenuOpen={showLayoutMenu}
+          titleMenu={
+            <Menu
+              items={categoryMenuItems}
+              selectedId={selectedCategory}
+              onSelect={(id) => {
+                setSelectedCategory(id);
+                setShowCategoryMenu(false);
+              }}
+              visible={showCategoryMenu}
+            />
+          }
+          rightMenu={layoutMenu}
+        />
       }
     />
 
@@ -314,32 +265,42 @@ export function ExploreScreen({
         stepGroups: pdfRecipe.stepGroups,
       } : undefined}
     />
+
+    <SearchCommandBar
+      visible={showSearch}
+      onClose={() => setShowSearch(false)}
+      items={searchItems}
+      icon={IconNoteFilled}
+      iconColor={colors['custom/green-var']}
+      onSelect={(id) => {
+        setShowSearch(false);
+        const recipe = data.find(r => r.id === id);
+        if (recipe) handleRecipePress(recipe);
+      }}
+    />
+
+    <Dialog
+      visible={!!deleteTarget}
+      onClose={() => setDeleteTarget(null)}
+      icon={IconTrashTwotone}
+      avatarColor="red"
+      title="레시피를 삭제할까요?"
+      description="24시간 이내에 되돌릴 수 있습니다."
+      actions={
+        <>
+          <Button label="취소" variant="soft" onPress={() => setDeleteTarget(null)} />
+          <Button
+            label="삭제"
+            variant="soft"
+            destructive
+            onPress={() => {
+              if (deleteTarget) onDeleteRecipe?.(deleteTarget);
+              setDeleteTarget(null);
+            }}
+          />
+        </>
+      }
+    />
     </>
   );
 }
-
-const styles = StyleSheet.create({
-  searchBar: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: Spacing.sm,
-    flex: 1,
-  },
-  searchPillOuter: {
-    flex: 1,
-    maxWidth: 480,
-  },
-  searchPill: {
-    ...navPillStyle,
-    paddingHorizontal: Spacing.xs,
-  },
-  searchInput: {
-    flex: 1,
-    fontFamily: Typography.body.medium.fontFamily,
-    fontSize: Typography.body.medium.fontSize,
-    lineHeight: Typography.body.medium.lineHeight,
-    letterSpacing: -0.25,
-    paddingVertical: 2,
-    outlineStyle: 'none',
-  } as any,
-});

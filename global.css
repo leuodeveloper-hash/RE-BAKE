@@ -2,3 +2,10 @@
 textarea {
   field-sizing: content;
 }
+
+/* Web: 기본 포커스 아웃라인 제거 (인라인 스타일 오버라이드) */
+*:focus,
+*:focus-visible {
+  outline: none !important;
+  box-shadow: none !important;
+}

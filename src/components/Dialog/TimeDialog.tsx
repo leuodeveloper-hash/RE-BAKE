@@ -3,8 +3,8 @@ import {StyleSheet, Text, View} from 'react-native';
 import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
 import {TextInput} from '@components/TextInput';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import type {SemanticColors} from '@constants/tokens';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {IconClockTwotone} from '@components/Icon/IconIndex';
@@ -37,7 +37,7 @@ function formatTime(hours: string, minutes: string): string {
 }
 
 export function TimeDialog({visible, onClose, value, onConfirm}: TimeDialogProps) {
-  const styles = useThemedStyles(createStyles);
+  const styles = useThemedStylesV2(createStyles);
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
 
@@ -96,7 +96,7 @@ export function TimeDialog({visible, onClose, value, onConfirm}: TimeDialogProps
   );
 }
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'flex-end',
@@ -107,7 +107,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   colon: {
     ...Typography.title.large,
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
     marginBottom: Spacing.smd,
     marginTop: FONT_BASELINE_OFFSET,
   },

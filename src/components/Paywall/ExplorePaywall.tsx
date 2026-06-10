@@ -2,7 +2,7 @@ import React from 'react';
 import {StyleSheet, View} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import {Button} from '@components/Button';
-import {useColors} from '@contexts/ThemeContext';
+import {useColorsV2} from '@contexts/ThemeContext';
 import {Spacing} from '@constants/spacing';
 import {IconVideoPlay} from '@components/Icon/IconIndex';
 import {SUBSCRIPTION_ENABLED} from '@contexts/SubscriptionContext';
@@ -20,8 +20,8 @@ interface ExplorePaywallProps {
  * SUBSCRIPTION_ENABLED일 때 "Pro 구독" 버튼도 표시.
  */
 export function ExplorePaywall({onWatchAd, adLoading, onSubscribe}: ExplorePaywallProps) {
-  const colors = useColors();
-  const bgColor = colors['surface-surfacedim'];
+  const colors = useColorsV2();
+  const bgColor = colors['surface/dim'];
 
   return (
     <View style={styles.container} pointerEvents="box-none">

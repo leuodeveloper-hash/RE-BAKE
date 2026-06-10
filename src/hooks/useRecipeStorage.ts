@@ -12,6 +12,7 @@ import {
 } from 'firebase/firestore';
 import {db} from '@config/firebase';
 import {useAuth} from '@contexts/AuthContext';
+import {useSubscription} from '@contexts/SubscriptionContext';
 import type {Recipe, RecipeExportData} from '../types/recipe';
 import {addToQueue, hasPendingOps, processQueue} from '@utils/syncQueue';
 import {getDeviceName} from '@utils/deviceInfo';
@@ -19,6 +20,9 @@ import {uploadRecipeImage, isLocalUri} from '@utils/imageUpload';
 import {useOnlineStatus} from './useOnlineStatus';
 
 const STORAGE_KEY = 'bakecycle_recipes_v4';
+
+/** 로그인 유저 최대 레시피 수 (클라우드 동기화 제한) */
+export const MAX_CLOUD_RECIPES = 30;
 
 /** 기존 category 필드를 cookbook으로 마이그레이션 */
 function migrateRecipe(recipe: any): Recipe {
@@ -67,6 +71,7 @@ async function uploadLocalImages(recipe: Recipe): Promise<Recipe> {
   let changed = false;
 
   // 메인 이미지
+  console.log('[Upload] checking recipe:', recipe.id, 'imageUri:', updated.imageUri?.substring(0, 50), 'isLocal:', updated.imageUri ? isLocalUri(updated.imageUri) : false);
   if (updated.imageUri && isLocalUri(updated.imageUri)) {
     try {
       updated.imageUri = await uploadRecipeImage(updated.imageUri, `${recipe.id}_thumb`);
@@ -94,7 +99,7 @@ async function uploadLocalImages(recipe: Recipe): Promise<Recipe> {
             try {
               changed = true;
               return await uploadRecipeImage(uri, `${recipe.id}_g${gIdx}_s${sIdx}_p${pIdx}`);
-            } catch { return uri; }
+            } catch (e) { console.warn('[Storage] stepGroup photo upload failed:', e); return uri; }
           }),
         );
         newSteps.push({...s, photos});
@@ -104,7 +109,43 @@ async function uploadLocalImages(recipe: Recipe): Promise<Recipe> {
     if (changed) updated.stepGroups = newGroups;
   }
 
+  // steps (플랫 구조) 내 사진
+  if (updated.steps) {
+    const newSteps = [];
+    for (let sIdx = 0; sIdx < updated.steps.length; sIdx++) {
+      const s = updated.steps[sIdx];
+      if (!s.photos?.some(isLocalUri)) {
+        newSteps.push(s);
+        continue;
+      }
+      const photos = await Promise.all(
+        s.photos!.map(async (uri, pIdx) => {
+          if (!isLocalUri(uri)) return uri;
+          try {
+            changed = true;
+            return await uploadRecipeImage(uri, `${recipe.id}_s${sIdx}_p${pIdx}`);
+          } catch (e) { console.warn('[Storage] step photo upload failed:', e); return uri; }
+        }),
+      );
+      newSteps.push({...s, photos});
+    }
+    if (changed) updated.steps = newSteps;
+  }
+
   return changed ? updated : recipe;
+}
+
+/** undefined 값을 재귀적으로 제거 (Firestore는 undefined 미지원) */
+function stripUndefined(obj: any): any {
+  if (Array.isArray(obj)) return obj.map(stripUndefined);
+  if (obj && typeof obj === 'object') {
+    return Object.fromEntries(
+      Object.entries(obj)
+        .filter(([, v]) => v !== undefined)
+        .map(([k, v]) => [k, stripUndefined(v)]),
+    );
+  }
+  return obj;
 }
 
 /** Firestore에 레시피 배열을 동기화 (batch write) */
@@ -112,7 +153,7 @@ async function syncToFirestore(uid: string, recipes: Recipe[]) {
   const colRef = collection(db, 'user_recipes', uid, 'recipes');
   const batch = writeBatch(db);
   for (const recipe of recipes) {
-    batch.set(doc(colRef, recipe.id), recipe);
+    batch.set(doc(colRef, recipe.id), stripUndefined(recipe));
   }
   await batch.commit();
   // 동기화한 기기 정보 기록
@@ -124,6 +165,8 @@ async function syncToFirestore(uid: string, recipes: Recipe[]) {
 
 export function useRecipeStorage() {
   const {user} = useAuth();
+  const {isPro} = useSubscription();
+  const cloudEnabled = !!user && isPro;
   const isOnline = useOnlineStatus();
   const [recipes, setRecipesState] = useState<Recipe[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -134,7 +177,7 @@ export function useRecipeStorage() {
   /** 로컬 쓰기 중 onSnapshot이 state를 덮어쓰지 않도록 하는 가드 */
   const localWritePending = useRef(false);
 
-  // 데이터 로드: 로그인 시 Firestore, 비로그인 시 AsyncStorage
+  // 데이터 로드: Pro 유저 Firestore, 그 외 AsyncStorage
   useEffect(() => {
     // 이전 Firestore 구독 정리
     if (firestoreUnsubRef.current) {
@@ -142,12 +185,12 @@ export function useRecipeStorage() {
       firestoreUnsubRef.current = null;
     }
 
-    if (user) {
+    if (cloudEnabled && user) {
       // Firestore 실시간 구독
       const colRef = collection(db, 'user_recipes', user.uid, 'recipes');
       const unsub = onSnapshot(colRef, (snapshot) => {
         if (snapshot.empty && !initialized.current) {
-          // 첫 로그인: 로컬 데이터를 Firestore에 시딩
+          // Pro 전환 시: 로컬 데이터를 Firestore에 시딩
           (async () => {
             try {
               const stored = await AsyncStorage.getItem(STORAGE_KEY);
@@ -169,15 +212,16 @@ export function useRecipeStorage() {
         );
         setRecipesState(firestoreRecipes);
         if (!initialized.current) {
-          // 첫 스냅샷: 마지막 동기화 기기 정보 읽기
+          // 첫 스냅샷: 마지막 동기화 정보 읽기
           getDoc(doc(db, 'users', user.uid)).then(userDoc => {
             if (userDoc.exists()) {
-              setLastSyncedDevice(userDoc.data().lastSyncedDevice ?? null);
+              const data = userDoc.data();
+              setLastSyncedDevice(data.lastSyncedDevice ?? null);
+              if (data.lastSyncedAt) setLastSyncedAt(new Date(data.lastSyncedAt));
             }
           }).catch(() => {});
         }
         initialized.current = true;
-        setLastSyncedAt(new Date());
         setIsLoading(false);
       }, (error) => {
         // 에러 시 AsyncStorage 폴백
@@ -186,7 +230,7 @@ export function useRecipeStorage() {
       });
       firestoreUnsubRef.current = unsub;
     } else {
-      // 비로그인: AsyncStorage에서 로드
+      // 비Pro / 비로그인: AsyncStorage에서 로드
       loadFromAsyncStorage();
     }
 
@@ -196,11 +240,11 @@ export function useRecipeStorage() {
         firestoreUnsubRef.current = null;
       }
     };
-  }, [user]);
+  }, [cloudEnabled, user]);
 
   // 온라인 복귀 시 큐에 쌓인 작업 처리
   useEffect(() => {
-    if (isOnline && user) {
+    if (isOnline && cloudEnabled && user) {
       (async () => {
         const hadPending = await hasPendingOps();
         if (!hadPending) return;
@@ -215,7 +259,7 @@ export function useRecipeStorage() {
         }
       })();
     }
-  }, [isOnline, user]);
+  }, [isOnline, cloudEnabled, user]);
 
   async function loadFromAsyncStorage() {
     try {
@@ -242,7 +286,13 @@ export function useRecipeStorage() {
         const hasChange = JSON.stringify(next) !== JSON.stringify(prev);
         if (!hasChange) return prev;
 
-        if (user) {
+        // Pro 유저: 레시피 추가 시 최대 개수 제한
+        if (cloudEnabled && next.length > prev.length && next.length > MAX_CLOUD_RECIPES) {
+          console.warn(`[Storage] 레시피 최대 ${MAX_CLOUD_RECIPES}개 제한 초과`);
+          return prev;
+        }
+
+        if (cloudEnabled && user) {
           // Firestore에 동기화 (이미지 업로드 → 동기화)
           localWritePending.current = true;
           const nextIds = new Set(next.map(r => r.id));
@@ -259,8 +309,10 @@ export function useRecipeStorage() {
               }
               // Firestore 동기화 (URL 포함)
               await syncToFirestore(user.uid, uploaded);
+              setLastSyncedAt(new Date());
               setLastSyncedDevice(getDeviceName());
-            } catch {
+            } catch (e) {
+              console.error('[Storage] upload/sync failed:', e);
               addToQueue({type: 'sync', uid: user.uid, data: next});
             }
 
@@ -288,7 +340,7 @@ export function useRecipeStorage() {
         return next;
       });
     },
-    [user],
+    [cloudEnabled, user],
   );
 
   // JSON 내보내기
@@ -409,7 +461,7 @@ export function useRecipeStorage() {
 
   // Pull-to-refresh: 데이터 다시 로드 (isLoading 변경 없이 조용히 갱신)
   const reload = useCallback(async () => {
-    if (user) {
+    if (cloudEnabled && user) {
       try {
         const {getDocs} = require('firebase/firestore');
         const colRef = collection(db, 'user_recipes', user.uid, 'recipes');
@@ -425,7 +477,12 @@ export function useRecipeStorage() {
     } else {
       await loadFromAsyncStorage();
     }
-  }, [user]);
+  }, [cloudEnabled, user]);
 
-  return {recipes, setRecipes, exportRecipes, importRecipes, isLoading, lastSyncedAt, lastSyncedDevice, reload};
+  const canAddRecipe = useCallback(() => {
+    if (!cloudEnabled) return true; // 비Pro/비로그인은 로컬이라 제한 없음
+    return recipes.length < MAX_CLOUD_RECIPES;
+  }, [cloudEnabled, recipes.length]);
+
+  return {recipes, setRecipes, exportRecipes, importRecipes, isLoading, lastSyncedAt, lastSyncedDevice, reload, canAddRecipe};
 }

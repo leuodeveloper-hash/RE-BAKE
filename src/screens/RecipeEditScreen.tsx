@@ -1,35 +1,56 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
+  ActivityIndicator,
   Animated,
   Image,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
   Text,
   TextInput as RNTextInput,
   View,
+  Linking,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import * as Haptics from 'expo-haptics';
+import {getPersistentUri} from '@utils/imageUpload';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {FloatingNavBar, navPillStyle} from '@components/Navigation';
+import {FloatingNavBar, navPillStyle, NAV_PILL_HEIGHT} from '@components/Navigation';
+import {RecipeInputFloatingBar} from '@components/RecipeOcrButton';
+import type {RecipeOcrField} from '@utils/recipeOcr';
 import {ContentContainer, Card, GlassContainer} from '@components/Container';
 import {IconButton} from '@components/IconButton';
 import {ListItem} from '@components/ListItem';
 import {Menu} from '@components/Menu';
 import {CookbookSelectSheet} from '@components/BottomSheet';
 import {EditableChip} from '@components/EditableChip';
+import {Switch} from '@components/Switch';
 import {OptionTile} from '@components/OptionTile';
+import {StepPhotos} from '@components/StepPhotos';
 import {FieldManageDialog, TimeDialog, ServingsDialog, IngredientAmountDialog} from '@components/Dialog';
 import type {ReviewData} from '@components/Dialog';
 import {TextInput} from '@components/TextInput';
+import {DragHandle} from '@components/DragHandle';
+import {useSnackbar} from '@contexts/SnackbarContext';
 import {getColorVarKey} from '@components/ColorPicker';
 import type {AvatarColor} from '@components/Avatar/Avatar';
+import {RainbowText} from '@components/RainbowText';
+import {SkeletonLine} from '@components/SkeletonLine';
+import {YouTubePlayerModal} from '@components/YouTubePlayer';
+import {parseYouTubeVideoId} from '@utils/youtube';
+import {
+  bulkTextToIngredients,
+  bulkTextToToolNames,
+  ingredientsToBulkText,
+  toolsToBulkText,
+} from '@utils/recipeBulkText';
 import {Radius} from '@constants/tokens';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import {useColors} from '@contexts/ThemeContext';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useColorsV2} from '@contexts/ThemeContext';
 import {useAddSheet} from '@contexts/AddSheetContext';
-import {useDragReorder, ROW_HEIGHT, dragStyles} from '@hooks/useDragReorder';
-import type {SemanticColors} from '@constants/tokens';
+import {useDragReorder, ROW_HEIGHT} from '@hooks/useDragReorder';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {
@@ -42,8 +63,8 @@ import {
   IconHash,
   IconMinus,
   IconAdd,
-  IconDragger,
   IconChevronRight,
+  IconChevronDown,
   IconBookFilled,
   IconExprolerBookFilled,
   IconSettingsFilled,
@@ -59,6 +80,11 @@ import {
   IconCornerDownRight,
   IconEdit,
   IconTrash,
+  IconLogoSymbol,
+  IconBlockPlus,
+  IconLink,
+  IconArrowTopRight,
+  IconMic,
 } from '@components/Icon/IconIndex';
 
 // ---- Types ----
@@ -75,6 +101,7 @@ interface EditableStep {
   description: string;
   tip?: string;
   caution?: string;
+  photos?: string[];
 }
 
 interface IngredientGroup {
@@ -86,6 +113,12 @@ interface IngredientGroup {
 interface EditableTool {
   id: string;
   name: string;
+}
+
+interface EditableToolGroup {
+  id: string;
+  title: string;
+  tools: EditableTool[];
 }
 
 interface StepGroup {
@@ -105,12 +138,14 @@ export interface RecipeEditScreenProps {
     servings?: string;
     session?: string;
     ingredientGroups: {title: string; ingredients: {name: string; amount: string}[]}[];
-    tools: {name: string}[];
-    stepGroups: {title: string; steps: {step: number; description: string; tip?: string; caution?: string}[]}[];
+    toolGroups: {title: string; tools: {name: string}[]}[];
+    stepGroups: {title: string; steps: {step: number; description: string; tip?: string; caution?: string; photos?: string[]}[]}[];
     activeFieldIds: string[];
     reviews?: ReviewData[];
+    advice?: string;
     imageUri?: string;
-  }) => void;
+    referenceUrl?: string;
+  }) => void | Promise<void>;
   /** 편집 시 전달되는 레시피 데이터 (없으면 빈 생성 화면) */
   recipe?: {
     title: string;
@@ -119,28 +154,31 @@ export interface RecipeEditScreenProps {
     specificGravity?: string;
     ingredientGroups?: {title: string; ingredients: {name: string; amount: string}[]}[];
     tools?: {name: string}[];
-    steps?: {step: number; description: string; tip?: string; caution?: string}[];
-    stepGroups?: {title: string; steps: {step: number; description: string; tip?: string; caution?: string}[]}[];
+    toolGroups?: {title: string; tools: {name: string}[]}[];
+    steps?: {step: number; description: string; tip?: string; caution?: string; photos?: string[]}[];
+    stepGroups?: {title: string; steps: {step: number; description: string; tip?: string; caution?: string; photos?: string[]}[]}[];
     activeFieldIds?: string[];
     imageUri?: string;
     reviews?: ReviewData[];
+    advice?: string;
     time?: string;
     servings?: string;
     session?: string;
+    referenceUrl?: string;
   };
-  /** 선택 가능한 요리책 목록 */
+  /** 선택 가능한 레시피 북 목록 */
   cookbooks?: string[];
-  /** 요리책별 색상 매핑 */
+  /** 레시피 북별 색상 매핑 */
   cookbookColors?: Record<string, AvatarColor>;
-  /** 요리책 색상 설정 콜백 */
+  /** 레시피 북 색상 설정 콜백 */
   onSetCookbookColor?: (name: string, color: AvatarColor) => void;
   /** 열릴 때 스크롤할 섹션 ID (ingredients, tools, steps, review) */
   initialSection?: string;
-  /** 생성 시 초기 요리책 */
+  /** 생성 시 초기 레시피 북 */
   initialCookbook?: string;
   /** 둘러보기(공식) 레시피 편집 모드 */
   isExplore?: boolean;
-  /** 요리책 삭제 콜백 */
+  /** 레시피 북 삭제 콜백 */
   onDeleteCookbook?: (name: string) => void;
 }
 
@@ -149,14 +187,20 @@ const EDIT_MENU_ITEMS = [
   {id: 'field-manage', label: '필드관리', icon: IconSettingsFilled},
 ];
 
-// 요리책 오버플로우 메뉴 아이템
+// 레시피 북 오버플로우 메뉴 아이템
 const COOKBOOK_SHEET_MENU_ITEMS = [
   {id: 'rename', label: '편집', icon: IconEdit},
   {id: 'delete', label: '삭제', icon: IconTrash, destructive: true},
 ];
 
 // 슬래시 메뉴 아이템
+const BAKING_METHODS = [
+  '시폰법', '별립법', '공립법', '슈가법', '익반죽법', '크림법',
+  '제노아즈법', '머랭법', '핫프로세스법', '냉동반죽법',
+];
+
 const SLASH_MENU_ITEMS = [
+  {id: 'photo', label: '사진', icon: IconPhoto},
   {id: 'tip', label: '팁', icon: IconAstriks},
   {id: 'caution', label: '주의사항', icon: IconCircleAlertFilled},
 ];
@@ -168,10 +212,11 @@ const noOutline: any = {outlineStyle: 'none'};
 // ---- Component ----
 
 export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookColors: cookbookColorsProp, onSetCookbookColor, initialSection, initialCookbook, isExplore, onDeleteCookbook}: RecipeEditScreenProps) {
-  const styles = useThemedStyles(createStyles);
-  const colors = useColors();
+  const styles = useThemedStylesV2(createStyles);
+  const colors = useColorsV2();
   const {setShowCookbookDialog, setCookbookEditTarget, onCookbookCreatedRef} = useAddSheet();
   const insets = useSafeAreaInsets();
+  const {showSnackbar} = useSnackbar();
   const nextIdRef = useRef(100);
   const genId = () => String(nextIdRef.current++);
 
@@ -179,6 +224,112 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   const [title, setTitle] = useState(() => recipe?.title ?? '');
   const [titleError, setTitleError] = useState(false);
   const titleInputRef = useRef<RNTextInput>(null);
+  // OCR 툴바: 활성 필드 추적 (키보드 위 고정이라 위치 측정 불필요)
+  const [focusedOcrField, setFocusedOcrField] = useState<RecipeOcrField | null>(null);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const typewriterRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  useEffect(() => () => {
+    if (typewriterRef.current) clearInterval(typewriterRef.current);
+    if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+    if (stepsTypewriterRef.current) clearTimeout(stepsTypewriterRef.current);
+  }, []);
+  const handleFieldFocus = useCallback((f: RecipeOcrField, _e?: any) => {
+    if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+    setFocusedOcrField(f);
+  }, []);
+  const handleFieldBlur = useCallback(() => {
+    if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+    blurTimerRef.current = setTimeout(() => {
+      setFocusedOcrField(null);
+    }, 250);
+  }, []);
+  const [typing, setTyping] = useState(false);
+  const [typingField, setTypingField] = useState<RecipeOcrField | null>(null);
+  const typingTargetRef = useRef<{value: string; setter: (v: string) => void} | null>(null);
+  // steps 점진 노출 후 마무리 대기 시간
+  const REVEAL_TAIL_MS = 3800;
+  // steps 청크 간격 (2 항목씩)
+  const CHUNK_INTERVAL_MS = 220;
+
+  // 애니메이션 종료(RainbowText onDone)에서 호출 — 오버레이 숨기고 실제 입력값(on-surface) 노출
+  const finishTyping = useCallback(() => {
+    if (typewriterRef.current) { clearTimeout(typewriterRef.current); typewriterRef.current = null; }
+    setTyping(false);
+    setTypingField(null);
+    typingTargetRef.current = null;
+  }, []);
+
+  /** 최종 값을 세팅하고 RainbowText 애니메이션(muted reveal → on-surface 변환 파도) 시작 */
+  const typewriteString = useCallback((target: string, setter: (v: string) => void, field: RecipeOcrField | null = null) => {
+    if (typewriterRef.current) { clearTimeout(typewriterRef.current); typewriterRef.current = null; }
+    typingTargetRef.current = {value: target, setter};
+    setter(target);
+    setTyping(true);
+    setTypingField(field);
+  }, []);
+
+  /** 기존 텍스트(prefix)에 새 항목을 이어붙인 최종 값을 세팅하고 애니메이션 시작 */
+  const typewriteAppendItems = useCallback((newItems: string[], prefix: string, setter: (v: string) => void, field: RecipeOcrField | null = null) => {
+    if (typewriterRef.current) { clearTimeout(typewriterRef.current); typewriterRef.current = null; }
+    const full = prefix + newItems.join(', ');
+    typingTargetRef.current = {value: full, setter};
+    setter(full);
+    setTyping(true);
+    setTypingField(field);
+  }, []);
+  // 타이핑/OCR 중단: 현재 타이핑 중이면 즉시 전체 값 채우고 종료
+  const stopTyping = useCallback(() => {
+    if (typewriterRef.current) {
+      clearInterval(typewriterRef.current);
+      typewriterRef.current = null;
+    }
+    const t = typingTargetRef.current;
+    if (t) t.setter(t.value);
+    typingTargetRef.current = null;
+    if (stepsTypewriterRef.current) {
+      clearTimeout(stepsTypewriterRef.current);
+      stepsTypewriterRef.current = null;
+    }
+    setTyping(false);
+    setTypingField(null);
+  }, []);
+
+  const stepsTypewriterRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** step descriptions를 2개씩 점진적으로 추가 + 무지개 스윕 유지 */
+  const typewriteSteps = useCallback((descriptions: string[]) => {
+    if (typewriterRef.current) { clearTimeout(typewriterRef.current); typewriterRef.current = null; }
+    if (stepsTypewriterRef.current) { clearTimeout(stepsTypewriterRef.current); stepsTypewriterRef.current = null; }
+    if (descriptions.length === 0) return;
+    setTyping(true);
+    setTypingField('steps');
+    // 시작: 빈 step만 남기기
+    setStepGroups(prev => prev.map((g, gi) => gi === 0
+      ? {...g, steps: []}
+      : g));
+    let revealed = 0;
+    const CHUNK = 2;
+    const finalize = () => {
+      stepsTypewriterRef.current = setTimeout(() => {
+        setTyping(false);
+        setTypingField(null);
+        stepsTypewriterRef.current = null;
+      }, REVEAL_TAIL_MS);
+    };
+    const tick = () => {
+      revealed = Math.min(revealed + CHUNK, descriptions.length);
+      const slice = descriptions.slice(0, revealed);
+      setStepGroups(prev => prev.map((g, gi) => gi === 0
+        ? {...g, steps: slice.map(description => ({id: genId(), description}))}
+        : g));
+      if (revealed >= descriptions.length) {
+        finalize();
+      } else {
+        stepsTypewriterRef.current = setTimeout(tick, CHUNK_INTERVAL_MS);
+      }
+    };
+    stepsTypewriterRef.current = setTimeout(tick, 0);
+  }, []);
   const [cookbook, setCookbook] = useState(() => recipe?.cookbook ?? initialCookbook ?? '');
   const [method, setMethod] = useState(() => recipe?.method ?? '');
   const [ratio, setRatio] = useState(() => recipe?.specificGravity ?? '');
@@ -207,11 +358,18 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     }
     return [{id: genId(), title: '재료', ingredients: [{id: genId(), name: '', amount: '', unit: 'g'}]}];
   });
-  const [tools, setTools] = useState<EditableTool[]>(() => {
-    if (recipe?.tools) {
-      return recipe.tools.map(t => ({id: genId(), name: t.name}));
+  const [toolGroups, setToolGroups] = useState<EditableToolGroup[]>(() => {
+    if (recipe?.toolGroups) {
+      return recipe.toolGroups.map(g => ({
+        id: genId(),
+        title: g.title,
+        tools: g.tools.map(t => ({id: genId(), name: t.name})),
+      }));
     }
-    return [{id: genId(), name: ''}];
+    if (recipe?.tools) {
+      return [{id: genId(), title: '도구', tools: recipe.tools.map(t => ({id: genId(), name: t.name}))}];
+    }
+    return [{id: genId(), title: '도구', tools: [{id: genId(), name: ''}]}];
   });
   const [stepGroups, setStepGroups] = useState<StepGroup[]>(() => {
     if (recipe?.stepGroups) {
@@ -223,6 +381,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           description: s.description,
           tip: s.tip,
           caution: s.caution,
+          photos: s.photos,
         })),
       }));
     }
@@ -235,6 +394,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           description: s.description,
           tip: s.tip,
           caution: s.caution,
+          photos: s.photos,
         })),
       }];
     }
@@ -242,14 +402,29 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   });
   const [showMenu, setShowMenu] = useState(false);
   const [showCookbookMenu, setShowCookbookMenu] = useState(false);
+  const [showMethodMenu, setShowMethodMenu] = useState(false);
   const [cookbookOverflowTarget, setCookbookOverflowTarget] = useState<string | null>(null);
   const [cookbookMenuPos, setCookbookMenuPos] = useState({top: 0, right: 0});
   const cookbookItemLayouts = useRef<Record<string, {y: number; height: number}>>({});
   const [localCookbooks, setLocalCookbooks] = useState<string[]>([]);
   const [fieldManageVisible, setFieldManageVisible] = useState(false);
   const [reviews, setReviews] = useState<ReviewData[]>(recipe?.reviews ?? []);
+  const [advice, setAdvice] = useState(recipe?.advice ?? '');
+  const [referenceUrl, setSourceUrl] = useState(recipe?.referenceUrl ?? '');
+  const [referenceYoutubeOpen, setReferenceYoutubeOpen] = useState(false);
+  const referenceYouTubeId = useMemo(() => parseYouTubeVideoId(referenceUrl), [referenceUrl]);
   const [slashMenu, setSlashMenu] = useState<{groupId: string; stepId: string} | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(recipe?.imageUri ?? null);
+  const [toolsBulkMode, setToolsBulkMode] = useState(true);
+  const [toolsBulkText, setToolsBulkText] = useState(() => {
+    if (recipe?.toolGroups) return toolsToBulkText(recipe.toolGroups.flatMap(g => g.tools));
+    return toolsToBulkText(recipe?.tools ?? []);
+  });
+  const [ingredientsBulkMode, setIngredientsBulkMode] = useState(false);
+  const [ingredientsBulkText, setIngredientsBulkText] = useState(() => {
+    if (recipe?.ingredientGroups) return ingredientsToBulkText(recipe.ingredientGroups.flatMap(g => g.ingredients));
+    return '';
+  });
   const [showPhotoMenu, setShowPhotoMenu] = useState(false);
   const [activeFieldIds, setActiveFieldIds] = useState<string[]>(
     recipe?.activeFieldIds ?? [
@@ -268,39 +443,68 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     time: time || undefined,
     servings: servings || undefined,
     session: session || undefined,
-    ingredientGroups: ingredientGroups.map(g => ({
+    ingredientGroups: (ingredientGroups.length === 1 && ingredientsBulkMode)
+      ? [{title: ingredientGroups[0].title, ingredients: bulkTextToIngredients(ingredientsBulkText).map(i => ({name: i.name, amount: i.amount ? `${i.amount}${i.unit}` : i.unit || ''}))}]
+      : ingredientGroups.map(g => ({
+          title: g.title,
+          ingredients: g.ingredients
+            .filter(i => i.name.trim())
+            .map(i => ({name: i.name, amount: i.amount ? `${i.amount}${i.unit}` : i.unit})),
+        })),
+    toolGroups: toolGroups.map(g => ({
       title: g.title,
-      ingredients: g.ingredients
-        .filter(i => i.name.trim())
-        .map(i => ({name: i.name, amount: i.amount ? `${i.amount}${i.unit}` : i.unit})),
+      tools: g.tools.filter(t => t.name.trim()).map(t => ({name: t.name})),
     })),
-    tools: tools.filter(t => t.name.trim()).map(t => ({name: t.name})),
     stepGroups: stepGroups.map(g => ({
       title: g.title,
       steps: g.steps
         .filter(s => s.description.trim())
-        .map((s, idx) => ({step: idx + 1, description: s.description, tip: s.tip, caution: s.caution})),
+        .map((s, idx) => ({step: idx + 1, description: s.description, tip: s.tip, caution: s.caution, photos: s.photos?.length ? s.photos : undefined})),
     })),
     activeFieldIds,
-    reviews: reviews.length > 0 ? reviews : undefined,
+    reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
+    advice: advice || undefined,
     imageUri: imageUri || undefined,
-  }), [title, cookbook, method, ratio, time, servings, session, ingredientGroups, tools, stepGroups, activeFieldIds, reviews, imageUri]);
+    referenceUrl: referenceUrl || undefined,
+  }), [title, cookbook, method, ratio, time, servings, session, ingredientGroups, ingredientsBulkMode, ingredientsBulkText, toolGroups, stepGroups, activeFieldIds, reviews, advice, imageUri, referenceUrl]);
   const initialSnapshotRef = useRef(currentSnapshot);
   // 생성 모드(recipe 없음)는 항상 저장 가능, 편집 모드에서만 변경 여부 체크
   const isDirty = !recipe || currentSnapshot !== initialSnapshotRef.current;
+  const hasTitle = title.trim().length > 0;
+  const hasIngredient = (ingredientGroups.length === 1 && ingredientsBulkMode)
+    ? ingredientsBulkText.split(',').some(s => s.trim())
+    : ingredientGroups.some(g => g.ingredients.some(i => i.name.trim()));
+  const hasStep = stepGroups.some(g => g.steps.some(s => s.description.trim()));
+  const canSave = isDirty && hasTitle && hasIngredient && hasStep;
+  const [saving, setSaving] = useState(false);
 
   const pickImage = async (source: 'camera' | 'gallery') => {
+    if (source === 'camera') {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) {
+        showSnackbar('카메라 권한이 필요해요 — 설정에서 허용해주세요');
+        return;
+      }
+    } else {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        showSnackbar('사진 권한이 필요해요 — 설정에서 허용해주세요');
+        return;
+      }
+    }
     const options: ImagePicker.ImagePickerOptions = {
       allowsEditing: true,
       aspect: [1, 1],
       quality: 0.8,
+      base64: Platform.OS === 'web',
     };
     const result =
       source === 'camera'
         ? await ImagePicker.launchCameraAsync(options)
         : await ImagePicker.launchImageLibraryAsync(options);
     if (!result.canceled && result.assets[0]) {
-      setImageUri(result.assets[0].uri);
+      const uri = await getPersistentUri(result.assets[0].uri, result.assets[0].base64);
+      setImageUri(uri);
     }
   };
 
@@ -371,19 +575,18 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
 
   useEffect(() => {
     if (!initialSection) return;
+    // 레이아웃 완료 직후 한 프레임만 기다린 뒤 즉시 점프 (애니메이션 없음)
     const timer = setTimeout(() => {
       const y = sectionPositions.current[initialSection];
       if (y != null) {
-        scrollViewRef.current?.scrollTo({y: y - 80, animated: true});
+        scrollViewRef.current?.scrollTo({y: y - 80, animated: false});
       }
-      // 해당 섹션의 첫 번째 인풋에 포커스 & 커서를 맨 끝으로
-      setTimeout(() => {
-        const input = sectionInputRefs.current[initialSection];
-        if (!input) return;
+      const input = sectionInputRefs.current[initialSection];
+      if (input) {
         input.focus();
-        setTimeout(() => (input as any).setSelection?.(99999, 99999), 50);
-      }, 200);
-    }, 400);
+        setTimeout(() => (input as any).setSelection?.(99999, 99999), 30);
+      }
+    }, 50);
     return () => clearTimeout(timer);
   }, [initialSection]);
 
@@ -406,35 +609,73 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     });
   }, []);
 
-  // Drop target listener — Animated.Value만 업데이트, setState 없음 (리렌더 방지)
+  // Drop target listener — 햅틱 + 타겟 아이템 하이라이트
+  const flatItemsRef = useRef<{id: string; groupId: string}[]>([]);
+  const dropHighlights = useRef(new Map<string, Animated.Value>()).current;
+  const getDropHighlight = useCallback((itemId: string) => {
+    if (!dropHighlights.has(itemId)) {
+      dropHighlights.set(itemId, new Animated.Value(0));
+    }
+    return dropHighlights.get(itemId)!;
+  }, [dropHighlights]);
+  const clearDropHighlights = useCallback(() => {
+    dropHighlights.forEach(v => v.setValue(0));
+  }, [dropHighlights]);
+
   React.useEffect(() => {
     const id = drag.dragY.addListener(({value}) => {
       if (drag.dragFromRef.current === null) return;
       const fromIdx = drag.dragFromRef.current;
-      const moveBy = Math.round(value / ROW_HEIGHT);
-      const maxIdx = drag.dragItemsLengthRef.current - 1;
-      const newIdx = Math.max(0, Math.min(maxIdx, fromIdx + moveBy));
+      const fs = flatItemsRef.current;
+      const positions = drag.itemPageYRef.current;
+      const currentPageY = drag.draggedItemOriginalY.current + value;
+
+      let newIdx = fromIdx;
+      let minDist = Infinity;
+      for (let i = 0; i < fs.length; i++) {
+        const itemY = positions.get(fs[i].id);
+        if (itemY != null) {
+          const dist = Math.abs(currentPageY - itemY);
+          if (dist < minDist) {
+            minDist = dist;
+            newIdx = i;
+          }
+        }
+      }
+      // 위치 정보 없으면 ROW_HEIGHT 폴백
+      if (minDist === Infinity) {
+        const moveBy = Math.round(value / ROW_HEIGHT);
+        const maxIdx = drag.dragItemsLengthRef.current - 1;
+        newIdx = Math.max(0, Math.min(maxIdx, fromIdx + moveBy));
+      }
+
       if (newIdx !== drag.dropTargetRef.current) {
         drag.dropTargetRef.current = newIdx;
-        if (newIdx !== fromIdx) {
-          const gapIdx = newIdx < fromIdx ? newIdx : newIdx + 1;
-          drag.indicatorTop.setValue(gapIdx * ROW_HEIGHT);
-          drag.indicatorOpacity.setValue(1);
-        } else {
-          drag.indicatorOpacity.setValue(0);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        clearDropHighlights();
+        if (newIdx !== fromIdx && fs[newIdx]) {
+          getDropHighlight(fs[newIdx].id).setValue(newIdx > fromIdx ? 1 : -1);
         }
       }
     });
     return () => drag.dragY.removeListener(id);
-  }, [drag.dragY, drag.indicatorTop, drag.indicatorOpacity]);
+  }, [drag.dragY, getDropHighlight, clearDropHighlights]);
+
+  React.useEffect(() => {
+    if (!drag.draggingId) clearDropHighlights();
+  }, [drag.draggingId, clearDropHighlights]);
 
   // ---- Ingredient Group Handlers ----
 
-  const addIngredientGroup = () => {
-    setIngredientGroups(prev => [
-      ...prev,
-      {id: genId(), title: '재료', ingredients: [{id: genId(), name: '', amount: '', unit: 'g'}]},
-    ]);
+  const addIngredientGroup = (afterGroupId?: string) => {
+    const newGroup = {id: genId(), title: '재료', ingredients: [{id: genId(), name: '', amount: '', unit: 'g'}]};
+    setIngredientGroups(prev => {
+      if (afterGroupId) {
+        const idx = prev.findIndex(g => g.id === afterGroupId);
+        return [...prev.slice(0, idx + 1), newGroup, ...prev.slice(idx + 1)];
+      }
+      return [...prev, newGroup];
+    });
   };
 
   const updateIngredientGroupTitle = (groupId: string, newTitle: string) => {
@@ -490,59 +731,169 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   };
 
   const removeIngredientGroup = (groupId: string) => {
-    setIngredientGroups(prev => prev.filter(g => g.id !== groupId));
-  };
-
-  const reorderIngredients = useCallback((groupId: string, from: number, to: number) => {
-    setIngredientGroups(prev =>
-      prev.map(g => {
-        if (g.id !== groupId) return g;
-        const next = [...g.ingredients];
-        const [item] = next.splice(from, 1);
-        next.splice(to, 0, item);
-        return {...g, ingredients: next};
-      }),
-    );
-  }, []);
-
-  // ---- Tool Handlers ----
-
-  const addTool = (position: 'top' | 'bottom' = 'top') => {
-    setTools(prev =>
-      position === 'top'
-        ? [{id: genId(), name: ''}, ...prev]
-        : [...prev, {id: genId(), name: ''}],
-    );
-  };
-
-  const removeTool = (toolId: string) => {
-    setTools(prev => {
-      if (prev.length <= 1) return [{id: genId(), name: ''}];
-      return prev.filter(t => t.id !== toolId);
+    setIngredientGroups(prev => {
+      const target = prev.find(g => g.id === groupId);
+      if (!target) return prev;
+      const remaining = prev.filter(g => g.id !== groupId);
+      if (remaining.length === 0) return prev;
+      // 삭제된 그룹의 재료를 첫 번째 그룹으로 이동
+      return remaining.map((g, i) =>
+        i === 0 ? {...g, ingredients: [...g.ingredients, ...target.ingredients]} : g,
+      );
     });
   };
 
-  const updateTool = (toolId: string, value: string) => {
-    setTools(prev => prev.map(t => (t.id === toolId ? {...t, name: value} : t)));
+  // 글로벌 플랫 리스트 (크로스그룹 드래그용)
+  const flatIngredients = useMemo(() => {
+    const result: {id: string; groupId: string}[] = [];
+    for (const g of ingredientGroups) {
+      for (const ing of g.ingredients) {
+        result.push({id: ing.id, groupId: g.id});
+      }
+    }
+    return result;
+  }, [ingredientGroups]);
+
+  const reorderIngredientsGlobal = useCallback((globalFrom: number, globalTo: number) => {
+    setIngredientGroups(prev => {
+      const flat = prev.flatMap(g => g.ingredients.map(ing => ({item: ing, groupId: g.id})));
+      const [moved] = flat.splice(globalFrom, 1);
+      let targetGroupId: string;
+      if (flat.length === 0) {
+        targetGroupId = prev[0].id;
+      } else if (globalTo >= flat.length) {
+        targetGroupId = flat[flat.length - 1].groupId;
+      } else {
+        targetGroupId = flat[globalTo].groupId;
+      }
+      moved.groupId = targetGroupId;
+      flat.splice(globalTo, 0, moved);
+      return prev.map(g => ({
+        ...g,
+        ingredients: flat.filter(f => f.groupId === g.id).map(f => f.item),
+      }));
+    });
+  }, []);
+
+  // ---- Tool Group Handlers ----
+
+  const addToolGroup = (afterGroupId?: string) => {
+    const newGroup: EditableToolGroup = {id: genId(), title: '도구', tools: [{id: genId(), name: ''}]};
+    setToolGroups(prev => {
+      if (afterGroupId) {
+        const idx = prev.findIndex(g => g.id === afterGroupId);
+        return [...prev.slice(0, idx + 1), newGroup, ...prev.slice(idx + 1)];
+      }
+      return [...prev, newGroup];
+    });
   };
 
-  const reorderTools = useCallback((from: number, to: number) => {
-    setTools(prev => {
-      const next = [...prev];
-      const [item] = next.splice(from, 1);
-      next.splice(to, 0, item);
-      return next;
+  const updateToolGroupTitle = (groupId: string, newTitle: string) => {
+    setToolGroups(prev =>
+      prev.map(g => (g.id === groupId ? {...g, title: newTitle} : g)),
+    );
+  };
+
+  const removeToolGroup = (groupId: string) => {
+    setToolGroups(prev => {
+      const target = prev.find(g => g.id === groupId);
+      if (!target) return prev;
+      const remaining = prev.filter(g => g.id !== groupId);
+      if (remaining.length === 0) return prev;
+      return remaining.map((g, i) =>
+        i === 0 ? {...g, tools: [...g.tools, ...target.tools]} : g,
+      );
+    });
+  };
+
+  const addTool = (groupId: string, position: 'top' | 'bottom' = 'top') => {
+    setToolGroups(prev =>
+      prev.map(g =>
+        g.id === groupId
+          ? {
+              ...g,
+              tools:
+                position === 'top'
+                  ? [{id: genId(), name: ''}, ...g.tools]
+                  : [...g.tools, {id: genId(), name: ''}],
+            }
+          : g,
+      ),
+    );
+  };
+
+  const removeTool = (groupId: string, toolId: string) => {
+    setToolGroups(prev =>
+      prev.map(g =>
+        g.id === groupId
+          ? {...g, tools: g.tools.filter(t => t.id !== toolId)}
+          : g,
+      ),
+    );
+  };
+
+  const updateTool = (groupId: string, toolId: string, value: string) => {
+    setToolGroups(prev =>
+      prev.map(g =>
+        g.id === groupId
+          ? {...g, tools: g.tools.map(t => (t.id === toolId ? {...t, name: value} : t))}
+          : g,
+      ),
+    );
+  };
+
+  const flatTools = useMemo(() => {
+    const result: {id: string; groupId: string}[] = [];
+    for (const g of toolGroups) {
+      for (const t of g.tools) {
+        result.push({id: t.id, groupId: g.id});
+      }
+    }
+    return result;
+  }, [toolGroups]);
+
+  const reorderToolsGlobal = useCallback((globalFrom: number, globalTo: number) => {
+    setToolGroups(prev => {
+      const flat = prev.flatMap(g => g.tools.map(t => ({item: t, groupId: g.id})));
+      const [moved] = flat.splice(globalFrom, 1);
+      let targetGroupId: string;
+      if (flat.length === 0) {
+        targetGroupId = prev[0].id;
+      } else if (globalTo >= flat.length) {
+        targetGroupId = flat[flat.length - 1].groupId;
+      } else {
+        targetGroupId = flat[globalTo].groupId;
+      }
+      moved.groupId = targetGroupId;
+      flat.splice(globalTo, 0, moved);
+      return prev.map(g => ({
+        ...g,
+        tools: flat.filter(f => f.groupId === g.id).map(f => f.item),
+      }));
     });
   }, []);
 
   // ---- Step Group Handlers ----
 
-  const addStepGroup = () => {
-    setStepGroups(prev => [
-      ...prev,
-      {id: genId(), title: '과정', steps: [{id: genId(), description: ''}]},
-    ]);
+  const addStepGroup = (afterGroupId?: string) => {
+    const newGroup = {id: genId(), title: '과정', steps: [{id: genId(), description: ''}]};
+    setStepGroups(prev => {
+      if (afterGroupId) {
+        const idx = prev.findIndex(g => g.id === afterGroupId);
+        return [...prev.slice(0, idx + 1), newGroup, ...prev.slice(idx + 1)];
+      }
+      return [...prev, newGroup];
+    });
   };
+
+  const insertStepGroupAbove = (groupId: string) => {
+    const newGroup = {id: genId(), title: '과정', steps: [{id: genId(), description: ''}]};
+    setStepGroups(prev => {
+      const idx = prev.findIndex(g => g.id === groupId);
+      return [...prev.slice(0, idx), newGroup, ...prev.slice(idx)];
+    });
+  };
+
 
   const updateStepGroupTitle = (groupId: string, newTitle: string) => {
     setStepGroups(prev =>
@@ -568,11 +919,14 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
 
   const removeStep = (groupId: string, stepId: string) => {
     setStepGroups(prev =>
-      prev.map(g =>
-        g.id === groupId
-          ? {...g, steps: g.steps.filter(s => s.id !== stepId)}
-          : g,
-      ),
+      prev.map(g => {
+        if (g.id !== groupId) return g;
+        const filtered = g.steps.filter(s => s.id !== stepId);
+        if (filtered.length === 0) {
+          return {...g, steps: [{id: genId(), description: ''}]};
+        }
+        return {...g, steps: filtered};
+      }),
     );
   };
 
@@ -627,9 +981,53 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   };
 
   // 슬래시 메뉴 선택 핸들러
-  const handleSlashMenuSelect = (menuId: string) => {
+  const handleSlashMenuSelect = async (menuId: string) => {
     if (!slashMenu) return;
     const {groupId, stepId} = slashMenu;
+
+    // 사진: 갤러리 열고 선택 후 step.photos에 추가
+    if (menuId === 'photo') {
+      // "/" 먼저 제거
+      setStepGroups(prev =>
+        prev.map(g =>
+          g.id === groupId
+            ? {...g, steps: g.steps.map(s => {
+                if (s.id !== stepId) return s;
+                const desc = s.description.endsWith('/') ? s.description.slice(0, -1) : s.description;
+                return {...s, description: desc};
+              })}
+            : g,
+        ),
+      );
+      setSlashMenu(null);
+      const camPerm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!camPerm.granted) {
+        showSnackbar('카메라 권한이 필요해요 — 설정에서 허용해주세요');
+        return;
+      }
+      const result = await ImagePicker.launchCameraAsync({
+        quality: 0.8,
+        base64: Platform.OS === 'web',
+      });
+      if (!result.canceled && result.assets.length > 0) {
+        const uris = await Promise.all(
+          result.assets.map(a => getPersistentUri(a.uri, a.base64)),
+        );
+        setStepGroups(prev =>
+          prev.map(g =>
+            g.id === groupId
+              ? {...g, steps: g.steps.map(s => {
+                  if (s.id !== stepId) return s;
+                  const existing = s.photos ?? [];
+                  return {...s, photos: [...existing, ...uris].slice(0, 3)};
+                })}
+              : g,
+          ),
+        );
+      }
+      return;
+    }
+
     // "/" 제거
     setStepGroups(prev =>
       prev.map(g =>
@@ -648,20 +1046,61 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   };
 
   const removeStepGroup = (groupId: string) => {
-    setStepGroups(prev => prev.filter(g => g.id !== groupId));
+    setStepGroups(prev => {
+      const target = prev.find(g => g.id === groupId);
+      if (!target) return prev;
+      const remaining = prev.filter(g => g.id !== groupId);
+      if (remaining.length === 0) return prev;
+      // 삭제된 그룹의 과정을 첫 번째 그룹으로 이동
+      return remaining.map((g, i) =>
+        i === 0 ? {...g, steps: [...g.steps, ...target.steps]} : g,
+      );
+    });
   };
 
-  const reorderSteps = useCallback((groupId: string, from: number, to: number) => {
-    setStepGroups(prev =>
-      prev.map(g => {
-        if (g.id !== groupId) return g;
-        const next = [...g.steps];
-        const [item] = next.splice(from, 1);
-        next.splice(to, 0, item);
-        return {...g, steps: next};
-      }),
-    );
+  // 글로벌 플랫 리스트 (크로스그룹 드래그용)
+  const flatSteps = useMemo(() => {
+    const result: {id: string; groupId: string}[] = [];
+    for (const g of stepGroups) {
+      for (const s of g.steps) {
+        result.push({id: s.id, groupId: g.id});
+      }
+    }
+    return result;
+  }, [stepGroups]);
+
+  const reorderStepsGlobal = useCallback((globalFrom: number, globalTo: number) => {
+    setStepGroups(prev => {
+      const flat = prev.flatMap(g => g.steps.map(s => ({step: s, groupId: g.id})));
+      const [moved] = flat.splice(globalFrom, 1);
+      let targetGroupId: string;
+      if (flat.length === 0) {
+        targetGroupId = prev[0].id;
+      } else if (globalTo >= flat.length) {
+        targetGroupId = flat[flat.length - 1].groupId;
+      } else {
+        targetGroupId = flat[globalTo].groupId;
+      }
+      moved.groupId = targetGroupId;
+      flat.splice(globalTo, 0, moved);
+      return prev.map(g => ({
+        ...g,
+        steps: flat.filter(f => f.groupId === g.id).map(f => f.step),
+      }));
+    });
   }, []);
+
+  // 드래그 시작 시 활성 flat 리스트 동기화
+  React.useEffect(() => {
+    if (!drag.draggingId) return;
+    if (flatIngredients.some(f => f.id === drag.draggingId)) {
+      flatItemsRef.current = flatIngredients;
+    } else if (flatSteps.some(f => f.id === drag.draggingId)) {
+      flatItemsRef.current = flatSteps;
+    } else if (flatTools.some(f => f.id === drag.draggingId)) {
+      flatItemsRef.current = flatTools;
+    }
+  }, [drag.draggingId, flatIngredients, flatSteps, flatTools]);
 
   return (
     <View style={styles.container}>
@@ -677,42 +1116,91 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
         <View style={{height: 72 + insets.top}} />
 
         {/* Title & Description */}
+        <View style={{zIndex: showMethodMenu ? 100 : 1, elevation: showMethodMenu ? 100 : 1}}>
         <ContentContainer>
-          <Card>
+          <Card style={{overflow: 'visible'}}>
             <View style={styles.titleRow}>
-              <View style={[styles.titleInputWrap, titleError && {borderBottomColor: colors['foreground-error'], borderBottomWidth: 2}]}>
+              <View style={[styles.titleInputWrap, titleError && {borderBottomColor: colors['foreground/negative'], borderBottomWidth: 2}]}>
                 <RNTextInput
                   ref={titleInputRef}
-                  style={[styles.titleInput, noOutline, inputHeights['title'] != null && {height: inputHeights['title']}]}
+                  style={[styles.titleInput, noOutline, inputHeights['title'] != null && {height: inputHeights['title']}, typing && typingField === 'title' && {color: 'transparent'}]}
                   placeholder="레시피 제목"
-                  placeholderTextColor={titleError ? colors['foreground-error'] : colors['foreground-onsurfacemuted']}
-                  selectionColor={colors['foreground-primary']}
+                  placeholderTextColor={titleError ? colors['foreground/negative'] : colors['foreground/on-surface-muted']}
+                  selectionColor={colors['foreground/on-surface']}
                   value={title}
                   onChangeText={t => { setTitle(t); if (titleError) setTitleError(false); resetInputHeight('title'); }}
+                  onFocus={(e) => handleFieldFocus('title', e.nativeEvent)}
+                  onBlur={handleFieldBlur}
                   multiline
                   numberOfLines={1}
                   blurOnSubmit={false}
                   onContentSizeChange={e => onInputContentSizeChange('title', e)}
                 />
+                {/* OCR 진행 중 스켈레톤 */}
+                {ocrLoading && focusedOcrField === 'title' && (
+                  <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.skeletonOverlay]}>
+                    <SkeletonLine lines={1} lineHeight={22} lastLineRatio={1} />
+                  </View>
+                )}
+                {/* 타이핑 중 무지개 프리즘 오버레이 */}
+                {typing && typingField === 'title' && !!title && (
+                  <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+                    <RainbowText style={styles.titleInput} animated onDone={finishTyping}>{title}</RainbowText>
+                  </View>
+                )}
               </View>
-              {(isFieldActive('method') || isFieldActive('ratio')) && (
-                <View style={styles.titleChips}>
-                  {isFieldActive('method') && (
-                    <EditableChip label={method} placeholder="공법" variant="yellow" icon={IconOpenbookFilled} onChangeText={setMethod} />
-                  )}
-                  {isFieldActive('ratio') && (
-                    <EditableChip label={ratio} placeholder="비중" variant="yellow" icon={IconWind} onChangeText={setRatio} />
-                  )}
-                </View>
-              )}
             </View>
+            {(isFieldActive('method') || isFieldActive('ratio')) && (
+              <>
+                <View style={styles.dividerFull} />
+                <View style={[styles.methodRatioContainer, {zIndex: showMethodMenu ? 100 : 1, elevation: showMethodMenu ? 100 : 1}]}>
+                  <View style={styles.methodRatioRow}>
+                    {isFieldActive('method') && (
+                      <View style={{flex: 1, position: 'relative'}}>
+                        <Pressable
+                          style={styles.methodField}
+                          onPress={() => setShowMethodMenu(prev => !prev)}>
+                          <Text style={[styles.methodFieldText, !method && {color: colors['foreground/on-surface-muted']}]} numberOfLines={1}>
+                            {method || '공법'}
+                          </Text>
+                          <IconChevronDown width={14} height={14} color={colors['foreground/on-surface-muted']} />
+                        </Pressable>
+                        <Menu
+                          items={BAKING_METHODS.map(m => ({id: m, label: m}))}
+                          selectedId={method || undefined}
+                          visible={showMethodMenu}
+                          onSelect={id => { setMethod(id); setShowMethodMenu(false); }}
+                          onClose={() => setShowMethodMenu(false)}
+                          style={styles.methodMenu}
+                          maxHeight={180}
+                        />
+                      </View>
+                    )}
+                    {isFieldActive('method') && isFieldActive('ratio') && (
+                      <View style={styles.methodRatioVDivider} />
+                    )}
+                    {isFieldActive('ratio') && (
+                      <View style={styles.ratioField}>
+                        <RNTextInput
+                          style={[styles.methodFieldText, noOutline, {flex: 1}]}
+                          placeholder="비중"
+                          placeholderTextColor={colors['foreground/on-surface-muted']}
+                          value={ratio}
+                          onChangeText={setRatio}
+                        />
+                      </View>
+                    )}
+                  </View>
+                </View>
+              </>
+            )}
             <View style={styles.dividerFull} />
             <View style={styles.descriptionContainer}>
               <RNTextInput
                 style={[styles.descriptionInput, noOutline, inputHeights['desc'] != null && {height: inputHeights['desc']}]}
                 placeholder="설명"
-                placeholderTextColor={colors['foreground-onsurfacemuted']}
-                selectionColor={colors['foreground-primary']}
+                placeholderTextColor={colors['foreground/on-surface-muted']}
+                selectionColor={colors['foreground/on-surface']}
                 value={description}
                 onChangeText={v => { setDescription(v); resetInputHeight('desc'); }}
                 multiline
@@ -723,6 +1211,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
             </View>
           </Card>
         </ContentContainer>
+        </View>
 
         {/* Option Tiles */}
         <ContentContainer style={styles.optionTilesSection}>
@@ -735,6 +1224,11 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                       source={{uri: imageUri}}
                       style={styles.photoTileImage}
                     />
+                    {saving && (
+                      <View style={styles.photoTileSpinner}>
+                        <ActivityIndicator color="#fff" />
+                      </View>
+                    )}
                   </Card>
                 ) : (
                   <OptionTile icon={IconPhoto} label="사진" />
@@ -757,12 +1251,53 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           </View>
           {/* 공법/비중 칩은 제목 영역으로 이동됨 */}
         </ContentContainer>
+        <ContentContainer style={styles.navItemGap}>
+          <Card>
+            <ListItem
+              leading={{type: 'icon', icon: IconLink}}
+              showDivider={false}
+            >
+              {/^https?:\/\/.+/.test(referenceUrl.trim()) ? (
+                <View style={styles.referenceLinkRow}>
+                  <Pressable
+                    style={styles.referenceLinkChip}
+                    onPress={() => {
+                      if (referenceYouTubeId) {
+                        setReferenceYoutubeOpen(true);
+                      } else {
+                        Linking.openURL(referenceUrl.trim());
+                      }
+                    }}>
+                    <Text style={styles.referenceLinkText} numberOfLines={1}>{referenceUrl.trim()}</Text>
+                    <IconArrowTopRight width={16} height={16} color={colors['foreground/on-surface-muted']} />
+                  </Pressable>
+                  <IconButton icon={IconClose} size="small" variant="ghost-secondary" onPress={() => setSourceUrl('')} />
+                </View>
+              ) : (
+                <View style={styles.referenceLinkRow}>
+                  <View style={{flex: 1}}>
+                    <TextInput
+                      style="ghost"
+                      value={referenceUrl}
+                      onChangeText={setSourceUrl}
+                      placeholder="https://..."
+                      keyboardType="url"
+                      autoCapitalize="none"
+                    />
+                  </View>
+                </View>
+              )}
+            </ListItem>
+          </Card>
+        </ContentContainer>
 
         {/* 재료 Groups */}
-        <View onLayout={e => { sectionPositions.current['ingredients'] = e.nativeEvent.layout.y; }}>
-        {ingredientGroups.map((group, groupIndex) => (
-          <ContentContainer key={group.id} style={groupIndex === 0 ? styles.section : styles.addGroupSection}>
-            <Card>
+        {isFieldActive('ingredients') && <View onLayout={e => { sectionPositions.current['ingredients'] = e.nativeEvent.layout.y; }}>
+        {ingredientGroups.map((group, groupIndex) => {
+          const ingGroupHasDragging = drag.draggingId !== null && group.ingredients.some(i => i.id === drag.draggingId);
+          return (
+          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(ingGroupHasDragging ? {zIndex: 100} : undefined)}}>
+            <Card style={ingGroupHasDragging ? {overflow: 'visible'} : undefined}>
               {/* Group Header — editable when 2+ groups, non-first gets minus button */}
               {ingredientGroups.length >= 2 ? (
                 <ListItem
@@ -772,14 +1307,14 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                   trailing={{type: 'iconButton', icon: IconAdd, onPress: () => addIngredient(group.id)}}>
                   <View style={styles.breadcrumbRow}>
                     <Text style={styles.breadcrumbPrefix}>재료</Text>
-                    <IconChevronRight width={8} height={8} color={colors['foreground-onsurfacevar']} />
+                    <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
                     <RNTextInput
-                      style={[styles.editableRowInput, noOutline, inputHeights[`igt-${group.id}`] != null && {height: inputHeights[`igt-${group.id}`]}]}
+                      style={[styles.editableRowInput, {marginTop: 0}, noOutline, inputHeights[`igt-${group.id}`] != null && {height: inputHeights[`igt-${group.id}`]}]}
                       value={group.title}
                       onChangeText={v => { updateIngredientGroupTitle(group.id, v); resetInputHeight(`igt-${group.id}`); }}
                       placeholder="그룹 이름"
-                      placeholderTextColor={colors['foreground-onsurfacemuted']}
-                      selectionColor={colors['foreground-primary']}
+                      placeholderTextColor={colors['foreground/on-surface-muted']}
+                      selectionColor={colors['foreground/on-surface']}
                       multiline
                       numberOfLines={1}
                       blurOnSubmit={false}
@@ -791,45 +1326,107 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 <ListItem
                   title="재료"
                   leading={{type: 'icon', icon: IconLeafFilled}}
-                  trailing={{type: 'iconButton', icon: IconAdd, onPress: () => addIngredient(group.id)}}
+                  trailing={{type: 'custom', element: (
+                    <View style={styles.toolHeaderTrailing}>
+                      {ingredientGroups.length === 1 && (
+                        <Switch
+                          label="한번에 쓰기"
+                          value={ingredientsBulkMode}
+                          onValueChange={(v) => {
+                            if (!v) {
+                              const parsed = bulkTextToIngredients(ingredientsBulkText);
+                              if (parsed.length > 0) {
+                                const existingByName = new Map(group.ingredients.map(i => [i.name, i]));
+                                setIngredientGroups(p => p.map(g => g.id === group.id ? {...g, ingredients: parsed.map(item => {
+                                  const existing = existingByName.get(item.name);
+                                  if (existing && !item.amount && existing.unit === item.unit) {
+                                    return {...existing, id: genId(), name: item.name};
+                                  }
+                                  return {id: genId(), name: item.name, amount: item.amount, unit: item.unit};
+                                })} : g));
+                              } else {
+                                setIngredientGroups(p => p.map(g => g.id === group.id ? {...g, ingredients: []} : g));
+                              }
+                            } else {
+                              setIngredientsBulkText(ingredientsToBulkText(group.ingredients));
+                            }
+                            setIngredientsBulkMode(v);
+                          }}
+                        />
+                      )}
+                      <IconButton icon={IconAdd} onPress={() => addIngredient(group.id)} variant="soft" size="small" />
+                    </View>
+                  )}}
                 />
               )}
 
               {/* Ingredients */}
+              {ingredientGroups.length === 1 && ingredientsBulkMode ? (
+                <View style={styles.bulkToolInput}>
+                  <RNTextInput
+                    ref={(node: any) => { sectionInputRefs.current['ingredients'] = node; }}
+                    style={[styles.editableRowInput, noOutline, typing && typingField === 'ingredients' && !!ingredientsBulkText && {color: 'transparent'}]}
+                    placeholder="예: 밀가루 200g, 설탕 50g, 버터 약간"
+                    placeholderTextColor={colors['foreground/on-surface-muted']}
+                    selectionColor={colors['foreground/on-surface']}
+                    value={ingredientsBulkText}
+                    onChangeText={setIngredientsBulkText}
+                    onFocus={(e) => handleFieldFocus('ingredients', e.nativeEvent)}
+                    onBlur={handleFieldBlur}
+                    multiline
+                  />
+                  {ocrLoading && focusedOcrField === 'ingredients' && (
+                    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.bulkToolInput]}>
+                      <SkeletonLine lines={2} lineHeight={14} />
+                    </View>
+                  )}
+                  {typing && typingField === 'ingredients' && !!ingredientsBulkText && (
+                    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.bulkToolInput]}>
+                      <RainbowText style={styles.editableRowInput} animated onDone={finishTyping}>{ingredientsBulkText}</RainbowText>
+                    </View>
+                  )}
+                </View>
+              ) : (
+              <>
               <View style={styles.dragArea}>
                 {group.ingredients.map((ingredient, index) => {
-                  const canDrag = group.ingredients.length > 1;
-                  const responder = canDrag
+                  const canDragIngredient = !!ingredient.name.trim();
+                  const globalIndex = flatIngredients.findIndex(f => f.id === ingredient.id);
+                  const responder = canDragIngredient
                     ? drag.createDragHandlers(
                         ingredient.id,
-                        index,
-                        group.ingredients,
-                        (from, to) => reorderIngredients(group.id, from, to),
+                        globalIndex,
+                        flatIngredients,
+                        reorderIngredientsGlobal,
                       )
                     : null;
                   const isDragging = drag.draggingId === ingredient.id;
+                  const highlightAnim = getDropHighlight(ingredient.id);
                   return (
-                    <Animated.View
+                    <View
                       key={ingredient.id}
-                      style={isDragging ? {transform: [{translateY: drag.dragY}], zIndex: 10, opacity: 0.85} : undefined}>
+                      ref={drag.createItemRef(ingredient.id)}
+                      onLayout={drag.handleItemLayout(ingredient.id)}
+                      style={isDragging ? {zIndex: 10} : undefined}>
+                    <Animated.View
+                      style={[
+                        isDragging ? {transform: [{translateY: drag.dragY}], opacity: 0.85} : undefined,
+                        {
+                          borderBottomWidth: highlightAnim.interpolate({inputRange: [-1, 0, 1], outputRange: [0, 0, 2]}),
+                          borderBottomColor: colors['custom/yellow'],
+                          borderTopWidth: highlightAnim.interpolate({inputRange: [-1, 0, 1], outputRange: [2, 0, 0]}),
+                          borderTopColor: colors['custom/yellow'],
+                        },
+                      ]}>
                       <ListItem
                         leading={{
+                          type: 'custom',
+                          element: <DragHandle responder={responder} enabled={canDragIngredient} />,
+                        }}
+                        trailing={{
                           type: 'iconButton',
                           icon: IconMinus,
                           onPress: () => removeIngredient(group.id, ingredient.id),
-                        }}
-                        trailing={{
-                          type: 'custom',
-                          element: (
-                            <View {...(responder ? responder.panHandlers : {})} style={dragStyles.handle}>
-                              <IconDragger
-                                width={16}
-                                height={16}
-                                color={colors['foreground-onsurfacemuted']}
-                                opacity={canDrag ? 1 : 0.3}
-                              />
-                            </View>
-                          ),
                         }}
                         showDivider={index < group.ingredients.length - 1}>
                         <View style={styles.editableRowContent}>
@@ -837,13 +1434,15 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                             ref={groupIndex === 0 && index === 0 ? (node) => { sectionInputRefs.current['ingredients'] = node; } : undefined}
                             style={[styles.editableRowInput, noOutline, inputHeights[ingredient.id] != null && {height: inputHeights[ingredient.id]}]}
                             placeholder="예: 감자"
-                            placeholderTextColor={colors['foreground-onsurfacemuted']}
-                            selectionColor={colors['foreground-primary']}
+                            placeholderTextColor={colors['foreground/on-surface-muted']}
+                            selectionColor={colors['foreground/on-surface']}
                             value={ingredient.name}
                             onChangeText={v => {
                               updateIngredient(group.id, ingredient.id, 'name', v);
                               resetInputHeight(ingredient.id);
                             }}
+                            onFocus={(e) => handleFieldFocus('ingredients', e.nativeEvent)}
+                            onBlur={handleFieldBlur}
                             multiline
                             numberOfLines={1}
                             blurOnSubmit={false}
@@ -853,74 +1452,248 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                             style={styles.amountInputContainer}
                             onPress={() => setAmountDialogTarget({groupId: group.id, ingredientId: ingredient.id})}
                           >
-                            <Text style={[styles.amountInput, !ingredient.amount && styles.amountPlaceholder]}>
-                              {ingredient.amount || '0'}
-                            </Text>
-                            <Text style={styles.unitText}>{ingredient.unit}</Text>
+                              <Text style={[styles.amountInput, !ingredient.amount && styles.amountPlaceholder]}>
+                                {ingredient.amount || '0'}
+                              </Text>
+                              <Text style={styles.unitText}>{ingredient.unit}</Text>
                           </Pressable>
                         </View>
                       </ListItem>
                     </Animated.View>
+                    </View>
                   );
                 })}
-                {/* Absolutely positioned drop indicator — driven by Animated values, no re-renders */}
-                {drag.draggingId !== null && group.ingredients.some(i => i.id === drag.draggingId) && (
-                  <Animated.View
-                    pointerEvents="none"
-                    style={[styles.dropIndicator, {transform: [{translateY: drag.indicatorTop}], opacity: drag.indicatorOpacity}]}
-                  />
-                )}
               </View>
 
-              {/* Add ingredient button */}
+              {/* Add ingredient / Add ingredient group buttons */}
               <View style={styles.addButtonRow}>
                 <View style={styles.addButtonDivider}>
                   <View style={styles.divider} />
                 </View>
-                <IconButton
-                  icon={IconAdd}
-                  variant="soft"
-                  size="small"
-                  onPress={() => addIngredient(group.id, 'bottom')}
-                />
+                <View style={styles.addButtonPair}>
+                  <Pressable style={styles.addGroupButton} onPress={() => addIngredientGroup(group.id)}>
+                  <IconBlockPlus width={16} height={16} color={colors['foreground/accent']} />
+                  <Text style={styles.addGroupText}>묶음 추가</Text>
+                </Pressable>
+                <Pressable style={styles.addGroupButton} onPress={() => addIngredient(group.id, 'bottom')}>
+                  <IconAdd width={16} height={16} color={colors['foreground/accent']} />
+                  <Text style={styles.addGroupText}>갈래 추가</Text>
+                </Pressable>
+                </View>
               </View>
+              </>
+              )}
             </Card>
           </ContentContainer>
-        ))}
+        );})}
 
-        {/* + 재료 묶음 추가 */}
-        <ContentContainer style={styles.addGroupSection}>
-          <Card>
-            <Pressable style={styles.addGroupButton} onPress={addIngredientGroup}>
-              <IconAdd width={16} height={16} color={colors['foreground-accent']} />
-              <Text style={styles.addGroupText}>재료 묶음 추가</Text>
-            </Pressable>
-          </Card>
-        </ContentContainer>
+        </View>}
+
+        {/* 도구 Groups */}
+        <View onLayout={e => { sectionPositions.current['tools'] = e.nativeEvent.layout.y; }}>
+        {toolGroups.map((group, groupIndex) => {
+          const toolGroupHasDragging = drag.draggingId !== null && group.tools.some(t => t.id === drag.draggingId);
+          return (
+          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(toolGroupHasDragging ? {zIndex: 100} : undefined)}}>
+            <Card style={toolGroupHasDragging ? {overflow: 'visible'} : undefined}>
+              {/* Group Header */}
+              {toolGroups.length >= 2 ? (
+                <ListItem
+                  leading={groupIndex > 0
+                    ? {type: 'iconButton', icon: IconMinus, onPress: () => removeToolGroup(group.id)}
+                    : {type: 'icon', icon: IconToolCaseFilled}}
+                  trailing={{type: 'iconButton', icon: IconAdd, onPress: () => addTool(group.id)}}>
+                  <View style={styles.breadcrumbRow}>
+                    <Text style={styles.breadcrumbPrefix}>도구</Text>
+                    <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
+                    <RNTextInput
+                      style={[styles.editableRowInput, {marginTop: 0}, noOutline, inputHeights[`tgt-${group.id}`] != null && {height: inputHeights[`tgt-${group.id}`]}]}
+                      value={group.title}
+                      onChangeText={v => { updateToolGroupTitle(group.id, v); resetInputHeight(`tgt-${group.id}`); }}
+                      placeholder="그룹 이름"
+                      placeholderTextColor={colors['foreground/on-surface-muted']}
+                      selectionColor={colors['foreground/on-surface']}
+                      multiline
+                      numberOfLines={1}
+                      blurOnSubmit={false}
+                      onContentSizeChange={e => onInputContentSizeChange(`tgt-${group.id}`, e)}
+                    />
+                  </View>
+                </ListItem>
+              ) : (
+                <ListItem
+                  title="도구"
+                  leading={{type: 'icon', icon: IconToolCaseFilled}}
+                  trailing={{type: 'custom', element: (
+                    <View style={styles.toolHeaderTrailing}>
+                      {toolGroups.length === 1 && (
+                        <Switch
+                          label="한번에 쓰기"
+                          value={toolsBulkMode}
+                          onValueChange={(v) => {
+                            if (!v) {
+                              const names = bulkTextToToolNames(toolsBulkText);
+                              if (names.length > 0) {
+                                setToolGroups(p => p.map(g => g.id === group.id ? {...g, tools: names.map(name => ({id: genId(), name}))} : g));
+                              } else {
+                                setToolGroups(p => p.map(g => g.id === group.id ? {...g, tools: []} : g));
+                              }
+                            } else {
+                              setToolsBulkText(toolsToBulkText(group.tools));
+                            }
+                            setToolsBulkMode(v);
+                          }}
+                        />
+                      )}
+                      <IconButton icon={IconAdd} onPress={() => addTool(group.id)} variant="soft" size="small" />
+                    </View>
+                  )}}
+                />
+              )}
+
+              {/* Tools */}
+              {toolGroups.length === 1 && toolsBulkMode ? (
+                <View style={styles.bulkToolInput}>
+                  <RNTextInput
+                    ref={(node: any) => { sectionInputRefs.current['tools'] = node; }}
+                    style={[styles.editableRowInput, noOutline, typing && typingField === 'tools' && !!toolsBulkText && {color: 'transparent'}]}
+                    placeholder="예: 믹싱볼, 거품기, 스크래퍼"
+                    placeholderTextColor={colors['foreground/on-surface-muted']}
+                    selectionColor={colors['foreground/on-surface']}
+                    value={toolsBulkText}
+                    onChangeText={setToolsBulkText}
+                    onFocus={(e) => handleFieldFocus('tools', e.nativeEvent)}
+                    onBlur={handleFieldBlur}
+                    multiline
+                  />
+                  {ocrLoading && focusedOcrField === 'tools' && (
+                    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.bulkToolInput]}>
+                      <SkeletonLine lines={2} lineHeight={14} />
+                    </View>
+                  )}
+                  {typing && typingField === 'tools' && !!toolsBulkText && (
+                    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.bulkToolInput]}>
+                      <RainbowText style={styles.editableRowInput} animated onDone={finishTyping}>{toolsBulkText}</RainbowText>
+                    </View>
+                  )}
+                </View>
+              ) : (
+              <>
+              <View style={styles.dragArea}>
+                {group.tools.map((tool, index) => {
+                  const canDrag = !!tool.name.trim();
+                  const globalIndex = flatTools.findIndex(f => f.id === tool.id);
+                  const responder = canDrag
+                    ? drag.createDragHandlers(
+                        tool.id,
+                        globalIndex,
+                        flatTools,
+                        reorderToolsGlobal,
+                      )
+                    : null;
+                  const isDragging = drag.draggingId === tool.id;
+                  const highlightAnim = getDropHighlight(tool.id);
+                  return (
+                    <View
+                      key={tool.id}
+                      ref={drag.createItemRef(tool.id)}
+                      onLayout={drag.handleItemLayout(tool.id)}
+                      style={isDragging ? {zIndex: 10} : undefined}>
+                    <Animated.View
+                      style={[
+                        isDragging ? {transform: [{translateY: drag.dragY}], opacity: 0.85} : undefined,
+                        {
+                            borderBottomWidth: highlightAnim.interpolate({inputRange: [-1, 0, 1], outputRange: [0, 0, 2]}),
+                            borderBottomColor: colors['custom/yellow'],
+                            borderTopWidth: highlightAnim.interpolate({inputRange: [-1, 0, 1], outputRange: [2, 0, 0]}),
+                            borderTopColor: colors['custom/yellow'],
+                          },
+                      ]}>
+                      <ListItem
+                        leading={{
+                          type: 'custom',
+                          element: <DragHandle responder={responder} enabled={canDrag} />,
+                        }}
+                        trailing={{
+                          type: 'iconButton',
+                          icon: IconMinus,
+                          onPress: () => removeTool(group.id, tool.id),
+                        }}
+                        showDivider={index < group.tools.length - 1}>
+                        <RNTextInput
+                          ref={groupIndex === 0 && index === 0 ? (node: any) => { sectionInputRefs.current['tools'] = node; } : undefined}
+                          style={[styles.editableRowInput, noOutline, inputHeights[tool.id] != null && {height: inputHeights[tool.id]}]}
+                          placeholder="예: 믹싱볼"
+                          placeholderTextColor={colors['foreground/on-surface-muted']}
+                          selectionColor={colors['foreground/on-surface']}
+                          value={tool.name}
+                          onChangeText={v => { updateTool(group.id, tool.id, v); resetInputHeight(tool.id); }}
+                          onFocus={(e) => handleFieldFocus('tools', e.nativeEvent)}
+                          onBlur={handleFieldBlur}
+                          multiline
+                          numberOfLines={1}
+                          blurOnSubmit={false}
+                          onContentSizeChange={e => onInputContentSizeChange(tool.id, e)}
+                        />
+                      </ListItem>
+                    </Animated.View>
+                    </View>
+                  );
+                })}
+              </View>
+              <View style={styles.addButtonRow}>
+                <View style={styles.addButtonDivider}>
+                  <View style={styles.divider} />
+                </View>
+                <View style={styles.addButtonPair}>
+                  <Pressable style={styles.addGroupButton} onPress={() => addToolGroup(group.id)}>
+                    <IconBlockPlus width={16} height={16} color={colors['foreground/accent']} />
+                    <Text style={styles.addGroupText}>묶음 추가</Text>
+                  </Pressable>
+                  <Pressable style={styles.addGroupButton} onPress={() => addTool(group.id, 'bottom')}>
+                    <IconAdd width={16} height={16} color={colors['foreground/accent']} />
+                    <Text style={styles.addGroupText}>갈래 추가</Text>
+                  </Pressable>
+                </View>
+              </View>
+              </>
+              )}
+            </Card>
+          </ContentContainer>
+        );})}
         </View>
 
         {/* 과정 Groups */}
         <View onLayout={e => { sectionPositions.current['steps'] = e.nativeEvent.layout.y; }}>
-        {stepGroups.map((group, groupIndex) => (
-          <ContentContainer key={group.id} style={groupIndex === 0 ? styles.section : styles.addGroupSection}>
-            <Card>
+        {stepGroups.map((group, groupIndex) => {
+          const groupHasDragging = drag.draggingId !== null && group.steps.some(s => s.id === drag.draggingId);
+          return (
+          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(groupHasDragging ? {zIndex: 100} : undefined)}}>
+            <Card style={groupHasDragging ? {overflow: 'visible'} : undefined}>
               {/* Group Header — editable when 2+ groups, non-first gets minus button */}
               {stepGroups.length >= 2 ? (
                 <ListItem
                   leading={groupIndex > 0
                     ? {type: 'iconButton', icon: IconMinus, onPress: () => removeStepGroup(group.id)}
                     : {type: 'icon', icon: IconProcess}}
-                  trailing={{type: 'iconButton', icon: IconAdd, onPress: () => addStep(group.id)}}>
+                  trailing={groupIndex === 0
+                    ? {type: 'custom', element: (
+                        <View style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
+                          <IconButton icon={IconBlockPlus} onPress={() => insertStepGroupAbove(group.id)} variant="soft" size="small" />
+                          <IconButton icon={IconAdd} onPress={() => addStep(group.id)} variant="soft" size="small" />
+                        </View>
+                      )}
+                    : {type: 'iconButton', icon: IconAdd, onPress: () => addStep(group.id)}}>
                   <View style={styles.breadcrumbRow}>
                     <Text style={styles.breadcrumbPrefix}>과정</Text>
-                    <IconChevronRight width={8} height={8} color={colors['foreground-onsurfacevar']} />
+                    <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
                     <RNTextInput
-                      style={[styles.editableRowInput, noOutline, inputHeights[`sgt-${group.id}`] != null && {height: inputHeights[`sgt-${group.id}`]}]}
+                      style={[styles.editableRowInput, {marginTop: 0}, noOutline, inputHeights[`sgt-${group.id}`] != null && {height: inputHeights[`sgt-${group.id}`]}]}
                       value={group.title}
                       onChangeText={v => { updateStepGroupTitle(group.id, v); resetInputHeight(`sgt-${group.id}`); }}
                       placeholder="그룹 이름"
-                      placeholderTextColor={colors['foreground-onsurfacemuted']}
-                      selectionColor={colors['foreground-primary']}
+                      placeholderTextColor={colors['foreground/on-surface-muted']}
+                      selectionColor={colors['foreground/on-surface']}
                       multiline
                       numberOfLines={1}
                       blurOnSubmit={false}
@@ -939,38 +1712,45 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
               {/* Steps */}
               <View style={styles.dragArea}>
                 {group.steps.map((step, index) => {
-                  const canDrag = group.steps.length > 1;
-                  const responder = canDrag
+                  const canDragStep = !!step.description.trim();
+                  const canDeleteStep = group.steps.length > 1 || canDragStep;
+                  const globalIndex = flatSteps.findIndex(f => f.id === step.id);
+                  const responder = canDragStep
                     ? drag.createDragHandlers(
                         step.id,
-                        index,
-                        group.steps,
-                        (from, to) => reorderSteps(group.id, from, to),
+                        globalIndex,
+                        flatSteps,
+                        reorderStepsGlobal,
                       )
                     : null;
                   const isDragging = drag.draggingId === step.id;
+                  const highlightAnim = getDropHighlight(step.id);
                   return (
-                    <Animated.View
+                    <View
                       key={step.id}
-                      style={isDragging ? {transform: [{translateY: drag.dragY}], zIndex: 10, opacity: 0.85} : undefined}>
+                      ref={drag.createItemRef(step.id)}
+                      onLayout={drag.handleItemLayout(step.id)}
+                      style={isDragging ? {zIndex: 10} : undefined}>
+                    <Animated.View
+                      style={[
+                        isDragging ? {transform: [{translateY: drag.dragY}], opacity: 0.85} : undefined,
+                        {
+                          borderBottomWidth: highlightAnim.interpolate({inputRange: [-1, 0, 1], outputRange: [0, 0, 2]}),
+                          borderBottomColor: colors['custom/yellow'],
+                          borderTopWidth: highlightAnim.interpolate({inputRange: [-1, 0, 1], outputRange: [2, 0, 0]}),
+                          borderTopColor: colors['custom/yellow'],
+                        },
+                      ]}>
                       <ListItem
                         leading={{
-                          type: 'iconButton',
-                          icon: IconMinus,
-                          onPress: () => removeStep(group.id, step.id),
+                          type: 'custom',
+                          element: <DragHandle responder={responder} enabled={canDragStep} />,
                         }}
                         trailing={{
-                          type: 'custom',
-                          element: (
-                            <View {...(responder ? responder.panHandlers : {})} style={dragStyles.handle}>
-                              <IconDragger
-                                width={16}
-                                height={16}
-                                color={colors['foreground-onsurfacemuted']}
-                                opacity={canDrag ? 1 : 0.3}
-                              />
-                            </View>
-                          ),
+                          type: 'iconButton',
+                          icon: IconMinus,
+                          onPress: canDeleteStep ? () => removeStep(group.id, step.id) : undefined,
+                          disabled: !canDeleteStep,
                         }}
                         titleNumberOfLines={0}
                         showDivider={index < group.steps.length - 1}>
@@ -991,6 +1771,8 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                               setSlashMenu(null);
                             }
                           }}
+                          onFocus={(e) => handleFieldFocus('steps', e.nativeEvent)}
+                          onBlur={handleFieldBlur}
                           numberOfLines={1}
                           blurOnSubmit={false}
                         />
@@ -1000,7 +1782,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                             <Menu
                               items={SLASH_MENU_ITEMS.map(item => ({
                                 ...item,
-                                disabled: (item.id === 'tip' && step.tip != null) || (item.id === 'caution' && step.caution != null),
+                                disabled: (item.id === 'photo' && (step.photos?.length ?? 0) >= 3) || (item.id === 'tip' && step.tip != null) || (item.id === 'caution' && step.caution != null),
                               }))}
                               onSelect={handleSlashMenuSelect}
                               visible
@@ -1028,128 +1810,50 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                             />
                           </View>
                         )}
+                        {step.photos && step.photos.length > 0 && (
+                          <StepPhotos
+                            photos={step.photos}
+                            mode="edit"
+                            onRemove={(pi) => {
+                              setStepGroups(prev => prev.map(g =>
+                                g.id === group.id
+                                  ? {...g, steps: g.steps.map(s =>
+                                      s.id === step.id
+                                        ? {...s, photos: s.photos?.filter((_, i) => i !== pi)}
+                                        : s,
+                                    )}
+                                  : g,
+                              ));
+                            }}
+                          />
+                        )}
                       </ListItem>
                     </Animated.View>
+                    </View>
                   );
                 })}
-                {/* Absolutely positioned drop indicator */}
-                {drag.draggingId !== null && group.steps.some(s => s.id === drag.draggingId) && (
-                  <Animated.View
-                    pointerEvents="none"
-                    style={[styles.dropIndicator, {transform: [{translateY: drag.indicatorTop}], opacity: drag.indicatorOpacity}]}
-                  />
-                )}
               </View>
 
-              {/* Add step button */}
+              {/* Add step / Add step group buttons */}
               <View style={styles.addButtonRow}>
                 <View style={styles.addButtonDivider}>
                   <View style={styles.divider} />
                 </View>
-                <IconButton
-                  icon={IconAdd}
-                  variant="soft"
-                  size="small"
-                  onPress={() => addStep(group.id, 'bottom')}
-                />
+                <View style={styles.addButtonPair}>
+                  <Pressable style={styles.addGroupButton} onPress={() => addStepGroup(group.id)}>
+                    <IconBlockPlus width={16} height={16} color={colors['foreground/accent']} />
+                    <Text style={styles.addGroupText}>묶음 추가</Text>
+                  </Pressable>
+                  <Pressable style={styles.addGroupButton} onPress={() => addStep(group.id, 'bottom')}>
+                    <IconAdd width={16} height={16} color={colors['foreground/accent']} />
+                    <Text style={styles.addGroupText}>갈래 추가</Text>
+                  </Pressable>
+                </View>
               </View>
             </Card>
           </ContentContainer>
-        ))}
+        );})}
 
-        {/* + 과정 묶음 추가 */}
-        <ContentContainer style={styles.addGroupSection}>
-          <Card>
-            <Pressable style={styles.addGroupButton} onPress={addStepGroup}>
-              <IconAdd width={16} height={16} color={colors['foreground-accent']} />
-              <Text style={styles.addGroupText}>과정 묶음 추가</Text>
-            </Pressable>
-          </Card>
-        </ContentContainer>
-        </View>
-
-        {/* 도구 */}
-        <View onLayout={e => { sectionPositions.current['tools'] = e.nativeEvent.layout.y; }}>
-        <ContentContainer style={styles.section}>
-          <Card>
-            <ListItem
-              title="도구"
-              leading={{type: 'icon', icon: IconToolCaseFilled}}
-              trailing={{type: 'iconButton', icon: IconAdd, onPress: () => addTool()}}
-            />
-            <View style={styles.dragArea}>
-              {tools.map((tool, index) => {
-                const canDrag = tools.length > 1;
-                const responder = canDrag
-                  ? drag.createDragHandlers(
-                      tool.id,
-                      index,
-                      tools,
-                      (from, to) => reorderTools(from, to),
-                    )
-                  : null;
-                const isDragging = drag.draggingId === tool.id;
-                return (
-                  <Animated.View
-                    key={tool.id}
-                    style={isDragging ? {transform: [{translateY: drag.dragY}], zIndex: 10, opacity: 0.85} : undefined}>
-                    <ListItem
-                      leading={{
-                        type: 'iconButton',
-                        icon: IconMinus,
-                        onPress: () => removeTool(tool.id),
-                      }}
-                      trailing={{
-                        type: 'custom',
-                        element: (
-                          <View {...(responder ? responder.panHandlers : {})} style={dragStyles.handle}>
-                            <IconDragger
-                              width={16}
-                              height={16}
-                              color={colors['foreground-onsurfacemuted']}
-                              opacity={canDrag ? 1 : 0.3}
-                            />
-                          </View>
-                        ),
-                      }}
-                      showDivider={index < tools.length - 1}>
-                      <RNTextInput
-                        ref={index === 0 ? (node: any) => { sectionInputRefs.current['tools'] = node; } : undefined}
-                        style={[styles.editableRowInput, noOutline, inputHeights[tool.id] != null && {height: inputHeights[tool.id]}]}
-                        placeholder="예: 믹싱볼"
-                        placeholderTextColor={colors['foreground-onsurfacemuted']}
-                        selectionColor={colors['foreground-primary']}
-                        value={tool.name}
-                        onChangeText={v => { updateTool(tool.id, v); resetInputHeight(tool.id); }}
-                        multiline
-                        numberOfLines={1}
-                        blurOnSubmit={false}
-                        onContentSizeChange={e => onInputContentSizeChange(tool.id, e)}
-                      />
-                    </ListItem>
-                  </Animated.View>
-                );
-              })}
-              {drag.draggingId !== null && tools.some(t => t.id === drag.draggingId) && (
-                <Animated.View
-                  pointerEvents="none"
-                  style={[styles.dropIndicator, {transform: [{translateY: drag.indicatorTop}], opacity: drag.indicatorOpacity}]}
-                />
-              )}
-            </View>
-            <View style={styles.addButtonRow}>
-              <View style={styles.addButtonDivider}>
-                <View style={styles.divider} />
-              </View>
-              <IconButton
-                icon={IconAdd}
-                variant="soft"
-                size="small"
-                onPress={() => addTool('bottom')}
-              />
-            </View>
-          </Card>
-        </ContentContainer>
         </View>
 
         {/* Navigation Items */}
@@ -1157,22 +1861,22 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           <ContentContainer style={styles.section}>
             <Card>
               <ListItem
-                title="요리책"
+                title="레시피 북"
                 leading={{type: 'custom', element: (
                   <View style={styles.cookbookLeadingSlot}>
                     {React.createElement(isExplore ? IconExprolerBookFilled : IconBookFilled, {
                       width: 16,
                       height: 16,
-                      color: cookbook && cookbookColorsProp?.[cookbook]
-                        ? colors[getColorVarKey(cookbookColorsProp[cookbook])]
-                        : colors['foreground-onsurfacemuted'],
+                      color: cookbook
+                        ? colors[getColorVarKey(cookbookColorsProp?.[cookbook] || (isExplore ? 'orange' : 'brown'))]
+                        : colors['foreground/on-surface-muted'],
                     })}
                   </View>
                 )}}
                 trailing={{type: 'custom', element: (
                   <View style={styles.cookbookTrailing}>
                     {cookbook ? <Text style={styles.cookbookValue}>{cookbook}</Text> : null}
-                    <IconChevronRight width={16} height={16} color={colors['foreground-onsurfacemuted']} />
+                    <IconChevronRight width={16} height={16} color={colors['foreground/on-surface-muted']} />
                   </View>
                 )}}
                 onPress={handleCookbookPress}
@@ -1181,9 +1885,32 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
             </Card>
           </ContentContainer>
         )}
+        {isExplore && isFieldActive('advice') && (
+          <View onLayout={e => { sectionPositions.current['advice'] = e.nativeEvent.layout.y; }}>
+          <ContentContainer style={isFieldActive('cookbook') ? styles.navItemGap : styles.section}>
+            <Card variant="yellow">
+              <ListItem
+                title="베이키의 조언"
+                leading={{type: 'icon', icon: IconLogoSymbol}}
+              />
+              <ListItem showDivider={false}>
+                <TextInput
+                  ref={(node: any) => { sectionInputRefs.current['advice'] = node; }}
+                  style="ghost"
+                  variant="yellow"
+                  multiline
+                  value={advice}
+                  onChangeText={setAdvice}
+                  placeholder="베이키의 조언을 입력하세요."
+                />
+              </ListItem>
+            </Card>
+          </ContentContainer>
+          </View>
+        )}
         {isFieldActive('review') && (
           <View onLayout={e => { sectionPositions.current['review'] = e.nativeEvent.layout.y; }}>
-          <ContentContainer style={isFieldActive('cookbook') ? styles.navItemGap : styles.section}>
+          <ContentContainer style={(isFieldActive('cookbook') || (isExplore && isFieldActive('advice'))) ? styles.navItemGap : styles.section}>
             <Card>
               <ListItem
                 title="회고"
@@ -1255,7 +1982,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
 
       {/* 사진 선택 메뉴는 photoTileWrap 내부로 이동됨 */}
 
-      {/* 요리책 선택 바텀시트 */}
+      {/* 레시피 북 선택 바텀시트 */}
       <CookbookSelectSheet
         visible={showCookbookMenu}
         onClose={() => { setShowCookbookMenu(false); setCookbookOverflowTarget(null); }}
@@ -1324,6 +2051,13 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
         onConfirm={setServings}
       />
 
+      {/* YouTube 참고 링크 PiP 플레이어 */}
+      <YouTubePlayerModal
+        visible={referenceYoutubeOpen}
+        onClose={() => setReferenceYoutubeOpen(false)}
+        videoId={referenceYouTubeId}
+      />
+
       {/* 재료 용량 다이얼로그 */}
       <IngredientAmountDialog
         visible={amountDialogTarget !== null}
@@ -1380,15 +2114,18 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
             <GlassContainer>
               <IconButton
                 icon={IconTick}
-                disabled={!isDirty}
-                onPress={() => {
+                disabled={!canSave}
+                loading={saving}
+                onPress={async () => {
                 if (!title.trim()) {
                   setTitleError(true);
                   scrollViewRef.current?.scrollTo({y: 0, animated: true});
                   titleInputRef.current?.focus();
                   return;
                 }
-                const hasIngredient = ingredientGroups.some(g => g.ingredients.some(i => i.name.trim()));
+                const hasIngredient = (ingredientGroups.length === 1 && ingredientsBulkMode)
+                  ? ingredientsBulkText.split(',').some(s => s.trim())
+                  : ingredientGroups.some(g => g.ingredients.some(i => i.name.trim()));
                 if (!hasIngredient) {
                   const y = sectionPositions.current['ingredients'];
                   if (y != null) scrollViewRef.current?.scrollTo({y: y - 80, animated: true});
@@ -1402,31 +2139,45 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                   setTimeout(() => sectionInputRefs.current['steps']?.focus(), 300);
                   return;
                 }
-                onSave?.({
-                  title: title.trim(),
-                  cookbook: cookbook || undefined,
-                  method: method || undefined,
-                  specificGravity: ratio || undefined,
-                  time: time || undefined,
-                  servings: servings || undefined,
-                  session: session || undefined,
-                  ingredientGroups: ingredientGroups.map(g => ({
-                    title: g.title,
-                    ingredients: g.ingredients
-                      .filter(i => i.name.trim())
-                      .map(i => ({name: i.name, amount: i.amount ? `${i.amount}${i.unit}` : i.unit})),
-                  })),
-                  tools: tools.filter(t => t.name.trim()).map(t => ({name: t.name})),
-                  stepGroups: stepGroups.map(g => ({
-                    title: g.title,
-                    steps: g.steps
-                      .filter(s => s.description.trim())
-                      .map((s, idx) => ({step: idx + 1, description: s.description, tip: s.tip, caution: s.caution})),
-                  })),
-                  activeFieldIds,
-                  reviews: reviews.length > 0 ? reviews : undefined,
-                  imageUri: imageUri || undefined,
-                });
+                setSaving(true);
+                try {
+                  await onSave?.({
+                    title: title.trim(),
+                    cookbook: cookbook || undefined,
+                    method: method || undefined,
+                    specificGravity: ratio || undefined,
+                    time: time || undefined,
+                    servings: servings || undefined,
+                    session: session || undefined,
+                    ingredientGroups: (ingredientGroups.length === 1 && ingredientsBulkMode)
+                      ? [{title: ingredientGroups[0].title, ingredients: bulkTextToIngredients(ingredientsBulkText).map(i => ({name: i.name, amount: i.amount ? `${i.amount}${i.unit}` : i.unit || ''}))}]
+                      : ingredientGroups.map(g => ({
+                          title: g.title,
+                          ingredients: g.ingredients
+                            .filter(i => i.name.trim())
+                            .map(i => ({name: i.name, amount: i.amount ? `${i.amount}${i.unit}` : i.unit})),
+                        })),
+                    toolGroups: (toolGroups.length === 1 && toolsBulkMode)
+                      ? [{title: toolGroups[0].title, tools: bulkTextToToolNames(toolsBulkText).map(name => ({name}))}]
+                      : toolGroups.map(g => ({
+                          title: g.title,
+                          tools: g.tools.filter(t => t.name.trim()).map(t => ({name: t.name})),
+                        })),
+                    stepGroups: stepGroups.map(g => ({
+                      title: g.title,
+                      steps: g.steps
+                        .filter(s => s.description.trim())
+                        .map((s, idx) => ({step: idx + 1, description: s.description, tip: s.tip, caution: s.caution, photos: s.photos?.length ? s.photos : undefined})),
+                    })),
+                    activeFieldIds,
+                    reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
+                    advice: advice || undefined,
+                    imageUri: imageUri || undefined,
+                    referenceUrl: referenceUrl || undefined,
+                  });
+                } finally {
+                  setSaving(false);
+                }
               }}
               variant="filled"
               size="large"
@@ -1435,16 +2186,49 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           </>
         }
       />
+
+      {/* OCR/음성 인식 툴바 — 필드 활성 시 키보드 위에 고정 노출 */}
+      {focusedOcrField && (
+        <RecipeInputFloatingBar
+          field={focusedOcrField}
+          onOcrStart={() => setOcrLoading(true)}
+          onOcrEnd={() => setOcrLoading(false)}
+          externalBusy={typing || ocrLoading}
+          onStop={stopTyping}
+          onRecognized={(value, field) => {
+            if (field === 'title' && typeof value === 'string' && value.trim()) {
+              typewriteString(value.trim().replace(/\s+/g, ' '), setTitle, 'title');
+            } else if (field === 'ingredients' && Array.isArray(value)) {
+              const cleaned = value.map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
+              if (cleaned.length === 0) return;
+              if (!ingredientsBulkMode) setIngredientsBulkMode(true);
+              const existing = ingredientsBulkText.trim();
+              const prefix = existing ? existing + ', ' : '';
+              typewriteAppendItems(cleaned, prefix, setIngredientsBulkText, 'ingredients');
+            } else if (field === 'tools' && Array.isArray(value)) {
+              const cleaned = value.map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
+              if (cleaned.length === 0) return;
+              if (!toolsBulkMode) setToolsBulkMode(true);
+              const existing = toolsBulkText.trim();
+              const prefix = existing ? existing + ', ' : '';
+              typewriteAppendItems(cleaned, prefix, setToolsBulkText, 'tools');
+            } else if (field === 'steps' && Array.isArray(value)) {
+              const cleaned = value.map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
+              if (cleaned.length === 0) return;
+              typewriteSteps(cleaned);
+            }
+          }}
+        />
+      )}
     </View>
   );
 }
 
 // ---- Styles ----
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors['surface-surfacedim'],
     alignItems: 'center',
   },
   scrollView: {
@@ -1460,33 +2244,99 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.smd,
+    minHeight: NAV_PILL_HEIGHT,
     gap: Spacing.sm,
+  },
+  methodRatioContainer: {
+    paddingHorizontal: Spacing.md,
+    minHeight: NAV_PILL_HEIGHT,
+    justifyContent: 'center',
   },
   titleInputWrap: {
     flex: 1,
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: Spacing.sm,
+  },
+  skeletonOverlay: {
+    justifyContent: 'center',
   },
   titleChips: {
     flexDirection: 'row',
     gap: Spacing.xs,
   },
+  methodRatioRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  methodRatioDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors['border/subtle'],
+    marginVertical: Spacing.xs,
+  },
+  methodRatioVDivider: {
+    width: StyleSheet.hairlineWidth,
+    alignSelf: 'stretch',
+    backgroundColor: colors['border/subtle'],
+    marginHorizontal: Spacing.sm,
+  },
+  methodField: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+  },
+  ratioField: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingVertical: 10,
+  },
+  methodFieldText: {
+    flex: 1,
+    fontFamily: Typography.body.medium.fontFamily,
+    fontSize: Typography.body.medium.fontSize,
+    fontWeight: Typography.body.medium.fontWeight as '500',
+    lineHeight: Typography.body.medium.lineHeight,
+    letterSpacing: Typography.body.medium.letterSpacing,
+    color: colors['foreground/on-surface'],
+  },
+  methodMenu: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    marginTop: 4,
+    zIndex: 50,
+  },
   titleInput: {
-    fontFamily: Typography.headline.small.fontFamily,
-    fontSize: Typography.headline.small.fontSize,
-    fontWeight: Typography.headline.small.fontWeight as '600',
-    lineHeight: Typography.headline.small.lineHeight,
-    letterSpacing: Typography.headline.small.letterSpacing,
-    color: colors['foreground-onsurface'],
+    flex: 1,
+    minWidth: 0,
+    fontFamily: Typography.body.medium.fontFamily,
+    fontSize: Typography.body.medium.fontSize,
+    fontWeight: Typography.body.medium.fontWeight as '500',
+    lineHeight: Typography.body.medium.lineHeight,
+    letterSpacing: -0.25,
+    color: colors['foreground/on-surface'],
     padding: 0,
     marginTop: FONT_BASELINE_OFFSET,
   },
+  titleMicButton: {
+    width: 24,
+    height: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
   dividerFull: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: colors['border-borderlight'],
+    backgroundColor: colors['border/muted'],
   },
   descriptionContainer: {
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.smd,
+    minHeight: NAV_PILL_HEIGHT,
+    justifyContent: 'center',
   },
   descriptionInput: {
     fontFamily: Typography.body.medium.fontFamily,
@@ -1494,14 +2344,14 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontWeight: Typography.body.medium.fontWeight as '500',
     lineHeight: Typography.body.medium.lineHeight,
     letterSpacing: -0.25,
-    color: colors['foreground-onsurface'],
+    color: colors['foreground/on-surface'],
     padding: 0,
     marginTop: FONT_BASELINE_OFFSET,
   },
 
   // Option Tiles
   optionTilesSection: {
-    paddingTop: Spacing.smd,
+    paddingTop: Spacing.md,
     zIndex: 10,
   },
   optionTilesRow: {
@@ -1529,6 +2379,13 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     height: '100%',
     borderRadius: Radius['radius-lg'],
   },
+  photoTileSpinner: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    borderRadius: Radius['radius-lg'],
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -1538,10 +2395,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
 
   // Sections
   section: {
-    paddingTop: Spacing.smd,
+    paddingTop: Spacing.md,
   },
   navItemGap: {
-    paddingTop: Spacing.smd,
+    paddingTop: Spacing.md,
   },
 
   // Editable Row (재료/과정)
@@ -1558,7 +2415,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontWeight: Typography.body.medium.fontWeight as '500',
     lineHeight: Typography.body.medium.lineHeight,
     letterSpacing: -0.25,
-    color: colors['foreground-onsurface'],
+    color: colors['foreground/on-surface'],
     padding: 0,
     marginTop: FONT_BASELINE_OFFSET,
   },
@@ -1575,13 +2432,13 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontWeight: Typography.body.medium.fontWeight as '500',
     lineHeight: Typography.body.medium.lineHeight,
     letterSpacing: -0.25,
-    color: colors['foreground-onsurface'],
+    color: colors['foreground/on-surface'],
     padding: 0,
     textAlign: 'right',
     marginTop: FONT_BASELINE_OFFSET,
   },
   amountPlaceholder: {
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
   },
   unitText: {
     fontFamily: Typography.body.medium.fontFamily,
@@ -1589,25 +2446,17 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontWeight: Typography.body.medium.fontWeight as '500',
     lineHeight: Typography.body.medium.lineHeight,
     letterSpacing: -0.25,
-    color: colors['foreground-onsurfacevar'],
+    color: colors['foreground/on-surface-var'],
     marginTop: FONT_BASELINE_OFFSET,
   },
   divider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: colors['border-borderlight'],
+    backgroundColor: colors['border/muted'],
   },
 
   // Drag area & indicator
   dragArea: {
     position: 'relative',
-  },
-  dropIndicator: {
-    position: 'absolute',
-    top: 0,
-    left: Spacing.smd,
-    right: Spacing.smd,
-    height: 2,
-    backgroundColor: '#FFC107',
   },
 
   tipChipInline: {
@@ -1623,6 +2472,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.xs,
+    marginTop: FONT_BASELINE_OFFSET,
   },
   breadcrumbPrefix: {
     fontFamily: Typography.body.medium.fontFamily,
@@ -1630,30 +2480,36 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontWeight: Typography.body.medium.fontWeight as '500',
     lineHeight: Typography.body.medium.lineHeight,
     letterSpacing: -0.25,
-    color: colors['foreground-onsurfacevar'],
-    marginTop: FONT_BASELINE_OFFSET,
+    color: colors['foreground/on-surface-var'],
   },
 
   // Add button row
   addButtonRow: {
-    alignItems: 'center',
     paddingBottom: Spacing.sm,
   },
   addButtonDivider: {
     width: '100%',
     paddingBottom: Spacing.sm,
   },
+  addButtonPair: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'center',
+    maxWidth: 320,
+    width: '100%',
+    gap: 16,
+  },
 
-  // + 묶음 추가
+  // + 묶음 추가 (재료 등)
   addGroupSection: {
-    paddingTop: Spacing.smd,
+    paddingTop: Spacing.md,
   },
   addGroupButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48,
-    paddingVertical: Spacing.sm,
+    paddingVertical: Spacing.xs,
     gap: Spacing.xs,
   },
   addGroupText: {
@@ -1661,8 +2517,47 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontSize: Typography.label['large - semibold'].fontSize,
     fontWeight: Typography.label['large - semibold'].fontWeight as '600',
     lineHeight: Typography.label['large - semibold'].lineHeight,
-    color: colors['foreground-accent'],
+    color: colors['foreground/accent'],
     marginTop: FONT_BASELINE_OFFSET,
+  },
+
+  // Tool bulk mode toggle
+  toolHeaderTrailing: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 16,
+  },
+  toggleWrap: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    padding: 2,
+  },
+  toggleLabel: {
+    ...Typography.label.medium,
+    color: colors['foreground/on-surface-muted'],
+    marginTop: FONT_BASELINE_OFFSET,
+  },
+  toggleTrack: {
+    width: 36,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: colors['foreground/on-surface-muted'],
+    justifyContent: 'center',
+    paddingHorizontal: 2,
+  },
+  toggleTrackActive: {
+    backgroundColor: colors['custom/orange-var'],
+  },
+  toggleThumb: {
+    width: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#fff',
+  },
+  bulkToolInput: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.smd,
   },
 
   // Overlay & Menu
@@ -1687,7 +2582,38 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontWeight: Typography.body.medium.fontWeight as '500',
     lineHeight: Typography.body.medium.lineHeight,
     letterSpacing: -0.25,
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
     marginTop: FONT_BASELINE_OFFSET,
+  },
+
+  // 참고 링크
+  referenceLinkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  referenceLinkChip: {
+    flexShrink: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  referenceLinkLabel: {
+    fontFamily: Typography.body.medium.fontFamily,
+    fontSize: Typography.body.medium.fontSize,
+    fontWeight: Typography.body.medium.fontWeight as '500',
+    lineHeight: Typography.body.medium.lineHeight,
+    letterSpacing: -0.25,
+    color: colors['foreground/on-surface'],
+    marginTop: FONT_BASELINE_OFFSET,
+  },
+  referenceLinkText: {
+    flexShrink: 1,
+    fontFamily: Typography.body.medium.fontFamily,
+    fontSize: Typography.body.medium.fontSize,
+    fontWeight: Typography.body.medium.fontWeight as '500',
+    lineHeight: Typography.body.medium.lineHeight,
+    color: colors['foreground/on-surface-muted'],
+    textDecorationLine: 'underline',
   },
 });

@@ -3,8 +3,8 @@ import {Image, ImageSourcePropType, StyleSheet, Text, View} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {Button} from '@components/Button';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import type {SemanticColors} from '@constants/tokens';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 const emptyRecipeImage = require('../../../assets/images/empty_recipe.png');
@@ -12,6 +12,7 @@ const emptyNoResultsImage = require('../../../assets/images/empty_no_results.png
 const emptyNetworkImage = require('../../../assets/images/empty_network.png');
 
 export type EmptyStateCategory = 'no-results' | 'no-recipe' | 'network-error' | 'error';
+export type EmptyStateVariant = 'fullscreen' | 'inline';
 
 export interface EmptyStateProps {
   /** 카테고리별 기본 일러스트레이션 */
@@ -25,6 +26,8 @@ export interface EmptyStateProps {
   /** 액션 링크 */
   actionLabel?: string;
   onAction?: () => void;
+  /** fullscreen(기본): 페이지 전체 빈 상태. inline: 카드/섹션 안의 빈 상태 (텍스트만). */
+  variant?: EmptyStateVariant;
 }
 
 function CategoryIllustration({category, styles}: {category: EmptyStateCategory; styles: any}) {
@@ -40,8 +43,17 @@ function CategoryIllustration({category, styles}: {category: EmptyStateCategory;
   }
 }
 
-export function EmptyState({category, image, icon, title, subtitle, actionLabel, onAction}: EmptyStateProps) {
-  const styles = useThemedStyles(createStyles);
+export function EmptyState({category, image, icon, title, subtitle, actionLabel, onAction, variant = 'fullscreen'}: EmptyStateProps) {
+  const styles = useThemedStylesV2(createStyles);
+
+  if (variant === 'inline') {
+    return (
+      <View style={styles.inlineContainer}>
+        <Text style={styles.inlineText}>{title}</Text>
+        {subtitle && <Text style={styles.inlineSubtitle}>{subtitle}</Text>}
+      </View>
+    );
+  }
 
   return (
     <View style={styles.container}>
@@ -61,7 +73,7 @@ export function EmptyState({category, image, icon, title, subtitle, actionLabel,
   );
 }
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
@@ -74,7 +86,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     height: 120,
   },
   iconColor: {
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
   },
   textGroup: {
     alignItems: 'center',
@@ -85,7 +97,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontSize: Typography.title.medium.fontSize,
     fontWeight: Typography.title.medium.fontWeight as '700',
     lineHeight: Typography.title.medium.lineHeight,
-    color: colors['foreground-onsurfacevar'],
+    color: colors['foreground/on-surface-var'],
     textAlign: 'center',
     marginTop: FONT_BASELINE_OFFSET,
   },
@@ -94,7 +106,32 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontSize: Typography.label.medium.fontSize,
     fontWeight: Typography.label.medium.fontWeight as '500',
     lineHeight: Typography.label.medium.lineHeight,
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
+    textAlign: 'center',
+    marginTop: FONT_BASELINE_OFFSET,
+  },
+  // ---- inline variant (카드/섹션 내부) ----
+  inlineContainer: {
+    paddingVertical: Spacing.lg,
+    paddingHorizontal: Spacing.md,
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  inlineText: {
+    fontFamily: Typography.body.medium.fontFamily,
+    fontSize: Typography.body.medium.fontSize,
+    fontWeight: Typography.body.medium.fontWeight as '500',
+    lineHeight: Typography.body.medium.lineHeight,
+    color: colors['foreground/on-surface-muted'],
+    textAlign: 'center',
+    marginTop: FONT_BASELINE_OFFSET,
+  },
+  inlineSubtitle: {
+    fontFamily: Typography.label.medium.fontFamily,
+    fontSize: Typography.label.medium.fontSize,
+    fontWeight: Typography.label.medium.fontWeight as '500',
+    lineHeight: Typography.label.medium.lineHeight,
+    color: colors['foreground/on-surface-muted'],
     textAlign: 'center',
     marginTop: FONT_BASELINE_OFFSET,
   },

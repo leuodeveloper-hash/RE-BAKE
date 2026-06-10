@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import {Radius} from '@constants/tokens';
-import type {SemanticColors} from '@constants/tokens';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Typography} from '@constants/typography';
 import {Spacing} from '@constants/spacing';
 import {SvgProps} from 'react-native-svg';
@@ -20,8 +20,8 @@ import {AppIcon} from '@components/Icon/AppIcon';
 import {IconNoteFilled, IconBookFilled} from '@components/Icon/IconIndex';
 import {SheetHeader} from '@components/BottomSheet/SheetHeader';
 import {Thumbnail} from '@components/Thumbnail';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import {useColors} from '@contexts/ThemeContext';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useColorsV2} from '@contexts/ThemeContext';
 import * as Haptics from 'expo-haptics';
 
 export interface TabItem {
@@ -65,8 +65,8 @@ export function BottomTabBar({
   addMenuItems,
   onAddItemPress,
 }: BottomTabBarProps) {
-  const styles = useThemedStyles(createStyles);
-  const colors = useColors();
+  const styles = useThemedStylesV2(createStyles);
+  const colors = useColorsV2();
   const tabOpacity = useRef(new Animated.Value(1)).current;
   const menuOpacity = useRef(new Animated.Value(0)).current;
   // expanded와 분리된 내부 상태: 닫을 때 애니메이션 완료 후 전환
@@ -99,8 +99,8 @@ export function BottomTabBar({
   }, [tabs.length]);
 
   const resolvedAddItems = useMemo<AddMenuItem[]>(() => addMenuItems ?? [
-    {id: 'recipe', label: '레시피', icon: IconNoteFilled, iconColor: colors['custom-greenvar']},
-    {id: 'cookbook', label: '요리책', icon: IconBookFilled, iconColor: colors['custom-brownvar']},
+    {id: 'recipe', label: '레시피', icon: IconNoteFilled, iconColor: colors['custom/green-var']},
+    {id: 'cookbook', label: '레시피 북', icon: IconBookFilled, iconColor: colors['custom/brown-var']},
   ], [addMenuItems, colors]);
 
   useEffect(() => {
@@ -164,6 +164,7 @@ export function BottomTabBar({
   return (
     <GlassContainer
         borderRadius={showMenu ? 'xl' : 'full'}
+        intensity={80}
         style={Platform.OS === 'web' ? styles.webTransition : undefined}
         contentStyle={showMenu ? styles.expandedContainer : styles.container}>
         {showMenu ? (
@@ -180,10 +181,13 @@ export function BottomTabBar({
                       (pressed || focused) && styles.menuItemPressed,
                     ]}
                     onPress={() => handleAddItemPress(item)}>
-                    <Thumbnail
-                      icon={IconComponent}
-                      iconColor={item.iconColor || colors['foreground-onsurface']}
-                    />
+                    <View style={styles.menuItemThumb}>
+                      <IconComponent
+                        width={24}
+                        height={24}
+                        color={item.iconColor || colors['foreground/on-surface']}
+                      />
+                    </View>
                     <Text style={styles.menuItemLabel}>{item.label}</Text>
                   </Pressable>
                 );
@@ -209,11 +213,11 @@ export function BottomTabBar({
               const IconComponent =
                 isActive && tab.activeIcon ? tab.activeIcon : tab.icon;
               const iconColor = isActive
-                ? colors['foreground-onsurface']
-                : colors['foreground-onsurfacemuted'];
+                ? colors['foreground/on-surface']
+                : colors['foreground/on-surface-muted'];
               const textColor = isActive
-                ? colors['foreground-onsurface']
-                : colors['foreground-onsurfacemuted'];
+                ? colors['foreground/on-surface']
+                : colors['foreground/on-surface-muted'];
 
               return (
                 <Pressable
@@ -251,9 +255,6 @@ export function BottomTabBar({
                             <AppIcon icon={IconComponent} size="md" color={iconColor} />
                           </View>
                         )}
-                        <Text style={[styles.label, {color: textColor}]}>
-                          {tab.label}
-                        </Text>
                       </View>
                     </View>
                   )}
@@ -269,16 +270,19 @@ export function BottomTabBar({
 // 공통 너비
 const BOTTOM_MENU_WIDTH = 328;
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   // 탭바 컨테이너 (축소 상태)
   container: {
     width: BOTTOM_MENU_WIDTH,
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.xs,
+    backgroundColor: 'rgba(255,255,255,0.4)',
   },
   // 확장 컨테이너 (추가 메뉴 상태)
   expandedContainer: {
-    width: BOTTOM_MENU_WIDTH,
+    maxWidth: 380,
+    width: '100%',
+    backgroundColor: 'rgba(255,255,255,0.4)',
   },
   // 탭 콘텐츠 (메인 - 높이 결정)
   tabContent: {
@@ -308,10 +312,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     left: 0,
     bottom: 0,
     borderRadius: Radius['radius-full'],
-    backgroundColor: colors['background-statelayers-surfacehover'],
+    backgroundColor: colors['state/hover'],
   },
   stateLayer: {
     width: '100%',
+    minHeight: 48,
     paddingVertical: Spacing.sm,
     paddingHorizontal: Spacing.sm,
     alignItems: 'center',
@@ -352,6 +357,14 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.sm,
   },
+  menuItemThumb: {
+    width: 68,
+    height: 68,
+    borderRadius: 12,
+    backgroundColor: 'rgba(94, 94, 94, 0.08)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   menuItemPressed: {
     opacity: 0.7,
   },
@@ -361,7 +374,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontWeight: Typography.label.medium.fontWeight as '600',
     lineHeight: Typography.label.medium.lineHeight,
     letterSpacing: -0.25,
-    color: colors['foreground-onsurfacevar'],
+    color: colors['foreground/on-surface-var'],
     textAlign: 'center',
   },
 });

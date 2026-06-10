@@ -1,13 +1,13 @@
 import React from 'react';
 import {Pressable, StyleSheet, Text, ViewStyle} from 'react-native';
 import {SvgProps} from 'react-native-svg';
-import type {SemanticColors} from '@constants/tokens';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {Card} from '@components/Container/Card';
 import {AppIcon, AppIconSize} from '@components/Icon/AppIcon';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import {useColors} from '@contexts/ThemeContext';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useColorsV2} from '@contexts/ThemeContext';
 
 export interface OptionTileProps {
   icon: React.FC<SvgProps>;
@@ -18,14 +18,14 @@ export interface OptionTileProps {
 }
 
 export function OptionTile({icon, iconSize = 'sm', label, style, onPress}: OptionTileProps) {
-  const styles = useThemedStyles(createStyles);
-  const colors = useColors();
+  const styles = useThemedStylesV2(createStyles);
+  const colors = useColorsV2();
   const content = (
     <Card style={[styles.card, style]}>
       <AppIcon
         icon={icon}
         size={iconSize}
-        color={colors['foreground-onsurfacemuted']}
+        color={colors['foreground/on-surface-muted']}
       />
       <Text style={styles.label}>{label}</Text>
     </Card>
@@ -36,7 +36,7 @@ export function OptionTile({icon, iconSize = 'sm', label, style, onPress}: Optio
   return content;
 }
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   pressable: {
     flex: 1,
   },
@@ -52,7 +52,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontSize: Typography.label.medium.fontSize,
     fontWeight: Typography.label.medium.fontWeight as '600',
     lineHeight: Typography.label.medium.lineHeight,
-    color: colors['foreground-onsurface'],
+    color: colors['foreground/on-surface'],
     textAlign: 'center',
     marginTop: FONT_BASELINE_OFFSET,
   },

@@ -1,21 +1,21 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
   Animated,
-  Dimensions,
   GestureResponderEvent,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import {Radius} from '@constants/tokens';
-import type {SemanticColors} from '@constants/tokens';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
-import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {BlurView} from 'expo-blur';
 import {SheetHeader} from './SheetHeader';
-
-const {height: SCREEN_HEIGHT} = Dimensions.get('window');
 
 const ANIMATION_CONFIG = {
   spring: {
@@ -50,6 +50,11 @@ export interface BottomSheetProps {
   enableBackdropDismiss?: boolean;
   fullScreen?: boolean;
   backgroundColor?: string;
+  maxWidth?: number;
+  /** ScrollView 뒤에 고정되는 배경 요소 (그라디언트 등) */
+  backgroundElement?: React.ReactNode;
+  /** 배경 오버레이에 블러 적용 (다이얼로그처럼) */
+  blurBackdrop?: boolean;
 }
 
 export function BottomSheet({
@@ -65,10 +70,14 @@ export function BottomSheet({
   enableBackdropDismiss = true,
   fullScreen = false,
   backgroundColor,
+  maxWidth,
+  backgroundElement,
+  blurBackdrop = false,
 }: BottomSheetProps) {
-  const styles = useThemedStyles(createStyles);
+  const styles = useThemedStylesV2(createStyles);
+  const {height: windowHeight} = useWindowDimensions();
   const {top: safeTop, bottom: safeBottom} = useSafeAreaInsets();
-  const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current;
+  const translateY = useRef(new Animated.Value(windowHeight)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const contentHeight = useRef(0);
   // 내부 마운트 상태: 닫기 애니메이션 완료까지 유지
@@ -82,7 +91,7 @@ export function BottomSheet({
   const animateClose = useCallback((velocity?: number) => {
     if (closingRef.current) return;
     closingRef.current = true;
-    const targetY = contentHeight.current || SCREEN_HEIGHT;
+    const targetY = contentHeight.current || windowHeight;
     Animated.parallel([
       Animated.spring(translateY, {
         toValue: targetY,
@@ -94,12 +103,21 @@ export function BottomSheet({
         duration: 200,
         useNativeDriver: true,
       }),
-    ]).start(() => {
+    ]).start((result) => {
       closingRef.current = false;
       setMounted(false);
-      translateY.setValue(SCREEN_HEIGHT);
+      translateY.setValue(windowHeight);
       onCloseRef.current();
     });
+    // 안전장치: 애니메이션 콜백이 안 타는 경우 대비
+    setTimeout(() => {
+      if (closingRef.current) {
+        closingRef.current = false;
+        setMounted(false);
+        translateY.setValue(windowHeight);
+        onCloseRef.current();
+      }
+    }, 500);
   }, [translateY, backdropOpacity]);
 
   // visible prop 변화 감지
@@ -108,7 +126,7 @@ export function BottomSheet({
       // 열기
       closingRef.current = false;
       setMounted(true);
-      translateY.setValue(SCREEN_HEIGHT);
+      translateY.setValue(windowHeight);
       backdropOpacity.setValue(0);
       // 다음 프레임에서 애니메이션 시작 (마운트 후)
       requestAnimationFrame(() => {
@@ -129,6 +147,7 @@ export function BottomSheet({
   const dragLastTime = useRef(0);
   const dragVelocity = useRef(0);
   const contentTouchStartY = useRef(0);
+  const scrollOffsetY = useRef(0);
 
   const onDragGrant = useCallback((e: GestureResponderEvent) => {
     dragStartY.current = e.nativeEvent.pageY;
@@ -197,6 +216,9 @@ export function BottomSheet({
               }),
             },
           ]}>
+          {blurBackdrop && (
+            <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
+          )}
           <Pressable style={StyleSheet.absoluteFill} onPress={handleBackdropPress} />
         </Animated.View>
 
@@ -207,9 +229,12 @@ export function BottomSheet({
             fullScreen && styles.sheetFullScreen,
             fullScreen && backgroundColor ? {backgroundColor} : undefined,
             height !== 'auto' && !fullScreen && {height},
+            !fullScreen && {maxHeight: windowHeight - safeTop - safeBottom - Spacing.sm * 2},
+            maxWidth != null && {maxWidth},
             {transform: [{translateY}]},
           ]}
           onLayout={handleLayout}>
+          {backgroundElement}
           <View style={fullScreen ? styles.wrapperFullScreen : undefined}>
             {/* 핸들: 터치 즉시 드래그 시작 */}
             <View
@@ -232,7 +257,7 @@ export function BottomSheet({
               onMoveShouldSetResponderCapture={(e: GestureResponderEvent) => {
                 if (!enableDragToDismiss) return false;
                 const dy = e.nativeEvent.pageY - contentTouchStartY.current;
-                return dy > 10;
+                return dy > 10 && scrollOffsetY.current <= 0;
               }}
               onResponderGrant={(e: GestureResponderEvent) => {
                 dragStartY.current = contentTouchStartY.current;
@@ -248,7 +273,19 @@ export function BottomSheet({
             >
               {title && <SheetHeader title={title} description={description} onClose={() => animateClose()} headerGraphic={headerGraphic} headerType={headerType} />}
 
-              <View style={[styles.content, fullScreen && styles.contentFullScreen]}>{children}</View>
+              {fullScreen ? (
+                <View style={[styles.content, styles.contentFullScreen]}>{children}</View>
+              ) : (
+                <ScrollView
+                  bounces={false}
+                  showsVerticalScrollIndicator={false}
+                  contentContainerStyle={styles.content}
+                  onScroll={(e) => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }}
+                  scrollEventThrottle={16}
+                >
+                  {children}
+                </ScrollView>
+              )}
             </View>
           </View>
         </Animated.View>
@@ -257,7 +294,7 @@ export function BottomSheet({
   );
 }
 
-const createStyles = (colors: SemanticColors) =>
+const createStyles = (colors: SemanticColorsV2) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -266,19 +303,16 @@ const createStyles = (colors: SemanticColors) =>
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: colors.scrim,
+      backgroundColor: colors['overlay/strong'],
     },
     sheetContainer: {
-      maxWidth: 400,
+      maxWidth: 478,
       width: '100%',
       alignSelf: 'center',
-      backgroundColor: colors['surface-surfacebright'],
+      backgroundColor: colors['surface/bright'],
       borderRadius: Radius['radius-xl'],
-      shadowColor: colors.shadow,
-      shadowOffset: {width: 0, height: -4},
-      shadowOpacity: 0.15,
-      shadowRadius: 20,
-      elevation: 20,
+      overflow: 'hidden',
+      boxShadow: '0px -4px 20px 0px rgba(0, 0, 0, 0.15)',
     },
     handleContainer: {
       alignItems: 'center',
@@ -289,7 +323,7 @@ const createStyles = (colors: SemanticColors) =>
       width: 36,
       height: 4,
       borderRadius: Radius['radius-full'],
-      backgroundColor: colors['border-border'],
+      backgroundColor: colors['border/normal'],
     },
     content: {
       paddingHorizontal: Spacing.xs,

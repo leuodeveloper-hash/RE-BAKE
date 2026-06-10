@@ -1,16 +1,57 @@
-import {ref, uploadBytes, getDownloadURL, deleteObject} from 'firebase/storage';
+import {ref, uploadBytes, uploadString, getDownloadURL, deleteObject} from 'firebase/storage';
+import {Platform} from 'react-native';
 import {storage} from '@config/firebase';
 
 /**
+ * 웹에서 blob: URL을 data: URL(base64)로 즉시 변환.
+ * blob URL은 일시적이므로 선택 직후 호출해야 함.
+ */
+export async function getPersistentUri(uri: string, base64?: string | null): Promise<string> {
+  // 네이티브는 file:// URI가 안정적이므로 그대로 사용
+  if (Platform.OS !== 'web') return uri;
+  // 이미 base64가 있으면 data URL로
+  if (base64) return `data:image/jpeg;base64,${base64}`;
+  // blob: URL → data URL 변환
+  if (uri.startsWith('blob:')) {
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => resolve(reader.result as string);
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  }
+  return uri;
+}
+
+/**
  * 레시피 이미지를 Firebase Storage에 업로드하고 다운로드 URL을 반환.
- * @param uri 로컬 이미지 URI
+ * @param uri 로컬 이미지 URI (file://, data:, blob:)
  * @param recipeId 레시피 ID (Storage 경로에 사용)
  */
 export async function uploadRecipeImage(uri: string, recipeId: string): Promise<string> {
-  const response = await fetch(uri);
-  const blob = await response.blob();
   const storageRef = ref(storage, `recipe_images/${recipeId}`);
-  await uploadBytes(storageRef, blob);
+
+  if (uri.startsWith('data:')) {
+    // data: URL → base64 추출 → uploadString
+    const base64 = uri.split(',')[1];
+    const contentType = uri.match(/data:(.*?);/)?.[1] || 'image/jpeg';
+    await uploadString(storageRef, base64, 'base64', {contentType});
+  } else if (Platform.OS === 'web') {
+    // 웹: blob: URL → fetch → uploadBytes
+    const response = await fetch(uri);
+    const blob = await response.blob();
+    await uploadBytes(storageRef, blob);
+  } else {
+    // 네이티브: expo-file-system base64 → uploadString
+    const FileSystem = require('expo-file-system');
+    const base64 = await FileSystem.readAsStringAsync(uri, {
+      encoding: FileSystem.EncodingType.Base64,
+    });
+    await uploadString(storageRef, base64, 'base64', {contentType: 'image/jpeg'});
+  }
+
   return getDownloadURL(storageRef);
 }
 
@@ -26,7 +67,9 @@ export async function deleteRecipeImage(recipeId: string): Promise<void> {
   }
 }
 
-/** 로컬 파일 경로인지 판별 (http/https가 아닌 모든 URI) */
+/** 로컬/임시 URI인지 판별 (Firebase Storage URL이 아닌 모든 URI) */
 export function isLocalUri(uri: string): boolean {
+  if (uri.startsWith('blob:')) return true;
+  if (uri.startsWith('data:')) return true;
   return !uri.startsWith('http://') && !uri.startsWith('https://');
 }

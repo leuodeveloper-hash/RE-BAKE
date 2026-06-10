@@ -4,6 +4,7 @@ import {
   Easing,
   Image,
   ImageSourcePropType,
+  Modal,
   Pressable,
   StyleSheet,
   Text,
@@ -12,7 +13,7 @@ import {
 } from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {Radius} from '@constants/tokens';
-import type {SemanticColors} from '@constants/tokens';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import type {AvatarColor} from '@components/Avatar/Avatar';
@@ -20,8 +21,8 @@ import {IconClose} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
 import {SheetHeader} from '@components/BottomSheet/SheetHeader';
 import {BlurView} from 'expo-blur';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import {useColors, useTheme} from '@contexts/ThemeContext';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useColorsV2} from '@contexts/ThemeContext';
 
 export interface DialogProps {
   visible: boolean;
@@ -52,6 +53,8 @@ export interface DialogProps {
   width?: number;
   /** 배경 블러 (기본: false) */
   blurBackdrop?: boolean;
+  /** 헤더 레이아웃 (기본: 'default') */
+  headerType?: 'default' | 'center';
 }
 
 const ANIMATION_DURATION = 200;
@@ -72,10 +75,10 @@ export function Dialog({
   surface = 'bright',
   width,
   blurBackdrop = false,
+  headerType,
 }: DialogProps) {
-  const styles = useThemedStyles(createStyles);
-  const colors = useColors();
-  const {isDark} = useTheme();
+  const styles = useThemedStylesV2(createStyles);
+  const colors = useColorsV2();
   const {height: windowHeight} = useWindowDimensions();
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.95)).current;
@@ -136,23 +139,25 @@ export function Dialog({
     if (enableBackdropDismiss) onClose();
   };
 
-  if (!visible && !rendered) return null;
-
   return (
+    <Modal visible={visible || rendered} transparent animationType="none" statusBarTranslucent>
     <View style={styles.overlay}>
       {/* Backdrop */}
       <Animated.View
         style={[
           styles.backdrop,
+          blurBackdrop && styles.blurBackdrop,
           {
-            opacity: backdropOpacity.interpolate({
-              inputRange: [0, 1],
-              outputRange: [0, blurBackdrop ? 1 : 0.4],
-            }),
+            opacity: blurBackdrop
+              ? backdropOpacity
+              : backdropOpacity.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, 0.4],
+                }),
           },
         ]}>
         {blurBackdrop && (
-          <BlurView intensity={20} tint={isDark ? 'dark' : 'light'} style={StyleSheet.absoluteFill} />
+          <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
         )}
         <Pressable style={StyleSheet.absoluteFill} onPress={handleBackdropPress} />
       </Animated.View>
@@ -164,7 +169,7 @@ export function Dialog({
           styles.card,
           {maxHeight: windowHeight * 0.85},
           width != null && {width},
-          surface === 'dim' && {backgroundColor: colors['surface-surfacedim']},
+          surface === 'dim' && {backgroundColor: colors['surface/dim']},
           {
             opacity: contentOpacity,
             transform: [{scale}],
@@ -193,6 +198,7 @@ export function Dialog({
             icon={icon}
             avatarColor={avatarColor}
             headerGraphic={headerGraphic}
+            headerType={headerType}
             onClose={showCloseButton ? onClose : undefined}
           />
         )}
@@ -214,25 +220,28 @@ export function Dialog({
       </Animated.View>
       </Animated.View>
     </View>
+    </Modal>
   );
 }
 
-const createStyles = (colors: SemanticColors) =>
+const createStyles = (colors: SemanticColorsV2) =>
   StyleSheet.create({
     overlay: {
       ...StyleSheet.absoluteFillObject,
       justifyContent: 'center',
       alignItems: 'center',
-      zIndex: 1000,
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: colors.scrim,
+      backgroundColor: colors['overlay/strong'],
+    },
+    blurBackdrop: {
+      backgroundColor: 'rgba(0, 0, 0, 0.3)',
     },
     card: {
       width: 312,
-      minHeight: 250,
-      backgroundColor: colors['surface-surfacebright'],
+      minHeight: 160,
+      backgroundColor: colors['surface/bright'],
       borderRadius: Radius['radius-xl'],
       paddingBottom: Spacing.lg,
     },
@@ -270,13 +279,13 @@ const createStyles = (colors: SemanticColors) =>
     },
     imageTitle: {
       ...Typography.title.large,
-      color: colors['foreground-onsurface'],
+      color: colors['foreground/on-surface'],
       marginTop: FONT_BASELINE_OFFSET,
       textAlign: 'center' as const,
     },
     imageDescription: {
       ...Typography.body.medium,
-      color: colors['foreground-onsurfacemuted'],
+      color: colors['foreground/on-surface-muted'],
       marginTop: Spacing.sm,
       textAlign: 'center' as const,
     },

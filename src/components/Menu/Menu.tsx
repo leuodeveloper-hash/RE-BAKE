@@ -1,12 +1,16 @@
-import React, {useEffect, useRef, useState} from 'react';
-import {Animated, Easing, Pressable, ScrollView, StyleSheet, ViewStyle} from 'react-native';
-import type {SemanticColors} from '@constants/tokens';
+import React, {useEffect, useMemo, useRef, useState} from 'react';
+import {Animated, Easing, Pressable, ScrollView, StyleSheet, View, ViewStyle} from 'react-native';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {SvgProps} from 'react-native-svg';
 import {GlassContainer} from '@components/Container';
+import {TextInput} from '@components/TextInput';
+import {IconSearch} from '@components/Icon/IconIndex';
+import {AppIcon} from '@components/Icon/AppIcon';
+import {useColorsV2} from '@contexts/ThemeContext';
 import {MenuItem} from './MenuItem';
 import {Subheader} from './Subheader';
-import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
 
 export interface MenuItemData {
   id: string;
@@ -44,6 +48,8 @@ export interface MenuProps {
   visible?: boolean;
   /** 최대 높이 (초과 시 스크롤) */
   maxHeight?: number;
+  /** 검색바 표시 */
+  searchable?: boolean;
 }
 
 export function Menu({
@@ -56,11 +62,20 @@ export function Menu({
   style,
   visible = true,
   maxHeight,
+  searchable = false,
 }: MenuProps) {
-  const styles = useThemedStyles(createStyles);
+  const styles = useThemedStylesV2(createStyles);
+  const colors = useColorsV2();
   const scale = useRef(new Animated.Value(0.95)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const [shouldRender, setShouldRender] = useState(visible);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredItems = useMemo(() => {
+    if (!searchable || !searchQuery.trim()) return items;
+    const q = searchQuery.trim().toLowerCase();
+    return items?.filter(item => item.label.toLowerCase().includes(q));
+  }, [searchable, searchQuery, items]);
 
   useEffect(() => {
     if (visible) {
@@ -84,6 +99,7 @@ export function Menu({
         ]).start();
       });
     } else {
+      setSearchQuery('');
       Animated.parallel([
         Animated.timing(scale, {
           toValue: 0.95,
@@ -124,6 +140,18 @@ export function Menu({
         ]}
         pointerEvents={visible ? 'auto' : 'none'}>
         <GlassContainer borderRadius="lg" contentStyle={{padding: Spacing.xs, minWidth: 200, ...(maxHeight ? {maxHeight} : {})}}>
+          {searchable && (
+            <View style={styles.searchBar}>
+              <TextInput
+                placeholder="검색"
+                value={searchQuery}
+                onChangeText={setSearchQuery}
+                style="ghost"
+                size="small"
+                leadingIcon={<AppIcon icon={IconSearch} size="xs" color={colors['foreground/on-surface-muted']} />}
+              />
+            </View>
+          )}
           <ScrollView bounces={false} showsVerticalScrollIndicator={maxHeight != null}>
           {sections ? (
             sections.map((section, idx) => (
@@ -151,7 +179,7 @@ export function Menu({
           ) : (
             <>
               {title && <Subheader title={title} />}
-              {items?.map(item => (
+              {filteredItems?.map(item => (
                 <MenuItem
                   key={item.id}
                   id={item.id}
@@ -177,12 +205,16 @@ export function Menu({
   );
 }
 
-const createStyles = (_colors: SemanticColors) => StyleSheet.create({
+const createStyles = (_colors: SemanticColorsV2) => StyleSheet.create({
   backdrop: {
     position: 'absolute' as const,
     top: -9999,
     left: -9999,
     right: -9999,
     bottom: -9999,
+  },
+  searchBar: {
+    paddingHorizontal: Spacing.smd,
+    paddingVertical: Spacing.sm,
   },
 });

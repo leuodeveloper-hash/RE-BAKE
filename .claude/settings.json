@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npx --no-install firebase projects:list)",
+      "Bash(npx --no-install eas whoami)",
+      "Bash(npx --no-install eas build:list --platform android --limit 5 --non-interactive)"
+    ]
+  }
+}

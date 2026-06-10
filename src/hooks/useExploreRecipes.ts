@@ -1,10 +1,22 @@
 import {useCallback, useEffect, useState} from 'react';
-import {collection, getDocs, onSnapshot} from 'firebase/firestore';
+import {collection, getDocs, onSnapshot, doc, deleteDoc} from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {db} from '@config/firebase';
 import type {Recipe} from '../types/recipe';
 
 const CACHE_KEY = 'explore_recipes_cache';
+const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+
+/** 만료된 소프트 삭제 레시피를 영구 삭제하고, 표시용 레시피만 반환 */
+function purgeAndFilter(allRecipes: Recipe[]): Recipe[] {
+  const now = Date.now();
+  for (const r of allRecipes) {
+    if (r.deletedAt && now - new Date(r.deletedAt).getTime() > TWENTY_FOUR_HOURS) {
+      deleteDoc(doc(db, 'explore_recipes', r.id)).catch(() => {});
+    }
+  }
+  return allRecipes.filter(r => !r.deletedAt);
+}
 
 /** 기존 category 필드를 cookbook으로 마이그레이션 + 레거시 필드 제거 */
 function migrateRecipe(recipe: any): Recipe {
@@ -91,10 +103,10 @@ export function useExploreRecipes(onError?: (msg: string) => void) {
         if (snapshot.empty) {
           setRecipes([]);
         } else {
-          const firestoreRecipes: Recipe[] = snapshot.docs.map(
+          const allRecipes: Recipe[] = snapshot.docs.map(
             d => migrateRecipe({id: d.id, ...d.data()}),
           );
-          applyFirestoreRecipes(firestoreRecipes);
+          applyFirestoreRecipes(purgeAndFilter(allRecipes));
         }
         setIsLoading(false);
       }, () => {
@@ -118,10 +130,10 @@ export function useExploreRecipes(onError?: (msg: string) => void) {
       if (snapshot.empty) {
         setRecipes([]);
       } else {
-        const firestoreRecipes: Recipe[] = snapshot.docs.map(
+        const allRecipes: Recipe[] = snapshot.docs.map(
           d => migrateRecipe({id: d.id, ...d.data()}),
         );
-        applyFirestoreRecipes(firestoreRecipes);
+        applyFirestoreRecipes(purgeAndFilter(allRecipes));
       }
     } catch {
       onError?.('새로고침에 실패했어요');

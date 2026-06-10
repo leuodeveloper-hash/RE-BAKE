@@ -7,9 +7,11 @@ import {
   IconTrash,
   IconFilesFilled,
   IconBookFilled,
+  IconExprolerBookFilled,
+  IconShare,
 } from '@components/Icon/IconIndex';
 import type {AvatarColor} from '@components/Avatar/Avatar';
-import type {SemanticColors} from '@constants/tokens';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {getColorVarKey} from '@components/ColorPicker';
 
 interface RecipeMenuOptions {
@@ -19,6 +21,14 @@ interface RecipeMenuOptions {
   showEdit?: boolean;
   showDelete?: boolean;
   showCookbook?: boolean;
+  showCopyToExplore?: boolean;
+  showShare?: boolean;
+  /** 전체 PDF 다운로드 (단일 download 대신, 리스트 화면용) */
+  showDownloadAll?: boolean;
+  /** 전체 삭제 (리스트 화면용). false면 아예 숨김 */
+  showDeleteAll?: boolean;
+  /** 단일 PDF 다운로드 노출 여부 (기본 true) */
+  showDownload?: boolean;
 }
 
 export function getRecipeMenuItems(options: RecipeMenuOptions): MenuItemData[] {
@@ -29,9 +39,15 @@ export function getRecipeMenuItems(options: RecipeMenuOptions): MenuItemData[] {
     items.push({id: 'remake', label: `다시 만들기: ${total + 1}회차`, icon: IconHash});
   }
   if (options.showEdit) items.push({id: 'edit', label: '편집', icon: IconEdit});
-  if (options.showCookbook) items.push({id: 'cookbook', label: '요리책', icon: IconBookFilled});
-  items.push({id: 'download', label: 'PDF 다운로드', icon: IconArrowDownToLine});
+  if (options.showCookbook) items.push({id: 'cookbook', label: '레시피 북', icon: IconBookFilled});
+  if (options.showCopyToExplore) items.push({id: 'copyToExplore', label: '둘러보기에 복사', icon: IconExprolerBookFilled});
+  if (options.showShare) items.push({id: 'share', label: '공유', icon: IconShare});
+  if (options.showDownloadAll) items.push({id: 'downloadAll', label: 'PDF 다운로드', icon: IconArrowDownToLine});
+  if (options.showDownload !== false && !options.showDownloadAll) {
+    items.push({id: 'download', label: 'PDF 다운로드', icon: IconArrowDownToLine});
+  }
   if (options.showDelete) items.push({id: 'delete', label: '삭제', icon: IconTrash, destructive: true});
+  if (options.showDeleteAll) items.push({id: 'deleteAll', label: '전체 삭제', icon: IconTrash, destructive: true});
   return items;
 }
 
@@ -39,7 +55,7 @@ interface CookbookSubmenuOptions {
   availableCookbooks: string[];
   cookbookColors: Record<string, AvatarColor>;
   currentCookbook: string;
-  colors: SemanticColors;
+  colors: SemanticColorsV2;
 }
 
 export function getCookbookSubmenuItems(options: CookbookSubmenuOptions): {
@@ -48,7 +64,7 @@ export function getCookbookSubmenuItems(options: CookbookSubmenuOptions): {
 } {
   const {availableCookbooks, cookbookColors, currentCookbook, colors} = options;
   const items: MenuItemData[] = [
-    {id: 'cookbook:__none__', label: '그룹없음', icon: IconBookFilled},
+    {id: 'cookbook:__none__', label: '레시피 북 없음', icon: IconBookFilled},
   ];
   for (const name of availableCookbooks) {
     const avatarColor = cookbookColors[name];

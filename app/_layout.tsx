@@ -1,6 +1,6 @@
 import '../global.css';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Text, TextInput, Animated, StyleSheet, View, Easing, Pressable} from 'react-native';
+import {Animated, StyleSheet, View, Easing, Pressable} from 'react-native';
 import {Stack, usePathname, useRouter} from 'expo-router';
 import {StatusBar} from 'expo-status-bar';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
@@ -8,15 +8,21 @@ import {useFonts} from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
 import {BlurView} from 'expo-blur';
-import {ThemeProvider, useTheme, useColors} from '@contexts/ThemeContext';
+import {ThemeProvider, useTheme, useColorsV2} from '@contexts/ThemeContext';
 import {RecipeProvider} from '@contexts/RecipeContext';
 import {SnackbarProvider, useSnackbar} from '@contexts/SnackbarContext';
 import {AddSheetProvider, useAddSheet} from '@contexts/AddSheetContext';
 import {AuthProvider, useAuth} from '@contexts/AuthContext';
-import {SubscriptionProvider} from '@contexts/SubscriptionContext';
-import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useExamNotificationPrefs} from '@hooks/useExamNotificationPrefs';
+import {SubscriptionProvider, useSubscription} from '@contexts/SubscriptionContext';
+import {PlanSheetProvider, usePlanSheet} from '@contexts/PlanSheetContext';
+import {AuthSheetProvider, useAuthSheet} from '@contexts/AuthSheetContext';
+import {PlanSheet} from '@components/PlanSheet';
+import {AuthSheet} from '@components/AuthSheet';
+import {ExploreRecipeProvider} from '@contexts/ExploreRecipeContext';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {BaseColors} from '@constants/tokens';
-import type {SemanticColors} from '@constants/tokens';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {ContentMask} from '@components/Container';
 import {BottomTabBar, type TabItem, type AddMenuItem} from '@components/Navigation/BottomTabBar';
@@ -25,32 +31,21 @@ import {CookbookDialog} from '@components/Dialog';
 import {
   IconHomeFilled,
   IconBookFilled,
+  IconGroupFilled,
+  IconCompassFilled,
+  IconExprolerBookFilled,
   IconAdd,
-  IconEarthFilled,
   IconUserFilled,
   IconNoteFilled,
-  IconExprolerBookFilled,
 } from '@components/Icon/IconIndex';
 import {collection, deleteDoc, doc, getDocs, query, setDoc, updateDoc, where} from 'firebase/firestore';
 import {db} from '@config/firebase';
 import {useRecipes} from '@contexts/RecipeContext';
 import type {AvatarColor} from '@components/Avatar/Avatar';
-import {useAvatarSeed} from '@hooks/useAvatarSeed';
 import LogoBadge from '../assets/images/logo_badge_reddark.svg';
 import LogoIcon from '../assets/images/logo_badge.svg';
 
 SplashScreen.preventAutoHideAsync();
-
-// 전역 Text 스타일 설정 (Android 폰트 패딩 제거)
-if ((Text as any).defaultProps == null) {
-  (Text as any).defaultProps = {};
-}
-(Text as any).defaultProps.style = {includeFontPadding: false};
-
-if ((TextInput as any).defaultProps == null) {
-  (TextInput as any).defaultProps = {};
-}
-(TextInput as any).defaultProps.style = {includeFontPadding: false};
 
 function ThemedStatusBar() {
   const {isDark} = useTheme();
@@ -206,14 +201,15 @@ const splashStyles = StyleSheet.create({
 function NavigationContent() {
   const router = useRouter();
   const pathname = usePathname();
+  // 앱 시작 시 시험 알림 동기화 (저장된 prefs → Firestore 일정 fetch → 로컬 알림 재등록)
+  useExamNotificationPrefs();
   const {showAddSheet, setShowAddSheet, hideTabBar, hideContentMask, showCookbookDialog, setShowCookbookDialog, cookbookEditTarget, setCookbookEditTarget, onCookbookCreatedRef} = useAddSheet();
   const {snackbar, clearSnackbar, showSnackbar} = useSnackbar();
-  const {user, isAdmin} = useAuth();
+  const {user, isAdmin, avatarSeed} = useAuth();
   const {recipes, setRecipes, lastSyncedAt, setCookbookColor, renameCookbookColor} = useRecipes();
-  const avatarSeed = useAvatarSeed();
   const prevUserRef = useRef(user);
-  const tabStyles = useThemedStyles(createTabBarStyles);
-  const colors = useColors();
+  const tabStyles = useThemedStylesV2(createTabBarStyles);
+  const colors = useColorsV2();
   const [activeTab, setActiveTab] = useState('home');
   const [cookbookInitialOfficial, setCookbookInitialOfficial] = useState(false);
 
@@ -232,27 +228,28 @@ function NavigationContent() {
     else if (pathname === '/profile') setActiveTab('profile');
   }, [pathname]);
 
-  const isEditRoute = pathname.startsWith('/recipe/edit');
-  const shouldShowTabBar = !isEditRoute && !hideTabBar;
+  // 레시피 상세/편집 라우트에서는 메인 탭바 숨김 (상세는 회차 눈금 슬라이더가 대신함)
+  const isRecipeRoute = pathname.startsWith('/recipe/');
+  const shouldShowTabBar = !isRecipeRoute && !hideTabBar;
 
   const tabs = useMemo<TabItem[]>(() => [
     {id: 'home', label: '홈', icon: IconHomeFilled, onPress: () => router.navigate('/' as any)},
-    {id: 'group', label: '그룹', icon: IconBookFilled, onPress: () => router.navigate('/group' as any)},
+    {id: 'group', label: '그룹', icon: IconGroupFilled, onPress: () => router.navigate('/group' as any)},
     {id: 'add', label: '추가', icon: IconAdd, onPress: () => setShowAddSheet(true)},
-    {id: 'explore', label: '둘러보기', icon: IconEarthFilled, onPress: () => router.navigate('/explore' as any)},
+    {id: 'explore', label: '둘러보기', icon: IconCompassFilled, onPress: () => router.navigate('/explore' as any)},
     {id: 'profile', label: user ? '나' : '게스트', icon: IconUserFilled, useRandomAvatar: true, avatarSeed: avatarSeed ?? 0, onPress: () => router.navigate('/profile' as any)},
   ], [router, setShowAddSheet, avatarSeed, user]);
 
   const addMenuItems = useMemo<AddMenuItem[]>(() => {
     const items: AddMenuItem[] = [
-      {id: 'recipe', label: '레시피', icon: IconNoteFilled, iconColor: colors['custom-greenvar']},
+      {id: 'recipe', label: '레시피', icon: IconNoteFilled, iconColor: colors['custom/lime']},
     ];
     if (isAdmin) {
-      items.push({id: 'official', label: '공식 레시피', icon: LogoIcon, iconColor: colors['custom-yellowvar']});
+      items.push({id: 'official', label: '공식 레시피', icon: LogoIcon, iconColor: colors['custom/yellow-var']});
     }
-    items.push({id: 'cookbook', label: '요리책', icon: IconBookFilled, iconColor: colors['custom-brownvar']});
+    items.push({id: 'cookbook', label: '레시피 북', icon: IconBookFilled, iconColor: colors['custom/brown-var']});
     if (isAdmin) {
-      items.push({id: 'official-cookbook', label: '공식 요리책', icon: IconExprolerBookFilled, iconColor: colors['custom-orangevar']});
+      items.push({id: 'official-cookbook', label: '공식 레시피 북', icon: IconExprolerBookFilled, iconColor: colors['custom/orange-var']});
     }
     return items;
   }, [colors, isAdmin]);
@@ -276,7 +273,7 @@ function NavigationContent() {
 
   const handleCookbookConfirm = useCallback(async (name: string, color: AvatarColor, isOfficial?: boolean) => {
     if (cookbookEditTarget?.isExplore) {
-      // 둘러보기(공식) 요리책 편집
+      // 둘러보기(공식) 레시피 북 편집
       try {
         const oldName = cookbookEditTarget.name;
         if (name !== oldName) {
@@ -296,10 +293,10 @@ function NavigationContent() {
           // 색상만 변경
           await setDoc(doc(db, 'explore_cookbooks', name), {name, color, createdAt: new Date().toISOString()});
         }
-        showSnackbar(`공식 요리책 '${name}'이(가) 수정되었습니다`);
+        showSnackbar(`공식 레시피 북 '${name}'이(가) 수정되었습니다`);
       } catch (e) {
-        console.error('공식 요리책 수정 실패:', e);
-        showSnackbar('공식 요리책 수정에 실패했습니다');
+        console.error('공식 레시피 북 수정 실패:', e);
+        showSnackbar('공식 레시피 북 수정에 실패했습니다');
       }
     } else if (cookbookEditTarget) {
       if (name !== cookbookEditTarget.name) {
@@ -316,18 +313,18 @@ function NavigationContent() {
           color,
           createdAt: new Date().toISOString(),
         });
-        showSnackbar(`공식 요리책 '${name}'이(가) 추가되었습니다`);
+        showSnackbar(`공식 레시피 북 '${name}'이(가) 추가되었습니다`);
       } catch (e) {
-        console.error('공식 요리책 추가 실패:', e);
-        showSnackbar('공식 요리책 추가에 실패했습니다');
+        console.error('공식 레시피 북 추가 실패:', e);
+        showSnackbar('공식 레시피 북 추가에 실패했습니다');
       }
     } else {
       const exists = recipes.some(r => r.cookbook === name);
       if (exists) {
-        showSnackbar('이미 존재하는 요리책입니다');
+        showSnackbar('이미 존재하는 레시피 북입니다');
       } else {
         setCookbookColor(name, color);
-        showSnackbar(`'${name}' 요리책이 추가되었습니다`);
+        showSnackbar(`'${name}' 레시피 북이 추가되었습니다`);
       }
     }
     onCookbookCreatedRef.current?.(name, color);
@@ -350,6 +347,7 @@ function NavigationContent() {
     <>
       <Stack screenOptions={{headerShown: false, animation: 'fade'}}>
         <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="labs" />
         <Stack.Screen name="recipe/[id]" />
         <Stack.Screen
           name="recipe/edit"
@@ -372,7 +370,7 @@ function NavigationContent() {
         />
       </View>
 
-      {/* 요리책 추가/편집 다이얼로그 */}
+      {/* 레시피 북 추가/편집 다이얼로그 */}
       <CookbookDialog
         visible={showCookbookDialog}
         onClose={handleCookbookClose}
@@ -411,12 +409,40 @@ function NavigationContent() {
   );
 }
 
+function GlobalPlanSheet() {
+  const {visible, open: openPlanSheet, close} = usePlanSheet();
+  const {open: openAuthSheet} = useAuthSheet();
+  const {user} = useAuth();
+  const {isPro} = useSubscription();
+  const {showSnackbar} = useSnackbar();
+
+  const handleSubscribePress = useCallback(() => {
+    if (!user) {
+      // 게스트: PlanSheet 닫고 → AuthSheet 열기 → 성공 시 PlanSheet 재오픈
+      close();
+      setTimeout(() => {
+        openAuthSheet({onSuccess: () => setTimeout(openPlanSheet, 300)});
+      }, 300);
+    } else {
+      // 로그인 상태: 실제 구독은 모바일 결제 SDK 필요 (미구현)
+      showSnackbar('구독 결제는 모바일 앱에서 곧 제공됩니다');
+    }
+  }, [user, close, openAuthSheet, openPlanSheet, showSnackbar]);
+
+  return <PlanSheet visible={visible} onClose={close} isPro={isPro} onSubscribePress={handleSubscribePress} />;
+}
+
+function GlobalAuthSheet() {
+  const {visible, close, fireSuccess} = useAuthSheet();
+  return <AuthSheet visible={visible} onClose={close} onSuccess={fireSuccess} />;
+}
+
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
-    'IBMPlexSans-Regular': require('../assets/fonts/IBMPlexSans_400Regular.ttf'),
-    'IBMPlexSans-Medium': require('../assets/fonts/IBMPlexSans_500Medium.ttf'),
-    'IBMPlexSans-SemiBold': require('../assets/fonts/IBMPlexSans_600SemiBold.ttf'),
-    'IBMPlexSans-Bold': require('../assets/fonts/IBMPlexSans_700Bold.ttf'),
+    'Pretendard-Regular': require('../assets/fonts/Pretendard-Regular.otf'),
+    'Pretendard-Medium': require('../assets/fonts/Pretendard-Medium.otf'),
+    'Pretendard-SemiBold': require('../assets/fonts/Pretendard-SemiBold.otf'),
+    'Pretendard-Bold': require('../assets/fonts/Pretendard-Bold.otf'),
   });
   const [showSplash, setShowSplash] = useState(true);
 
@@ -452,13 +478,21 @@ export default function RootLayout() {
       <SafeAreaProvider>
         <RecipeProvider>
           <SnackbarProvider>
+            <ExploreRecipeProvider>
             <AddSheetProvider>
-              <ThemedStatusBar />
-              <NavigationContent />
-              {showSplash && (
-                <AnimatedSplash onFinish={() => setShowSplash(false)} />
-              )}
+              <PlanSheetProvider>
+                <AuthSheetProvider>
+                  <ThemedStatusBar />
+                  <NavigationContent />
+                  <GlobalPlanSheet />
+                  <GlobalAuthSheet />
+                  {showSplash && (
+                    <AnimatedSplash onFinish={() => setShowSplash(false)} />
+                  )}
+                </AuthSheetProvider>
+              </PlanSheetProvider>
             </AddSheetProvider>
+            </ExploreRecipeProvider>
           </SnackbarProvider>
         </RecipeProvider>
       </SafeAreaProvider>
@@ -468,10 +502,10 @@ export default function RootLayout() {
   );
 }
 
-const createTabBarStyles = (colors: SemanticColors) => StyleSheet.create({
+const createTabBarStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   scrim: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.3)',
+    backgroundColor: 'rgba(0, 0, 0, 0.12)',
     zIndex: 20,
   },
   snackbarWrapper: {

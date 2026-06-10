@@ -1,13 +1,13 @@
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {SvgProps} from 'react-native-svg';
-import type {SemanticColors} from '@constants/tokens';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {IconClose} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
 import {Avatar, AvatarColor} from '@components/Avatar/Avatar';
-import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
 
 export interface SheetHeaderProps {
   title: string;
@@ -25,7 +25,7 @@ export interface SheetHeaderProps {
 }
 
 export function SheetHeader({title, description, onClose, icon, avatarColor, headerGraphic, headerType = 'default'}: SheetHeaderProps) {
-  const styles = useThemedStyles(createStyles);
+  const styles = useThemedStylesV2(createStyles);
 
   const hasGraphic = headerGraphic || icon;
 
@@ -41,7 +41,7 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
                   type="icon"
                   icon={icon}
                   shape="circle"
-                  size="large"
+                  size="medium"
                   color={avatarColor}
                 />
               )
@@ -49,8 +49,8 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
             {onClose && (
               <IconButton
                 icon={IconClose}
-                variant="soft"
-                size="small"
+                variant="ghost-secondary"
+                size="medium"
                 onPress={onClose}
               />
             )}
@@ -68,8 +68,8 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
             {onClose ? (
               <IconButton
                 icon={IconClose}
-                variant="soft"
-                size="small"
+                variant="ghost-secondary"
+                size="medium"
                 onPress={onClose}
               />
             ) : <View style={styles.centerPlaceholder} />}
@@ -92,8 +92,8 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
             {onClose && (
               <IconButton
                 icon={IconClose}
-                variant="soft"
-                size="small"
+                variant="ghost-secondary"
+                size="medium"
                 onPress={onClose}
               />
             )}
@@ -109,7 +109,7 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
   );
 }
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   graphicRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -144,7 +144,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontWeight: Typography.headline.small.fontWeight as '600',
     lineHeight: 26,
     letterSpacing: Typography.headline.small.letterSpacing,
-    color: colors['foreground-onsurface'],
+    color: colors['foreground/on-surface'],
     marginTop: FONT_BASELINE_OFFSET,
   },
   titleLarge: {
@@ -153,14 +153,15 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontWeight: Typography.headline.small.fontWeight as '600',
     lineHeight: 26,
     letterSpacing: Typography.headline.small.letterSpacing,
-    color: colors['foreground-onsurface'],
+    color: colors['foreground/on-surface'],
     marginTop: FONT_BASELINE_OFFSET,
   },
   centerRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: Spacing.smd,
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.smd,
   },
   centerPlaceholder: {
     width: 28,
@@ -169,14 +170,14 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   titleCenter: {
     ...Typography.title.medium,
     fontWeight: Typography.title.medium.fontWeight as '700',
-    color: colors['foreground-onsurface'],
+    color: colors['foreground/on-surface'],
     marginTop: FONT_BASELINE_OFFSET,
     textAlign: 'center' as const,
   },
   description: {
     ...Typography.body.medium,
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
     marginTop: Spacing.sm,
-    marginBottom: Spacing.md,
+    marginBottom: Spacing.lg,
   },
 });

@@ -64,3 +64,6 @@ ios/Pods/
 # Firebase
 GoogleService-Info.plist
 google-services.json
+
+*storybook.log
+storybook-static

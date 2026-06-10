@@ -1,10 +1,10 @@
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {Radius} from '@constants/tokens';
-import type {SemanticColors} from '@constants/tokens';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
 
 export interface Ingredient {
   percentage: string;
@@ -23,7 +23,7 @@ export interface IngredientRowProps {
  * - 베이커스 퍼센트, 재료명, 수량 표시
  */
 export function IngredientRow({ingredient, isLast = false}: IngredientRowProps) {
-  const styles = useThemedStyles(createStyles);
+  const styles = useThemedStylesV2(createStyles);
 
   return (
     <View style={[styles.container, !isLast && styles.withBorder]}>
@@ -44,7 +44,7 @@ export interface IngredientListProps {
  * - 카드 형태의 재료 목록
  */
 export function IngredientList({ingredients}: IngredientListProps) {
-  const styles = useThemedStyles(createStyles);
+  const styles = useThemedStylesV2(createStyles);
 
   return (
     <View style={styles.list}>
@@ -59,12 +59,12 @@ export function IngredientList({ingredients}: IngredientListProps) {
   );
 }
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   list: {
-    backgroundColor: colors['surface-surfacebright'],
+    backgroundColor: colors['surface/bright'],
     borderRadius: Radius['radius-lg'],
     borderWidth: 1,
-    borderColor: colors['border-borderlight'],
+    borderColor: colors['border/muted'],
     overflow: 'hidden',
   },
   container: {
@@ -75,7 +75,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   withBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: colors['border-borderlight'],
+    borderBottomColor: colors['border/muted'],
   },
   percentage: {
     width: 60,
@@ -83,7 +83,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontSize: Typography.label.medium.fontSize,
     fontWeight: Typography.label.medium.fontWeight as '600',
     lineHeight: Typography.label.medium.lineHeight,
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
   },
   name: {
     flex: 1,
@@ -91,6 +91,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontSize: Typography.body.medium.fontSize,
     fontWeight: Typography.body.medium.fontWeight as '500',
     lineHeight: Typography.body.medium.lineHeight,
-    color: colors['foreground-onsurface'],
+    color: colors['foreground/on-surface'],
   },
 });

@@ -33,7 +33,7 @@ export function useRewardedAd() {
     if (!ads) return;
 
     setIsLoading(true);
-    const adUnitId = ads.TestIds.REWARDED;
+    const adUnitId = __DEV__ ? ads.TestIds.REWARDED : 'ca-app-pub-9641282889322635/8941768864';
     const rewarded = ads.RewardedAd.createForAdRequest(adUnitId);
 
     const unsubLoaded = rewarded.addAdEventListener(

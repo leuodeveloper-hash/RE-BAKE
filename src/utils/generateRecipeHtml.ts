@@ -185,9 +185,9 @@ export function generateRecipeListHtml(recipes: RecipePdfData[]): string {
 
   body {
     font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: #F3F4F6;
+    background: transparent;
     color: #121318;
-    padding: 32px 24px;
+    padding: 24px;
     max-width: 600px;
     margin: 0 auto;
   }
@@ -221,6 +221,39 @@ export function generateRecipeListHtml(recipes: RecipePdfData[]): string {
 </html>`;
 }
 
+/** Recipe → RecipePdfData 변환 헬퍼. PDF 미리보기/카드 썸네일 공통 사용. */
+export function recipeToPdfData(recipe: {
+  title: string;
+  cookbook?: string;
+  method?: string;
+  reviewCount?: number;
+  time?: string;
+  servings?: string;
+  session?: string;
+  ingredientGroups?: PdfIngredientGroup[];
+  tools?: {name: string}[];
+  toolGroups?: {title: string; tools: {name: string}[]}[];
+  steps?: PdfStep[];
+  stepGroups?: PdfStepGroup[];
+}): RecipePdfData {
+  const tools: {name: string}[] = [];
+  recipe.toolGroups?.forEach(g => g.tools.forEach(t => tools.push(t)));
+  recipe.tools?.forEach(t => tools.push(t));
+  return {
+    title: recipe.title,
+    cookbook: recipe.cookbook,
+    method: recipe.method,
+    reviewCount: recipe.reviewCount,
+    time: recipe.time,
+    servings: recipe.servings,
+    session: recipe.session,
+    ingredientGroups: recipe.ingredientGroups ?? [],
+    tools,
+    steps: recipe.steps,
+    stepGroups: recipe.stepGroups,
+  };
+}
+
 export function generateRecipeHtml(data: RecipePdfData): string {
   const subtitle = buildSubtitle(data);
 
@@ -236,9 +269,9 @@ export function generateRecipeHtml(data: RecipePdfData): string {
 
   body {
     font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: #F3F4F6;
+    background: transparent;
     color: #121318;
-    padding: 32px 24px;
+    padding: 24px;
     max-width: 600px;
     margin: 0 auto;
   }

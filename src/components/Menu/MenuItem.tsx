@@ -1,14 +1,15 @@
 import React from 'react';
 import {Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {Radius} from '@constants/tokens';
-import type {SemanticColors} from '@constants/tokens';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {SvgProps} from 'react-native-svg';
 import {IconCaretRight} from '@components/Icon/IconIndex';
 import {Checkbox} from '@components/Checkbox/Checkbox';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import {useColors} from '@contexts/ThemeContext';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useColorsV2} from '@contexts/ThemeContext';
+import {triggerHaptic} from '@utils/haptics';
 
 export interface MenuItemProps {
   id: string;
@@ -47,19 +48,19 @@ export function MenuItem({
   onPress,
   style,
 }: MenuItemProps) {
-  const colors = useColors();
-  const styles = useThemedStyles(createStyles);
+  const colors = useColorsV2();
+  const styles = useThemedStylesV2(createStyles);
 
   const iconColor = iconColorProp ?? (destructive
-    ? colors['foreground-error']
+    ? colors['foreground/negative']
     : selected
-      ? colors['foreground-onsurfacevar']
-      : colors['foreground-onsurfacemuted']);
+      ? colors['foreground/on-surface-var']
+      : colors['foreground/on-surface-muted']);
 
   return (
     <View style={style}>
       <Pressable
-        onPress={onPress}
+        onPress={onPress ? () => { triggerHaptic('light'); onPress(); } : undefined}
         disabled={disabled}
         style={({pressed, focused}: {pressed: boolean; focused: boolean}) => [
           styles.menuItem,
@@ -88,7 +89,7 @@ export function MenuItem({
             <IconCaretRight
               width={20}
               height={20}
-              color={colors['foreground-onsurfacemuted']}
+              color={colors['foreground/on-surface-muted']}
             />
           </View>
         )}
@@ -102,7 +103,7 @@ export function MenuItem({
   );
 }
 
-const createStyles = (colors: SemanticColors) =>
+const createStyles = (colors: SemanticColorsV2) =>
   StyleSheet.create({
     menuItem: {
       flexDirection: 'row',
@@ -113,10 +114,10 @@ const createStyles = (colors: SemanticColors) =>
       borderRadius: Radius['radius-md'],
     },
     menuItemSelected: {
-      backgroundColor: colors['background-statelayers-surfacefocus_press'],
+      backgroundColor: colors['state/pressed'],
     },
     menuItemPressed: {
-      backgroundColor: colors['background-statelayers-surfacefocus_press'],
+      backgroundColor: colors['state/pressed'],
     },
     menuItemLabel: {
       flex: 1,
@@ -125,7 +126,7 @@ const createStyles = (colors: SemanticColors) =>
       fontWeight: Typography.body.large.fontWeight as '500',
       lineHeight: Typography.body.large.lineHeight,
       letterSpacing: -0.25,
-      color: colors['foreground-onsurface'],
+      color: colors['foreground/on-surface'],
       marginTop: FONT_BASELINE_OFFSET,
     },
     trailingIcon: {
@@ -134,10 +135,10 @@ const createStyles = (colors: SemanticColors) =>
       opacity: 0.56,
     },
     destructiveLabel: {
-      color: colors['foreground-error'],
+      color: colors['foreground/negative'],
     },
     disabledLabel: {
-      color: colors['foreground-onsurfacedisabled'],
+      color: colors['foreground/on-surface-disabled'],
     },
     disabledIcon: {
       opacity: 0.38,
@@ -148,7 +149,7 @@ const createStyles = (colors: SemanticColors) =>
       fontWeight: Typography.body.large.fontWeight as '500',
       lineHeight: Typography.body.large.lineHeight,
       letterSpacing: -0.25,
-      color: colors['foreground-onsurfacemuted'],
+      color: colors['foreground/on-surface-muted'],
       marginTop: FONT_BASELINE_OFFSET,
     },
     dividerContainer: {
@@ -156,6 +157,6 @@ const createStyles = (colors: SemanticColors) =>
     },
     divider: {
       height: StyleSheet.hairlineWidth,
-      backgroundColor: colors['border-borderlight'],
+      backgroundColor: colors['border/muted'],
     },
   });

@@ -8,13 +8,36 @@ import {
   GoogleAuthProvider,
   signInWithPopup,
   signInWithCredential,
+  getAdditionalUserInfo,
   User,
+  UserCredential,
 } from 'firebase/auth';
-import {doc, getDoc, setDoc} from 'firebase/firestore';
+import {doc, getDoc, setDoc, increment} from 'firebase/firestore';
 import {
   GoogleSignin,
 } from '@react-native-google-signin/google-signin';
+import AsyncStorage from '@react-native-async-storage/async-storage';
+import {RANDOM_AVATARS} from '@components/Avatar/avatars';
 import {auth, db} from '@config/firebase';
+
+const GUEST_AVATAR_SEED_KEY = '@bakecycle_avatar_seed';
+const DAILY_SIGNUP_LIMIT = 10;
+
+async function checkSignupLimit(): Promise<void> {
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const ref = doc(db, 'signupLimits', todayKey);
+  const snap = await getDoc(ref);
+  const count = snap.exists() ? snap.data().count : 0;
+  if (count >= DAILY_SIGNUP_LIMIT) {
+    throw new Error('오늘의 가입 한도(10명)에 도달했습니다. 내일 다시 시도해주세요.');
+  }
+}
+
+async function incrementSignupCount(): Promise<void> {
+  const todayKey = new Date().toISOString().slice(0, 10);
+  const ref = doc(db, 'signupLimits', todayKey);
+  await setDoc(ref, {count: increment(1)}, {merge: true});
+}
 
 const GOOGLE_WEB_CLIENT_ID = '420587944388-nh09tqe1o1gmsreuf55qesjjmalgtmg0.apps.googleusercontent.com';
 const googleProvider = new GoogleAuthProvider();
@@ -28,6 +51,8 @@ interface AuthContextValue {
   handle: string | null;
   isAdmin: boolean;
   isLoading: boolean;
+  /** 아바타 시드: 게스트=AsyncStorage 랜덤, 로그인=UID 기반 */
+  avatarSeed: string | number;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -58,6 +83,28 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
   const [handle, setHandle] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [guestSeed, setGuestSeed] = useState<number>(0);
+
+  // 게스트 아바타 시드: AsyncStorage에 한 번 저장 후 고정
+  useEffect(() => {
+    (async () => {
+      try {
+        const stored = await AsyncStorage.getItem(GUEST_AVATAR_SEED_KEY);
+        if (stored !== null) {
+          setGuestSeed(Number(stored));
+          return;
+        }
+        const newSeed = Math.floor(Math.random() * RANDOM_AVATARS.length);
+        await AsyncStorage.setItem(GUEST_AVATAR_SEED_KEY, String(newSeed));
+        setGuestSeed(newSeed);
+      } catch {
+        setGuestSeed(0);
+      }
+    })();
+  }, []);
+
+  // 아바타 시드: 로그인=UID, 게스트=랜덤 시드
+  const avatarSeed: string | number = user ? user.uid : guestSeed;
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -104,18 +151,33 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
   }, []);
 
   const signUp = useCallback(async (email: string, password: string) => {
+    await checkSignupLimit();
     await createUserWithEmailAndPassword(auth, email, password);
+    await incrementSignupCount();
   }, []);
 
   const signInWithGoogleFn = useCallback(async () => {
+    let result: UserCredential | undefined;
     if (Platform.OS === 'web') {
-      await signInWithPopup(auth, googleProvider);
+      result = await signInWithPopup(auth, googleProvider);
     } else {
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();
       if (response.type === 'success' && response.data.idToken) {
         const credential = GoogleAuthProvider.credential(response.data.idToken);
-        await signInWithCredential(auth, credential);
+        result = await signInWithCredential(auth, credential);
+      }
+    }
+    if (result) {
+      const info = getAdditionalUserInfo(result);
+      if (info?.isNewUser) {
+        try {
+          await checkSignupLimit();
+          await incrementSignupCount();
+        } catch (e) {
+          await firebaseSignOut(auth);
+          throw e;
+        }
       }
     }
   }, []);
@@ -135,12 +197,13 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
     handle,
     isAdmin,
     isLoading,
+    avatarSeed,
     signIn,
     signUp,
     signInWithGoogle: signInWithGoogleFn,
     signOut,
     updateHandle,
-  }), [user, handle, isAdmin, isLoading, signIn, signUp, signInWithGoogleFn, signOut, updateHandle]);
+  }), [user, handle, isAdmin, isLoading, avatarSeed, signIn, signUp, signInWithGoogleFn, signOut, updateHandle]);
 
   return (
     <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

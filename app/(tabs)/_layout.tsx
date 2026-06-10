@@ -4,7 +4,7 @@ export default function TabsLayout() {
   return (
     <Tabs
       tabBar={() => null}
-      screenOptions={{headerShown: false, animation: 'fade'}}
+      screenOptions={{headerShown: false}}
     >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="group" />

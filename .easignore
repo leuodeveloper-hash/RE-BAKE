@@ -58,6 +58,12 @@ ios/Pods/
 .env
 .env.local
 
+# Dev tools / CI artifacts
+.claude/
+claude-talk-to-figma-mcp/
+dist/
+scripts/
+
 # CNG - native project folders (managed by expo prebuild)
 /ios
 /android

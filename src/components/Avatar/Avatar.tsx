@@ -3,7 +3,7 @@ import {Animated, Easing, Image, StyleSheet, Text, View, ViewStyle} from 'react-
 import {Radius, BaseColors, withOpacity} from '@constants/tokens';
 import {getRandomAvatar} from './avatars';
 import {SvgProps} from 'react-native-svg';
-import {useColors} from '@contexts/ThemeContext';
+import {useColorsV2} from '@contexts/ThemeContext';
 
 export type AvatarSize = 'xsmall' | 'small' | 'medium' | 'large' | 'xlarge';
 export type AvatarShape = 'default' | 'rounded' | 'circle';
@@ -30,6 +30,8 @@ export interface AvatarProps {
   icon?: React.FC<SvgProps>;
   /** 랜덤 아바타 시드 (type='random'일 때, 같은 시드는 같은 아바타) */
   seed?: string | number;
+  /** 아이콘 색상 override (type='icon'일 때만). 배경 컬러는 그대로, 아이콘만 다른 색 */
+  iconColor?: string;
   /** 추가 스타일 */
   style?: ViewStyle;
 }
@@ -68,7 +70,7 @@ export function Avatar({
   seed,
   style,
 }: AvatarProps) {
-  const colors = useColors();
+  const colors = useColorsV2();
 
   // 색상별 배경색 (베이스 컬러의 16% opacity → 라이트/다크 모두 자연스럽게 동작)
   const BACKGROUND_COLORS: Record<AvatarColor, string> = {
@@ -90,26 +92,26 @@ export function Avatar({
 
   // 색상별 텍스트/아이콘 색상 (시멘틱 토큰 매핑)
   const FOREGROUND_COLORS: Record<AvatarColor, string> = {
-    gray:      colors['custom-grey'],
-    greybrown: colors['custom-greybrown'],
-    brown:     colors['custom-brown'],
-    darkred:   colors['custom-darkred'],
-    red:       colors['custom-red'],
-    orange:    colors['custom-orange'],
-    yellow:    colors['custom-yellow'],
-    lime:      colors['custom-lime'],
-    green:     colors['custom-green'],
-    teal:      colors['custom-teal'],
-    lightblue: colors['custom-lightblue'],
-    blue:      colors['custom-blue'],
-    purple:    colors['custom-purple'],
-    lavender:  colors['custom-lavendar'],
+    gray:      colors['custom/grey'],
+    greybrown: colors['custom/grey-brown'],
+    brown:     colors['custom/brown'],
+    darkred:   colors['custom/red'],
+    red:       colors['custom/red'],
+    orange:    colors['custom/orange'],
+    yellow:    colors['custom/yellow'],
+    lime:      colors['custom/lime'],
+    green:     colors['custom/green'],
+    teal:      colors['custom/green'],
+    lightblue: colors['custom/light-blue'],
+    blue:      colors['custom/blue'],
+    purple:    colors['custom/purple'],
+    lavender:  colors['custom/purple'],
   };
 
   const config = SIZE_CONFIG[size];
   const borderRadius = getShapeRadius(shape, size);
   const isImageType = type === 'image' || type === 'random';
-  const backgroundColor = isImageType ? 'transparent' : BACKGROUND_COLORS[color];
+  const backgroundColor = isImageType ? colors['surface/container'] : BACKGROUND_COLORS[color];
   const foregroundColor = FOREGROUND_COLORS[color];
 
   // 랜덤 아바타는 시드 기반으로 일관된 이미지 반환
@@ -165,7 +167,7 @@ export function Avatar({
           return (
             <>
               {!imageLoaded && (
-                <Animated.View style={[StyleSheet.absoluteFill, {backgroundColor: colors['surface-surfacecontainer'], opacity: pulseOpacity}]} />
+                <Animated.View style={[StyleSheet.absoluteFill, {backgroundColor: colors['surface/container'], opacity: pulseOpacity}]} />
               )}
               <Image
                 source={{uri: imageUrl}}

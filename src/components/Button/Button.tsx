@@ -1,10 +1,11 @@
 import React, {useState} from 'react';
-import {Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
+import {ActivityIndicator, Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
-import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
-import {useColors} from '@contexts/ThemeContext';
+import {Typography} from '@constants/typography';
+import {useColorsV2} from '@contexts/ThemeContext';
+import {triggerHaptic} from '@utils/haptics';
 import {GradientGlow} from './GradientGlow';
 
 export type ButtonVariant = 'filled' | 'soft' | 'outlined' | 'ghost';
@@ -16,6 +17,7 @@ export interface ButtonProps {
   variant?: ButtonVariant;
   size?: ButtonSize;
   disabled?: boolean;
+  loading?: boolean;
   /** 에러/삭제 등 위험한 액션 (빨간색 스타일) */
   destructive?: boolean;
   /** 강조 액션 (파란색 스타일) */
@@ -38,6 +40,7 @@ export function Button({
   variant = 'filled',
   size = 'medium',
   disabled = false,
+  loading = false,
   destructive = false,
   accent = false,
   gradientShadow = false,
@@ -45,7 +48,7 @@ export function Button({
   icon: Icon,
   trailingIcon: TrailingIcon,
 }: ButtonProps) {
-  const colors = useColors();
+  const colors = useColorsV2();
   const sizeConfig = SIZE_CONFIG[size];
 
   const getContainerStyle = (pressed: boolean): ViewStyle => {
@@ -60,24 +63,24 @@ export function Button({
     switch (variant) {
       case 'filled':
         base.backgroundColor = disabled
-          ? colors['background-statelayers-disabled']
+          ? colors['fill/strong']
           : destructive
-            ? colors['background-error']
-            : colors['surface-surfaceinverse'];
+            ? colors['background/negative']
+            : colors['surface/inverse'];
         break;
       case 'soft':
         base.backgroundColor = disabled
-          ? colors['background-statelayers-disabled']
+          ? colors['fill/strong']
           : destructive
-            ? colors['background-errorcontainer']
-            : colors['surface-surfacecontainertransparent'];
+            ? colors['background/negative-container']
+            : colors['fill/subtle'];
         break;
       case 'outlined':
-        base.backgroundColor = colors['surface-surfacecontainerlowest'];
+        base.backgroundColor = colors['surface/container'];
         base.borderWidth = 1;
         base.borderColor = disabled
-          ? colors['border-borderlight']
-          : colors['border-border'];
+          ? colors['border/muted']
+          : colors['border/normal'];
         break;
       case 'ghost':
         base.backgroundColor = 'transparent';
@@ -89,8 +92,8 @@ export function Button({
         base.opacity = 0.85;
       } else {
         base.backgroundColor = destructive
-          ? colors['background-statelayers-errorfocused_pressed']
-          : colors['background-statelayers-surfacefocus_press'];
+          ? colors['state/negative']
+          : colors['state/pressed'];
       }
     }
 
@@ -99,14 +102,14 @@ export function Button({
 
   const getTextColor = (): string => {
     if (disabled) {
-      if (variant === 'filled') return colors['foreground-onsurfaceinversevar'];
-      return colors['foreground-onsurfacedisabled'];
+      if (variant === 'filled') return colors['foreground/on-surface-inverse-var'];
+      return colors['foreground/on-surface-disabled'];
     }
-    if (destructive && variant === 'filled') return colors['foreground-onerror'];
-    if (destructive) return colors['foreground-error'];
-    if (accent) return colors['foreground-accent'];
-    if (variant === 'filled') return colors['foreground-onsurfaceinverse'];
-    return colors['foreground-onsurface'];
+    if (destructive && variant === 'filled') return colors['foreground/on-negative'];
+    if (destructive) return colors['foreground/negative'];
+    if (accent) return colors['foreground/accent'];
+    if (variant === 'filled') return colors['foreground/on-surface-inverse'];
+    return colors['foreground/on-surface'];
   };
 
   const showGlow = gradientShadow && !disabled;
@@ -127,12 +130,21 @@ export function Button({
           borderRadius={sizeConfig.borderRadius}
         />
       )}
-      <Pressable onPress={onPress} disabled={disabled}>
-        {({pressed, focused}: {pressed: boolean; focused: boolean}) => (
-          <View style={[getContainerStyle(pressed || focused), (Icon || TrailingIcon) && {flexDirection: 'row' as const, gap: sizeConfig.gap}]}>
-            {Icon && <Icon width={18} height={18} color={getTextColor()} />}
+      <Pressable
+        onPress={() => {
+          triggerHaptic('light');
+          onPress?.();
+        }}
+        disabled={disabled || loading}>
+        {({pressed}: {pressed: boolean}) => (
+          <View style={[getContainerStyle(pressed), (Icon || TrailingIcon || loading) && {flexDirection: 'row' as const, gap: sizeConfig.gap}]}>
+            {loading ? (
+              <ActivityIndicator size="small" color={getTextColor()} />
+            ) : (
+              Icon && <Icon width={18} height={18} color={getTextColor()} />
+            )}
             <Text style={[styles.label, {color: getTextColor()}]}>{label}</Text>
-            {TrailingIcon && <TrailingIcon width={18} height={18} color={getTextColor()} />}
+            {!loading && TrailingIcon && <TrailingIcon width={18} height={18} color={getTextColor()} />}
           </View>
         )}
       </Pressable>
@@ -146,6 +158,5 @@ const styles = StyleSheet.create({
     fontSize: Typography.label['xlarge - semibold'].fontSize,
     fontWeight: Typography.label['xlarge - semibold'].fontWeight as '600',
     lineHeight: Typography.label['xlarge - semibold'].lineHeight,
-    marginTop: FONT_BASELINE_OFFSET,
   },
 });

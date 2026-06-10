@@ -1,4 +1,5 @@
 import React, {createContext, useCallback, useContext, useMemo} from 'react';
+import {useAuth} from './AuthContext';
 
 export const SUBSCRIPTION_ENABLED = false;
 
@@ -13,12 +14,13 @@ interface SubscriptionContextValue {
 const SubscriptionContext = createContext<SubscriptionContextValue | null>(null);
 
 export function SubscriptionProvider({children}: {children: React.ReactNode}) {
+  const {isAdmin} = useAuth();
   const purchasePackage = useCallback(async (_pkg: any): Promise<boolean> => false, []);
   const restorePurchases = useCallback(async (): Promise<boolean> => false, []);
 
   const value = useMemo<SubscriptionContextValue>(() => ({
-    isPro: false, offerings: null, purchasePackage, restorePurchases, isLoading: false,
-  }), [purchasePackage, restorePurchases]);
+    isPro: isAdmin, offerings: null, purchasePackage, restorePurchases, isLoading: false,
+  }), [isAdmin, purchasePackage, restorePurchases]);
 
   return (
     <SubscriptionContext.Provider value={value}>

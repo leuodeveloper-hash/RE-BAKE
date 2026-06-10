@@ -1,8 +1,8 @@
 import React from 'react';
 import {Pressable, StyleSheet, View} from 'react-native';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import {useColors} from '@contexts/ThemeContext';
-import type {SemanticColors} from '@constants/tokens';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useColorsV2} from '@contexts/ThemeContext';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {
   IconCheckSquareFilled,
   IconSquare,
@@ -31,8 +31,8 @@ export function Checkbox({
   color = 'default',
   onPress,
 }: CheckboxProps) {
-  const colors = useColors();
-  const styles = useThemedStyles(createStyles);
+  const colors = useColorsV2();
+  const styles = useThemedStylesV2(createStyles);
 
   const isSelected = checked || indeterminate;
 
@@ -41,16 +41,16 @@ export function Checkbox({
     if (!isSelected) {
       // Unselected: red는 error 색상, 나머지는 muted
       return color === 'red'
-        ? colors['foreground-error']
-        : colors['foreground-onsurfacemuted'];
+        ? colors['foreground/negative']
+        : colors['foreground/on-surface-muted'];
     }
     switch (color) {
       case 'red':
-        return colors['foreground-error'];
+        return colors['foreground/negative'];
       case 'gray':
-        return colors['custom-grey'];
+        return colors['custom/grey'];
       default:
-        return colors['custom-brown'];
+        return colors['custom/brown'];
     }
   })();
 
@@ -88,7 +88,7 @@ export function Checkbox({
   );
 }
 
-const createStyles = (colors: SemanticColors) =>
+const createStyles = (colors: SemanticColorsV2) =>
   StyleSheet.create({
     container: {
       width: 40,
@@ -98,10 +98,10 @@ const createStyles = (colors: SemanticColors) =>
       justifyContent: 'center',
     },
     stateLayer: {
-      backgroundColor: colors['background-statelayers-surfacefocus_press'],
+      backgroundColor: colors['state/pressed'],
     },
     stateLayerError: {
-      backgroundColor: colors['background-statelayers-errorfocused_pressed'],
+      backgroundColor: colors['state/negative'],
     },
     disabled: {
       opacity: 0.38,

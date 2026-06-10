@@ -1,238 +1,124 @@
 /**
  * 피그마 디자인 시스템의 Elevation(그림자) 토큰
- * 피그마 원본 네이밍을 그대로 유지하여 화면 매핑과 1:1로 대응됩니다
- * 
- * React Native에서 그림자는 iOS와 Android에서 다르게 처리됩니다:
- * - iOS: shadowColor, shadowOffset, shadowOpacity, shadowRadius
- * - Android: elevation (숫자)
+ * Source: Figma 파일 SuXlE5Q4KKIG4LJjJ8j6Jd, effect styles
+ *
+ * RN 0.76+ `boxShadow` 프롭으로 iOS/Android 동일 렌더링.
+ * Figma multiple shadow + spread radius 그대로 표현.
+ *
+ * 매핑:
+ * - subtle: 카드/리스트 아이템 미세 그림자
+ * - normal: 일반 카드/스낵바 (멀티 섀도우)
+ * - strong: 떠있는 액션 버튼/팝오버
+ * - heavy: 모달/시트 강조
  */
 
 import {ViewStyle} from 'react-native';
 
-// Helper function to parse pixel values
-const parsePx = (value: string | number): number => {
-  if (typeof value === 'number') return value;
-  return parseFloat(value.replace('px', ''));
+type Shadow = {
+  offsetX: number;
+  offsetY: number;
+  blur: number;
+  spread: number;
+  color: string;
 };
 
-// Helper function to parse color with opacity (e.g., "#0000000f" -> rgba)
-const parseColor = (color: string): {color: string; opacity: number} => {
-  // Format: #RRGGBBAA or #RRGGBB
-  if (color.length === 9) {
-    // #RRGGBBAA format
-    const r = parseInt(color.slice(1, 3), 16);
-    const g = parseInt(color.slice(3, 5), 16);
-    const b = parseInt(color.slice(5, 7), 16);
-    const a = parseInt(color.slice(7, 9), 16) / 255;
-    return {
-      color: `rgba(${r}, ${g}, ${b}, ${a})`,
-      opacity: a,
-    };
-  } else if (color.length === 7) {
-    // #RRGGBB format
-    return {color, opacity: 1};
-  }
-  return {color: '#000000', opacity: 0};
+const SHADOW_COLOR = '#0E0E0D'; // neutral/4 (Figma effect color)
+
+const rgba = (hex: string, alpha: number): string => {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
 };
 
-// Convert Figma shadow array to React Native shadow style
-const convertShadowToRN = (
-  shadows: Array<{
-    offsetX: string | number;
-    offsetY: string | number;
-    blur: string | number;
-    spread: string | number;
-    color: string;
-  }>,
-): ViewStyle => {
-  // React Native doesn't support multiple shadows natively
-  // We'll use the largest/most prominent shadow
-  let maxBlur = 0;
-  let maxShadow = shadows[0];
+const toBoxShadow = (shadows: Shadow[]): ViewStyle => ({
+  boxShadow: shadows
+    .map(s => `${s.offsetX}px ${s.offsetY}px ${s.blur}px ${s.spread}px ${s.color}`)
+    .join(', '),
+});
 
-  shadows.forEach(shadow => {
-    const blur = parsePx(shadow.blur);
-    if (blur > maxBlur) {
-      maxBlur = blur;
-      maxShadow = shadow;
-    }
-  });
+// ---- Figma 매칭 그림자 ----
 
-  const {opacity} = parseColor(maxShadow.color);
-  const offsetX = parsePx(maxShadow.offsetX);
-  const offsetY = parsePx(maxShadow.offsetY);
-  const blur = parsePx(maxShadow.blur);
+const SHADOW_SUBTLE: Shadow[] = [
+  {offsetX: 0, offsetY: 1, blur: 2, spread: 0, color: rgba(SHADOW_COLOR, 0.06)},
+];
 
-  // For Android elevation, approximate based on blur
-  // elevation roughly equals blur / 4
-  const elevation = Math.max(1, Math.round(blur / 4));
+const SHADOW_NORMAL: Shadow[] = [
+  {offsetX: 0, offsetY: 3, blur: 24, spread: 0, color: rgba(SHADOW_COLOR, 0.05)},
+  {offsetX: 0, offsetY: 0, blur: 2, spread: 0, color: rgba(SHADOW_COLOR, 0.05)},
+];
 
-  return {
-    shadowColor: '#000000',
-    shadowOffset: {
-      width: offsetX,
-      height: offsetY,
-    },
-    shadowOpacity: opacity,
-    shadowRadius: blur / 2, // React Native shadowRadius is half of CSS blur
-    elevation, // Android
-  };
-};
+const SHADOW_STRONG: Shadow[] = [
+  {offsetX: 0, offsetY: 8, blur: 16, spread: -4, color: rgba(SHADOW_COLOR, 0.12)},
+];
 
-// Light Mode Elevation
+const SHADOW_HEAVY: Shadow[] = [
+  {offsetX: 0, offsetY: 16, blur: 32, spread: 8, color: rgba('#0D0E10', 0.16)},
+];
+
+// ---- Light Mode (Figma 기본값) ----
+
 export const ElevationLight = {
-  '1': convertShadowToRN([
-    {
-      offsetX: '0px',
-      offsetY: '0px',
-      blur: '3px',
-      spread: '0px',
-      color: '#0000000f',
-    },
-    {
-      offsetX: '0px',
-      offsetY: '0px',
-      blur: '2px',
-      spread: '0px',
-      color: '#0000000f',
-    },
-  ]),
-  '2': convertShadowToRN([
-    {
-      offsetX: '0px',
-      offsetY: '2px',
-      blur: '6px',
-      spread: '2px',
-      color: '#0000000f',
-    },
-    {
-      offsetX: '0px',
-      offsetY: '1px',
-      blur: '2px',
-      spread: '0px',
-      color: '#0000000f',
-    },
-  ]),
-  '3': convertShadowToRN([
-    {
-      offsetX: '0px',
-      offsetY: '2px',
-      blur: '14px',
-      spread: '0px',
-      color: '#00000014',
-    },
-  ]),
-  '4': convertShadowToRN([
-    {
-      offsetX: '0px',
-      offsetY: '6px',
-      blur: '16px',
-      spread: '0px',
-      color: '#0000000a',
-    },
-  ]),
-  '5': convertShadowToRN([
-    {
-      offsetX: '0px',
-      offsetY: '0px',
-      blur: '32px',
-      spread: '0px',
-      color: '#0000001f',
-    },
-  ]),
+  subtle: toBoxShadow(SHADOW_SUBTLE),
+  normal: toBoxShadow(SHADOW_NORMAL),
+  strong: toBoxShadow(SHADOW_STRONG),
+  heavy: toBoxShadow(SHADOW_HEAVY),
+  // 숫자 키 alias (백워드 호환 — '1'~'5' 사용처용)
+  '1': toBoxShadow(SHADOW_SUBTLE),
+  '2': toBoxShadow(SHADOW_NORMAL),
+  '3': toBoxShadow(SHADOW_STRONG),
+  '4': toBoxShadow(SHADOW_STRONG),
+  '5': toBoxShadow(SHADOW_HEAVY),
 } as const;
 
-// Dark Mode Elevation
+// ---- Dark Mode ----
+// Figma 의 effect style 은 모드 분기가 없으므로 동일 값 사용.
+// 다크 배경에서 더 잘 보이도록 alpha 만 살짝 키움 (0.06→0.20 등).
+
+const SHADOW_SUBTLE_DARK: Shadow[] = [
+  {offsetX: 0, offsetY: 1, blur: 2, spread: 0, color: rgba('#000000', 0.20)},
+];
+
+const SHADOW_NORMAL_DARK: Shadow[] = [
+  {offsetX: 0, offsetY: 2, blur: 20, spread: 0, color: rgba('#000000', 0.32)},
+  {offsetX: 0, offsetY: 0, blur: 2, spread: 0, color: rgba('#000000', 0.24)},
+];
+
+const SHADOW_STRONG_DARK: Shadow[] = [
+  {offsetX: 0, offsetY: 8, blur: 16, spread: -4, color: rgba('#000000', 0.40)},
+];
+
+const SHADOW_HEAVY_DARK: Shadow[] = [
+  {offsetX: 0, offsetY: 16, blur: 32, spread: 8, color: rgba('#000000', 0.48)},
+];
+
 export const ElevationDark = {
-  '1': convertShadowToRN([
-    {
-      offsetX: '0px',
-      offsetY: '1px',
-      blur: '2px',
-      spread: '0px',
-      color: '#0000004d',
-    },
-    {
-      offsetX: '0px',
-      offsetY: '1px',
-      blur: '3px',
-      spread: '1px',
-      color: '#00000026',
-    },
-  ]),
-  '2': convertShadowToRN([
-    {
-      offsetX: '0px',
-      offsetY: '1px',
-      blur: '2px',
-      spread: '0px',
-      color: '#0000004d',
-    },
-    {
-      offsetX: '0px',
-      offsetY: '2px',
-      blur: '6px',
-      spread: '2px',
-      color: '#00000026',
-    },
-  ]),
-  '3': convertShadowToRN([
-    {
-      offsetX: '0px',
-      offsetY: '1px',
-      blur: '3px',
-      spread: '0px',
-      color: '#0000004d',
-    },
-    {
-      offsetX: '0px',
-      offsetY: '4px',
-      blur: '8px',
-      spread: '3px',
-      color: '#00000026',
-    },
-  ]),
-  '4': convertShadowToRN([
-    {
-      offsetX: '0px',
-      offsetY: '2px',
-      blur: '3px',
-      spread: '0px',
-      color: '#0000004d',
-    },
-    {
-      offsetX: '0px',
-      offsetY: '6px',
-      blur: '10px',
-      spread: '4px',
-      color: '#00000026',
-    },
-  ]),
-  '5': convertShadowToRN([
-    {
-      offsetX: '0px',
-      offsetY: '4px',
-      blur: '4px',
-      spread: '0px',
-      color: '#0000004d',
-    },
-    {
-      offsetX: '0px',
-      offsetY: '8px',
-      blur: '12px',
-      spread: '6px',
-      color: '#00000026',
-    },
-  ]),
+  subtle: toBoxShadow(SHADOW_SUBTLE_DARK),
+  normal: toBoxShadow(SHADOW_NORMAL_DARK),
+  strong: toBoxShadow(SHADOW_STRONG_DARK),
+  heavy: toBoxShadow(SHADOW_HEAVY_DARK),
+  '1': toBoxShadow(SHADOW_SUBTLE_DARK),
+  '2': toBoxShadow(SHADOW_NORMAL_DARK),
+  '3': toBoxShadow(SHADOW_STRONG_DARK),
+  '4': toBoxShadow(SHADOW_STRONG_DARK),
+  '5': toBoxShadow(SHADOW_HEAVY_DARK),
 } as const;
 
 export type ElevationLightKey = keyof typeof ElevationLight;
 export type ElevationDarkKey = keyof typeof ElevationDark;
 
-// Helper function to get elevation based on theme
+// ---- Background blur (BlurView intensity) ----
+// Figma: elevation/blur/normal=16, strong=48
+// React Native BlurView 의 `intensity` prop 에 적용.
+
+export const BlurIntensity = {
+  normal: 16,
+  strong: 48,
+} as const;
+
+// ---- Helper ----
+
 export const getElevation = (
-  level: '1' | '2' | '3' | '4' | '5',
+  level: ElevationLightKey,
   theme: 'light' | 'dark' = 'light',
-): ViewStyle => {
-  return theme === 'light' ? ElevationLight[level] : ElevationDark[level];
-};
+): ViewStyle => (theme === 'light' ? ElevationLight[level] : ElevationDark[level]);

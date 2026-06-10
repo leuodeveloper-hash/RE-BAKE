@@ -3,7 +3,7 @@ import {Pressable, StyleProp, StyleSheet, Text, TextInput as RNTextInput, View, 
 import {SvgProps} from 'react-native-svg';
 import {IconAstriks, IconCircleAlertFilled, IconCloseCircleFilled} from '@components/Icon/IconIndex';
 import {Radius} from '@constants/tokens';
-import {useColors} from '@contexts/ThemeContext';
+import {useColorsV2} from '@contexts/ThemeContext';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 
@@ -66,7 +66,7 @@ export function EditableChip({
   onRemove,
   onChangeText,
 }: EditableChipProps) {
-  const colors = useColors();
+  const colors = useColorsV2();
   const sizeConfig = SIZE_CONFIG[size];
 
   const variantConfig = useMemo((): Record<
@@ -80,17 +80,17 @@ export function EditableChip({
     }
   > => ({
     tip: {
-      backgroundColor: colors['surface-surfacecontainerhigh'],
-      iconColor: colors['foreground-onsurfacevar'],
-      textColor: colors['foreground-onsurfacevar'],
-      placeholderColor: colors['foreground-onsurfacemuted'],
+      backgroundColor: colors['surface/container-high'],
+      iconColor: colors['foreground/on-surface-var'],
+      textColor: colors['foreground/on-surface-var'],
+      placeholderColor: colors['foreground/on-surface-muted'],
       Icon: IconAstriks,
     },
     yellow: {
-      backgroundColor: colors['custom-yellowcontainer'],
-      iconColor: colors['custom-yellow'],
-      textColor: colors['custom-onyellowcontainer'],
-      placeholderColor: colors['custom-yellowvar'],
+      backgroundColor: colors['custom/yellow-subtle'],
+      iconColor: colors['custom/yellow'],
+      textColor: colors['custom/yellow-var'],
+      placeholderColor: colors['custom/yellow-var'],
       Icon: IconCircleAlertFilled,
     },
   }), [colors]);

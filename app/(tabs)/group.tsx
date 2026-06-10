@@ -5,19 +5,19 @@ import {deleteDoc, doc} from 'firebase/firestore';
 import {GroupScreen} from '@screens/GroupScreen';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
-import {useColors} from '@contexts/ThemeContext';
+import {useColorsV2} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
-import {useExploreRecipes} from '@hooks/useExploreRecipes';
+import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {db} from '@config/firebase';
 
 
 export default function GroupRoute() {
   const router = useRouter();
-  const colors = useColors();
+  const colors = useColorsV2();
   const {recipes, setRecipes, setSelectedCookbook, cookbookColors, removeCookbookColor, reload} = useRecipes();
   const {showSnackbar} = useSnackbar();
   const {isAdmin} = useAuth();
-  const {recipes: exploreRecipes, exploreCookbooks, reload: exploreReload} = useExploreRecipes();
+  const {recipes: exploreRecipes, exploreCookbooks, reload: exploreReload} = useExploreRecipeContext();
 
   const handleComingSoon = useCallback(() => {
     showSnackbar('기능 추가 예정입니다');
@@ -28,7 +28,7 @@ export default function GroupRoute() {
       r.cookbook === name ? {...r, cookbook: undefined} : r,
     ));
     removeCookbookColor(name);
-    showSnackbar(`'${name}' 요리책이 삭제되었습니다`);
+    showSnackbar(`'${name}' 레시피 북이 삭제되었습니다`);
   }, [setRecipes, removeCookbookColor, showSnackbar]);
 
   const {selectedExploreCookbook: _, setSelectedExploreCookbook} = useRecipes();
@@ -43,6 +43,10 @@ export default function GroupRoute() {
     router.navigate('/explore');
   }, [setSelectedExploreCookbook, router]);
 
+  const handleRecipePress = useCallback((recipeId: string) => {
+    router.push(`/recipe/${recipeId}` as any);
+  }, [router]);
+
   const handleRefresh = useCallback(async () => {
     await Promise.all([reload(), exploreReload()]);
   }, [reload, exploreReload]);
@@ -50,14 +54,14 @@ export default function GroupRoute() {
   const handleDeleteExploreCookbook = useCallback(async (name: string) => {
     try {
       await deleteDoc(doc(db, 'explore_cookbooks', name));
-      showSnackbar(`공식 요리책 '${name}'이(가) 삭제되었습니다`);
+      showSnackbar(`공식 레시피 북 '${name}'이(가) 삭제되었습니다`);
     } catch {
       showSnackbar('삭제에 실패했습니다');
     }
   }, [showSnackbar]);
 
   return (
-    <View style={[styles.container, {backgroundColor: colors['surface-surfacedim']}]}>
+    <View style={[styles.container, {backgroundColor: colors['surface/normal']}]}>
       <GroupScreen
         recipes={recipes}
         cookbookColors={cookbookColors}
@@ -70,6 +74,7 @@ export default function GroupRoute() {
         onExploreCookbookPress={handleExploreCookbookPress}
         onDeleteExploreCookbook={isAdmin ? handleDeleteExploreCookbook : undefined}
         onRefresh={handleRefresh}
+        onRecipePress={handleRecipePress}
       />
     </View>
   );

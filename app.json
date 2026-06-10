@@ -1,9 +1,12 @@
 {
   "expo": {
-    "newArchEnabled": false,
+    "newArchEnabled": true,
     "name": "Bakecycle",
     "slug": "rebake",
-    "version": "0.8.5",
+    "locales": {
+      "ko": "./languages/ko.json"
+    },
+    "version": "0.8.8",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -16,10 +19,13 @@
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.bakecycle.app",
-      "buildNumber": "4",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
+        "NSCameraUsageDescription": "레시피 사진을 촬영하고 텍스트를 자동 인식하기 위해 카메라를 사용합니다.",
+        "NSPhotoLibraryUsageDescription": "레시피 이미지를 추가하기 위해 사진 라이브러리에 접근합니다.",
+        "NSMicrophoneUsageDescription": "음성 입력을 위해 마이크를 사용합니다.",
+        "NSSpeechRecognitionUsageDescription": "음성 입력을 텍스트로 변환하기 위해 음성 인식을 사용합니다.",
         "NSAppTransportSecurity": {
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
@@ -50,13 +56,34 @@
       "expo-updates",
       "expo-web-browser",
       [
+        "expo-notifications",
+        {
+          "color": "#FCEEE3"
+        }
+      ],
+      [
+        "expo-speech-recognition",
+        {
+          "microphonePermission": "음성 입력을 위해 마이크를 사용합니다.",
+          "speechRecognitionPermission": "음성 입력을 텍스트로 변환하기 위해 음성 인식을 사용합니다."
+        }
+      ],
+      [
+        "expo-splash-screen",
+        {
+          "image": "./assets/splash.png",
+          "backgroundColor": "#FCEEE3",
+          "resizeMode": "contain"
+        }
+      ],
+      [
         "expo-font",
         {
           "fonts": [
-            "./assets/fonts/IBMPlexSans_400Regular.ttf",
-            "./assets/fonts/IBMPlexSans_500Medium.ttf",
-            "./assets/fonts/IBMPlexSans_600SemiBold.ttf",
-            "./assets/fonts/IBMPlexSans_700Bold.ttf"
+            "./assets/fonts/Pretendard-Regular.otf",
+            "./assets/fonts/Pretendard-Medium.otf",
+            "./assets/fonts/Pretendard-SemiBold.otf",
+            "./assets/fonts/Pretendard-Bold.otf"
           ]
         }
       ],
@@ -69,8 +96,16 @@
       [
         "react-native-google-mobile-ads",
         {
-          "androidAppId": "ca-app-pub-3940256099942544~3347511713",
-          "iosAppId": "ca-app-pub-3940256099942544~3347511713"
+          "androidAppId": "ca-app-pub-9641282889322635~2260451659",
+          "iosAppId": "ca-app-pub-9641282889322635~2260451659"
+        }
+      ],
+      [
+        "expo-build-properties",
+        {
+          "ios": {
+            "deploymentTarget": "15.5"
+          }
         }
       ]
     ],

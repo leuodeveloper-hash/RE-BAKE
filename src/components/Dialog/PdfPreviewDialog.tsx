@@ -2,14 +2,14 @@ import React, {useCallback} from 'react';
 import {Platform, StyleSheet, View} from 'react-native';
 import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
+import {RecipeHtmlPreview} from '@components/Recipe/RecipeHtmlPreview';
 import {Radius} from '@constants/tokens';
-import type {SemanticColors} from '@constants/tokens';
-import {useThemedStyles} from '@hooks/useThemedStyles';
+import type {SemanticColorsV2} from '@constants/tokensV2';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {
   RecipePdfData,
   generateRecipeHtml,
 } from '@utils/generateRecipeHtml';
-import {IconImport} from '@components/Icon/IconIndex';
 
 export interface PdfPreviewDialogProps {
   visible: boolean;
@@ -24,17 +24,7 @@ export interface PdfPreviewDialogProps {
 
 // Dialog content area = 312 - 16*2 = 280px
 const CONTENT_WIDTH = 280;
-const HTML_WIDTH = 600;
-const SCALE = CONTENT_WIDTH / HTML_WIDTH;
 const PREVIEW_HEIGHT = 380;
-
-// Native-only: WebView (react-native-webview has web support, safe to resolve)
-let NativeWebView: React.ComponentType<any> | null = null;
-if (Platform.OS !== 'web') {
-  try {
-    NativeWebView = require('react-native-webview').WebView;
-  } catch {}
-}
 
 export function PdfPreviewDialog({
   visible,
@@ -43,7 +33,7 @@ export function PdfPreviewDialog({
   html: htmlProp,
   filename: filenameProp,
 }: PdfPreviewDialogProps) {
-  const styles = useThemedStyles(createStyles);
+  const styles = useThemedStylesV2(createStyles);
   const html = htmlProp ?? (data ? generateRecipeHtml(data) : '');
   const pdfFilename = filenameProp ?? data?.title ?? 'recipes';
 
@@ -106,9 +96,8 @@ export function PdfPreviewDialog({
     <Dialog
       visible={visible}
       onClose={onClose}
-      icon={IconImport}
-      avatarColor="gray"
       title="PDF 미리보기"
+      headerType="center"
       showCloseButton
       actions={
         <>
@@ -117,50 +106,27 @@ export function PdfPreviewDialog({
         </>
       }>
       <View style={styles.previewContainer}>
-        {visible && <PreviewContent html={html} />}
+        {visible && (data || htmlProp) ? (
+          <RecipeHtmlPreview
+            data={data}
+            html={htmlProp}
+            width={CONTENT_WIDTH}
+            height={PREVIEW_HEIGHT}
+            scrollEnabled
+          />
+        ) : null}
       </View>
     </Dialog>
   );
 }
 
-function PreviewContent({html}: {html: string}) {
-  // body에 zoom 적용하여 축소 미리보기
-  const previewHtml = html.replace(
-    '</style>',
-    `body { zoom: ${SCALE}; }</style>`,
-  );
-
-  if (Platform.OS === 'web') {
-    return React.createElement('iframe', {
-      srcDoc: previewHtml,
-      style: {
-        width: CONTENT_WIDTH,
-        height: PREVIEW_HEIGHT,
-        border: 'none',
-        display: 'block',
-      },
-    });
-  }
-
-  if (!NativeWebView) return null;
-
-  return (
-    <NativeWebView
-      originWhitelist={['*']}
-      source={{html: previewHtml}}
-      style={{width: CONTENT_WIDTH, height: PREVIEW_HEIGHT}}
-      scrollEnabled
-    />
-  );
-}
-
-const createStyles = (colors: SemanticColors) =>
+const createStyles = (colors: SemanticColorsV2) =>
   StyleSheet.create({
     previewContainer: {
       width: CONTENT_WIDTH,
       height: PREVIEW_HEIGHT,
       borderRadius: Radius['radius-md'],
       overflow: 'hidden',
-      backgroundColor: colors['surface-surfacedim'],
+      backgroundColor: colors['surface/dim'],
     },
   });

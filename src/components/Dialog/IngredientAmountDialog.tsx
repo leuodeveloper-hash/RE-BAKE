@@ -5,8 +5,8 @@ import {Button} from '@components/Button';
 import {Selector} from '@components/Selector';
 import {Menu} from '@components/Menu';
 import {TextInput} from '@components/TextInput';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import type {SemanticColors} from '@constants/tokens';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {IconScaleTwotone} from '@components/Icon/IconIndex';
@@ -47,7 +47,7 @@ function findUnitDef(unitId: string): UnitDef | undefined {
 }
 
 export function IngredientAmountDialog({visible, onClose, amount, unit, onConfirm}: IngredientAmountDialogProps) {
-  const styles = useThemedStyles(createStyles);
+  const styles = useThemedStylesV2(createStyles);
   const [selectedUnit, setSelectedUnit] = useState('g');
   const [inputAmount, setInputAmount] = useState('');
   const [showUnitMenu, setShowUnitMenu] = useState(false);
@@ -147,7 +147,7 @@ export function IngredientAmountDialog({visible, onClose, amount, unit, onConfir
   );
 }
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   content: {
     gap: Spacing.md,
   },
@@ -168,7 +168,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   unitLabel: {
     ...Typography.label.medium,
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
     paddingHorizontal: Spacing.sm,
     marginBottom: Spacing.xs,
   },
@@ -181,7 +181,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   noAmountHint: {
     ...Typography.body.small,
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
     textAlign: 'center',
     marginTop: FONT_BASELINE_OFFSET,
   },

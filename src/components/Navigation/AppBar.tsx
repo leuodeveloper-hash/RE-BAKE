@@ -10,10 +10,10 @@ import {
 import {IconButton} from '@components/IconButton';
 import {Selector} from '@components/Selector';
 import {GlassContainer} from '@components/Container';
-import type {SemanticColors} from '@constants/tokens';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
-import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {FloatingNavBar, navPillStyle} from './FloatingNavBar';
 
 export interface AppBarProps {
@@ -45,7 +45,7 @@ export interface AppBarProps {
 }
 
 export function AppBar({
-  title = '모든 요리책',
+  title = '모든 레시피 북',
   centered = false,
   leftIcon,
   onLeftPress,
@@ -66,7 +66,7 @@ export function AppBar({
   titleMenu,
   rightMenu,
 }: AppBarProps) {
-  const themedStyles = useThemedStyles(createThemedStyles);
+  const themedStyles = useThemedStylesV2(createThemedStyles);
 
   if (centered) {
     return (
@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   },
 });
 
-const createThemedStyles = (colors: SemanticColors) => StyleSheet.create({
+const createThemedStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   centeredContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -184,7 +184,7 @@ const createThemedStyles = (colors: SemanticColors) => StyleSheet.create({
     fontWeight: Typography.title.medium.fontWeight as '700',
     lineHeight: Typography.title.medium.lineHeight,
     letterSpacing: Typography.title.medium.letterSpacing,
-    color: colors['foreground-onsurface'],
+    color: colors['foreground/on-surface'],
     marginTop: FONT_BASELINE_OFFSET,
   },
 });

@@ -1,0 +1,45 @@
+import {collection, getDocs, query, where} from 'firebase/firestore';
+import {db} from '@config/firebase';
+import type {ExamType} from '@constants/examTypes';
+
+/**
+ * Firestore exam_schedules 컬렉션 스키마:
+ * {
+ *   examType: 'baking_practical' | 'baking_written' | 'pastry_practical' | 'pastry_written',
+ *   round: '2026년 1회' 등 회차 라벨,
+ *   registrationStart: ISO date string (접수 시작일),
+ *   examDate: ISO date string (시험일),
+ *   resultDate: ISO date string (결과 발표일),
+ * }
+ */
+export interface ExamSchedule {
+  id: string;
+  examType: ExamType;
+  round: string;
+  registrationStart: string;
+  examDate: string;
+  resultDate: string;
+}
+
+export async function fetchExamSchedules(targets: ExamType[]): Promise<ExamSchedule[]> {
+  if (targets.length === 0) return [];
+  // 미래 일정만 (이미 지난 시험은 제외)
+  const now = new Date().toISOString();
+  const result: ExamSchedule[] = [];
+  // Firestore in 쿼리는 10개 제한 — examType은 최대 4개라 안전
+  const q = query(
+    collection(db, 'exam_schedules'),
+    where('examType', 'in', targets),
+    where('examDate', '>=', now),
+  );
+  try {
+    const snap = await getDocs(q);
+    snap.forEach(doc => {
+      const data = doc.data() as Omit<ExamSchedule, 'id'>;
+      result.push({id: doc.id, ...data});
+    });
+  } catch {
+    // Firestore 권한/네트워크 에러 — 무시하고 빈 배열
+  }
+  return result;
+}

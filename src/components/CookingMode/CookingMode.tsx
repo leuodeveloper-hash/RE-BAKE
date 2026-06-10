@@ -2,9 +2,10 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   Animated,
   Dimensions,
-  Image,
+  Linking,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -13,6 +14,7 @@ import {
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import {getPersistentUri} from '@utils/imageUpload';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {GlassContainer, Card, MAX_CONTENT_WIDTH} from '@components/Container';
 import {BottomSheet} from '@components/BottomSheet';
@@ -21,13 +23,15 @@ import {Tooltip} from '@components/Tooltip';
 import {IconButton} from '@components/IconButton';
 import {Selector} from '@components/Selector';
 import {navPillStyle} from '@components/Navigation';
-import {Menu, MenuItem, type MenuItemData} from '@components/Menu';
+import {Menu, MenuItem, Subheader, type MenuItemData} from '@components/Menu';
+import {SearchCommandBar} from '@components/SearchCommandBar';
 import {Button} from '@components/Button';
 import {EditableChip} from '@components/EditableChip/EditableChip';
+import {StepPhotos} from '@components/StepPhotos';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {
   IconAdd,
-  IconChevronRight,
+  IconCaretRight,
   IconClose,
   IconEdit,
   IconTick,
@@ -40,14 +44,18 @@ import {
   IconRedo,
   IconCircleInfoFilled,
   IconEllipsisVertical,
-  IconCloseCircleFilled,
+  IconListChecks,
+  IconNoteFilled,
+  IconLogoSymbol,
+  IconArrowTopRight,
 } from '@components/Icon/IconIndex';
-import {useThemedStyles} from '@hooks/useThemedStyles';
+import {YouTubePlayerModal} from '@components/YouTubePlayer';
+import {parseYouTubeVideoId} from '@utils/youtube';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useKeyboardHeight} from '@hooks/useKeyboardHeight';
 import {useEscapeKey} from '@hooks/useEscapeKey';
-import {useColors} from '@contexts/ThemeContext';
-import type {SemanticColors} from '@constants/tokens';
-import {Radius} from '@constants/tokens';
+import {useColorsV2} from '@contexts/ThemeContext';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 
@@ -103,6 +111,18 @@ export interface CookingModeProps {
   onUpdate?: (data: Record<string, any>) => void;
   /** 열릴 때 시작할 카드 인덱스 */
   initialIndex?: number;
+  /** 열릴 때 재료 바텀시트 자동 오픈 */
+  initialShowIngredients?: boolean;
+  /** 레시피 전환용 */
+  recipeItems?: {id: string; label: string; iconColor?: string; imageUrl?: string}[];
+  currentRecipeId?: string;
+  onRecipeSelect?: (id: string) => void;
+  /** 베이키의 조언 (마지막 카드에 표시) */
+  advice?: string;
+  /** 베이키의 조언 사진 */
+  advicePhotos?: string[];
+  /** 참고 링크 (YouTube면 PiP 플레이어로 재생) */
+  referenceUrl?: string;
 }
 
 const SIDE_PEEK = 40;
@@ -190,9 +210,16 @@ export function CookingMode({
   canEdit,
   onUpdate,
   initialIndex = 0,
+  initialShowIngredients = false,
+  recipeItems,
+  currentRecipeId,
+  onRecipeSelect,
+  advice,
+  advicePhotos,
+  referenceUrl,
 }: CookingModeProps) {
-  const styles = useThemedStyles(createStyles);
-  const colors = useColors();
+  const styles = useThemedStylesV2(createStyles);
+  const colors = useColorsV2();
   const insets = useSafeAreaInsets();
 
   // 로컬 스낵바 (Modal 위에 표시)
@@ -213,9 +240,17 @@ export function CookingMode({
   const [containerWidth, setContainerWidth] = useState(Dimensions.get('window').width);
   const [editCards, setEditCards] = useState<CookingCard[]>([]);
   const [showGroupMenu, setShowGroupMenu] = useState(false);
+  const [showRecipeMenu, setShowRecipeMenu] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [youtubeOpen, setYoutubeOpen] = useState(false);
+
+  const referenceYouTubeId = useMemo(() => parseYouTubeVideoId(referenceUrl), [referenceUrl]);
   const [showPhotoSubmenu, setShowPhotoSubmenu] = useState(false);
   const [showIngredientPicker, setShowIngredientPicker] = useState(false);
+  const [showIngredientList, setShowIngredientList] = useState(false);
+  const [editAdvice, setEditAdvice] = useState(advice ?? '');
+  const [editAdvicePhotos, setEditAdvicePhotos] = useState<string[]>(advicePhotos ?? []);
+  const [isInitialIngredientSheet, setIsInitialIngredientSheet] = useState(false);
 
   // Refs for latest state (stale closure 방지)
   const editCardsRef = useRef<CookingCard[]>([]);
@@ -243,6 +278,21 @@ export function CookingMode({
     });
   }, []);
 
+  const allIngredientNames = useMemo(() => {
+    if (!ingredientGroups) return [];
+    return ingredientGroups.flatMap(g => (g.ingredients ?? []).filter(ing => ing.name?.trim()).map(ing => ing.name));
+  }, [ingredientGroups]);
+
+  const allIngredientsChecked = allIngredientNames.length > 0 && allIngredientNames.every(n => checkedIngredients.has(n));
+
+  const toggleAllIngredients = useCallback(() => {
+    if (allIngredientsChecked) {
+      setCheckedIngredients(new Set());
+    } else {
+      setCheckedIngredients(new Set(allIngredientNames));
+    }
+  }, [allIngredientsChecked, allIngredientNames]);
+
   const keyboardHeight = useKeyboardHeight();
 
   // ESC key to close
@@ -259,7 +309,8 @@ export function CookingMode({
     [steps, stepGroups, ingredientGroups],
   );
 
-  const totalCards = flatCards.length;
+  const hasAdvice = !!advice?.trim();
+  const totalCards = flatCards.length + (hasAdvice ? 1 : 0);
   const displayCards = isEditing ? editCards : flatCards;
 
   // Scroll-based card dimensions
@@ -282,16 +333,23 @@ export function CookingMode({
   // Current group based on currentIndex
   const currentCard = displayCards[currentIndex];
   const currentGroupTitle = currentCard?.groupTitle ?? '';
+  const isOnAdviceCard = hasAdvice && currentIndex >= displayCards.length;
 
   // Group menu items
-  const groupMenuItems = useMemo(() =>
-    groupNames.map((name, i) => ({id: String(i), label: name})),
-    [groupNames],
-  );
+  const groupMenuItems = useMemo(() => [
+    ...groupNames.map((name, i) => ({id: String(i), label: name})),
+    ...(hasAdvice ? [{id: 'advice', label: '베이키의 조언', icon: IconLogoSymbol}] : []),
+  ], [groupNames, hasAdvice]);
 
   // Navigate to first card of a group (fade transition)
-  const goToGroup = useCallback((groupIndex: number) => {
-    const targetIdx = displayCards.findIndex(c => c.groupIndex === groupIndex);
+  const goToGroup = useCallback((id: string) => {
+    let targetIdx: number;
+    if (id === 'advice') {
+      targetIdx = displayCards.length; // advice card is after all display cards
+    } else {
+      const groupIndex = Number(id);
+      targetIdx = displayCards.findIndex(c => c.groupIndex === groupIndex);
+    }
     if (targetIdx >= 0) {
       Animated.timing(fadeAnim, {toValue: 0, duration: 150, useNativeDriver: true}).start(() => {
         setCurrentIndex(targetIdx);
@@ -308,17 +366,23 @@ export function CookingMode({
   useEffect(() => {
     if (visible && !prevVisible.current) {
       setContentReady(false);
-      const startIdx = Math.max(0, Math.min(initialIndex, flatCards.length - 1));
+      const startIdx = Math.max(0, Math.min(initialIndex, totalCards - 1));
       setCurrentIndex(startIdx);
       setIsEditing(false);
       setCheckedIngredients(new Set());
+      setShowIngredientList(initialShowIngredients);
+      setIsInitialIngredientSheet(initialShowIngredients);
       setTimeout(() => {
         scrollToIndex(startIdx, false);
         // 스크롤 위치 안정화 후 콘텐츠 표시
         requestAnimationFrame(() => setContentReady(true));
       }, 50);
     }
-    if (!visible) setContentReady(false);
+    if (!visible) {
+      setContentReady(false);
+      setShowIngredientList(false);
+      setIsInitialIngredientSheet(false);
+    }
     prevVisible.current = visible;
   }, [visible, initialIndex, flatCards.length, scrollToIndex]);
 
@@ -361,7 +425,9 @@ export function CookingMode({
   }, [flatCards, snapshotEditCards]);
 
   const saveEdits = useCallback((silent = false) => {
-    if (!onUpdate || !computeIsDirty()) return;
+    if (!onUpdate) return;
+    const adviceDirty = editAdvice !== (advice ?? '') || JSON.stringify(editAdvicePhotos) !== JSON.stringify(advicePhotos ?? []);
+    if (!computeIsDirty() && !adviceDirty) return;
 
     const cards = editCardsRef.current;
     const ingredientAmountMap = new Map<string, string>();
@@ -395,6 +461,10 @@ export function CookingMode({
     }
 
     const ingData = updatedIngredientGroups ? {ingredientGroups: updatedIngredientGroups} : {};
+    const adviceData = adviceDirty ? {
+      advice: editAdvice || undefined,
+      ...(editAdvicePhotos.length > 0 ? {advicePhotos: editAdvicePhotos} : {advicePhotos: undefined}),
+    } : {};
 
     if (stepGroups && stepGroups.length > 0) {
       const newStepGroups = stepGroups.map((group, gIdx) => ({
@@ -410,7 +480,7 @@ export function CookingMode({
             ...(card.editIngredients?.length ? {ingredients: card.editIngredients} : {}),
           })),
       }));
-      onUpdate({stepGroups: newStepGroups, ...ingData});
+      onUpdate({stepGroups: newStepGroups, ...ingData, ...adviceData});
     } else {
       const newSteps = cards.map((card, i) => ({
         step: i + 1,
@@ -420,12 +490,12 @@ export function CookingMode({
         ...(card.photos?.length ? {photos: card.photos} : {}),
         ...(card.editIngredients?.length ? {ingredients: card.editIngredients} : {}),
       }));
-      onUpdate({steps: newSteps, ...ingData});
+      onUpdate({steps: newSteps, ...ingData, ...adviceData});
     }
     savedSnapshotRef.current = snapshotEditCards(cards);
     setLastSavedAt(new Date());
     showSnackbar(silent ? '자동저장 되었습니다' : '변경사항이 저장되었습니다');
-  }, [onUpdate, computeIsDirty, stepGroups, ingredientGroups, showSnackbar, snapshotEditCards]);
+  }, [onUpdate, computeIsDirty, stepGroups, ingredientGroups, showSnackbar, snapshotEditCards, editAdvice, advice, editAdvicePhotos, advicePhotos]);
 
   const exitEditing = useCallback(() => {
     if (computeIsDirty()) saveEdits(true);
@@ -529,30 +599,32 @@ export function CookingMode({
   // Editing
   const startEditing = useCallback(() => {
     setEditCards(flatCards.map(c => ({...c, editIngredients: [...c.matchedIngredients]})));
+    setEditAdvice(advice ?? '');
+    setEditAdvicePhotos(advicePhotos ?? []);
     undoStackRef.current = [];
     redoStackRef.current = [];
     savedSnapshotRef.current = null;
     setHistoryVersion(0);
     setIsEditing(true);
-    setTimeout(() => {
-      const input = descInputRef.current;
-      if (!input) return;
-      // 웹: preventScroll로 포커스 시 스크롤 점프 방지
-      const node = (input as any)?._node;
-      if (node?.focus) {
-        node.focus({preventScroll: true});
-      } else {
-        input.focus();
-      }
-      // 커서를 끝으로 이동
-      const card = flatCards[currentIndex];
-      if (card) {
-        const len = card.description.length;
-        (input as any).setSelectionRange?.(len, len);
-        (input as any).setNativeProps?.({selection: {start: len, end: len}});
-      }
-    }, 100);
-  }, [flatCards, currentIndex]);
+    if (!isOnAdviceCard) {
+      setTimeout(() => {
+        const input = descInputRef.current;
+        if (!input) return;
+        const node = (input as any)?._node;
+        if (node?.focus) {
+          node.focus({preventScroll: true});
+        } else {
+          input.focus();
+        }
+        const card = flatCards[currentIndex];
+        if (card) {
+          const len = card.description.length;
+          (input as any).setSelectionRange?.(len, len);
+          (input as any).setNativeProps?.({selection: {start: len, end: len}});
+        }
+      }, 100);
+    }
+  }, [flatCards, currentIndex, advice, advicePhotos, isOnAdviceCard]);
 
   const handleDoubleTap = useCallback(() => {
     if (!canEdit || isEditing) return;
@@ -598,19 +670,28 @@ export function CookingMode({
   // 사진 추가 (이미지 피커)
   const pickPhoto = useCallback(async (source: 'camera' | 'gallery', globalIndex: number, currentPhotos?: string[]) => {
     if ((currentPhotos?.length ?? 0) >= MAX_PHOTOS) return;
+    if (source === 'camera') {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) { showSnackbar('카메라 권한이 필요해요'); return; }
+    } else {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { showSnackbar('사진 권한이 필요해요'); return; }
+    }
     const options: ImagePicker.ImagePickerOptions = {
       mediaTypes: ['images'],
       quality: 0.8,
+      base64: Platform.OS === 'web',
     };
     const result =
       source === 'camera'
         ? await ImagePicker.launchCameraAsync(options)
         : await ImagePicker.launchImageLibraryAsync(options);
     if (!result.canceled && result.assets.length > 0) {
-      const newPhotos = [...(currentPhotos ?? []), ...result.assets.map(a => a.uri)].slice(0, MAX_PHOTOS);
+      const uris = await Promise.all(result.assets.map(a => getPersistentUri(a.uri, a.base64)));
+      const newPhotos = [...(currentPhotos ?? []), ...uris].slice(0, MAX_PHOTOS);
       updateCardPhotos(globalIndex, newPhotos);
     }
-  }, [updateCardPhotos]);
+  }, [updateCardPhotos, showSnackbar]);
 
   // 사진 삭제
   const removePhoto = useCallback((globalIndex: number, photoIndex: number, currentPhotos?: string[]) => {
@@ -622,16 +703,48 @@ export function CookingMode({
   // 사진 교체
   const replacePhoto = useCallback(async (globalIndex: number, photoIndex: number, currentPhotos?: string[]) => {
     if (!currentPhotos) return;
+    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    if (!perm.granted) { showSnackbar('사진 권한이 필요해요'); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.8,
+      base64: Platform.OS === 'web',
     });
     if (!result.canceled && result.assets.length > 0) {
+      const uri = await getPersistentUri(result.assets[0].uri, result.assets[0].base64);
       const newPhotos = [...currentPhotos];
-      newPhotos[photoIndex] = result.assets[0].uri;
+      newPhotos[photoIndex] = uri;
       updateCardPhotos(globalIndex, newPhotos);
     }
-  }, [updateCardPhotos]);
+  }, [updateCardPhotos, showSnackbar]);
+
+  // 조언 사진 추가
+  const pickAdvicePhoto = useCallback(async (source: 'camera' | 'gallery') => {
+    if (editAdvicePhotos.length >= MAX_PHOTOS) return;
+    if (source === 'camera') {
+      const perm = await ImagePicker.requestCameraPermissionsAsync();
+      if (!perm.granted) { showSnackbar('카메라 권한이 필요해요'); return; }
+    } else {
+      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) { showSnackbar('사진 권한이 필요해요'); return; }
+    }
+    const options: ImagePicker.ImagePickerOptions = {
+      mediaTypes: ['images'],
+      quality: 0.8,
+      base64: Platform.OS === 'web',
+    };
+    const result = source === 'camera'
+      ? await ImagePicker.launchCameraAsync(options)
+      : await ImagePicker.launchImageLibraryAsync(options);
+    if (!result.canceled && result.assets.length > 0) {
+      const uris = await Promise.all(result.assets.map(a => getPersistentUri(a.uri, a.base64)));
+      setEditAdvicePhotos(prev => [...prev, ...uris].slice(0, MAX_PHOTOS));
+    }
+  }, [editAdvicePhotos, showSnackbar]);
+
+  const removeAdvicePhoto = useCallback((photoIndex: number) => {
+    setEditAdvicePhotos(prev => prev.filter((_, i) => i !== photoIndex));
+  }, []);
 
   // 메뉴 아이템
   const addMenuItems = useMemo((): MenuItemData[] => {
@@ -748,21 +861,21 @@ export function CookingMode({
                     icon={IconCircleInfoFilled}
                     onPress={() => setShowInfoTooltip(prev => !prev)}
                     variant="ghost-secondary"
-                    size="small"
+                    size="medium"
                   />
                 </Tooltip>
                 <IconButton
                   icon={IconUndo}
                   onPress={undo}
                   variant="ghost-secondary"
-                  size="small"
+                  size="medium"
                   disabled={!canUndo}
                 />
                 <IconButton
                   icon={IconRedo}
                   onPress={redo}
                   variant="ghost-secondary"
-                  size="small"
+                  size="medium"
                   disabled={!canRedo}
                 />
                 <View style={{marginLeft: 6}}>
@@ -770,7 +883,7 @@ export function CookingMode({
                     icon={IconAdd}
                     onPress={() => { setShowAddMenu(prev => !prev); setShowPhotoSubmenu(false); }}
                     variant="soft"
-                    size="small"
+                    size="medium"
                     forcePressed={showAddMenu}
                   />
                 </View>
@@ -805,8 +918,8 @@ export function CookingMode({
                 multiline
                 textAlignVertical="top"
                 placeholder="과정 설명"
-                placeholderTextColor={colors['foreground-onsurfacemuted']}
-                selectionColor={colors['custom-yellow']}
+                placeholderTextColor={colors['foreground/on-surface-muted']}
+                selectionColor={colors['custom/yellow']}
               />
             ) : (
               <Pressable onPress={canEdit ? handleDoubleTap : undefined}>
@@ -851,27 +964,17 @@ export function CookingMode({
 
           {/* Photos + Ingredients pinned to bottom */}
           {item.photos && item.photos.length > 0 && (
-            <Pressable style={styles.photosSection} onPress={isCurrentEditing ? undefined : () => setPhotoExpanded(prev => !prev)}>
-              {item.photos?.map((uri, pIdx) => {
-                const Wrapper = isCurrentEditing ? Pressable : View;
-                return (
-                  <Wrapper key={`photo-${pIdx}`} style={styles.photoWrapper} onPress={isCurrentEditing ? () => replacePhoto(item.globalIndex, pIdx, item.photos) : undefined}>
-                    <Image source={{uri}} style={[containerWidth >= 600 ? styles.photoPadBase : styles.photoBase, photoExpanded && (containerWidth >= 600 ? styles.photoPadExpanded : styles.photoExpanded)]} />
-                    {isCurrentEditing && (
-                      <View style={styles.photoDeleteButton}>
-                        <IconButton
-                          icon={IconCloseCircleFilled}
-                          onPress={() => removePhoto(item.globalIndex, pIdx, item.photos)}
-                          variant="ghost"
-                          onImage
-                          size="medium"
-                        />
-                      </View>
-                    )}
-                  </Wrapper>
-                );
-              })}
-            </Pressable>
+            <StepPhotos
+              photos={item.photos}
+              mode={isCurrentEditing ? 'edit' : 'view'}
+              thumbSize={containerWidth >= 600 ? {width: 200, height: 133} : {width: 100, height: 67}}
+              gap={Spacing.sm}
+              paddingTop={false}
+              expanded={photoExpanded}
+              onToggleExpand={() => setPhotoExpanded(prev => !prev)}
+              onRemove={(pIdx) => removePhoto(item.globalIndex, pIdx, item.photos)}
+              onReplace={(pIdx) => replacePhoto(item.globalIndex, pIdx, item.photos)}
+            />
           )}
           {isCurrentEditing ? (
             <Pressable style={styles.ingredientsSection} onPress={() => setShowIngredientPicker(true)}>
@@ -939,8 +1042,8 @@ export function CookingMode({
       visible={visible}
       onClose={handleClose}
       fullScreen
-      enableDragToDismiss={!isEditing}
-      backgroundColor={colors['surface-surfacedim']}
+      enableDragToDismiss={!isEditing && !showIngredientList && !showIngredientPicker}
+      backgroundColor={colors['surface/dim']}
     >
         {/* Top nav */}
         <Pressable style={[styles.topNav, {paddingTop: Spacing.smd}]} onPress={isEditing ? exitEditing : undefined}>
@@ -959,28 +1062,51 @@ export function CookingMode({
                 <GlassContainer contentStyle={styles.breadcrumbPill}>
                   <Selector
                     label={title}
-                    disabled
-                    muted
+                    disabled={!recipeItems?.length}
+                    muted={!recipeItems?.length}
                     variant="ghost"
                     style={{maxWidth: 120}}
+                    onPress={recipeItems?.length ? () => setShowRecipeMenu(prev => !prev) : undefined}
                   />
-                  {hasGroups && (
+                  {hasGroups && !isOnAdviceCard && (
                     <>
-                      <AppIcon icon={IconChevronRight} size="xs" color={colors['foreground-onsurfacemuted']} />
+                      <View style={styles.breadcrumbCaret}>
+                        <AppIcon icon={IconCaretRight} size="xs" color={colors['foreground/on-surface-muted']} />
+                      </View>
                       <Selector
                         label={currentGroupTitle}
-                        showDropdown
                         onPress={() => setShowGroupMenu(prev => !prev)}
                         variant="ghost"
                       />
                     </>
                   )}
+                  {isOnAdviceCard && (
+                    <>
+                      <View style={styles.breadcrumbCaret}>
+                        <AppIcon icon={IconCaretRight} size="xs" color={colors['foreground/on-surface-muted']} />
+                      </View>
+                      <Selector
+                        label="베이키의 조언"
+                        variant="ghost"
+                        onPress={() => setShowGroupMenu(prev => !prev)}
+                      />
+                    </>
+                  )}
                 </GlassContainer>
-                {hasGroups && (
+                <SearchCommandBar
+                  visible={showRecipeMenu}
+                  onClose={() => setShowRecipeMenu(false)}
+                  items={recipeItems ?? []}
+                  selectedId={currentRecipeId}
+                  icon={IconNoteFilled}
+                  iconColor={colors['custom/green-var']}
+                  onSelect={(id) => { setShowRecipeMenu(false); onRecipeSelect?.(id); }}
+                />
+                {(hasGroups || hasAdvice) && (
                   <Menu
                     items={groupMenuItems}
-                    selectedId={String(currentCard?.groupIndex ?? 0)}
-                    onSelect={(id) => goToGroup(Number(id))}
+                    selectedId={isOnAdviceCard ? 'advice' : String(currentCard?.groupIndex ?? 0)}
+                    onSelect={(id) => goToGroup(id)}
                     visible={showGroupMenu}
                     style={styles.groupMenu}
                   />
@@ -989,8 +1115,8 @@ export function CookingMode({
             </View>
 
             <View style={styles.topRight}>
-              {canEdit && (
-                isEditing ? (
+              {isEditing ? (
+                canEdit && (
                   <GlassContainer>
                     <IconButton
                       icon={IconTick}
@@ -1000,16 +1126,38 @@ export function CookingMode({
                       size="large"
                     />
                   </GlassContainer>
-                ) : (
-                  <GlassContainer contentStyle={navPillStyle}>
+                )
+              ) : (
+                <GlassContainer contentStyle={navPillStyle}>
+                  {referenceUrl && (
+                    <IconButton
+                      icon={IconArrowTopRight}
+                      onPress={() => {
+                        if (referenceYouTubeId) {
+                          setYoutubeOpen(true);
+                        } else {
+                          Linking.openURL(referenceUrl);
+                        }
+                      }}
+                      variant="ghost-secondary"
+                      size="medium"
+                    />
+                  )}
+                  <IconButton
+                    icon={IconListChecks}
+                    onPress={() => setShowIngredientList(true)}
+                    variant="ghost-secondary"
+                    size="medium"
+                  />
+                  {canEdit && (
                     <IconButton
                       icon={IconEdit}
                       onPress={startEditing}
                       variant="ghost-secondary"
                       size="medium"
                     />
-                  </GlassContainer>
-                )
+                  )}
+                </GlassContainer>
               )}
             </View>
           </View>
@@ -1055,6 +1203,108 @@ export function CookingMode({
                 </Animated.View>
               );
             })}
+            {/* 베이키의 조언 카드 */}
+            {hasAdvice && (() => {
+              const adviceIdx = displayCards.length;
+              const inputRange = [
+                (adviceIdx - 1) * itemWidth,
+                adviceIdx * itemWidth,
+                (adviceIdx + 1) * itemWidth,
+              ];
+              const opacity = scrollX.interpolate({
+                inputRange,
+                outputRange: [0.4, 1, 0.4],
+                extrapolate: 'clamp',
+              });
+              return (
+                <Animated.View
+                  key="advice"
+                  style={{width: cardWidth, marginHorizontal: CARD_GAP / 2, opacity}}>
+                  <View style={styles.cardOuter}>
+                    <Card variant="yellow" style={styles.adviceCard}>
+                      {/* Header */}
+                      <View style={styles.cardHeader}>
+                        <View style={[styles.adviceTitleRow, {flex: 1}]}>
+                          <AppIcon icon={IconLogoSymbol} size="sm" color={colors['custom/yellow-var']} />
+                          <Text style={styles.adviceTitle}>베이키의 조언</Text>
+                        </View>
+                        {isEditing && isOnAdviceCard && (
+                          <View style={styles.cardHeaderActions}>
+                            <View style={{marginLeft: 6}}>
+                              <IconButton
+                                icon={IconAdd}
+                                onPress={() => { setShowAddMenu(prev => !prev); setShowPhotoSubmenu(false); }}
+                                variant={isOnAdviceCard ? 'ghost-yellow' : 'soft'}
+                                size="small"
+                                forcePressed={showAddMenu}
+                              />
+                            </View>
+                          </View>
+                        )}
+                      </View>
+                      {/* Body */}
+                      <ScrollView style={{flex: 1}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+                        {isEditing && isOnAdviceCard ? (
+                          <RNTextInput
+                            style={[styles.adviceBody, noOutline]}
+                            value={editAdvice}
+                            onChangeText={setEditAdvice}
+                            multiline
+                            textAlignVertical="top"
+                            placeholder="베이키의 조언을 입력하세요"
+                            placeholderTextColor={colors['custom/yellow-var'] + '80'}
+                            selectionColor={colors['custom/yellow']}
+                          />
+                        ) : (
+                          <Pressable onPress={canEdit ? handleDoubleTap : undefined}>
+                            <Text style={styles.adviceBody}>{advice}</Text>
+                          </Pressable>
+                        )}
+                      </ScrollView>
+                      {/* Photos */}
+                      {(() => {
+                        const photos = isEditing ? editAdvicePhotos : (advicePhotos ?? []);
+                        if (photos.length === 0) return null;
+                        return (
+                          <StepPhotos
+                            photos={photos}
+                            mode={(isEditing && isOnAdviceCard) ? 'edit' : 'view'}
+                            thumbSize={containerWidth >= 600 ? {width: 200, height: 133} : {width: 100, height: 67}}
+                            gap={Spacing.sm}
+                            paddingTop={false}
+                            expanded={photoExpanded}
+                            onToggleExpand={() => setPhotoExpanded(prev => !prev)}
+                            onRemove={(pIdx) => removeAdvicePhoto(pIdx)}
+                          />
+                        );
+                      })()}
+                      {/* Add menu */}
+                      {isEditing && isOnAdviceCard && (
+                        <Menu
+                          key={showPhotoSubmenu ? 'adv-sub' : 'adv-main'}
+                          items={showPhotoSubmenu ? photoSubmenuItems : [{id: 'photo', label: '사진', icon: IconPhoto, hasChildren: true, disabled: editAdvicePhotos.length >= MAX_PHOTOS}]}
+                          visible={showAddMenu}
+                          onSelect={(id) => {
+                            if (id === 'photo') {
+                              setShowPhotoSubmenu(true);
+                            } else if (id === 'camera' || id === 'gallery') {
+                              pickAdvicePhoto(id);
+                              setShowAddMenu(false);
+                              setShowPhotoSubmenu(false);
+                            }
+                          }}
+                          onClose={() => {
+                            if (showPhotoSubmenu) setShowPhotoSubmenu(false);
+                            else setShowAddMenu(false);
+                          }}
+                          style={styles.addMenu}
+                        />
+                      )}
+                    </Card>
+                  </View>
+                </Animated.View>
+              );
+            })()}
           </Animated.ScrollView>
           <Pressable style={{height: insets.bottom + Spacing.md * 2 + 48 + 24}} onPress={isEditing ? exitEditing : undefined} />
         </Animated.View>
@@ -1093,7 +1343,50 @@ export function CookingMode({
           )}
         </BottomSheet>
 
-        {/* Bottom nav — 키보드가 올라오면 숨김 */}
+        {/* 전체 재료 리스트 바텀시트 */}
+        <BottomSheet
+          visible={showIngredientList}
+          onClose={() => { setShowIngredientList(false); setIsInitialIngredientSheet(false); }}
+          title={isInitialIngredientSheet ? '재료 준비' : '재료'}
+          headerType="center"
+        >
+          {ingredientGroups?.map((group, gIdx) => (
+            <React.Fragment key={gIdx}>
+              {(ingredientGroups?.length ?? 0) > 1 && group.title ? (
+                <Subheader title={group.title} />
+              ) : null}
+              {(group.ingredients ?? []).filter(ing => ing.name?.trim()).map(ing => {
+                const checked = checkedIngredients.has(ing.name);
+                return (
+                  <MenuItem
+                    key={`list-${gIdx}-${ing.name}`}
+                    id={`list-${gIdx}-${ing.name}`}
+                    label={ing.name}
+                    checked={checked}
+                    trailingText={ing.amount}
+                    onPress={() => toggleIngredient(ing.name)}
+                  />
+                );
+              })}
+            </React.Fragment>
+          ))}
+          <View style={styles.ingredientListFooter}>
+            <Button
+              label={allIngredientsChecked ? '전체 해제' : '전체선택'}
+              variant="soft"
+              onPress={toggleAllIngredients}
+              style={{flex: 1}}
+            />
+            {allIngredientsChecked && (
+              <Button
+                label="준비 완료"
+                onPress={() => { setShowIngredientList(false); setIsInitialIngredientSheet(false); }}
+                style={{flex: 1}}
+              />
+            )}
+          </View>
+        </BottomSheet>
+
         {/* Bottom nav — 키보드가 올라오면 숨김 */}
         {keyboardHeight === 0 && (
           <View
@@ -1131,11 +1424,17 @@ export function CookingMode({
             onClose={clearLocalSnackbar}
           />
         </View>
+
+        <YouTubePlayerModal
+          visible={youtubeOpen}
+          onClose={() => setYoutubeOpen(false)}
+          videoId={referenceYouTubeId}
+        />
     </BottomSheet>
   );
 }
 
-const createStyles = (colors: SemanticColors) =>
+const createStyles = (colors: SemanticColorsV2) =>
   StyleSheet.create({
     topNav: {
       position: 'absolute',
@@ -1169,7 +1468,9 @@ const createStyles = (colors: SemanticColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       padding: 2,
-      gap: Spacing.xs,
+    },
+    breadcrumbCaret: {
+      marginHorizontal: -4,
     },
     groupMenu: {
       position: 'absolute' as const,
@@ -1195,13 +1496,13 @@ const createStyles = (colors: SemanticColors) =>
     stepCount: {
       ...Typography.title.large,
       fontWeight: Typography.title.large.fontWeight as '700',
-      color: colors['foreground-onsurfacemuted'],
+      color: colors['foreground/on-surface-muted'],
       marginTop: FONT_BASELINE_OFFSET,
     },
     description: {
       ...Typography.headline.small,
       fontWeight: Typography.headline.small.fontWeight as '600',
-      color: colors['foreground-onsurface'],
+      color: colors['foreground/on-surface'],
       lineHeight: Typography.headline.small.lineHeight,
       marginTop: FONT_BASELINE_OFFSET,
       padding: 0,
@@ -1228,43 +1529,6 @@ const createStyles = (colors: SemanticColors) =>
       right: 28,
       zIndex: 20,
     },
-    photosSection: {
-      flexDirection: 'row',
-      gap: Spacing.sm,
-    },
-    photoWrapper: {
-      position: 'relative' as const,
-    },
-    photoBase: {
-      width: 100,
-      height: 67,
-      borderRadius: Radius['radius-md'],
-    },
-    photoExpanded: {
-      width: 200,
-      height: 133,
-    },
-    photoPadBase: {
-      width: 200,
-      height: 133,
-      borderRadius: Radius['radius-md'],
-    },
-    photoPadExpanded: {
-      width: 400,
-      height: 267,
-    },
-    photoActions: {
-      position: 'absolute' as const,
-      bottom: Spacing.xs,
-      right: Spacing.xs,
-      flexDirection: 'row' as const,
-      gap: Spacing.xs,
-    },
-    photoDeleteButton: {
-      position: 'absolute' as const,
-      top: Spacing.xs,
-      right: Spacing.xs,
-    },
     ingredientsSection: {
       flexDirection: 'row',
       flexWrap: 'wrap',
@@ -1274,19 +1538,19 @@ const createStyles = (colors: SemanticColors) =>
     ingredientsText: {
       ...Typography.body.xlarge,
       fontWeight: Typography.body.xlarge.fontWeight as '500',
-      color: colors['foreground-onsurfacemuted'],
+      color: colors['foreground/on-surface-muted'],
       marginTop: FONT_BASELINE_OFFSET,
     },
     ingredientPlaceholder: {
       ...Typography.body.large,
-      color: colors['foreground-onsurfacemuted'],
+      color: colors['foreground/on-surface-muted'],
       opacity: 0.5,
       marginTop: FONT_BASELINE_OFFSET,
     },
     ingredientEmpty: {
       ...Typography.body.xlarge,
       fontWeight: Typography.body.xlarge.fontWeight as '500',
-      color: colors['foreground-onsurfacedisabled'],
+      color: colors['foreground/on-surface-disabled'],
       marginTop: FONT_BASELINE_OFFSET,
     },
     ingredientChecked: {
@@ -1312,6 +1576,11 @@ const createStyles = (colors: SemanticColors) =>
       gap: Spacing.sm,
       marginBottom: 24,
     },
+    ingredientListFooter: {
+      flexDirection: 'row',
+      padding: Spacing.md,
+      gap: Spacing.sm,
+    },
     localSnackbar: {
       position: 'absolute',
       bottom: 100,
@@ -1320,5 +1589,30 @@ const createStyles = (colors: SemanticColors) =>
       alignItems: 'center',
       zIndex: 20,
       pointerEvents: 'box-none',
+    },
+    adviceTitleRow: {
+      flexDirection: 'row' as const,
+      alignItems: 'center',
+      gap: Spacing.sm,
+    },
+    adviceCard: {
+      flex: 1,
+      width: '100%',
+      maxWidth: MAX_CONTENT_WIDTH,
+      padding: 28,
+      gap: Spacing.smd,
+    },
+    adviceTitle: {
+      ...Typography.title.large,
+      fontWeight: Typography.title.large.fontWeight as '700',
+      color: colors['custom/yellow-var'],
+      marginTop: FONT_BASELINE_OFFSET,
+    },
+    adviceBody: {
+      ...Typography.headline.small,
+      lineHeight: 30,
+      fontWeight: Typography.headline.small.fontWeight as '600',
+      color: colors['custom/yellow-var'],
+      marginTop: FONT_BASELINE_OFFSET,
     },
   });

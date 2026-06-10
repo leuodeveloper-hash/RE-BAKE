@@ -6,9 +6,9 @@ import {AppIcon} from '@components/Icon/AppIcon';
 import {Button} from '@components/Button/Button';
 import {IconButton} from '@components/IconButton';
 import {IconClose, IconCircleInfoFilled1} from '@components/Icon/IconIndex';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import {useColors, useTheme} from '@contexts/ThemeContext';
-import type {SemanticColors} from '@constants/tokens';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useColorsV2, useTheme} from '@contexts/ThemeContext';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 
@@ -25,8 +25,8 @@ export interface SnackbarProps {
 }
 
 export function Snackbar({message, icon = IconCircleInfoFilled1, action, onClose, visible = false, style}: SnackbarProps) {
-  const styles = useThemedStyles(createStyles);
-  const colors = useColors();
+  const styles = useThemedStylesV2(createStyles);
+  const colors = useColorsV2();
   const {elevation} = useTheme();
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(8)).current;
@@ -64,7 +64,7 @@ export function Snackbar({message, icon = IconCircleInfoFilled1, action, onClose
   return (
     <Animated.View style={{opacity, transform: [{translateY}]}} pointerEvents={visible ? 'auto' : 'none'}>
       <Card style={[styles.container, elevation['4'], style]}>
-        <AppIcon icon={icon} size="sm" color={colors['foreground-onsurfacemuted']} />
+        <AppIcon icon={icon} size="sm" color={colors['foreground/on-surface-muted']} />
         <Text style={styles.message}>{message}</Text>
         {(action || onClose) && (
           <View style={styles.actions}>
@@ -72,7 +72,8 @@ export function Snackbar({message, icon = IconCircleInfoFilled1, action, onClose
               <Button
                 label={action.label}
                 onPress={action.onPress}
-                variant="soft"
+                variant="ghost"
+                accent
                 size="small"
               />
             )}
@@ -91,7 +92,7 @@ export function Snackbar({message, icon = IconCircleInfoFilled1, action, onClose
   );
 }
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     flexWrap: 'nowrap',
@@ -110,7 +111,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontWeight: Typography.body.medium.fontWeight as '500',
     lineHeight: Typography.body.medium.lineHeight,
     letterSpacing: -0.25,
-    color: colors['foreground-onsurface'],
+    color: colors['foreground/on-surface'],
     marginTop: FONT_BASELINE_OFFSET,
   },
   actions: {
@@ -129,7 +130,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontSize: Typography.label.large.fontSize,
     fontWeight: Typography.label.large.fontWeight as '500',
     lineHeight: Typography.label.large.lineHeight,
-    color: colors['foreground-accent'],
+    color: colors['foreground/accent'],
     marginTop: FONT_BASELINE_OFFSET,
   },
 });

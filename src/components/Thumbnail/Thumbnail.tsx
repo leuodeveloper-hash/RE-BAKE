@@ -2,9 +2,9 @@ import React, {useEffect, useRef} from 'react';
 import {Animated, Easing, StyleSheet, View, ViewStyle} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {Radius} from '@constants/tokens';
-import type {SemanticColors} from '@constants/tokens';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import {useColors} from '@contexts/ThemeContext';
+import type {SemanticColorsV2} from '@constants/tokensV2';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useColorsV2} from '@contexts/ThemeContext';
 
 export interface ThumbnailProps {
   /** 썸네일 크기 (정사각형, 기본: 62) */
@@ -24,7 +24,7 @@ export interface ThumbnailProps {
 }
 
 function SkeletonPulse() {
-  const colors = useColors();
+  const colors = useColorsV2();
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -39,7 +39,7 @@ function SkeletonPulse() {
   }, [opacity]);
 
   return (
-    <Animated.View style={[StyleSheet.absoluteFill, {backgroundColor: colors['surface-surfacecontainer'], opacity}]} />
+    <Animated.View style={[StyleSheet.absoluteFill, {backgroundColor: colors['surface/container'], opacity}]} />
   );
 }
 
@@ -52,7 +52,7 @@ export function Thumbnail({
   children,
   loading = false,
 }: ThumbnailProps) {
-  const styles = useThemedStyles(createStyles);
+  const styles = useThemedStylesV2(createStyles);
 
   return (
     <View style={[styles.container, {width: size, height: size}, style]}>
@@ -69,9 +69,9 @@ export function Thumbnail({
   );
 }
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   container: {
-    borderRadius: Radius['radius-md'],
+    borderRadius: Radius['radius-sm'],
     overflow: 'hidden',
   },
   placeholder: {
@@ -79,6 +79,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     height: '100%',
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors['surface-surfacecontainertransparent'],
+    backgroundColor: colors['fill/glass-normal'],
   },
 });

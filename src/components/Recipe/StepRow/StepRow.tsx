@@ -1,10 +1,10 @@
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {Radius} from '@constants/tokens';
-import type {SemanticColors} from '@constants/tokens';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
 
 export interface ProcessStep {
   step: number;
@@ -22,7 +22,7 @@ export interface StepRowProps {
  * - 단계 번호와 설명 표시
  */
 export function StepRow({step, isLast = false}: StepRowProps) {
-  const styles = useThemedStyles(createStyles);
+  const styles = useThemedStylesV2(createStyles);
 
   return (
     <View style={[styles.container, !isLast && styles.withBorder]}>
@@ -43,7 +43,7 @@ export interface StepListProps {
  * - 카드 형태의 과정 목록
  */
 export function StepList({steps}: StepListProps) {
-  const styles = useThemedStyles(createStyles);
+  const styles = useThemedStylesV2(createStyles);
 
   return (
     <View style={styles.list}>
@@ -58,12 +58,12 @@ export function StepList({steps}: StepListProps) {
   );
 }
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   list: {
-    backgroundColor: colors['surface-surfacebright'],
+    backgroundColor: colors['surface/bright'],
     borderRadius: Radius['radius-lg'],
     borderWidth: 1,
-    borderColor: colors['border-borderlight'],
+    borderColor: colors['border/muted'],
     overflow: 'hidden',
   },
   container: {
@@ -75,13 +75,13 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   withBorder: {
     borderBottomWidth: 1,
-    borderBottomColor: colors['border-borderlight'],
+    borderBottomColor: colors['border/muted'],
   },
   stepNumber: {
     width: 24,
     height: 24,
     borderRadius: Radius['radius-full'],
-    backgroundColor: colors['surface-surfacecontainer'],
+    backgroundColor: colors['surface/container'],
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -90,7 +90,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontSize: Typography.label.medium.fontSize,
     fontWeight: Typography.label.medium.fontWeight as '600',
     lineHeight: Typography.label.medium.lineHeight,
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
   },
   description: {
     flex: 1,
@@ -98,6 +98,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontSize: Typography.body.medium.fontSize,
     fontWeight: Typography.body.medium.fontWeight as '500',
     lineHeight: Typography.body.medium.lineHeight,
-    color: colors['foreground-onsurface'],
+    color: colors['foreground/on-surface'],
   },
 });

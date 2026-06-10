@@ -1,8 +1,8 @@
 import React, {useCallback, useEffect, useRef} from 'react';
 import {Animated, Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
-import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useTheme} from '@contexts/ThemeContext';
-import type {SemanticColors} from '@constants/tokens';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
@@ -26,7 +26,7 @@ export interface TooltipProps {
 }
 
 export function Tooltip({message, visible, onClose, children, position = 'bottom', style}: TooltipProps) {
-  const styles = useThemedStyles(createStyles);
+  const styles = useThemedStylesV2(createStyles);
   const {elevation} = useTheme();
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(position === 'top' ? 4 : -4)).current;
@@ -85,7 +85,7 @@ export function Tooltip({message, visible, onClose, children, position = 'bottom
   );
 }
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   wrapper: {
     position: 'relative',
   },
@@ -103,7 +103,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     marginTop: Spacing.xs,
   },
   tooltip: {
-    backgroundColor: colors['surface-surfacecontainerhigh'],
+    backgroundColor: colors['surface/container-high'],
     borderRadius: Radius['radius-md'],
     paddingHorizontal: Spacing.smd,
     paddingVertical: Spacing.sm,
@@ -113,7 +113,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontSize: Typography.label.medium.fontSize,
     fontWeight: Typography.label.medium.fontWeight as '600',
     lineHeight: Typography.label.medium.lineHeight,
-    color: colors['foreground-onsurface'],
+    color: colors['foreground/on-surface'],
     marginTop: FONT_BASELINE_OFFSET,
     textAlign: 'center',
     whiteSpace: 'nowrap',

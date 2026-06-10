@@ -19,7 +19,7 @@
     <key>CFBundlePackageType</key>
     <string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
     <key>CFBundleShortVersionString</key>
-    <string>0.8.5</string>
+    <string>0.8.8</string>
     <key>CFBundleSignature</key>
     <string>????</string>
     <key>CFBundleURLTypes</key>
@@ -45,9 +45,9 @@
       </dict>
     </array>
     <key>CFBundleVersion</key>
-    <string>4</string>
+    <string>1</string>
     <key>GADApplicationIdentifier</key>
-    <string>ca-app-pub-3940256099942544~3347511713</string>
+    <string>ca-app-pub-9641282889322635~2260451659</string>
     <key>GADDelayAppMeasurementInit</key>
     <false/>
     <key>ITSAppUsesNonExemptEncryption</key>
@@ -64,19 +64,21 @@
       <true/>
     </dict>
     <key>NSCameraUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your camera</string>
+    <string>레시피 사진을 촬영하고 텍스트를 자동 인식하기 위해 카메라를 사용합니다.</string>
     <key>NSMicrophoneUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your microphone</string>
+    <string>음성 입력을 위해 마이크를 사용합니다.</string>
     <key>NSPhotoLibraryUsageDescription</key>
-    <string>Allow $(PRODUCT_NAME) to access your photos</string>
+    <string>레시피 이미지를 추가하기 위해 사진 라이브러리에 접근합니다.</string>
+    <key>NSSpeechRecognitionUsageDescription</key>
+    <string>음성 입력을 텍스트로 변환하기 위해 음성 인식을 사용합니다.</string>
     <key>RCTNewArchEnabled</key>
-    <false/>
+    <true/>
     <key>UIAppFonts</key>
     <array>
-      <string>IBMPlexSans_400Regular.ttf</string>
-      <string>IBMPlexSans_500Medium.ttf</string>
-      <string>IBMPlexSans_600SemiBold.ttf</string>
-      <string>IBMPlexSans_700Bold.ttf</string>
+      <string>Pretendard-Regular.otf</string>
+      <string>Pretendard-Medium.otf</string>
+      <string>Pretendard-SemiBold.otf</string>
+      <string>Pretendard-Bold.otf</string>
     </array>
     <key>UILaunchStoryboardName</key>
     <string>SplashScreen</string>

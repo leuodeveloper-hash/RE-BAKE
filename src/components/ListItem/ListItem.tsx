@@ -1,14 +1,16 @@
 import React from 'react';
 import {Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {Radius} from '@constants/tokens';
-import type {SemanticColors} from '@constants/tokens';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {SvgProps} from 'react-native-svg';
 import {IconButton} from '@components/IconButton';
 import {Checkbox} from '@components/Checkbox/Checkbox';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import {useColors} from '@contexts/ThemeContext';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {triggerHaptic} from '@utils/haptics';
+import {useColorsV2} from '@contexts/ThemeContext';
+import {useCardVariant} from '@components/Container/Card';
 
 // ---- Leading/Trailing 슬롯 타입 ----
 
@@ -16,10 +18,12 @@ export type ListItemElementType =
   | {type: 'icon'; icon: React.FC<SvgProps>}
   | {type: 'number'; value: number}
   | {type: 'checkbox'; checked: boolean}
-  | {type: 'iconButton'; icon: React.FC<SvgProps>; onPress?: () => void; variant?: 'soft' | 'ghost-secondary'}
+  | {type: 'iconButton'; icon: React.FC<SvgProps>; onPress?: () => void; variant?: 'soft' | 'ghost-secondary' | 'ghost-yellow'; disabled?: boolean}
   | {type: 'custom'; element: React.ReactNode};
 
 // ---- ListItem Props ----
+
+export type ListItemVariant = 'default' | 'yellow';
 
 export interface ListItemProps {
   /** 기본 텍스트 타이틀 (children이 없을 때 사용) */
@@ -36,6 +40,8 @@ export interface ListItemProps {
   titleNumberOfLines?: number;
   /** 비활성화 상태 */
   disabled?: boolean;
+  /** 컬러 배리언트 */
+  variant?: ListItemVariant;
   onPress?: () => void;
   style?: ViewStyle;
 }
@@ -44,18 +50,22 @@ export interface ListItemProps {
 
 function renderSlotElement(
   element: ListItemElementType,
-  colors: SemanticColors,
+  colors: SemanticColorsV2,
   styles: ReturnType<typeof createStyles>,
+  variant: ListItemVariant = 'default',
 ) {
   switch (element.type) {
     case 'icon': {
       const Icon = element.icon;
+      const iconColor = variant === 'yellow'
+        ? colors['custom/yellow']
+        : colors['foreground/on-surface-muted'];
       return (
         <View style={styles.slotContainer}>
           <Icon
             width={16}
             height={16}
-            color={colors['foreground-onsurfacemuted']}
+            color={iconColor}
           />
         </View>
       );
@@ -79,6 +89,7 @@ function renderSlotElement(
           onPress={element.onPress}
           variant={element.variant ?? 'soft'}
           size="small"
+          disabled={element.disabled}
         />
       );
     case 'custom':
@@ -96,21 +107,25 @@ export function ListItem({
   showDivider = true,
   titleNumberOfLines = 1,
   disabled = false,
+  variant,
   onPress,
   style,
 }: ListItemProps) {
-  const colors = useColors();
-  const styles = useThemedStyles(createStyles);
+  const colors = useColorsV2();
+  const styles = useThemedStylesV2(createStyles);
+  const cardVariant = useCardVariant();
+  const resolvedVariant = variant ?? cardVariant;
   const multiline = titleNumberOfLines === 0;
   const isClickable = onPress && !disabled;
   const Wrapper = isClickable ? Pressable : View;
+  const isYellow = resolvedVariant === 'yellow';
   const wrapperProps = isClickable
     ? {
-        onPress,
-        style: ({pressed, focused}: {pressed: boolean; focused: boolean}) => [
+        onPress: () => { triggerHaptic('light'); onPress!(); },
+        style: ({pressed}: {pressed: boolean}) => [
           styles.stateLayer,
           multiline && styles.stateLayerTop,
-          (pressed || focused) && styles.stateLayerPressed,
+          pressed && styles.stateLayerPressed,
           disabled && styles.disabled,
         ],
       }
@@ -119,15 +134,15 @@ export function ListItem({
   return (
     <View style={style}>
       <Wrapper {...(wrapperProps as any)}>
-        {leading && renderSlotElement(leading, colors, styles)}
+        {leading && renderSlotElement(leading, colors, styles, resolvedVariant)}
         <View style={styles.content}>
           {children ?? (
-            <Text style={styles.title} numberOfLines={titleNumberOfLines || undefined}>
+            <Text style={[styles.title, isYellow && styles.titleYellow]} numberOfLines={titleNumberOfLines || undefined}>
               {title}
             </Text>
           )}
         </View>
-        {trailing && renderSlotElement(trailing, colors, styles)}
+        {trailing && renderSlotElement(trailing, colors, styles, resolvedVariant)}
       </Wrapper>
       {showDivider && (
         <View style={styles.dividerContainer}>
@@ -140,7 +155,7 @@ export function ListItem({
 
 // ---- Styles ----
 
-const createStyles = (colors: SemanticColors) =>
+const createStyles = (colors: SemanticColorsV2) =>
   StyleSheet.create({
     stateLayer: {
       flexDirection: 'row',
@@ -157,7 +172,7 @@ const createStyles = (colors: SemanticColors) =>
     },
     stateLayerPressed: {
       backgroundColor:
-        colors['background-statelayers-surfacefocus_press'],
+        colors['state/pressed'],
     },
     slotContainer: {
       width: 28,
@@ -168,7 +183,7 @@ const createStyles = (colors: SemanticColors) =>
       borderRadius: Radius['radius-full'],
     },
     numberContainer: {
-      backgroundColor: colors['surface-surfacecontainer'],
+      backgroundColor: colors['surface/container'],
     },
     numberText: {
       fontFamily: Typography.body.medium.fontFamily,
@@ -176,9 +191,8 @@ const createStyles = (colors: SemanticColors) =>
       fontWeight: Typography.body.medium.fontWeight as '500',
       lineHeight: Typography.body.medium.lineHeight,
       letterSpacing: -0.25,
-      color: colors['foreground-onsurfacemuted'],
+      color: colors['foreground/on-surface-muted'],
       textAlign: 'center',
-      marginTop: FONT_BASELINE_OFFSET,
     },
     content: {
       flex: 1,
@@ -191,7 +205,7 @@ const createStyles = (colors: SemanticColors) =>
       fontWeight: Typography.body.medium.fontWeight as '500',
       lineHeight: Typography.body.medium.lineHeight,
       letterSpacing: -0.25,
-      color: colors['foreground-onsurface'],
+      color: colors['foreground/on-surface'],
       marginTop: FONT_BASELINE_OFFSET,
     },
     dividerContainer: {
@@ -199,7 +213,10 @@ const createStyles = (colors: SemanticColors) =>
     },
     divider: {
       height: StyleSheet.hairlineWidth,
-      backgroundColor: colors['border-borderlight'],
+      backgroundColor: colors['border/muted'],
+    },
+    titleYellow: {
+      color: colors['custom/yellow-var'],
     },
     disabled: {
       opacity: 0.38,

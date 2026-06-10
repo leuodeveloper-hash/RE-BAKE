@@ -1,9 +1,10 @@
 import React from 'react';
-import {Pressable, View, ViewStyle} from 'react-native';
+import {ActivityIndicator, Pressable, View, ViewStyle} from 'react-native';
 import {Radius} from '@constants/tokens';
 import {SvgProps} from 'react-native-svg';
 import {AppIcon, AppIconSize} from '@components/Icon/AppIcon';
-import {useColors} from '@contexts/ThemeContext';
+import {useColorsV2} from '@contexts/ThemeContext';
+import {triggerHaptic} from '@utils/haptics';
 
 export type IconButtonStyle =
   | 'filled'
@@ -11,7 +12,8 @@ export type IconButtonStyle =
   | 'outlined'
   | 'ghost'
   | 'ghost-secondary'
-  | 'ghost-inverse';
+  | 'ghost-inverse'
+  | 'ghost-yellow';
 
 export type IconButtonSize = 'small' | 'medium' | 'large';
 
@@ -21,6 +23,7 @@ export interface IconButtonProps {
   variant?: IconButtonStyle;
   size?: IconButtonSize;
   disabled?: boolean;
+  loading?: boolean;
   forcePressed?: boolean; // 외부에서 pressed 상태 강제 (메뉴 열림 등)
   /** 이미지 위에 배치될 때 on-image 컬러 적용 */
   onImage?: boolean;
@@ -41,12 +44,13 @@ export function IconButton({
   variant = 'ghost',
   size = 'medium',
   disabled = false,
+  loading = false,
   forcePressed = false,
   onImage = false,
   iconColor,
   style,
 }: IconButtonProps) {
-  const colors = useColors();
+  const colors = useColorsV2();
   const sizeConfig = SIZE_CONFIG[size];
 
   const getIconSize = (): AppIconSize => {
@@ -77,27 +81,28 @@ export function IconButton({
     switch (variant) {
       case 'filled':
         baseStyle.backgroundColor = disabled
-          ? colors['background-statelayers-disabled']
-          : colors['surface-surfaceinverse'];
+          ? colors['fill/strong']
+          : colors['surface/inverse'];
         break;
       case 'soft':
         baseStyle.backgroundColor = disabled
-          ? colors['background-statelayers-disabled']
+          ? colors['fill/strong']
           : onImage
-            ? colors['surface-surfacecontainertransparent-onimage']
-            : colors['surface-surfacecontainertransparent'];
+            ? colors['fill/subtle-inverse']
+            : colors['fill/glass-normal'];
         break;
       case 'outlined':
         baseStyle.backgroundColor =
-          colors['surface-surfacecontainerlowest'];
+          colors['surface/container'];
         baseStyle.borderWidth = 1;
         baseStyle.borderColor = disabled
-          ? colors['border-borderlight']
-          : colors['border-border'];
+          ? colors['border/muted']
+          : colors['border/normal'];
         break;
       case 'ghost':
       case 'ghost-secondary':
       case 'ghost-inverse':
+      case 'ghost-yellow':
         baseStyle.backgroundColor = 'transparent';
         break;
     }
@@ -106,10 +111,15 @@ export function IconButton({
     if ((pressed || forcePressed) && !disabled) {
       if (variant === 'filled' || variant === 'ghost-inverse' || onImage) {
         baseStyle.backgroundColor =
-          colors['background-statelayers-inversesurfacefocus_press'];
+          colors['state/pressed'];
+      } else if (variant === 'ghost-yellow') {
+        baseStyle.backgroundColor =
+          colors['custom/yellow-subtle'];
+        baseStyle.borderWidth = 1;
+        baseStyle.borderColor = colors['custom/yellow-var'];
       } else {
         baseStyle.backgroundColor =
-          colors['background-statelayers-surfacefocus_press'];
+          colors['state/pressed'];
       }
     }
 
@@ -118,24 +128,27 @@ export function IconButton({
 
   const getIconColor = (): string => {
     if (disabled) {
-      return colors['foreground-onsurfacedisabled'];
+      return colors['foreground/on-surface-disabled'];
     }
     if (onImage) {
-      return colors['foreground-onimage'];
+      return colors['foreground/on-image'];
     }
     if (variant === 'filled') {
-      return colors['foreground-onsurfaceinverse'];
+      return colors['foreground/on-surface-inverse'];
     }
     if (variant === 'ghost-secondary') {
-      return colors['foreground-onsurfacemuted'];
+      return colors['foreground/on-surface-muted'];
+    }
+    if (variant === 'ghost-yellow') {
+      return colors['custom/yellow'];
     }
     if (variant === 'ghost-inverse') {
-      return colors['foreground-onsurfaceinverse'];
+      return colors['foreground/on-surface-inverse'];
     }
     if (variant === 'soft') {
-      return colors['foreground-onsurfacevar'];
+      return colors['foreground/on-surface-var'];
     }
-    return colors['foreground-onsurface'];
+    return colors['foreground/on-surface'];
   };
 
   return (
@@ -151,8 +164,11 @@ export function IconButton({
         style,
       ]}>
       <Pressable
-        onPress={onPress}
-        disabled={disabled}
+        onPress={() => {
+          triggerHaptic('light');
+          onPress?.();
+        }}
+        disabled={disabled || loading}
         style={{
           width: sizeConfig.touchArea,
           height: sizeConfig.touchArea,
@@ -161,7 +177,11 @@ export function IconButton({
         }}>
         {({pressed, focused}: {pressed: boolean; focused: boolean}) => (
           <View style={getContainerStyle(pressed || focused)}>
-            <AppIcon icon={Icon} size={getIconSize()} color={iconColor || getIconColor()} />
+            {loading ? (
+              <ActivityIndicator size="small" color={iconColor || getIconColor()} />
+            ) : (
+              <AppIcon icon={Icon} size={getIconSize()} color={iconColor || getIconColor()} />
+            )}
           </View>
         )}
       </Pressable>

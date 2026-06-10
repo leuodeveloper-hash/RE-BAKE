@@ -22,6 +22,8 @@ import {
   IconToolCaseFilled,
   IconUserFilled,
   IconWind,
+  IconLogoSymbol,
+  IconLink,
 } from '@components/Icon/IconIndex';
 
 // 필드 정의
@@ -36,14 +38,16 @@ const ALL_FIELDS: FieldDef[] = [
   {id: 'info', label: '레시피 정보', icon: IconDescription, fixed: true},
   {id: 'photo', label: '사진', icon: IconPhoto, fixed: true},
   {id: 'time', label: '시간', icon: IconClockFilled, fixed: true},
-  {id: 'ingredients', label: '재료', icon: IconLeafFilled, fixed: true},
+  {id: 'ingredients', label: '재료', icon: IconLeafFilled, fixed: false},
   {id: 'tools', label: '도구', icon: IconToolCaseFilled, fixed: false},
   {id: 'steps', label: '과정', icon: IconProcess, fixed: true},
   {id: 'servings', label: '분량', icon: IconUserFilled, fixed: true},
   {id: 'method', label: '공법', icon: IconOpenbookFilled, fixed: false},
   {id: 'ratio', label: '비중', icon: IconWind, fixed: false},
-  {id: 'cookbook', label: '요리책', icon: IconBookFilled, fixed: false},
+  {id: 'cookbook', label: '레시피 북', icon: IconBookFilled, fixed: false},
+  {id: 'advice', label: '베이키의 조언', icon: IconLogoSymbol, fixed: false},
   {id: 'review', label: '회고', icon: IconChartNoAxesGantt, fixed: false},
+  {id: 'source', label: '참고 링크', icon: IconLink, fixed: true},
 ];
 
 export interface FieldManageDialogProps {
@@ -51,7 +55,7 @@ export interface FieldManageDialogProps {
   onClose: () => void;
   activeFieldIds: string[];
   onConfirm: (activeFieldIds: string[]) => void;
-  /** 공식 요리책 편집 모드 */
+  /** 공식 레시피 북 편집 모드 */
   isExplore?: boolean;
 }
 
@@ -87,7 +91,17 @@ export function FieldManageDialog({
     setLocalActiveIds(prev => [...prev, fieldId]);
   };
 
+  // 재료/도구 중 하나는 반드시 활성
+  const PAIRED_FIELDS = ['ingredients', 'tools'];
+
+  const canRemove = (fieldId: string) => {
+    if (!PAIRED_FIELDS.includes(fieldId)) return true;
+    const otherActive = PAIRED_FIELDS.filter(id => id !== fieldId).some(id => localActiveIds.includes(id));
+    return otherActive;
+  };
+
   const handleRemove = (fieldId: string) => {
+    if (!canRemove(fieldId)) return;
     setLocalActiveIds(prev => prev.filter(id => id !== fieldId));
   };
 
@@ -127,6 +141,7 @@ export function FieldManageDialog({
                       type: 'iconButton',
                       icon: IconMinus,
                       onPress: () => handleRemove(field.id),
+                      disabled: !canRemove(field.id),
                     }
               }
               showDivider={index < activeFields.length - 1}

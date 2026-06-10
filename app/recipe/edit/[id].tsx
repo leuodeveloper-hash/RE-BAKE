@@ -6,9 +6,9 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {RecipeEditScreen} from '@screens/RecipeEditScreen';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
-import {useColors} from '@contexts/ThemeContext';
+import {useColorsV2} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
-import {useExploreRecipes} from '@hooks/useExploreRecipes';
+import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {db} from '@config/firebase';
 import {uploadRecipeImage, deleteRecipeImage, isLocalUri} from '@utils/imageUpload';
 import type {AvatarColor} from '@components/Avatar/Avatar';
@@ -31,11 +31,11 @@ function stripUndefined(obj: any): any {
 export default function RecipeEditRoute() {
   const {id, section, target} = useLocalSearchParams<{id: string; section?: string; target?: string}>();
   const router = useRouter();
-  const colors = useColors();
+  const colors = useColorsV2();
   const {findRecipeById, recipes, setRecipes, availableCookbooks, cookbookColors, setCookbookColor} = useRecipes();
   const {showSnackbar} = useSnackbar();
   const {user, isAdmin} = useAuth();
-  const {recipes: exploreRecipes, exploreCookbooks} = useExploreRecipes();
+  const {recipes: exploreRecipes, exploreCookbooks} = useExploreRecipeContext();
 
   const isMyRecipe = recipes.some(r => r.id === id);
   const isExploreTarget = target === 'explore';
@@ -75,8 +75,9 @@ export default function RecipeEditRoute() {
         console.warn('Image upload failed, keeping local URI:', e);
       }
     }
-    // 기존 클라우드 이미지가 교체/삭제된 경우 Storage에서 삭제
-    if (oldImageUri && !isLocalUri(oldImageUri) && oldImageUri !== data.imageUri) {
+    // 이미지가 완전히 삭제된 경우에만 Storage에서 제거
+    // (교체 시에는 같은 경로에 덮어쓰므로 삭제 불필요)
+    if (oldImageUri && !isLocalUri(oldImageUri) && !data.imageUri) {
       deleteRecipeImage(id!).catch(() => {});
     }
 
@@ -93,7 +94,7 @@ export default function RecipeEditRoute() {
       }
     } else if (isMyRecipe) {
       setRecipes(prev => prev.map(r =>
-        r.id === id ? {...r, ...data} : r,
+        r.id === id ? {...r, ...data, reviewCount: data.reviews?.length ?? 0} : r,
       ));
     }
     showSnackbar('레시피가 수정되었습니다');
@@ -104,7 +105,7 @@ export default function RecipeEditRoute() {
 
   return (
     <SafeAreaProvider>
-      <View style={[styles.container, {backgroundColor: colors['surface-surfacedim']}]}>
+      <View style={[styles.container, {backgroundColor: colors['surface/normal']}]}>
         <RecipeEditScreen
           recipe={recipe}
           cookbooks={isExploreTarget

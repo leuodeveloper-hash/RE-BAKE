@@ -5,7 +5,7 @@ import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {IconChevronDown} from '@components/Icon/IconIndex';
-import {useColors} from '@contexts/ThemeContext';
+import {useColorsV2} from '@contexts/ThemeContext';
 
 export type SelectorVariant = 'ghost' | 'filled' | 'outlined' | 'soft';
 
@@ -31,12 +31,14 @@ export function Selector({
   muted = false,
   style,
 }: SelectorProps) {
-  const colors = useColors();
+  const colors = useColorsV2();
 
   const getContainerStyle = (pressed: boolean): ViewStyle => {
     const baseStyle: ViewStyle = {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
+      minWidth: 64,
       paddingHorizontal: Spacing.md, // 16px
       paddingVertical: Spacing.xs, // 4px
       gap: Spacing.sm, // 8px
@@ -47,19 +49,19 @@ export function Selector({
     switch (variant) {
       case 'filled':
         baseStyle.backgroundColor = disabled
-          ? colors['background-statelayers-disabled']
-          : colors['surface-surfaceinverse'];
+          ? colors['fill/strong']
+          : colors['surface/inverse'];
         break;
       case 'outlined':
         baseStyle.backgroundColor =
-          colors['surface-surfacecontainerlowest'];
+          colors['surface/container'];
         baseStyle.borderWidth = 1;
         baseStyle.borderColor = disabled
-          ? colors['border-borderlight']
-          : colors['border-border'];
+          ? colors['border/muted']
+          : colors['border/normal'];
         break;
       case 'soft':
-        baseStyle.backgroundColor = colors['surface-surfacecontainer'];
+        baseStyle.backgroundColor = colors['surface/container'];
         baseStyle.borderRadius = Radius['radius-md'];
         baseStyle.paddingHorizontal = Spacing.smd;
         baseStyle.minHeight = 48;
@@ -76,10 +78,10 @@ export function Selector({
     if ((pressed || forcePressed) && !disabled) {
       if (variant === 'filled') {
         baseStyle.backgroundColor =
-          colors['background-statelayers-inversesurfacefocus_press'];
+          colors['state/pressed'];
       } else {
         baseStyle.backgroundColor =
-          colors['background-statelayers-surfacefocus_press'];
+          colors['state/pressed'];
       }
     }
 
@@ -88,25 +90,25 @@ export function Selector({
 
   const getTextColor = (): string => {
     if (muted) {
-      return colors['foreground-onsurfacemuted'];
+      return colors['foreground/on-surface-muted'];
     }
     if (disabled) {
-      return colors['foreground-onsurfacedisabled'];
+      return colors['foreground/on-surface-disabled'];
     }
     if (variant === 'filled') {
-      return colors['foreground-onsurfaceinverse'];
+      return colors['foreground/on-surface-inverse'];
     }
-    return colors['foreground-onsurface'];
+    return colors['foreground/on-surface'];
   };
 
   const getIconColor = (): string => {
     if (disabled) {
-      return colors['foreground-onsurfacedisabled'];
+      return colors['foreground/on-surface-disabled'];
     }
     if (variant === 'filled') {
-      return colors['foreground-onsurfaceinverse'];
+      return colors['foreground/on-surface-inverse'];
     }
-    return colors['foreground-onsurfacemuted'];
+    return colors['foreground/on-surface-muted'];
   };
 
   return (

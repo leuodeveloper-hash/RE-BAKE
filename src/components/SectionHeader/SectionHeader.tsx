@@ -1,10 +1,10 @@
 import React from 'react';
 import {Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
-import type {SemanticColors} from '@constants/tokens';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import {useColors} from '@contexts/ThemeContext';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useColorsV2} from '@contexts/ThemeContext';
 import {SvgProps} from 'react-native-svg';
 
 export interface SectionHeaderProps {
@@ -29,15 +29,15 @@ export function SectionHeader({
   onAction,
   style,
 }: SectionHeaderProps) {
-  const styles = useThemedStyles(createStyles);
-  const colors = useColors();
+  const styles = useThemedStylesV2(createStyles);
+  const colors = useColorsV2();
 
   return (
     <View style={[styles.container, style]}>
       {breadcrumb && BreadcrumbIcon ? (
         <View style={styles.breadcrumbRow}>
           <Text style={styles.title}>{title}</Text>
-          <BreadcrumbIcon width={8} height={8} color={colors['foreground-onsurfacemuted']} />
+          <BreadcrumbIcon width={8} height={8} color={colors['foreground/on-surface-muted']} />
           <Text style={styles.title}>{breadcrumb}</Text>
         </View>
       ) : (
@@ -52,7 +52,7 @@ export function SectionHeader({
   );
 }
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   container: {
     height: 40,
     flexDirection: 'row',
@@ -65,7 +65,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontSize: Typography.label.large.fontSize,
     fontWeight: Typography.label.large.fontWeight as '500',
     lineHeight: Typography.label.large.lineHeight,
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
   },
   breadcrumbRow: {
     flexDirection: 'row',
@@ -77,6 +77,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontSize: Typography.label.large.fontSize,
     fontWeight: Typography.label.large.fontWeight as '500',
     lineHeight: Typography.label.large.lineHeight,
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
   },
 });

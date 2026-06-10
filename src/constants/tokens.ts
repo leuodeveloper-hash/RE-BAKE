@@ -44,6 +44,24 @@ export const BaseColors = {
   'color-base-grey-98': '#1F2126',
   'color-base-grey-99': '#121318',
 
+  // Warm grey (미세 웜톤 — 무채색 대비 R≥G≥B 1~2 차이)
+  'color-base-warmgrey-2': '#FEFEFD',
+  'color-base-warmgrey-5': '#FDFCFC',
+  'color-base-warmgrey-8': '#F9F9F8',
+  'color-base-warmgrey-10': '#F5F5F3',
+  'color-base-warmgrey-20': '#EFEEEC',
+  'color-base-warmgrey-30': '#E7E6E4',
+  'color-base-warmgrey-40': '#DCDBD9',
+  'color-base-warmgrey-50': '#C8C7C5',
+  'color-base-warmgrey-60': '#AFAEAC',
+  'color-base-warmgrey-70': '#939291',
+  'color-base-warmgrey-80': '#777675',
+  'color-base-warmgrey-90': '#575655',
+  'color-base-warmgrey-95': '#424140',
+  'color-base-warmgrey-96': '#373635',
+  'color-base-warmgrey-98': '#242322',
+  'color-base-warmgrey-99': '#161514',
+
   // Grey brown
   'color-base-greybrown-5': '#FDFDFC',
   'color-base-greybrown-10': '#FAF9F8',
@@ -232,38 +250,38 @@ export type BaseColorKey = keyof typeof BaseColors;
 // ---- Derived primitive scales (primary / neutral / accent / error) ----
 
 export const PrimitiveColors = {
-  // Primary (mapped from base grey)
-  'color-primary-5': BaseColors['color-base-grey-5'],
-  'color-primary-10': BaseColors['color-base-grey-10'],
-  'color-primary-20': BaseColors['color-base-grey-20'],
-  'color-primary-30': BaseColors['color-base-grey-30'],
-  'color-primary-40': BaseColors['color-base-grey-40'],
-  'color-primary-50': BaseColors['color-base-grey-50'],
-  'color-primary-60': BaseColors['color-base-grey-60'],
-  'color-primary-70': BaseColors['color-base-grey-70'],
-  'color-primary-80': BaseColors['color-base-grey-80'],
-  'color-primary-90': BaseColors['color-base-grey-90'],
-  'color-primary-95': BaseColors['color-base-grey-95'],
-  'color-primary-98': BaseColors['color-base-grey-98'],
-  'color-primary-99': BaseColors['color-base-grey-99'],
+  // Primary (mapped from warm grey)
+  'color-primary-5': BaseColors['color-base-warmgrey-5'],
+  'color-primary-10': BaseColors['color-base-warmgrey-10'],
+  'color-primary-20': BaseColors['color-base-warmgrey-20'],
+  'color-primary-30': BaseColors['color-base-warmgrey-30'],
+  'color-primary-40': BaseColors['color-base-warmgrey-40'],
+  'color-primary-50': BaseColors['color-base-warmgrey-50'],
+  'color-primary-60': BaseColors['color-base-warmgrey-60'],
+  'color-primary-70': BaseColors['color-base-warmgrey-70'],
+  'color-primary-80': BaseColors['color-base-warmgrey-80'],
+  'color-primary-90': BaseColors['color-base-warmgrey-90'],
+  'color-primary-95': BaseColors['color-base-warmgrey-95'],
+  'color-primary-98': BaseColors['color-base-warmgrey-98'],
+  'color-primary-99': BaseColors['color-base-warmgrey-99'],
 
-  // Neutral (also based on grey)
-  'color-neutral-2': BaseColors['color-base-grey-2'],
-  'color-neutral-5': BaseColors['color-base-grey-5'],
-  'color-neutral-8': BaseColors['color-base-grey-8'],
-  'color-neutral-10': BaseColors['color-base-grey-10'],
-  'color-neutral-20': BaseColors['color-base-grey-20'],
-  'color-neutral-30': BaseColors['color-base-grey-30'],
-  'color-neutral-40': BaseColors['color-base-grey-40'],
-  'color-neutral-50': BaseColors['color-base-grey-50'],
-  'color-neutral-60': BaseColors['color-base-grey-60'],
-  'color-neutral-70': BaseColors['color-base-grey-70'],
-  'color-neutral-80': BaseColors['color-base-grey-80'],
-  'color-neutral-90': BaseColors['color-base-grey-90'],
-  'color-neutral-95': BaseColors['color-base-grey-95'],
-  'color-neutral-96': BaseColors['color-base-grey-96'],
-  'color-neutral-98': BaseColors['color-base-grey-98'],
-  'color-neutral-99': BaseColors['color-base-grey-99'],
+  // Neutral (based on warm grey)
+  'color-neutral-2': BaseColors['color-base-warmgrey-2'],
+  'color-neutral-5': BaseColors['color-base-warmgrey-5'],
+  'color-neutral-8': BaseColors['color-base-warmgrey-8'],
+  'color-neutral-10': BaseColors['color-base-warmgrey-10'],
+  'color-neutral-20': BaseColors['color-base-warmgrey-20'],
+  'color-neutral-30': BaseColors['color-base-warmgrey-30'],
+  'color-neutral-40': BaseColors['color-base-warmgrey-40'],
+  'color-neutral-50': BaseColors['color-base-warmgrey-50'],
+  'color-neutral-60': BaseColors['color-base-warmgrey-60'],
+  'color-neutral-70': BaseColors['color-base-warmgrey-70'],
+  'color-neutral-80': BaseColors['color-base-warmgrey-80'],
+  'color-neutral-90': BaseColors['color-base-warmgrey-90'],
+  'color-neutral-95': BaseColors['color-base-warmgrey-95'],
+  'color-neutral-96': BaseColors['color-base-warmgrey-96'],
+  'color-neutral-98': BaseColors['color-base-warmgrey-98'],
+  'color-neutral-99': BaseColors['color-base-warmgrey-99'],
 
   // Accent (based on blue)
   'color-accent-5': BaseColors['color-base-blue-5'],
@@ -293,39 +311,39 @@ export const PrimitiveColors = {
   'color-error-95': BaseColors['color-base-red-95'],
   'color-error-99': BaseColors['color-base-red-99'],
 
-  // State layers — primary (pure neutral base)
-  'color-primary-statelayers-10-08': withOpacity('#1C1C1C', 0.08),
-  'color-primary-statelayers-10-10': withOpacity('#1C1C1C', 0.10),
-  'color-primary-statelayers-10-16': withOpacity('#1C1C1C', 0.16),
-  'color-primary-statelayers-20-08': withOpacity('#303030', 0.08),
-  'color-primary-statelayers-20-10': withOpacity('#303030', 0.10),
-  'color-primary-statelayers-20-16': withOpacity('#303030', 0.16),
-  'color-primary-statelayers-40-08': withOpacity('#5E5E5E', 0.08),
-  'color-primary-statelayers-40-10': withOpacity('#5E5E5E', 0.10),
-  'color-primary-statelayers-40-16': withOpacity('#5E5E5E', 0.16),
-  'color-primary-statelayers-80-08': withOpacity('#C6C6C6', 0.08),
-  'color-primary-statelayers-80-10': withOpacity('#C6C6C6', 0.10),
-  'color-primary-statelayers-80-16': withOpacity('#C6C6C6', 0.16),
-  'color-primary-statelayers-90-08': withOpacity('#E2E2E2', 0.08),
-  'color-primary-statelayers-90-10': withOpacity('#E2E2E2', 0.10),
-  'color-primary-statelayers-90-16': withOpacity('#E2E2E2', 0.16),
+  // State layers — primary (warm grey base)
+  'color-primary-statelayers-10-08': withOpacity(BaseColors['color-base-warmgrey-99'], 0.08),
+  'color-primary-statelayers-10-10': withOpacity(BaseColors['color-base-warmgrey-99'], 0.10),
+  'color-primary-statelayers-10-16': withOpacity(BaseColors['color-base-warmgrey-99'], 0.16),
+  'color-primary-statelayers-20-08': withOpacity(BaseColors['color-base-warmgrey-96'], 0.08),
+  'color-primary-statelayers-20-10': withOpacity(BaseColors['color-base-warmgrey-96'], 0.10),
+  'color-primary-statelayers-20-16': withOpacity(BaseColors['color-base-warmgrey-96'], 0.16),
+  'color-primary-statelayers-40-08': withOpacity(BaseColors['color-base-warmgrey-80'], 0.08),
+  'color-primary-statelayers-40-10': withOpacity(BaseColors['color-base-warmgrey-80'], 0.10),
+  'color-primary-statelayers-40-16': withOpacity(BaseColors['color-base-warmgrey-80'], 0.16),
+  'color-primary-statelayers-80-08': withOpacity(BaseColors['color-base-warmgrey-30'], 0.08),
+  'color-primary-statelayers-80-10': withOpacity(BaseColors['color-base-warmgrey-30'], 0.10),
+  'color-primary-statelayers-80-16': withOpacity(BaseColors['color-base-warmgrey-30'], 0.16),
+  'color-primary-statelayers-90-08': withOpacity(BaseColors['color-base-warmgrey-20'], 0.08),
+  'color-primary-statelayers-90-10': withOpacity(BaseColors['color-base-warmgrey-20'], 0.10),
+  'color-primary-statelayers-90-16': withOpacity(BaseColors['color-base-warmgrey-20'], 0.16),
 
-  // State layers — neutral (pure neutral base)
-  'color-neutral-statelayers-10-08': withOpacity('#1C1C1C', 0.08),
-  'color-neutral-statelayers-10-10': withOpacity('#1C1C1C', 0.10),
-  'color-neutral-statelayers-10-16': withOpacity('#1C1C1C', 0.16),
-  'color-neutral-statelayers-20-08': withOpacity('#303030', 0.08),
-  'color-neutral-statelayers-20-10': withOpacity('#303030', 0.10),
-  'color-neutral-statelayers-20-16': withOpacity('#303030', 0.16),
-  'color-neutral-statelayers-40-08': withOpacity('#5E5E5E', 0.08),
-  'color-neutral-statelayers-40-10': withOpacity('#5E5E5E', 0.10),
-  'color-neutral-statelayers-40-16': withOpacity('#5E5E5E', 0.16),
-  'color-neutral-statelayers-80-08': withOpacity('#C6C6C6', 0.08),
-  'color-neutral-statelayers-80-10': withOpacity('#C6C6C6', 0.10),
-  'color-neutral-statelayers-80-16': withOpacity('#C6C6C6', 0.16),
-  'color-neutral-statelayers-90-08': withOpacity('#E2E2E2', 0.08),
-  'color-neutral-statelayers-90-10': withOpacity('#E2E2E2', 0.10),
-  'color-neutral-statelayers-90-16': withOpacity('#E2E2E2', 0.16),
+  // State layers — neutral (warm grey base)
+  'color-neutral-statelayers-10-08': withOpacity(BaseColors['color-base-warmgrey-99'], 0.08),
+  'color-neutral-statelayers-10-10': withOpacity(BaseColors['color-base-warmgrey-99'], 0.10),
+  'color-neutral-statelayers-10-16': withOpacity(BaseColors['color-base-warmgrey-99'], 0.16),
+  'color-neutral-statelayers-20-08': withOpacity(BaseColors['color-base-warmgrey-96'], 0.08),
+  'color-neutral-statelayers-20-10': withOpacity(BaseColors['color-base-warmgrey-96'], 0.10),
+  'color-neutral-statelayers-20-16': withOpacity(BaseColors['color-base-warmgrey-96'], 0.16),
+  'color-neutral-statelayers-40-08': withOpacity(BaseColors['color-base-warmgrey-80'], 0.08),
+  'color-neutral-statelayers-40-10': withOpacity(BaseColors['color-base-warmgrey-80'], 0.10),
+  'color-neutral-statelayers-40-16': withOpacity(BaseColors['color-base-warmgrey-80'], 0.16),
+  'color-neutral-statelayers-80-08': withOpacity(BaseColors['color-base-warmgrey-30'], 0.08),
+  'color-neutral-statelayers-80-10': withOpacity(BaseColors['color-base-warmgrey-30'], 0.10),
+  'color-neutral-statelayers-80-16': withOpacity(BaseColors['color-base-warmgrey-30'], 0.16),
+  'color-neutral-statelayers-90-08': withOpacity(BaseColors['color-base-warmgrey-20'], 0.08),
+  'color-neutral-statelayers-90-10': withOpacity(BaseColors['color-base-warmgrey-20'], 0.10),
+  'color-neutral-statelayers-90-16': withOpacity(BaseColors['color-base-warmgrey-20'], 0.16),
 
   // State layers — accent (blue base)
   'color-accent-statelayers-10-08': withOpacity(BaseColors['color-base-blue-90'], 0.08),
@@ -379,7 +397,7 @@ export const SemanticColorsLight = {
   'surface-surfacecontainer': PrimitiveColors['color-neutral-10'],
   'surface-surfacecontainerhigh': PrimitiveColors['color-neutral-20'],
   'surface-surfacecontainerhighest': PrimitiveColors['color-neutral-30'],
-  'surface-surfacecontainertransparent': withOpacity(BaseColors['color-base-grey-70'], 0.12),
+  'surface-surfacecontainertransparent': withOpacity(BaseColors['color-base-warmgrey-70'], 0.12),
   'surface-surfacecontainertransparent-onimage': withOpacity(PrimitiveColors['color-neutral-5'], 0.16),
   'surface-surfaceinverse': PrimitiveColors['color-neutral-96'],
 
@@ -401,8 +419,8 @@ export const SemanticColorsLight = {
   'foreground-onimagevar': withOpacity(PrimitiveColors['color-neutral-5'], 0.64),
 
   // Border
-  'border-borderlight': PrimitiveColors['color-neutral-20'],
-  'border-border': PrimitiveColors['color-neutral-40'],
+  'border-borderlight': withOpacity(PrimitiveColors['color-neutral-98'], 0.08),
+  'border-border': withOpacity(PrimitiveColors['color-neutral-98'], 0.16),
   'border-borderbold': PrimitiveColors['color-primary-50'],
 
   // Misc
@@ -410,8 +428,10 @@ export const SemanticColorsLight = {
   shadow: BaseColors['color-base-black'],
 
   // Custom hues
-  'custom-grey': BaseColors['color-base-grey-80'],
-  'custom-greyvar': withOpacity(BaseColors['color-base-grey-80'], 0.64),
+  'custom-grey': BaseColors['color-base-warmgrey-80'],
+  'custom-greyvar': withOpacity(BaseColors['color-base-warmgrey-80'], 0.64),
+  'custom-ongreycontainer': BaseColors['color-base-warmgrey-80'],
+  'custom-greycontainer': withOpacity(BaseColors['color-base-warmgrey-80'], 0.16),
   'custom-greybrown': BaseColors['color-base-greybrown-80'],
   'custom-greybrownvar': withOpacity(BaseColors['color-base-greybrown-80'], 0.64),
   'custom-brown': BaseColors['color-base-brown-50'],
@@ -429,12 +449,16 @@ export const SemanticColorsLight = {
   'custom-yellowcontainer': withOpacity(BaseColors['color-base-yellow-80'], 0.16),
   'custom-lime': BaseColors['color-base-lime-80'],
   'custom-limevar': withOpacity(BaseColors['color-base-lime-80'], 0.64),
+  'custom-onlimecontainer': BaseColors['color-base-lime-80'],
+  'custom-limecontainer': withOpacity(BaseColors['color-base-lime-80'], 0.16),
   'custom-green': BaseColors['color-base-green-80'],
   'custom-greenvar': withOpacity(BaseColors['color-base-green-80'], 0.64),
   'custom-teal': BaseColors['color-base-teal-80'],
   'custom-tealvar': withOpacity(BaseColors['color-base-teal-80'], 0.64),
   'custom-lightblue': BaseColors['color-base-lightblue-80'],
   'custom-lightbluevar': withOpacity(BaseColors['color-base-lightblue-50'], 0.64),
+  'custom-onlightbluecontainer': BaseColors['color-base-lightblue-80'],
+  'custom-lightbluecontainer': withOpacity(BaseColors['color-base-lightblue-80'], 0.16),
   'custom-blue': BaseColors['color-base-blue-80'],
   'custom-bluevar': withOpacity(BaseColors['color-base-blue-80'], 0.64),
   'custom-purple': BaseColors['color-base-purple-80'],
@@ -479,7 +503,7 @@ export const SemanticColorsLight = {
   'background-statelayers-errorfocused_pressed':
     PrimitiveColors['color-error-statelayers-40-10'],
 
-  'background-transparent': withOpacity(BaseColors['color-base-grey-2'], 0.88),
+  'background-transparent': withOpacity(BaseColors['color-base-warmgrey-2'], 0.88),
 } as const;
 
 export type SemanticLightKey = keyof typeof SemanticColorsLight;
@@ -510,7 +534,7 @@ export const SemanticColorsDark = {
   'surface-surfacecontainer': PrimitiveColors['color-neutral-95'],
   'surface-surfacecontainerhigh': PrimitiveColors['color-neutral-90'],
   'surface-surfacecontainerhighest': PrimitiveColors['color-neutral-80'],
-  'surface-surfacecontainertransparent': withOpacity(BaseColors['color-base-grey-50'], 0.12), // Dark: ~#C8C8DC
+  'surface-surfacecontainertransparent': withOpacity(BaseColors['color-base-warmgrey-50'], 0.12),
   'surface-surfacecontainertransparent-onimage': withOpacity(PrimitiveColors['color-neutral-5'], 0.16),
   'surface-surfaceinverse': PrimitiveColors['color-neutral-10'],
 
@@ -532,8 +556,8 @@ export const SemanticColorsDark = {
   'foreground-onimagevar': withOpacity(PrimitiveColors['color-neutral-5'], 0.64),
 
   // Border
-  'border-borderlight': PrimitiveColors['color-neutral-95'],
-  'border-border': PrimitiveColors['color-neutral-90'],
+  'border-borderlight': withOpacity(PrimitiveColors['color-neutral-5'], 0.08),
+  'border-border': withOpacity(PrimitiveColors['color-neutral-5'], 0.16),
   'border-borderbold': PrimitiveColors['color-primary-70'],
 
   // Misc
@@ -541,8 +565,10 @@ export const SemanticColorsDark = {
   shadow: BaseColors['color-base-black'],
 
   // Custom hues
-  'custom-grey': BaseColors['color-base-grey-70'],
-  'custom-greyvar': withOpacity(BaseColors['color-base-grey-70'], 0.64),
+  'custom-grey': BaseColors['color-base-warmgrey-70'],
+  'custom-greyvar': withOpacity(BaseColors['color-base-warmgrey-70'], 0.64),
+  'custom-ongreycontainer': BaseColors['color-base-warmgrey-60'],
+  'custom-greycontainer': withOpacity(BaseColors['color-base-warmgrey-70'], 0.16),
   'custom-greybrown': BaseColors['color-base-greybrown-80'],
   'custom-greybrownvar': withOpacity(BaseColors['color-base-greybrown-80'], 0.64),
   'custom-brown': BaseColors['color-base-brown-50'],
@@ -560,12 +586,16 @@ export const SemanticColorsDark = {
   'custom-yellowcontainer': withOpacity(BaseColors['color-base-yellow-80'], 0.16),
   'custom-lime': BaseColors['color-base-lime-80'],
   'custom-limevar': withOpacity(BaseColors['color-base-lime-80'], 0.64),
+  'custom-onlimecontainer': BaseColors['color-base-lime-60'],
+  'custom-limecontainer': withOpacity(BaseColors['color-base-lime-80'], 0.16),
   'custom-green': BaseColors['color-base-green-80'],
   'custom-greenvar': withOpacity(BaseColors['color-base-green-80'], 0.64),
   'custom-teal': BaseColors['color-base-teal-80'],
   'custom-tealvar': withOpacity(BaseColors['color-base-teal-80'], 0.64),
   'custom-lightblue': BaseColors['color-base-lightblue-80'],
   'custom-lightbluevar': withOpacity(BaseColors['color-base-lightblue-50'], 0.64),
+  'custom-onlightbluecontainer': BaseColors['color-base-lightblue-60'],
+  'custom-lightbluecontainer': withOpacity(BaseColors['color-base-lightblue-80'], 0.16),
   'custom-blue': BaseColors['color-base-blue-80'],
   'custom-bluevar': withOpacity(BaseColors['color-base-blue-80'], 0.64),
   'custom-purple': BaseColors['color-base-purple-80'],
@@ -610,7 +640,7 @@ export const SemanticColorsDark = {
   'background-statelayers-errorfocused_pressed':
     PrimitiveColors['color-error-statelayers-80-10'],
 
-  'background-transparent': withOpacity(BaseColors['color-base-grey-96'], 0.80), // Dark: ~#2E2E2E
+  'background-transparent': withOpacity(BaseColors['color-base-warmgrey-96'], 0.80),
 } as const;
 
 export type SemanticDarkKey = keyof typeof SemanticColorsDark;

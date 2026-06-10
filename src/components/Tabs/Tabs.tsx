@@ -2,11 +2,12 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Animated, Easing, LayoutChangeEvent, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {Radius} from '@constants/tokens';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import {useColors} from '@contexts/ThemeContext';
-import type {SemanticColors} from '@constants/tokens';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useColorsV2} from '@contexts/ThemeContext';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
+import {triggerHaptic} from '@utils/haptics';
 
 export interface TabItem {
   id: string;
@@ -17,7 +18,7 @@ export interface TabItem {
   badge?: boolean;
 }
 
-export type TabsVariant = 'filled' | 'text';
+export type TabsVariant = 'filled' | 'text' | 'icon';
 
 export interface TabsProps {
   tabs: TabItem[];
@@ -28,6 +29,8 @@ export interface TabsProps {
   fullWidth?: boolean;
   /** filled: 배경+인디케이터, text: 텍스트 전용 (기본: filled) */
   variant?: TabsVariant;
+  /** 탭 비활성화 (표시는 하되 터치 불가) */
+  disabled?: boolean;
 }
 
 const FILLED_TAB_HEIGHT = 32;
@@ -40,10 +43,10 @@ interface TabLayout {
   width: number;
 }
 
-export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'filled'}: TabsProps) {
+export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'filled', disabled}: TabsProps) {
   const isText = variant === 'text';
-  const styles = useThemedStyles(createStyles);
-  const colors = useColors();
+  const styles = useThemedStylesV2(createStyles);
+  const colors = useColorsV2();
 
   // Sliding indicator (both variants)
   const [tabLayouts, setTabLayouts] = useState<Record<string, TabLayout>>({});
@@ -69,6 +72,17 @@ export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'f
       }
     }
   }, [isText, tabs.length]);
+
+  // uniformTabWidth가 결정되면 tabLayouts를 균등 너비 기준으로 즉시 재계산.
+  // (두 번째 onLayout 호출이 일부 탭에서만 fire되거나 x값이 stale로 남는 문제 회피)
+  useEffect(() => {
+    if (!isText || uniformTabWidth == null) return;
+    const next: Record<string, TabLayout> = {};
+    tabs.forEach((tab, idx) => {
+      next[tab.id] = {x: idx * uniformTabWidth, width: uniformTabWidth};
+    });
+    setTabLayouts(next);
+  }, [isText, uniformTabWidth, tabs]);
 
   useEffect(() => {
     const layout = tabLayouts[selectedId];
@@ -123,17 +137,19 @@ export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'f
               style={[
                 isText ? styles.textTab : styles.tab,
                 fullWidth && styles.tabFull,
-                isText && uniformTabWidth != null && {width: uniformTabWidth},
+                isText && uniformTabWidth != null && {minWidth: uniformTabWidth},
               ]}
               onLayout={e => handleTabLayout(tab.id, e)}
-              onPress={() => onSelect(tab.id)}>
+              onPress={() => { triggerHaptic('light'); onSelect(tab.id); }}
+              disabled={disabled}>
               {isText ? (
                 <Text
                   style={[
                     styles.textLabel,
                     !isSelected && styles.textLabelMuted,
                   ]}
-                  numberOfLines={1}>
+                  numberOfLines={1}
+                  ellipsizeMode="clip">
                   {tab.label}
                 </Text>
               ) : (
@@ -145,20 +161,22 @@ export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'f
                         height={ICON_SIZE}
                         color={
                           isSelected
-                            ? (tab.activeIconColor ?? colors['foreground-onsurface'])
-                            : colors['foreground-onsurfacemuted']
+                            ? (tab.activeIconColor ?? colors['foreground/on-surface'])
+                            : colors['foreground/on-surface-muted']
                         }
                       />
                     </View>
                   )}
-                  <Text
-                    style={[
-                      styles.label,
-                      !isSelected && styles.labelMuted,
-                    ]}
-                    numberOfLines={1}>
-                    {tab.label}
-                  </Text>
+                  {!!tab.label && (
+                    <Text
+                      style={[
+                        styles.label,
+                        !isSelected && styles.labelMuted,
+                      ]}
+                      numberOfLines={1}>
+                      {tab.label}
+                    </Text>
+                  )}
                 </View>
               )}
             </Pressable>
@@ -169,10 +187,10 @@ export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'f
   );
 }
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   // ---- Filled variant ----
   container: {
-    backgroundColor: colors['surface-surfacecontainer'],
+    backgroundColor: colors['surface/container'],
     borderRadius: Radius['radius-full'],
     padding: 2,
   },
@@ -185,7 +203,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     top: 0,
     height: FILLED_TAB_HEIGHT,
     borderRadius: Radius['radius-full'],
-    backgroundColor: colors['surface-surface'],
+    backgroundColor: colors['surface/normal'],
   },
   tab: {
     height: FILLED_TAB_HEIGHT,
@@ -215,12 +233,12 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontSize: Typography.label['large - semibold'].fontSize,
     fontWeight: Typography.label['large - semibold'].fontWeight as '600',
     lineHeight: Typography.label['large - semibold'].lineHeight,
-    color: colors['foreground-onsurface'],
+    color: colors['foreground/on-surface'],
     textAlign: 'center',
     marginTop: FONT_BASELINE_OFFSET,
   },
   labelMuted: {
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
   },
 
   // ---- Text variant ----
@@ -231,7 +249,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   textTab: {
     height: TEXT_TAB_HEIGHT,
     borderRadius: Radius['radius-full'],
-    paddingHorizontal: Spacing.smd,
+    paddingHorizontal: Spacing.lg,
+    minWidth: 64,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -240,18 +259,18 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     top: 0,
     height: TEXT_TAB_HEIGHT,
     borderRadius: Radius['radius-full'],
-    backgroundColor: colors['background-statelayers-surfacehover'],
+    backgroundColor: colors['state/hover'],
   },
   textLabel: {
     fontFamily: Typography.title.medium.fontFamily,
     fontSize: Typography.title.medium.fontSize,
     fontWeight: Typography.title.medium.fontWeight,
     lineHeight: Typography.title.medium.lineHeight,
-    color: colors['foreground-onsurface'],
+    color: colors['foreground/on-surface'],
     textAlign: 'center',
     marginTop: FONT_BASELINE_OFFSET,
   },
   textLabelMuted: {
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
   },
 });

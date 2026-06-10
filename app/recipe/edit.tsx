@@ -7,9 +7,9 @@ import {db} from '@config/firebase';
 import {RecipeEditScreen} from '@screens/RecipeEditScreen';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
-import {useColors} from '@contexts/ThemeContext';
+import {useColorsV2} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
-import {useExploreRecipes} from '@hooks/useExploreRecipes';
+import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {uploadRecipeImage, isLocalUri} from '@utils/imageUpload';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 
@@ -30,13 +30,13 @@ function stripUndefined(obj: any): any {
 
 export default function RecipeNewRoute() {
   const router = useRouter();
-  const colors = useColors();
+  const colors = useColorsV2();
   const {target, cookbook} = useLocalSearchParams<{target?: string; cookbook?: string}>();
   const isExploreTarget = target === 'explore';
   const {user} = useAuth();
   const {setRecipes, availableCookbooks, cookbookColors, setCookbookColor} = useRecipes();
   const {showSnackbar} = useSnackbar();
-  const {exploreCookbooks} = useExploreRecipes();
+  const {exploreCookbooks} = useExploreRecipeContext();
 
   const mergedCookbookColors = useMemo(() => {
     if (!isExploreTarget) return cookbookColors;
@@ -70,7 +70,7 @@ export default function RecipeNewRoute() {
     const newRecipe = {
       id,
       ...data,
-      reviewCount: 0,
+      reviewCount: data.reviews?.length ?? 0,
       createdAt: new Date().toISOString(),
     };
 
@@ -92,7 +92,7 @@ export default function RecipeNewRoute() {
 
   return (
     <SafeAreaProvider>
-      <View style={[styles.container, {backgroundColor: colors['surface-surfacedim']}]}>
+      <View style={[styles.container, {backgroundColor: colors['surface/dim']}]}>
         <RecipeEditScreen
           cookbooks={isExploreTarget
             ? [...new Set([...DEFAULT_EXPLORE_COOKBOOKS, ...exploreCookbooks.map(c => c.name)])]

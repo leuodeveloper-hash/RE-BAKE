@@ -6,8 +6,9 @@ import {BlurView} from 'expo-blur';
 import {LinearGradient} from 'expo-linear-gradient';
 import {Spacing} from '@constants/spacing';
 import {withOpacity} from '@constants/tokens';
-import {useColors, useTheme} from '@contexts/ThemeContext';
+import {useColorsV2, useTheme} from '@contexts/ThemeContext';
 import {ContentContainer} from '@components/Container';
+import {TABBAR_BOTTOM_SPACE} from '@components/Container/ContentContainer';
 
 export interface FloatingNavBarProps {
   left?: React.ReactNode;
@@ -36,12 +37,13 @@ export const navPillStyle: ViewStyle = {
 /** AppBar 영역 하단 위치 (paddingTop + pill height). 메뉴 top 기준으로 사용 */
 export const APPBAR_CONTENT_BOTTOM = Spacing.smd + NAV_PILL_HEIGHT; // 10 + 44 = 54
 
-const GRADIENT_EXTENSION = 40;
+// pill 바로 아래에서 짧게 페이드아웃 — 콘텐츠 침범 방지 (이전 66 → 24)
+const GRADIENT_EXTENSION = Spacing.lg; // 24
 
 export function FloatingNavBar({left, right, leftMenu, rightMenu, leftFull, style}: FloatingNavBarProps) {
-  const colors = useColors();
+  const colors = useColorsV2();
   const {isDark} = useTheme();
-  const surfaceDim = colors['surface-surfacedim'] as string;
+  const surfaceDim = colors['surface/normal'] as string;
 
   return (
     <SafeAreaView

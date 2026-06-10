@@ -1,29 +1,36 @@
 import React from 'react';
 import {StyleSheet, View, ViewStyle} from 'react-native';
-import {BlurView} from 'expo-blur';
 import {Radius} from '@constants/tokens';
-import type {SemanticColors} from '@constants/tokens';
-import {useThemedStyles} from '@hooks/useThemedStyles';
+import {ElevationLight, ElevationDark} from '@constants/elevation';
 import {useTheme} from '@contexts/ThemeContext';
+import {Container} from './Container';
+
+/**
+ * Figma `Glass container` 컴포넌트 매칭.
+ * Source: Figma 파일 SuXlE5Q4KKIG4LJjJ8j6Jd, COMPONENT id 4101:7411
+ *
+ * 합성 정의:
+ *   GlassContainer = Container material="glass" + elevation/shadow/normal
+ *
+ * - radius/lg (16) Figma 기본값
+ * - 그림자: y=2 blur=20 alpha=0.08 + y=0 blur=2 alpha=0.08 (shadow/normal)
+ *
+ * Container 의 glass material 은 그림자 없는 순수 글래스 효과.
+ * GlassContainer 는 그 위에 그림자를 더한 완성형 UI 엘리먼트.
+ */
 
 export interface GlassContainerProps {
   children: React.ReactNode;
-  /** border-radius 스타일 (기본: full) */
+  /** border-radius 스타일 (기본: full — 알약 형태) */
   borderRadius?: 'full' | 'xl' | 'lg';
   /** 추가 스타일 */
   style?: ViewStyle;
   /** 내부 콘텐츠 스타일 */
   contentStyle?: ViewStyle;
-  /** blur intensity (기본: 64) */
+  /** blur intensity (기본: 64 — 기존 호환) */
   intensity?: number;
 }
 
-/**
- * Glass 효과를 가진 공통 컨테이너
- * - backdrop-filter: blur(32px)
- * - background: rgba(253, 253, 253, 0.88)
- * - shadow: SurfaceGlassElevated
- */
 export function GlassContainer({
   children,
   borderRadius = 'full',
@@ -31,47 +38,30 @@ export function GlassContainer({
   contentStyle,
   intensity = 64,
 }: GlassContainerProps) {
-  const styles = useThemedStyles(createStyles);
   const {isDark} = useTheme();
-  const radiusValue = borderRadius === 'full'
-    ? Radius['radius-full']
-    : borderRadius === 'xl'
-    ? Radius['radius-xl']
-    : Radius['radius-lg'];
+  const radiusValue =
+    borderRadius === 'full'
+      ? Radius['radius-full']
+      : borderRadius === 'xl'
+      ? Radius['radius-xl']
+      : Radius['radius-lg'];
+  const shadow = isDark ? ElevationDark.normal : ElevationLight.normal;
 
   return (
-    <View style={[styles.shadowContainer, {borderRadius: radiusValue}, style]}>
-      <BlurView
+    <View style={[styles.shadowWrap, {borderRadius: radiusValue}, shadow, style]}>
+      <Container
+        material="glass"
+        borderRadius={radiusValue}
         intensity={intensity}
-        tint={isDark ? 'dark' : 'default'}
-        style={[styles.blurView, {borderRadius: radiusValue}]}>
-        <View
-          style={[
-            styles.backgroundLayer,
-            {borderRadius: radiusValue},
-            contentStyle,
-          ]}>
-          {children}
-        </View>
-      </BlurView>
+        contentStyle={contentStyle}>
+        {children}
+      </Container>
     </View>
   );
 }
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
-  shadowContainer: {
-    // iOS shadow - SurfaceGlassElevated
-    shadowColor: '#000000',
-    shadowOffset: {width: 0, height: 4},
-    shadowOpacity: 0.10,
-    shadowRadius: 18,
-    // Android shadow
-    elevation: 4,
-  },
-  blurView: {
-    overflow: 'hidden',
-  },
-  backgroundLayer: {
-    backgroundColor: colors['background-transparent'],
+const styles = StyleSheet.create({
+  shadowWrap: {
+    backgroundColor: 'transparent',
   },
 });

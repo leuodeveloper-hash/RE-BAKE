@@ -1,13 +1,14 @@
-import React, {useCallback, useEffect, useMemo, useRef} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {View, StyleSheet} from 'react-native';
 import {useRouter} from 'expo-router';
-import {deleteDoc, doc} from 'firebase/firestore';
+import {doc, updateDoc, deleteField} from 'firebase/firestore';
 import {ExploreScreen} from '@screens/ExploreScreen';
+import {PlanSheet} from '@components/PlanSheet';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
-import {useColors} from '@contexts/ThemeContext';
+import {useColorsV2} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
-import {useExploreRecipes} from '@hooks/useExploreRecipes';
+import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {useOnlineStatus} from '@hooks/useOnlineStatus';
 import {useSubscription} from '@contexts/SubscriptionContext';
 import {db} from '@config/firebase';
@@ -15,14 +16,15 @@ import type {Recipe} from '../../src/types/recipe';
 
 export default function ExploreRoute() {
   const router = useRouter();
-  const colors = useColors();
+  const colors = useColorsV2();
   const {recipes, setRecipes} = useRecipes();
   const {showSnackbar} = useSnackbar();
-  const {isAdmin} = useAuth();
+  const {isAdmin, user} = useAuth();
   const isOnline = useOnlineStatus();
-  const {recipes: exploreRecipes, exploreCookbooks, isLoading: exploreLoading, reload: exploreReload} = useExploreRecipes(showSnackbar);
+  const {recipes: exploreRecipes, exploreCookbooks, isLoading: exploreLoading, reload: exploreReload} = useExploreRecipeContext();
   const {isPro} = useSubscription();
   const isFreeUser = !isAdmin && !isPro;
+  const [showPlanSheet, setShowPlanSheet] = useState(false);
 
   const prevOnlineRef = useRef(isOnline);
   useEffect(() => {
@@ -35,6 +37,10 @@ export default function ExploreRoute() {
   const myRecipeSourceIds = useMemo(() => recipes.map(r => r.sourceId ?? r.id), [recipes]);
 
   const handleImportRecipe = useCallback((recipe: Recipe) => {
+    if (!user) {
+      setShowPlanSheet(true);
+      return;
+    }
     const copied: Recipe = {
       ...recipe,
       id: `user_${Date.now()}`,
@@ -46,7 +52,7 @@ export default function ExploreRoute() {
       label: '이동',
       onPress: () => router.navigate('/'),
     });
-  }, [setRecipes, showSnackbar, router]);
+  }, [user, setRecipes, showSnackbar, router]);
 
   const handleRecipePress = useCallback((recipe: Recipe, locked?: boolean) => {
     const params = locked ? 'from=explore&locked=1' : 'from=explore';
@@ -66,8 +72,23 @@ export default function ExploreRoute() {
 
   const handleDeleteRecipe = useCallback(async (recipe: Recipe) => {
     try {
-      await deleteDoc(doc(db, 'explore_recipes', recipe.id));
-      showSnackbar(`'${recipe.title}' 삭제됨`);
+      await updateDoc(doc(db, 'explore_recipes', recipe.id), {
+        deletedAt: new Date().toISOString(),
+      });
+      showSnackbar(`'${recipe.title}' 삭제됨`, {
+        action: {
+          label: '되돌리기',
+          onPress: async () => {
+            try {
+              await updateDoc(doc(db, 'explore_recipes', recipe.id), {
+                deletedAt: deleteField(),
+              });
+            } catch {
+              showSnackbar('복원에 실패했습니다');
+            }
+          },
+        },
+      });
     } catch {
       showSnackbar('삭제에 실패했습니다');
     }
@@ -78,7 +99,7 @@ export default function ExploreRoute() {
   }, [showSnackbar]);
 
   return (
-    <View style={[styles.container, {backgroundColor: colors['surface-surfacedim']}]}>
+    <View style={[styles.container, {backgroundColor: colors['surface/normal']}]}>
       <ExploreScreen
         data={exploreRecipes}
         loading={exploreLoading}
@@ -94,6 +115,11 @@ export default function ExploreRoute() {
         onRefresh={exploreReload}
         exploreCookbooks={exploreCookbooks}
         isFreeUser={isFreeUser}
+      />
+      <PlanSheet
+        visible={showPlanSheet}
+        onClose={() => setShowPlanSheet(false)}
+        isPro={isPro}
       />
     </View>
   );

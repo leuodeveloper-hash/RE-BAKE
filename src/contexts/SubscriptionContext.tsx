@@ -6,11 +6,14 @@ import {useAuth} from './AuthContext';
 // 기능 플래그: false면 구독 기능 비활성 (광고 기반 동작 유지)
 // true로 전환하면 RevenueCat 구독 상태 반영 + paywall 활성화
 // ──────────────────────────────────────────────
-export const SUBSCRIPTION_ENABLED = false;
+export const SUBSCRIPTION_ENABLED = true;
+
+// 실제 결제 연동 여부 (false면 UI만 표시, RevenueCat 초기화 안 함)
+export const PURCHASES_ENABLED = false;
 
 // RevenueCat API 키 (프로덕션 배포 시 실제 키로 교체)
-const REVENUECAT_API_KEY_IOS = 'appl_YOUR_IOS_API_KEY';
-const REVENUECAT_API_KEY_ANDROID = 'goog_YOUR_ANDROID_API_KEY';
+const REVENUECAT_API_KEY_IOS = 'appl_test_ZmSXPUTutGSzSNLHEhtPDKRNNqf';
+const REVENUECAT_API_KEY_ANDROID = 'appl_test_ZmSXPUTutGSzSNLHEhtPDKRNNqf';
 
 // RevenueCat Entitlement ID (대시보드에서 설정)
 const PRO_ENTITLEMENT_ID = 'pro';
@@ -26,13 +29,16 @@ interface SubscriptionContextValue {
 const SubscriptionContext = createContext<SubscriptionContextValue | null>(null);
 
 export function SubscriptionProvider({children}: {children: React.ReactNode}) {
-  const {user} = useAuth();
-  const [isPro, setIsPro] = useState(false);
+  const {user, isAdmin} = useAuth();
+  const [isProFromPurchases, setIsProFromPurchases] = useState(false);
   const [offerings, setOfferings] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const purchasesRef = useRef<any>(null);
 
-  const sdkReady = SUBSCRIPTION_ENABLED && Platform.OS !== 'web';
+  // 어드민이면 즉시 프로 (useEffect 타이밍 이슈 없이 파생 값으로 계산)
+  const isPro = isAdmin || isProFromPurchases;
+
+  const sdkReady = SUBSCRIPTION_ENABLED && PURCHASES_ENABLED && Platform.OS !== 'web';
 
   // 네이티브 모듈 lazy 로드
   const getPurchases = useCallback(() => {
@@ -49,7 +55,7 @@ export function SubscriptionProvider({children}: {children: React.ReactNode}) {
 
   const checkProStatus = useCallback((customerInfo: any) => {
     const entitlement = customerInfo?.entitlements?.active?.[PRO_ENTITLEMENT_ID];
-    setIsPro(!!entitlement);
+    setIsProFromPurchases(!!entitlement);
   }, []);
 
   // RevenueCat 초기화
@@ -81,12 +87,12 @@ export function SubscriptionProvider({children}: {children: React.ReactNode}) {
           checkProStatus(customerInfo);
         } else {
           if (!(await P.isAnonymous())) await P.logOut();
-          setIsPro(false);
+          setIsProFromPurchases(false);
         }
         const offers = await P.getOfferings();
         setOfferings(offers);
       } catch {
-        setIsPro(false);
+        setIsProFromPurchases(false);
       } finally {
         setIsLoading(false);
       }

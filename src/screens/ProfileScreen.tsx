@@ -1,8 +1,10 @@
-import React, {useCallback, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {LinearGradient} from 'expo-linear-gradient';
+import {BlurView} from 'expo-blur';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {FloatingNavBar, navPillStyle} from '@components/Navigation';
-import {GlassContainer, ContentContainer, Card} from '@components/Container';
+import {GlassContainer, ContentContainer, Card, Container} from '@components/Container';
 import {IconButton} from '@components/IconButton';
 import {SectionHeader} from '@components/SectionHeader';
 import {ListItem} from '@components/ListItem';
@@ -12,9 +14,11 @@ import {TextInput} from '@components/TextInput';
 import {Button} from '@components/Button';
 import {Snackbar} from '@components/Snackbar';
 import {BottomSheet} from '@components/BottomSheet';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import {useColors, useTheme} from '@contexts/ThemeContext';
-import type {SemanticColors} from '@constants/tokens';
+import {Switch} from '@components/Switch';
+import {useExamNotificationPrefs, EXAM_TYPES} from '@hooks/useExamNotificationPrefs';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useColorsV2, useTheme} from '@contexts/ThemeContext';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {
@@ -24,12 +28,15 @@ import {
   IconChevronRight,
   IconPaletteFilled,
   IconLogout,
+  IconBellFilled,
   IconSunDimFilled,
   IconCircleHalf,
   IconMoonFilled,
   IconGoogle,
   IconMailFilled,
   IconCloudFilled,
+  IconTicketFilled,
+  IconSparkleFilled,
 } from '@components/Icon/IconIndex';
 
 import Constants from 'expo-constants';
@@ -41,8 +48,8 @@ const APP_VERSION = Constants.expoConfig?.version ?? '0.0.0';
 
 export interface ProfileScreenProps {
   recipeCount: number;
+  reviewCount: number;
   userEmail: string | null;
-  userDisplayName: string | null;
   handle: string | null;
   lastSyncedAt: Date | null;
   lastSyncedDevice: string | null;
@@ -55,8 +62,56 @@ export interface ProfileScreenProps {
   onLogout: () => void;
   onUpdateHandle: (newHandle: string) => Promise<void>;
   onTermsPress: () => void;
+  onPrivacyPress: () => void;
+  /** Labs(디버그) 화면 진입 */
+  onLabsPress?: () => void;
+  /** Pro 구독 여부 */
+  isPro?: boolean;
+  /** 어드민 여부 (디버그 도구 노출) */
+  isAdmin?: boolean;
   /** 고정 아바타 시드 (useAvatarSeed에서 가져온 값) */
   avatarSeed?: number | null;
+  /** 값이 변할 때마다 플랜 바텀시트를 자동 오픈하는 신호 (둘러보기 다운로드 차단 등에서 사용) */
+  openPlanSheetSignal?: number;
+}
+
+// ---- PlanGradientBg ----
+
+function PlanGradientBg() {
+  return (
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+      {/* Yellow-10 base wash */}
+      <LinearGradient
+        colors={['transparent', '#FDF5EA']}
+        start={{x: 0, y: 0}}
+        end={{x: 0.5, y: 1}}
+        style={StyleSheet.absoluteFill}
+      />
+      {/* Light blue from bottom-right */}
+      <LinearGradient
+        colors={['transparent', 'transparent', '#C6CEF9']}
+        locations={[0, 0.3, 1]}
+        start={{x: 0, y: 0}}
+        end={{x: 1, y: 1}}
+        style={StyleSheet.absoluteFill}
+      />
+    </View>
+  );
+}
+
+// ---- PlanFeature ----
+
+function PlanFeature({text, styles, dotColor}: {
+  text: string;
+  styles: ReturnType<typeof createStyles>;
+  dotColor?: string;
+}) {
+  return (
+    <View style={styles.planFeatureRow}>
+      <View style={[styles.planFeatureDot, dotColor ? {backgroundColor: dotColor} : undefined]} />
+      <Text style={styles.planFeatureText}>{text}</Text>
+    </View>
+  );
 }
 
 // ---- ProfileScreen ----
@@ -78,6 +133,7 @@ function formatSyncTime(date: Date): string {
 
 export function ProfileScreen({
   recipeCount,
+  reviewCount,
   userEmail,
   handle,
   lastSyncedAt,
@@ -91,11 +147,17 @@ export function ProfileScreen({
   onLogout,
   onUpdateHandle,
   onTermsPress,
+  onPrivacyPress,
+  onLabsPress,
+  isPro = false,
+  isAdmin = false,
   avatarSeed,
+  openPlanSheetSignal = 0,
 }: ProfileScreenProps) {
-  const styles = useThemedStyles(createStyles);
-  const colors = useColors();
+  const styles = useThemedStylesV2(createStyles);
+  const colors = useColorsV2();
   const {appearanceMode, setAppearanceMode} = useTheme();
+  const {prefs: examPrefs, setEnabled: setExamNotifEnabled, toggleTarget: toggleExamTarget} = useExamNotificationPrefs();
 
   const syncLabel = lastSyncedAt
     ? (lastSyncedDevice
@@ -104,13 +166,14 @@ export function ProfileScreen({
     : null;
 
   const APPEARANCE_TABS = useMemo(() => [
-    {id: 'light' as AppearanceMode, label: '라이트', icon: IconSunDimFilled, activeIconColor: colors['custom-orange']},
-    {id: 'auto' as AppearanceMode, label: '자동', icon: IconCircleHalf, activeIconColor: colors['foreground-onsurfacemuted']},
-    {id: 'dark' as AppearanceMode, label: '다크', icon: IconMoonFilled, activeIconColor: colors['custom-yellow']},
+    {id: 'light' as AppearanceMode, label: '라이트', icon: IconSunDimFilled, activeIconColor: colors['custom/orange']},
+    {id: 'auto' as AppearanceMode, label: '자동', icon: IconCircleHalf, activeIconColor: colors['foreground/on-surface-muted']},
+    {id: 'dark' as AppearanceMode, label: '다크', icon: IconMoonFilled, activeIconColor: colors['custom/yellow']},
   ], [colors]);
 
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [showSnackbar, setShowSnackbar] = useState(false);
+  const [snackbarAction, setSnackbarAction] = useState<{label: string; onPress: () => void} | undefined>(undefined);
   const [showAuthSheet, setShowAuthSheet] = useState(false);
   const [showEmailForm, setShowEmailForm] = useState(false);
   const [showHandleSheet, setShowHandleSheet] = useState(false);
@@ -119,11 +182,93 @@ export function ProfileScreen({
   const [password, setPassword] = useState('');
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [authLoading, setAuthLoading] = useState(false);
+  const [showPlanSheet, setShowPlanSheet] = useState(false);
 
-  const showMessage = useCallback((msg: string) => {
+  useEffect(() => {
+    if (openPlanSheetSignal > 0) setShowPlanSheet(true);
+  }, [openPlanSheetSignal]);
+
+  const showMessage = useCallback((msg: string, action?: {label: string; onPress: () => void}) => {
     setSnackbarMessage(msg);
+    setSnackbarAction(action);
     setShowSnackbar(true);
   }, []);
+
+  const handleTestPush = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      showMessage('웹에서는 푸시 테스트가 지원되지 않아요');
+      return;
+    }
+    try {
+      const Notifications = require('expo-notifications');
+      const settings = await Notifications.getPermissionsAsync();
+      if (settings.status !== 'granted') {
+        const req = await Notifications.requestPermissionsAsync();
+        if (req.status !== 'granted') {
+          showMessage('알림 권한이 필요해요');
+          return;
+        }
+      }
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '🧪 푸시 테스트',
+          body: '3초 후 알림이에요. 플로팅 배너로 보이는지 확인하세요.',
+          data: {kind: 'debug_test'},
+        },
+        trigger: {seconds: 3},
+      });
+      showMessage('3초 후 알림이 도착합니다');
+    } catch (err) {
+      console.error('push test failed', err);
+      showMessage('푸시 테스트 실패');
+    }
+  }, [showMessage]);
+
+  const handleTestRegistrationBanner = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      showMessage('웹에서는 푸시 테스트가 지원되지 않아요');
+      return;
+    }
+    try {
+      const Notifications = require('expo-notifications');
+      const settings = await Notifications.getPermissionsAsync();
+      if (settings.status !== 'granted') {
+        const req = await Notifications.requestPermissionsAsync();
+        if (req.status !== 'granted') {
+          showMessage('알림 권한이 필요해요');
+          return;
+        }
+      }
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '제빵기능사 접수 15분 전 (2026년 1회)',
+          body: '접수 시작이 임박했어요. 미리 큐넷에 로그인해 두세요.',
+          data: {kind: 'debug_test', subkind: 'registration_15min'},
+        },
+        trigger: {seconds: 5},
+      });
+      showMessage('5초 후 “15분 전” 배너가 도착합니다');
+    } catch (err) {
+      console.error('reg banner test failed', err);
+      showMessage('배너 테스트 실패');
+    }
+  }, [showMessage]);
+
+  const handleListScheduled = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      showMessage('웹에서는 지원되지 않아요');
+      return;
+    }
+    try {
+      const Notifications = require('expo-notifications');
+      const list = await Notifications.getAllScheduledNotificationsAsync();
+      console.log('[ProfileScreen] scheduled notifications:', JSON.stringify(list, null, 2));
+      showMessage(`예약된 알림 ${list.length}개 (콘솔 확인)`);
+    } catch (err) {
+      console.error('list scheduled failed', err);
+      showMessage('목록 조회 실패');
+    }
+  }, [showMessage]);
 
   const handleOpenHandleEdit = useCallback(() => {
     setHandleInput(handle?.replace(/^@/, '') ?? '');
@@ -163,6 +308,7 @@ export function ProfileScreen({
       showMessage(isLoginMode ? '로그인 성공' : '회원가입 성공');
     } catch (err: any) {
       const code = err?.code;
+      console.error('[handleAuth]', isLoginMode ? 'signIn' : 'signUp', 'failed', {code, message: err?.message, err});
       if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
         showMessage('이메일 또는 비밀번호가 올바르지 않습니다');
       } else if (code === 'auth/email-already-in-use') {
@@ -171,8 +317,10 @@ export function ProfileScreen({
         showMessage('비밀번호가 너무 짧습니다 (6자 이상)');
       } else if (code === 'auth/invalid-email') {
         showMessage('올바른 이메일 형식이 아닙니다');
+      } else if (err?.message?.includes('가입 한도')) {
+        showMessage(err.message);
       } else {
-        showMessage(isLoginMode ? '로그인에 실패했습니다' : '회원가입에 실패했습니다');
+        showMessage((isLoginMode ? '로그인에 실패했습니다: ' : '회원가입에 실패했습니다: ') + (err?.message ?? code ?? '알 수 없는 오류'));
       }
     } finally {
       setAuthLoading(false);
@@ -238,13 +386,13 @@ export function ProfileScreen({
                 <Pressable onPress={handleOpenHandleEdit}>
                   <Text style={styles.profileName}>@{handle || 'handle'}</Text>
                 </Pressable>
-                <Text style={styles.profileSub}>레시피 {recipeCount}개</Text>
+                <Text style={styles.profileSub}>레시피 {recipeCount}개 · 회고록 {reviewCount}개</Text>
               </>
             ) : (
               <>
                 <Text style={styles.profileName}>@guest</Text>
                 <Button
-                  label="로그인하고 동기화 하기"
+                  label="로그인 또는 계정 만들기"
                   size="small"
                   onPress={() => setShowAuthSheet(true)}
                   style={styles.profileLoginButton}
@@ -284,6 +432,22 @@ export function ProfileScreen({
             </Card>
           </ContentContainer>
 
+          {/* 플랜 섹션 (로그인 시만) */}
+          {userEmail && (
+            <ContentContainer style={styles.section}>
+              <SectionHeader title="플랜" />
+              <Card>
+                <ListItem
+                  title={isPro ? '프로 플랜' : '무료 플랜'}
+                  leading={{type: 'icon', icon: IconTicketFilled}}
+                  trailing={{type: 'icon', icon: IconChevronRight}}
+                  showDivider={false}
+                  onPress={() => setShowPlanSheet(true)}
+                />
+              </Card>
+            </ContentContainer>
+          )}
+
           {/* 환경설정 섹션 */}
           <ContentContainer style={styles.section}>
             <SectionHeader title="환경설정" />
@@ -306,6 +470,76 @@ export function ProfileScreen({
             </Card>
           </ContentContainer>
 
+          {/* 시험 알림 섹션 */}
+          <ContentContainer style={styles.section}>
+            <SectionHeader title="알림" />
+            <Card>
+              <ListItem
+                title="시험 일정 알림"
+                leading={{type: 'icon', icon: IconBellFilled}}
+                trailing={{
+                  type: 'custom',
+                  element: (
+                    <Switch
+                      value={examPrefs.enabled}
+                      onValueChange={(v) => {
+                        if (v && !userEmail) {
+                          showMessage('계정이 있으면 알림 설정이 가능해요', {
+                            label: '로그인',
+                            onPress: () => {
+                              setShowSnackbar(false);
+                              setShowAuthSheet(true);
+                            },
+                          });
+                          return;
+                        }
+                        setExamNotifEnabled(v);
+                      }}
+                    />
+                  ),
+                }}
+                showDivider={examPrefs.enabled && !!userEmail}
+              />
+              {examPrefs.enabled && !!userEmail && (
+                <View style={styles.examChipRow}>
+                  {EXAM_TYPES.map(t => {
+                    const checked = examPrefs.targets.includes(t.id);
+                    return (
+                      <Pressable
+                        key={t.id}
+                        onPress={() => toggleExamTarget(t.id)}
+                        style={({pressed}) => [
+                          styles.examChip,
+                          checked ? styles.examChipActive : styles.examChipInactive,
+                          pressed && {opacity: 0.7},
+                        ]}>
+                        <Text style={[styles.examChipLabel, checked ? styles.examChipLabelActive : styles.examChipLabelInactive]}>
+                          {t.label}
+                        </Text>
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              )}
+            </Card>
+          </ContentContainer>
+
+          {/* Labs (어드민 전용) */}
+          {isAdmin && (
+            <ContentContainer style={styles.section}>
+              <SectionHeader title="Labs" />
+              <Card>
+                <ListItem
+                  title="Labs"
+                  leading={{type: 'icon', icon: IconSparkleFilled}}
+                  trailing={{type: 'icon', icon: IconChevronRight}}
+                  showDivider={false}
+                  onPress={onLabsPress}
+                />
+              </Card>
+            </ContentContainer>
+          )}
+
           {/* 로그아웃 (로그인 시만) */}
           {userEmail && (
             <ContentContainer style={styles.section}>
@@ -322,10 +556,14 @@ export function ProfileScreen({
 
           {/* 푸터 */}
           <View style={styles.footer}>
-            <LogoText width={89} height={20} color={colors['foreground-onsurfacemuted']} />
+            <LogoText width={89} height={20} color={colors['foreground/on-surface-muted']} />
             <View style={styles.footerTextGroup}>
               <Text style={styles.footerText}>버전 {APP_VERSION}</Text>
-              <Text style={styles.footerLink} onPress={onTermsPress}>이용약관 및 개인정보 처리방침</Text>
+              <View style={styles.footerLinks}>
+                <Text style={styles.footerLink} onPress={onTermsPress}>이용약관</Text>
+                <Text style={styles.footerDot}>·</Text>
+                <Text style={styles.footerLink} onPress={onPrivacyPress}>개인정보 처리방침</Text>
+              </View>
             </View>
           </View>
         </ScrollView>
@@ -338,22 +576,32 @@ export function ProfileScreen({
         title={showEmailForm ? (isLoginMode ? '이메일로 로그인' : '이메일로 회원가입') : '로그인'}
         description={showEmailForm ? undefined : '로그인하면 레시피를 여러 기기에서 동기화하고\n안전하게 보관할 수 있어요.'}
         headerGraphic={<LogoBakecycle width={48} height={48} />}
+        maxWidth={380}
       >
         {showEmailForm ? (
           <View style={styles.authForm}>
-            <TextInput
-              placeholder="이메일"
-              value={email}
-              onChangeText={setEmail}
-              keyboardType="email-address"
-              autoCapitalize="none"
-            />
-            <TextInput
-              placeholder="비밀번호"
-              value={password}
-              onChangeText={setPassword}
-              secureTextEntry
-            />
+            <Container material="subtle" style={styles.authFieldGroup}>
+              <View style={styles.authFieldRow}>
+                <TextInput
+                  style="ghost"
+                  placeholder="이메일"
+                  value={email}
+                  onChangeText={setEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+              </View>
+              <View style={styles.authFieldDivider} />
+              <View style={styles.authFieldRow}>
+                <TextInput
+                  style="ghost"
+                  placeholder="비밀번호"
+                  value={password}
+                  onChangeText={setPassword}
+                  secureTextEntry
+                />
+              </View>
+            </Container>
             <View style={styles.authButtons}>
               <Button
                 label={isLoginMode ? '로그인' : '회원가입'}
@@ -361,14 +609,12 @@ export function ProfileScreen({
                 disabled={authLoading}
               />
             </View>
-            <View style={styles.authToggle}>
-              <Button
-                label={isLoginMode ? '계정이 없으신가요? 회원가입' : '이미 계정이 있으신가요? 로그인'}
-                variant="ghost"
-                size="small"
-                onPress={() => setIsLoginMode(prev => !prev)}
-              />
-            </View>
+            <Text style={styles.termsCaption}>
+              {isLoginMode ? '계정이 없으신가요? ' : '이미 계정이 있으신가요? '}
+              <Text style={styles.termsLink} onPress={() => setIsLoginMode(prev => !prev)}>
+                {isLoginMode ? '회원가입' : '로그인'}
+              </Text>
+            </Text>
           </View>
         ) : (
           <View style={styles.authForm}>
@@ -399,11 +645,9 @@ export function ProfileScreen({
             </View>
             <Text style={styles.termsCaption}>
               계속하면 Bakecycle의{' '}
-              <Text
-                style={styles.termsLink}
-                onPress={onTermsPress}>
-                이용약관
-              </Text>
+              <Text style={styles.termsLink} onPress={onTermsPress}>이용약관</Text>
+              {' '}및{' '}
+              <Text style={styles.termsLink} onPress={onPrivacyPress}>개인정보 처리방침</Text>
               에 동의하는 것으로 간주합니다.
             </Text>
           </View>
@@ -430,22 +674,84 @@ export function ProfileScreen({
         </View>
       </BottomSheet>
 
+      {/* 플랜 바텀시트 */}
+      <BottomSheet
+        visible={showPlanSheet}
+        onClose={() => setShowPlanSheet(false)}
+        maxWidth={380}
+        backgroundElement={
+          <PlanGradientBg />
+        }
+      >
+        <View style={styles.planSheetContent}>
+          <View style={styles.planHeader}>
+            <Text style={styles.planHeadline}>
+              {'레시피에만\n집중할 수 있게'}
+            </Text>
+          </View>
+
+          {/* 프로 플랜 */}
+          <BlurView intensity={12} style={styles.planCardBlur}>
+            <View style={styles.planCardInner}>
+              <View style={styles.planCardInfoRow}>
+                <Text style={styles.planCardTitle}>프로</Text>
+                <View style={styles.planPriceRow}>
+                  <Text style={styles.planPrice}>USD 18</Text>
+                  <Text style={styles.planPriceSuffixText}>/ 년 단위</Text>
+                </View>
+              </View>
+              {isPro ? (
+                <Button label="현재 플랜" variant="soft" disabled />
+              ) : (
+                <Button label="구독하기" disabled />
+              )}
+              <View style={styles.planFeatureList}>
+                <PlanFeature text="내 레시피 클라우드 동기화" styles={styles} dotColor={colors['custom/light-blue']} />
+                <PlanFeature text="모든 둘러보기 레시피 무제한 열람" styles={styles} dotColor={colors['custom/light-blue']} />
+                <PlanFeature text="광고 없는 쾌적한 사용" styles={styles} dotColor={colors['custom/light-blue']} />
+              </View>
+            </View>
+          </BlurView>
+
+          {/* 무료 플랜 */}
+          <BlurView intensity={12} style={styles.planCardBlur}>
+            <View style={styles.planCardInner}>
+              <View style={styles.planCardInfoRow}>
+                <Text style={styles.planCardTitle}>무료</Text>
+                <Text style={styles.planPrice}>Free</Text>
+              </View>
+              {isPro ? (
+                <Button label="무료로 다운그레이드" variant="soft" />
+              ) : (
+                <Button label="현재 플랜" variant="soft" disabled />
+              )}
+              <View style={styles.planFeatureList}>
+                <PlanFeature text="내 레시피 로컬 저장" styles={styles} />
+                <PlanFeature text="둘러보기 레시피 미리보기" styles={styles} />
+                <PlanFeature text="레시피 내보내기 / 가져오기" styles={styles} />
+              </View>
+            </View>
+          </BlurView>
+        </View>
+      </BottomSheet>
+
       {/* 스낵바 */}
       <View style={styles.snackbarWrapper}>
         <Snackbar
           message={snackbarMessage}
           visible={showSnackbar}
           onClose={() => setShowSnackbar(false)}
+          action={snackbarAction}
         />
       </View>
     </View>
   );
 }
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors['surface-surfacedim'],
+    backgroundColor: colors['surface/normal'],
   },
   safeArea: {
     flex: 1,
@@ -466,23 +772,15 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontSize: Typography.title.large.fontSize,
     fontWeight: Typography.title.large.fontWeight as '700',
     lineHeight: Typography.title.large.lineHeight,
-    color: colors['foreground-onsurface'],
+    color: colors['foreground/on-surface'],
     marginTop: Spacing.md,
-  },
-  profileHandle: {
-    fontFamily: Typography.body.medium.fontFamily,
-    fontSize: Typography.body.medium.fontSize,
-    fontWeight: Typography.body.medium.fontWeight as '400',
-    lineHeight: Typography.body.medium.lineHeight,
-    color: colors['foreground-onsurfacemuted'],
-    marginTop: Spacing.xs,
   },
   profileSub: {
     fontFamily: Typography.body.medium.fontFamily,
     fontSize: Typography.body.medium.fontSize,
     fontWeight: Typography.body.medium.fontWeight as '400',
     lineHeight: Typography.body.medium.lineHeight,
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
     marginTop: Spacing.xs,
   },
   profileLoginButton: {
@@ -490,6 +788,41 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   section: {
     paddingTop: Spacing.md,
+  },
+  examChipRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: Spacing.xs,
+    paddingHorizontal: Spacing.md,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.md,
+  },
+  examChip: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.xs,
+    borderRadius: 999,
+    minHeight: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  examChipActive: {
+    backgroundColor: colors['foreground/on-surface'],
+  },
+  examChipInactive: {
+    backgroundColor: colors['fill/normal'],
+  },
+  examChipLabel: {
+    fontFamily: Typography.label.medium.fontFamily,
+    fontSize: Typography.label.medium.fontSize,
+    fontWeight: '600',
+    lineHeight: Typography.label.medium.lineHeight,
+    letterSpacing: Typography.label.medium.letterSpacing,
+  },
+  examChipLabelActive: {
+    color: colors['surface/normal'],
+  },
+  examChipLabelInactive: {
+    color: colors['foreground/on-surface'],
   },
   authForm: {
     paddingHorizontal: Spacing.md,
@@ -507,25 +840,30 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   authToggle: {
     alignItems: 'center' as const,
   },
-  authDescription: {
-    fontFamily: Typography.body.medium.fontFamily,
-    fontSize: Typography.body.medium.fontSize,
-    fontWeight: Typography.body.medium.fontWeight as '400',
-    lineHeight: Typography.body.medium.lineHeight,
-    color: colors['foreground-onsurfacemuted'],
-    marginBottom: Spacing.xs,
+  authFieldGroup: {
+    marginTop: Spacing.md,
+    paddingHorizontal: Spacing.md,
+  },
+  authFieldRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    minHeight: 48,
+  },
+  authFieldDivider: {
+    height: StyleSheet.hairlineWidth,
+    backgroundColor: colors['border/muted'],
   },
   termsCaption: {
     fontFamily: Typography.body.small.fontFamily,
     fontSize: Typography.body.small.fontSize,
     fontWeight: Typography.body.small.fontWeight as '400',
     lineHeight: Typography.body.small.lineHeight,
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
     textAlign: 'center' as const,
     marginTop: Spacing.sm,
   },
   termsLink: {
-    color: colors['foreground-onsurfacevar'],
+    color: colors['foreground/on-surface-var'],
   },
   footer: {
     alignItems: 'center',
@@ -542,7 +880,12 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontWeight: Typography.label.medium.fontWeight as '500',
     lineHeight: Typography.label.medium.lineHeight,
     letterSpacing: Typography.label.medium.letterSpacing,
-    color: colors['foreground-onsurfacedisabled'],
+    color: colors['foreground/on-surface-disabled'],
+  },
+  footerLinks: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: Spacing.xs,
   },
   footerLink: {
     fontFamily: Typography.label.medium.fontFamily,
@@ -550,14 +893,104 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontWeight: Typography.label.medium.fontWeight as '500',
     lineHeight: Typography.label.medium.lineHeight,
     letterSpacing: Typography.label.medium.letterSpacing,
-    color: colors['foreground-onsurfacedisabled'],
+    color: colors['foreground/on-surface-disabled'],
+  },
+  footerDot: {
+    fontFamily: Typography.label.medium.fontFamily,
+    fontSize: Typography.label.medium.fontSize,
+    color: colors['foreground/on-surface-disabled'],
   },
   syncTime: {
     fontFamily: Typography.body.medium.fontFamily,
     fontSize: Typography.body.medium.fontSize,
     fontWeight: Typography.body.medium.fontWeight as '400',
     lineHeight: Typography.body.medium.lineHeight,
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
+  },
+  planSheetContent: {
+    paddingVertical: 24,
+    gap: Spacing.md,
+  },
+  planHeader: {
+    paddingVertical: Spacing.sm,
+    alignItems: 'center' as const,
+  },
+  planHeadline: {
+    fontFamily: Typography.title.large.fontFamily,
+    fontSize: Typography.title.large.fontSize,
+    fontWeight: Typography.title.large.fontWeight as '700',
+    lineHeight: Typography.title.large.lineHeight,
+    letterSpacing: Typography.title.large.letterSpacing,
+    color: colors['foreground/on-surface'],
+    textAlign: 'center' as const,
+  },
+  planCardBlur: {
+    borderRadius: 16,
+    overflow: 'hidden' as const,
+    marginHorizontal: Spacing.smd,
+  },
+  planCardInner: {
+    backgroundColor: 'rgba(28, 28, 28, 0.08)',
+    padding: Spacing.lg,
+    gap: Spacing.md,
+  },
+  planCardInfoRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'baseline' as const,
+    gap: Spacing.sm,
+  },
+  planCardTitle: {
+    fontFamily: Typography.title.medium.fontFamily,
+    fontSize: Typography.title.medium.fontSize,
+    fontWeight: Typography.title.medium.fontWeight as '600',
+    lineHeight: Typography.title.medium.lineHeight,
+    letterSpacing: Typography.title.medium.letterSpacing,
+    color: colors['foreground/on-surface'],
+  },
+  planPriceRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'flex-end' as const,
+    gap: 10,
+  },
+  planPrice: {
+    fontFamily: 'Pretendard-Medium',
+    fontSize: 26,
+    fontWeight: '500' as const,
+    lineHeight: 32,
+    letterSpacing: -1.2,
+    color: colors['foreground/on-surface'],
+  },
+  planPriceSuffixText: {
+    fontFamily: Typography.body.small.fontFamily,
+    fontSize: Typography.body.small.fontSize,
+    fontWeight: Typography.body.small.fontWeight as '400',
+    lineHeight: Typography.body.small.lineHeight,
+    letterSpacing: Typography.body.small.letterSpacing,
+    color: colors['foreground/on-surface-muted'],
+  },
+  planFeatureList: {
+    gap: 2,
+  },
+  planFeatureRow: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: Spacing.sm,
+    height: 20,
+  },
+  planFeatureDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: colors['foreground/on-surface-muted'],
+  },
+  planFeatureText: {
+    flex: 1,
+    fontFamily: Typography.body.small.fontFamily,
+    fontSize: Typography.body.small.fontSize,
+    fontWeight: Typography.body.small.fontWeight as '400',
+    lineHeight: Typography.body.small.lineHeight,
+    letterSpacing: Typography.body.small.letterSpacing,
+    color: colors['foreground/on-surface'],
   },
   snackbarWrapper: {
     position: 'absolute',

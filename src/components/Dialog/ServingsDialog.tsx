@@ -4,8 +4,8 @@ import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
 import {Tabs} from '@components/Tabs';
 import {TextInput} from '@components/TextInput';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import type {SemanticColors} from '@constants/tokens';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {IconUsersRoundTwotone} from '@components/Icon/IconIndex';
@@ -51,7 +51,7 @@ function parseServings(value?: string): {spec: string; amount: string; unit: str
 }
 
 export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDialogProps) {
-  const styles = useThemedStyles(createStyles);
+  const styles = useThemedStylesV2(createStyles);
   const [spec, setSpec] = useState('');
   const [amount, setAmount] = useState('');
   const [unit, setUnit] = useState('piece');
@@ -73,6 +73,8 @@ export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDia
         ? `${specPart} ${num}${UNIT_SUFFIX[unit]}`
         : `${num}${UNIT_SUFFIX[unit]}`;
       onConfirm(formatted);
+    } else {
+      onConfirm('');
     }
     onClose();
   };
@@ -105,6 +107,7 @@ export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDia
               placeholder="0"
               maxLength={10}
               selectTextOnFocus
+              clearable
             />
           </View>
           <Text style={styles.separator}>/</Text>
@@ -117,6 +120,7 @@ export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDia
               placeholder="0"
               maxLength={4}
               selectTextOnFocus
+              clearable
             />
           </View>
         </View>
@@ -125,7 +129,7 @@ export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDia
   );
 }
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   content: {
     gap: Spacing.md,
   },
@@ -139,7 +143,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   separator: {
     ...Typography.body.medium,
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
     marginBottom: Spacing.sm,
     marginTop: FONT_BASELINE_OFFSET,
   },

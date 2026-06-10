@@ -4,7 +4,7 @@ import type {AvatarColor} from '@components/Avatar/Avatar';
 export interface CookbookEditTarget {
   name: string;
   color: AvatarColor;
-  /** 둘러보기(공식) 요리책 편집 여부 */
+  /** 둘러보기(공식) 레시피 북 편집 여부 */
   isExplore?: boolean;
 }
 
@@ -20,7 +20,7 @@ interface AddSheetContextValue {
   /** 편집 대상 (null이면 추가 모드) */
   cookbookEditTarget: CookbookEditTarget | null;
   setCookbookEditTarget: (target: CookbookEditTarget | null) => void;
-  /** 요리책 생성 후 콜백 (RecipeEditScreen 등에서 활용) */
+  /** 레시피 북 생성 후 콜백 (RecipeEditScreen 등에서 활용) */
   onCookbookCreatedRef: React.RefObject<((name: string, color: AvatarColor) => void) | null>;
 }
 

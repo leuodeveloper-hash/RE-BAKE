@@ -2,7 +2,7 @@ import React, {useCallback, useRef, useState} from 'react';
 import {Animated, Easing, NativeScrollEvent, NativeSyntheticEvent, StyleSheet, View} from 'react-native';
 import Svg, {Path} from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
-import {useColors} from '@contexts/ThemeContext';
+import {useColorsV2} from '@contexts/ThemeContext';
 import {APPBAR_CONTENT_BOTTOM} from '@components/Navigation';
 
 const REFRESH_THRESHOLD = 120;
@@ -155,7 +155,7 @@ export interface PullIndicatorProps {
 }
 
 export function PullIndicator({progress, isRefreshing = false, refreshStripProgress = 0, refreshOpacity = 1}: PullIndicatorProps) {
-  const colors = useColors();
+  const colors = useColorsV2();
 
   // 당기는 중이거나 리프레시 중이면 표시
   const visible = progress > 0 || isRefreshing;
@@ -176,7 +176,7 @@ export function PullIndicator({progress, isRefreshing = false, refreshStripProgr
       <View style={styles.logoWrapper}>
         {/* 고스트 (연한 실루엣) */}
         <Svg width={LOGO_SIZE} height={LOGO_SIZE} viewBox="0 0 36 36" style={{position: 'absolute'}}>
-          <Path d={LOGO_PATH_D} fill={colors['foreground-onsurfacemuted']} fillOpacity={0.1} />
+          <Path d={LOGO_PATH_D} fill={colors['foreground/on-surface-muted']} fillOpacity={0.1} />
         </Svg>
         {/* 크레파스 스트립 마스크 */}
         {Array.from({length: STRIP_COUNT}, (_, i) => {
@@ -211,7 +211,7 @@ export function PullIndicator({progress, isRefreshing = false, refreshStripProgr
                   transform: [{translateX: counterDiag}],
                 }}>
                   <Svg width={LOGO_SIZE} height={LOGO_SIZE} viewBox="0 0 36 36">
-                    <Path d={LOGO_PATH_D} fill={colors['foreground-onsurfacemuted']} />
+                    <Path d={LOGO_PATH_D} fill={colors['foreground/on-surface-muted']} />
                   </Svg>
                 </View>
               </View>

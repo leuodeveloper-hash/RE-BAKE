@@ -1,11 +1,11 @@
 import React from 'react';
 import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {BaseColors, withOpacity} from '@constants/tokens';
-import type {SemanticColors} from '@constants/tokens';
+import type {SemanticColorsV2} from '@constants/tokensV2';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {useThemedStyles} from '@hooks/useThemedStyles';
-import {useColors} from '@contexts/ThemeContext';
+import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useColorsV2} from '@contexts/ThemeContext';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 
 const COLORS: AvatarColor[] = [
@@ -40,14 +40,18 @@ export function getColorValue(color: AvatarColor): string {
   return withOpacity(COLOR_VALUES[color].bg, 0.64);
 }
 
-/** AvatarColor → 시맨틱 var 토큰 키 */
-const VAR_KEY_MAP: Record<string, string> = {
-  gray: 'custom-greyvar',
-  lavender: 'custom-lavendarvar',
+/** AvatarColor → 토큰 슬러그 (대시 표기) */
+const SLUG_MAP: Partial<Record<AvatarColor, string>> = {
+  gray: 'grey',
+  greybrown: 'grey-brown',
+  lightblue: 'light-blue',
+  darkred: 'dark-red',
 };
 
-export function getColorVarKey(color: AvatarColor): keyof SemanticColors {
-  return (VAR_KEY_MAP[color] || `custom-${color}var`) as keyof SemanticColors;
+/** AvatarColor → 시맨틱 var 토큰 키 (예: 'custom/grey-brown-var') */
+export function getColorVarKey(color: AvatarColor): keyof SemanticColorsV2 {
+  const slug = SLUG_MAP[color] || color;
+  return `custom/${slug}-var` as keyof SemanticColorsV2;
 }
 
 export interface ColorPickerProps {
@@ -62,8 +66,8 @@ export interface ColorPickerProps {
 
 export function ColorPicker({selected, onSelect, label, colors: colorsProp, dotSize = DOT_SIZE}: ColorPickerProps) {
   const visibleColors = colorsProp ?? COLORS;
-  const themedStyles = useThemedStyles(createThemedStyles);
-  const colors = useColors();
+  const themedStyles = useThemedStylesV2(createThemedStyles);
+  const colors = useColorsV2();
   const size = dotSize;
   return (
     <View>
@@ -86,7 +90,7 @@ export function ColorPicker({selected, onSelect, label, colors: colorsProp, dotS
                 height: outerSize,
                 borderRadius: outerSize / 2,
                 borderWidth: BORDER_WIDTH,
-                borderColor: isSelected ? colors['border-borderbold'] : 'transparent',
+                borderColor: isSelected ? colors['border/strong'] : 'transparent',
                 alignItems: 'center',
                 justifyContent: 'center',
                 padding: SELECTION_GAP,
@@ -107,10 +111,10 @@ export function ColorPicker({selected, onSelect, label, colors: colorsProp, dotS
   );
 }
 
-const createThemedStyles = (colors: SemanticColors) => StyleSheet.create({
+const createThemedStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   label: {
     ...Typography.label.medium,
-    color: colors['foreground-onsurfacemuted'],
+    color: colors['foreground/on-surface-muted'],
     paddingHorizontal: Spacing.sm,
     marginBottom: Spacing.xs,
   },
