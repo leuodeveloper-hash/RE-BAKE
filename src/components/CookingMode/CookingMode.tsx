@@ -1224,7 +1224,7 @@ export function CookingMode({
               </View>
             ) : null}
             {item.caution ? (
-              <View style={[styles.noteBlock, {borderLeftColor: colors['custom/yellow']}]}>
+              <View style={[styles.noteBlock, {borderLeftColor: colors['custom/yellow-var']}]}>
                 <Text style={[styles.noteInlineText, cookingBodyFont, {color: colors['custom/yellow-var'], marginTop: 0}]}>{item.caution}</Text>
               </View>
             ) : null}

@@ -108,7 +108,7 @@ export function EditableChip({
   };
 
   return (
-    <View style={[styles.container, {borderLeftWidth: 3, borderLeftColor: config.iconColor, borderRadius: 0, paddingVertical: sizeConfig.padding, paddingLeft: 12, paddingRight: 4, gap: sizeConfig.gap}, onChangeText && styles.containerEditing, style]}>
+    <View style={[styles.container, {borderLeftWidth: 3, borderLeftColor: config.textColor, borderRadius: 0, paddingVertical: 0, paddingLeft: 12, paddingRight: 4, gap: sizeConfig.gap}, onChangeText && styles.containerEditing, style]}>
       {onChangeText ? (
         // 편집 모드: 아이콘 없이 풀폭 입력(좌측 끝부터). 공용 TextInput 멀티라인 변형 사용
         // → flex:1+minWidth:0 로 줄바꿈, 자동 높이 증가 내장

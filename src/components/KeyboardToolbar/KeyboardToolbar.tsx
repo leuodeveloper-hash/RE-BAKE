@@ -32,9 +32,20 @@ export function KeyboardToolbar({left, right, above, style}: KeyboardToolbarProp
     if (Platform.OS === 'web') return;
     const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
     const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const showSub = Keyboard.addListener(showEvt, e => setKbHeight(e.endCoordinates?.height ?? 0));
-    const hideSub = Keyboard.addListener(hideEvt, () => setKbHeight(0));
+    // 필드 전환 시 hide→show가 연속으로 와서 툴바가 바닥으로 떨어졌다 올라오는 깜빡임 발생.
+    // → hide를 잠깐 지연시키고, 그 사이 show가 오면 취소해서 위치를 유지한다.
+    let hideTimer: ReturnType<typeof setTimeout> | null = null;
+    const cancelHide = () => { if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } };
+    const showSub = Keyboard.addListener(showEvt, e => {
+      cancelHide();
+      setKbHeight(e.endCoordinates?.height ?? 0);
+    });
+    const hideSub = Keyboard.addListener(hideEvt, () => {
+      cancelHide();
+      hideTimer = setTimeout(() => setKbHeight(0), 80);
+    });
     return () => {
+      cancelHide();
       showSub.remove();
       hideSub.remove();
     };
