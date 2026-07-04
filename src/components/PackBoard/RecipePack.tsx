@@ -18,19 +18,6 @@ export const BOOK_PACK_WIDTH = Math.round(PACK_WIDTH * 1.2); // 264
 const STACK_HEIGHT = 188; // 카드 키운 만큼 스택 높이도 키움
 const THUMB_SIZE = 214; // 팩 카드 크기
 
-// #RRGGBB 색을 흰색 쪽으로 ratio(0~1)만큼 섞어 옅은 톤 생성.
-// 레시피 북 표지 배경을 제목(쿡북) 색과 같은 계열의 연한 색으로 만들 때 사용.
-function tintToWhite(color: string, ratio: number, fallback: string): string {
-  const m = /^#?([0-9a-fA-F]{6})$/.exec(color.trim());
-  if (!m) return fallback;
-  const n = parseInt(m[1], 16);
-  const mix = (c: number) => Math.round(c + (255 - c) * ratio);
-  const r = mix((n >> 16) & 255);
-  const g = mix((n >> 8) & 255);
-  const b = mix(n & 255);
-  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-}
-
 // 더미 카드 팬 효과 (뒤 → 앞). 장수별로 좌우 대칭이 되도록 구성.
 type Fan = {x: number; y: number; rotate: number};
 function fanFor(count: number): Fan[] {
@@ -91,8 +78,8 @@ export interface RecipePackProps {
   iconColor?: string;
   /** 잠긴 레시피 — 뱃지에 자물쇠 표시 */
   locked?: boolean;
-  /** 'book' = 레시피 북 전용 책 형태 (3:4 표지 + 정사각 썸넬 중앙 + 제목 우상단) */
-  variant?: 'default' | 'book';
+  /** 'book' = 레시피 북 전용 책 형태, 'note' = 회고 노트 형태(PackBoard에서 RetrospectiveNote로 렌더) */
+  variant?: 'default' | 'book' | 'note';
   /** 책 표지 하단 좌측 부가정보 (예: "3개의 레시피") */
   footerLeft?: string;
   /** 책 표지 하단 우측 부가정보 (예: "2개의 회고") */
@@ -147,13 +134,8 @@ export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom
     const BOOK_H = BOOK_W; // 정사각
     const BOOK_IMG = Math.round(85 * 1.2); // 102 (표지 안 정사각 썸넬)
     const titleColor = iconColor ?? colors['foreground/on-surface'];
-    // 표지 배경: 쿡북 색이 있으면 그 색을 흰색 쪽으로 옅게 섞어 같은 계열의 연한 톤(배경·글씨 연관색).
-    // 색이 없으면(미분류 = custom/grey) 가장 옅은 노랑.
-    const isNoColor = !iconColor || iconColor === colors['custom/grey'];
-    // 한 단계 더 진하게: 무채색 노랑 98→96, 컬러 표지는 흰색 혼합 비율을 낮춰(0.9→0.84) 살짝 진하게
-    const coverBg = isNoColor
-      ? PrimitiveColorsV2['yellow/96']
-      : tintToWhite(titleColor, 0.84, PrimitiveColorsV2['yellow/96']);
+    // 표지 배경: 색상별 틴트 없이 모든 책을 옅은 옐로(yellow/96)로 통일. (글자색만 레시피북 색 유지)
+    const coverBg = PrimitiveColorsV2['yellow/96'];
     // 그림자 토큰 두 번째 (normal)
     const bookShadow = getElevation('normal', isDark ? 'dark' : 'light');
     return (

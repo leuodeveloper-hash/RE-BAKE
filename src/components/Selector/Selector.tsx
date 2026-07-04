@@ -5,10 +5,10 @@ import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {SvgProps} from 'react-native-svg';
 import {AppIcon} from '@components/Icon/AppIcon';
-import {IconChevronDown} from '@components/Icon/IconIndex';
+import {IconChevronUpDown} from '@components/Icon/IconIndex';
 import {useColorsV2} from '@contexts/ThemeContext';
 
-export type SelectorVariant = 'ghost' | 'filled' | 'outlined' | 'soft';
+export type SelectorVariant = 'ghost' | 'filled' | 'outlined' | 'tonal' | 'circle';
 
 export interface SelectorProps {
   label: string;
@@ -19,8 +19,12 @@ export interface SelectorProps {
   forcePressed?: boolean;
   /** 텍스트 색상 muted 적용 (disabled와 독립) */
   muted?: boolean;
-  /** 드롭다운 아이콘 override (기본: chevron-down). 예: 소팅/익스펜드(IconSorting) */
+  /** 드롭다운 아이콘 override (기본: chevron-up-down 위/아래). 예: 소팅(IconSorting) */
   dropdownIcon?: React.FC<SvgProps>;
+  /** 라벨 앞 leading 아이콘 (선택된 축/항목 아이콘 — 메뉴와 동일하게 표시) */
+  leadingIcon?: React.FC<SvgProps>;
+  /** leading 아이콘 색상 (기본: 아이콘 기본색) */
+  leadingIconColor?: string;
   style?: import('react-native').ViewStyle;
 }
 
@@ -33,6 +37,8 @@ export function Selector({
   forcePressed = false,
   muted = false,
   dropdownIcon,
+  leadingIcon,
+  leadingIconColor,
   style,
 }: SelectorProps) {
   const colors = useColorsV2();
@@ -45,7 +51,7 @@ export function Selector({
       minWidth: 64,
       paddingHorizontal: Spacing.md, // 16px
       paddingVertical: Spacing.xs, // 4px
-      gap: Spacing.sm, // 8px
+      gap: Spacing.xs, // 4px — 레이블-아이콘 밀착
       borderRadius: Radius['radius-full'],
     };
 
@@ -64,11 +70,18 @@ export function Selector({
           ? colors['border/muted']
           : colors['border/normal'];
         break;
-      case 'soft':
-        baseStyle.backgroundColor = colors['surface/container'];
+      case 'tonal':
+        baseStyle.backgroundColor = colors['fill/subtle'];
         baseStyle.borderRadius = Radius['radius-md'];
         baseStyle.paddingHorizontal = Spacing.smd;
-        baseStyle.minHeight = 48;
+        baseStyle.minHeight = 40;
+        break;
+      case 'circle':
+        // 완전 둥근 필(버튼형) — tonal과 동일 톤, radius만 full
+        baseStyle.backgroundColor = colors['fill/subtle'];
+        baseStyle.borderRadius = Radius['radius-full'];
+        baseStyle.paddingHorizontal = Spacing.md;
+        baseStyle.minHeight = 40;
         break;
       case 'ghost':
       default:
@@ -76,6 +89,11 @@ export function Selector({
         baseStyle.height = 40;
         baseStyle.paddingHorizontal = Spacing.smd; // 12px
         break;
+    }
+
+    // 드롭다운 아이콘은 뷰박스 내부 여백이 있어 우측이 넓어 보임 → 우측 패딩 살짝 보정
+    if (showDropdown) {
+      baseStyle.paddingRight = (baseStyle.paddingHorizontal as number) - Spacing.xs;
     }
 
     // Pressed state
@@ -119,15 +137,20 @@ export function Selector({
     <Pressable onPress={onPress} disabled={disabled} style={style}>
       {({pressed, focused}: {pressed: boolean; focused: boolean}) => (
         <View style={getContainerStyle(pressed || focused)}>
+          {leadingIcon && (
+            <AppIcon
+              icon={leadingIcon}
+              size="sm"
+              color={leadingIconColor ?? getIconColor()}
+            />
+          )}
           <Text style={[styles.label, {color: getTextColor()}]} numberOfLines={1}>{label}</Text>
           {showDropdown && (
-            <View style={{width: 12}}>
-              <AppIcon
-                icon={dropdownIcon ?? IconChevronDown}
-                size="xs"
-                color={getIconColor()}
-              />
-            </View>
+            <AppIcon
+              icon={dropdownIcon ?? IconChevronUpDown}
+              size="sm"
+              color={getIconColor()}
+            />
           )}
         </View>
       )}

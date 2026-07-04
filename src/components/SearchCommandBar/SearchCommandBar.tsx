@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Animated, Easing, Image, Modal, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput as RNTextInput, TextInputKeyPressEventData, View} from 'react-native';
+import {Animated, Easing, Modal, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput as RNTextInput, TextInputKeyPressEventData, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import type {SvgProps} from 'react-native-svg';
 import type {SemanticColorsV2} from '@constants/tokens';
@@ -11,11 +11,11 @@ import {IconSearch, IconLockFilled, IconCloseCircleFilled} from '@components/Ico
 import {AppIcon} from '@components/Icon/AppIcon';
 import {MenuItem} from '@components/Menu/MenuItem';
 import {RecipeCard} from '@components/Recipe/RecipeCard';
+import {EmptyState} from '@components/EmptyState';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useColorsV2} from '@contexts/ThemeContext';
 
 // 검색 빈 상태: 꽃 일러스트 사용 (기존 노트+돋보기 대신)
-const emptyNoResultsImage = require('../../../assets/images/empty_recipe.png');
 
 export interface SearchCommandBarItem {
   id: string;
@@ -188,7 +188,7 @@ export function SearchCommandBar({
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     style="ghost"
-                    size="small"
+                    size="medium"
                     autoFocus={Platform.OS === 'web'}
                     onKeyPress={handleKeyPress}
                     leadingIcon={<AppIcon icon={IconSearch} size="xs" color={colors['foreground/on-surface-muted']} />}
@@ -236,10 +236,10 @@ export function SearchCommandBar({
                   </ScrollView>
                 ) : (
                   <View style={styles.emptyContainer}>
-                    <Image source={emptyNoResultsImage} style={styles.emptyImage} />
-                    <Text style={styles.emptySubtitle}>
-                      '{searchQuery.trim()}'에 해당하는 레시피를 찾지 못했어요
-                    </Text>
+                    <EmptyState
+                      variant="simple"
+                      title={`'${searchQuery.trim()}'에 해당하는 레시피를 찾지 못했어요`}
+                    />
                   </View>
                 )}
               </GlassContainer>
@@ -271,14 +271,15 @@ const createStyles = (colors: SemanticColorsV2) =>
     },
     content: {
       padding: Spacing.xs,
-      paddingBottom: Spacing.xs,
       height: 320,
     },
     searchBar: {
-      paddingHorizontal: Spacing.smd,
-      paddingVertical: Spacing.sm,
+      paddingHorizontal: Spacing.sm,
       marginBottom: 4,
-      minHeight: 40,
+      height: 40,
+      justifyContent: 'center',
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: colors['border/muted'],
     },
     lockOverlay: {
       position: 'absolute' as const,
@@ -292,18 +293,5 @@ const createStyles = (colors: SemanticColorsV2) =>
       alignItems: 'center',
       justifyContent: 'center',
       gap: Spacing.smd,
-    },
-    emptyImage: {
-      width: 60,
-      height: 60,
-    },
-    emptySubtitle: {
-      fontFamily: Typography.label.medium.fontFamily,
-      fontSize: Typography.label.medium.fontSize,
-      fontWeight: Typography.label.medium.fontWeight as '500',
-      lineHeight: Typography.label.medium.lineHeight,
-      color: colors['foreground/on-surface-muted'],
-      textAlign: 'center',
-      marginTop: FONT_BASELINE_OFFSET,
     },
   });

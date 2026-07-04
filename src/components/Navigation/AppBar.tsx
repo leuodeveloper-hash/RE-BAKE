@@ -27,6 +27,9 @@ export interface AppBarProps {
   rightIcon?: React.FC<SvgProps>;
   onRightPress?: () => void;
   onTitlePress?: () => void;
+  /** 기본 타이틀 셀렉터 앞 아이콘 (선택된 축 아이콘 — 메뉴와 동일 표시) */
+  titleIcon?: React.FC<SvgProps>;
+  titleIconColor?: string;
   onAddPress?: () => void;
   onFilterPress?: () => void;
   /** 필터(뷰 전환) 버튼 아이콘 — 현재 뷰의 아이콘을 노출 (기본: IconFilter) */
@@ -56,6 +59,8 @@ export function AppBar({
   rightIcon,
   onRightPress,
   onTitlePress,
+  titleIcon,
+  titleIconColor,
   onAddPress,
   onFilterPress,
   filterIcon = IconFilter,
@@ -81,7 +86,7 @@ export function AppBar({
           {leftIcon && (
             <IconButton
               icon={leftIcon}
-              variant="ghost-secondary"
+              variant="ghost-primary"
               size="medium"
               onPress={onLeftPress}
             />
@@ -92,7 +97,7 @@ export function AppBar({
           {rightIcon && (
             <IconButton
               icon={rightIcon}
-              variant="ghost-secondary"
+              variant="ghost-primary"
               size="medium"
               onPress={onRightPress}
             />
@@ -125,7 +130,7 @@ export function AppBar({
               <IconButton
                 icon={IconAdd}
                 onPress={onAddPress}
-                variant="ghost-secondary"
+                variant="ghost-primary"
                 size="medium"
               />
             )}
@@ -133,7 +138,7 @@ export function AppBar({
               <IconButton
                 icon={IconSearch}
                 onPress={onSearchPress}
-                variant="ghost-secondary"
+                variant="ghost-primary"
                 size="medium"
               />
             )}
@@ -141,7 +146,7 @@ export function AppBar({
               <IconButton
                 icon={filterIcon}
                 onPress={onFilterPress}
-                variant="ghost-secondary"
+                variant="ghost-primary"
                 size="medium"
                 forcePressed={filterMenuOpen}
               />
@@ -150,7 +155,7 @@ export function AppBar({
               <IconButton
                 icon={IconEllipsisVertical}
                 onPress={onMenuPress}
-                variant="ghost-secondary"
+                variant="ghost-primary"
                 size="medium"
                 forcePressed={menuOpen}
               />

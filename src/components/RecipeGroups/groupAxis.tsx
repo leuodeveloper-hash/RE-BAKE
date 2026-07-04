@@ -8,6 +8,9 @@ import {IconBookFilled, IconChartNoAxesGantt, IconProcess} from '@components/Ico
  */
 export type GroupAxis = 'all' | 'cookbook' | 'method' | 'retrospective';
 
+/** 회고 노트 빈 상태 공통 문구 (노트 카드 / 회고 섹션 / 회고 바텀시트 공용) */
+export const EMPTY_RETROSPECTIVE_MESSAGE = '아직 작성된 회고 노트가 없습니다';
+
 export const AXIS_LABELS: Record<GroupAxis, string> = {
   all: '전체',
   cookbook: '레시피 북',
@@ -42,7 +45,7 @@ export function useAxisMenuItems(availableAxes: GroupAxis[] = DEFAULT_AXES, over
   return useMemo(() => {
     const byAxis: Record<GroupAxis, AxisMenuItem> = {
       all: {id: 'all', label: AXIS_LABELS.all},
-      cookbook: {id: 'cookbook', label: AXIS_LABELS.cookbook, icon: IconBookFilled, iconColor: colors['custom/brown-var']},
+      cookbook: {id: 'cookbook', label: AXIS_LABELS.cookbook, icon: IconBookFilled, iconColor: colors['custom/burgundy-var']},
       method: {id: 'method', label: AXIS_LABELS.method, icon: IconProcess, iconColor: colors['custom/lime-var']},
       retrospective: {id: 'retrospective', label: AXIS_LABELS.retrospective, icon: IconChartNoAxesGantt, iconColor: colors['custom/light-blue-var']},
     };

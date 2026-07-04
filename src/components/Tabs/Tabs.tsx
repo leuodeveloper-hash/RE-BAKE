@@ -276,8 +276,8 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   textTab: {
     height: TEXT_TAB_HEIGHT,
     borderRadius: Radius['radius-full'],
-    paddingHorizontal: Spacing.lg,
-    minWidth: 64,
+    paddingHorizontal: Spacing.smd,
+    minWidth: 56,
     alignItems: 'center',
     justifyContent: 'center',
   },

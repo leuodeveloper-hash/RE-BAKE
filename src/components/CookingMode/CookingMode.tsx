@@ -7,6 +7,7 @@ import {
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  Keyboard,
   Platform,
   Pressable,
   ScrollView,
@@ -16,6 +17,7 @@ import {
   View,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import {recognizeImageText} from '@utils/recipeOcr';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import {getPersistentUri} from '@utils/imageUpload';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -57,6 +59,7 @@ import {
   IconChevronRight,
 } from '@components/Icon/IconIndex';
 import {KeyboardToolbar} from '@components/KeyboardToolbar';
+import {EditorToolbar} from '@components/EditorToolbar';
 import {YouTubePlayerModal} from '@components/YouTubePlayer';
 import {parseYouTubeVideoId} from '@utils/youtube';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
@@ -270,6 +273,8 @@ export function CookingMode({
   const [showGroupMenu, setShowGroupMenu] = useState(false);
   const [showRecipeMenu, setShowRecipeMenu] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  const [showScanMenu, setShowScanMenu] = useState(false);
+  const [ocrBusy, setOcrBusy] = useState(false);
   const [youtubeOpen, setYoutubeOpen] = useState(false);
 
   const referenceYouTubeId = useMemo(() => parseYouTubeVideoId(referenceUrl), [referenceUrl]);
@@ -822,6 +827,49 @@ export function CookingMode({
   }, [updateEditCards]);
 
   // 사진 추가 (이미지 피커)
+  // OCR 스캔: 촬영/갤러리 → 텍스트 인식 → 현재 카드 설명에 추가 (편집 툴바와 동일 기능, 공용 EditorToolbar)
+  const cookingScan = useCallback(async (source: 'camera' | 'gallery') => {
+    if (ocrBusy) return;
+    const card = editCards[currentIndex];
+    if (!card) return;
+    setOcrBusy(true);
+    // iOS: 메뉴/키보드 전환과 겹치면 피커 present가 무시됨 → 정리 후 present
+    Keyboard.dismiss();
+    try {
+      if (Platform.OS === 'ios') {
+        await new Promise<void>(resolve => setTimeout(resolve, 350));
+      }
+      const perm = source === 'camera'
+        ? await ImagePicker.requestCameraPermissionsAsync()
+        : await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (!perm.granted) {
+        showSnackbar(source === 'camera' ? '카메라 권한이 필요해요 — 설정에서 허용해주세요' : '사진 권한이 필요해요 — 설정에서 허용해주세요');
+        return;
+      }
+      const result = source === 'camera'
+        ? await ImagePicker.launchCameraAsync({quality: 0.85})
+        : await ImagePicker.launchImageLibraryAsync({mediaTypes: ['images'], quality: 0.85});
+      if (result.canceled || !result.assets[0]) return;
+      const text = (await recognizeImageText(result.assets[0].uri)).trim();
+      if (!text) {
+        showSnackbar('이미지에서 글씨를 찾지 못했어요');
+        return;
+      }
+      updateEditCards(prev => prev.map(c =>
+        c.globalIndex === card.globalIndex
+          ? {...c, description: c.description?.trim() ? `${c.description.trim()}\n${text}` : text}
+          : c,
+      ));
+      showSnackbar('텍스트를 인식했어요');
+    } catch (e) {
+      // eslint-disable-next-line no-console
+      console.warn('CookingMode OCR failed', e);
+      showSnackbar('이미지 분석 실패. 다시 시도해주세요');
+    } finally {
+      setOcrBusy(false);
+    }
+  }, [ocrBusy, editCards, currentIndex, updateEditCards, showSnackbar]);
+
   const pickPhoto = useCallback(async (source: 'camera' | 'gallery', globalIndex: number, currentPhotos?: string[]) => {
     if ((currentPhotos?.length ?? 0) >= MAX_PHOTOS) return;
     if (source === 'camera') {
@@ -1486,7 +1534,8 @@ export function CookingMode({
         <Animated.View
           style={{flex: 1, opacity: contentReady ? fadeAnim : 0}}
           onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
-          <Pressable style={{height: insets.top + 72}} onPress={isEditing ? exitEditing : undefined} />
+          {/* 앱바(topNav) 높이만큼만 비움 — 세이프에어리어는 BottomSheet가 이미 처리하므로 insets.top 중복 금지 */}
+          <Pressable style={{height: 72}} onPress={isEditing ? exitEditing : undefined} />
           <Animated.ScrollView
             ref={scrollViewRef as any}
             horizontal
@@ -1604,71 +1653,51 @@ export function CookingMode({
 
         {/* 편집 키보드 툴바: 과정이동·실행취소/다시·추가·사진 + 완료 (우측 상단 편집 툴바 통합) */}
         {isEditing && canEdit && (
-          <KeyboardToolbar
+          <EditorToolbar
+            prev={{onPress: () => { if (currentIndex > 0) { const i = currentIndex - 1; setCurrentIndex(i); scrollToIndex(i); } }, disabled: currentIndex <= 0}}
+            next={{onPress: () => { if (currentIndex < displayCards.length - 1) { const i = currentIndex + 1; setCurrentIndex(i); scrollToIndex(i); } }, disabled: currentIndex >= displayCards.length - 1}}
+            undo={{onPress: undo, disabled: !canUndo}}
+            redo={{onPress: redo, disabled: !canRedo}}
+            scan={{onPress: () => { setShowScanMenu(v => !v); setShowAddMenu(false); setShowPhotoSubmenu(false); }, active: showScanMenu, disabled: !editCards[currentIndex] || ocrBusy}}
+            add={{
+              onPress: () => { setShowAddMenu(prev => !prev); setShowPhotoSubmenu(false); setShowScanMenu(false); },
+              active: showAddMenu,
+              disabled: (() => {
+                const c = editCards[currentIndex];
+                // 팁·주의·사진 모두 이미 추가/최대면 비활성화
+                return !!c && c.tip != null && c.caution != null && (c.photos?.length ?? 0) >= MAX_PHOTOS;
+              })(),
+            }}
+            onDone={exitEditing}
+            doneDisabled={!isDirty}
             above={
-              <Menu
-                key={showPhotoSubmenu ? 'sub' : 'main'}
-                items={showPhotoSubmenu ? photoSubmenuItems : addMenuItems}
-                visible={showAddMenu}
-                onSelect={handleAddMenuSelect}
-                onClose={() => {
-                  if (showPhotoSubmenu) {
-                    setShowPhotoSubmenu(false);
-                  } else {
-                    setShowAddMenu(false);
-                  }
-                }}
-                style={styles.bottomAddMenu}
-              />
-            }
-            left={
-              <>
-                <IconButton
-                  icon={IconChevronLeft}
-                  onPress={() => { if (currentIndex > 0) { const i = currentIndex - 1; setCurrentIndex(i); scrollToIndex(i); } }}
-                  variant="ghost-secondary"
-                  size="medium"
-                  disabled={currentIndex <= 0}
+              showScanMenu ? (
+                <Menu
+                  items={[
+                    {id: 'camera', label: '촬영해서 스캔', icon: IconCameraFilled},
+                    {id: 'gallery', label: '갤러리에서 스캔', icon: IconPhoto},
+                  ]}
+                  visible={showScanMenu}
+                  onSelect={(id) => { setShowScanMenu(false); cookingScan(id === 'camera' ? 'camera' : 'gallery'); }}
+                  onClose={() => setShowScanMenu(false)}
+                  style={styles.bottomAddMenu}
                 />
-                <IconButton
-                  icon={IconChevronRight}
-                  onPress={() => { if (currentIndex < displayCards.length - 1) { const i = currentIndex + 1; setCurrentIndex(i); scrollToIndex(i); } }}
-                  variant="ghost-secondary"
-                  size="medium"
-                  disabled={currentIndex >= displayCards.length - 1}
+              ) : (
+                <Menu
+                  key={showPhotoSubmenu ? 'sub' : 'main'}
+                  items={showPhotoSubmenu ? photoSubmenuItems : addMenuItems}
+                  visible={showAddMenu}
+                  onSelect={handleAddMenuSelect}
+                  onClose={() => {
+                    if (showPhotoSubmenu) {
+                      setShowPhotoSubmenu(false);
+                    } else {
+                      setShowAddMenu(false);
+                    }
+                  }}
+                  style={styles.bottomAddMenu}
                 />
-                <IconButton icon={IconUndo} onPress={undo} variant="ghost-secondary" size="medium" disabled={!canUndo} />
-                <IconButton icon={IconRedo} onPress={redo} variant="ghost-secondary" size="medium" disabled={!canRedo} />
-                <IconButton
-                  icon={IconAdd}
-                  onPress={() => { setShowAddMenu(prev => !prev); setShowPhotoSubmenu(false); }}
-                  variant="tonal"
-                  size="medium"
-                  forcePressed={showAddMenu}
-                  disabled={(() => {
-                    const c = editCards[currentIndex];
-                    // 팁·주의·사진 모두 이미 추가/최대면 비활성화
-                    return !!c && c.tip != null && c.caution != null && (c.photos?.length ?? 0) >= MAX_PHOTOS;
-                  })()}
-                />
-                <IconButton
-                  icon={IconCamera}
-                  onPress={() => { const c = editCards[currentIndex]; if (c) pickPhoto('camera', c.globalIndex, c.photos); }}
-                  variant="ghost-secondary"
-                  size="medium"
-                  disabled={(editCards[currentIndex]?.photos?.length ?? 0) >= MAX_PHOTOS}
-                />
-                <IconButton
-                  icon={IconPhoto}
-                  onPress={() => { const c = editCards[currentIndex]; if (c) pickPhoto('gallery', c.globalIndex, c.photos); }}
-                  variant="ghost-secondary"
-                  size="medium"
-                  disabled={(editCards[currentIndex]?.photos?.length ?? 0) >= MAX_PHOTOS}
-                />
-              </>
-            }
-            right={
-              <IconButton icon={IconTick} onPress={exitEditing} variant="ghost-primary" size="large" disabled={!isDirty} />
+              )
             }
           />
         )}

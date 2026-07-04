@@ -1,8 +1,10 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
+import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {BottomSheet} from './BottomSheet';
 import {TextInput as StyledTextInput} from '@components/TextInput';
 import {RecipeCard} from '@components/Recipe/RecipeCard';
+import {EmptyState} from '@components/EmptyState';
+import {EMPTY_RETROSPECTIVE_MESSAGE} from '@components/RecipeGroups/groupAxis';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useColorsV2} from '@contexts/ThemeContext';
@@ -17,8 +19,6 @@ import {
   IconCornerDownRight,
   IconSearch,
 } from '@components/Icon/IconIndex';
-
-const emptyNoResultsImage = require('../../../assets/images/empty_no_results.png');
 
 export interface ReviewLogSheetProps {
   visible: boolean;
@@ -239,12 +239,14 @@ export function ReviewLogSheet({
             })
           ) : (
             <View style={styles.empty}>
-              {searchQuery.trim() ? <Image source={emptyNoResultsImage} style={styles.emptyImage} /> : null}
-              <Text style={styles.emptyText}>
-                {searchQuery.trim()
-                  ? `'${searchQuery.trim()}'에 해당하는 레시피를 찾지 못했어요`
-                  : '아직 작성된 회고 노트가 없습니다'}
-              </Text>
+              {searchQuery.trim() ? (
+                <EmptyState
+                  variant="simple"
+                  title={`'${searchQuery.trim()}'에 해당하는 레시피를 찾지 못했어요`}
+                />
+              ) : (
+                <EmptyState variant="simple" title={EMPTY_RETROSPECTIVE_MESSAGE} />
+              )}
             </View>
           )}
         </View>
@@ -269,10 +271,10 @@ export function ReviewLogSheet({
               ))
             ) : (
               <View style={styles.empty}>
-                <Image source={emptyNoResultsImage} style={styles.emptyImage} />
-                <Text style={styles.emptyText}>
-                  {`'${searchQuery.trim()}'에 해당하는 회고를 찾지 못했어요`}
-                </Text>
+                <EmptyState
+                  variant="simple"
+                  title={`'${searchQuery.trim()}'에 해당하는 회고를 찾지 못했어요`}
+                />
               </View>
             )
           ) : sessionReviews.length > 0 ? (
@@ -315,7 +317,7 @@ export function ReviewLogSheet({
             })
           ) : (
             <View style={styles.empty}>
-              <Text style={styles.emptyText}>아직 작성된 회고가 없습니다</Text>
+              <EmptyState variant="simple" title="아직 작성된 회고가 없습니다" />
             </View>
           )}
         </View>
@@ -391,18 +393,5 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
     paddingVertical: Spacing.lg,
     alignItems: 'center',
     gap: Spacing.smd,
-  },
-  emptyImage: {
-    width: 60,
-    height: 60,
-  },
-  emptyText: {
-    fontFamily: Typography.label.medium.fontFamily,
-    fontSize: Typography.label.medium.fontSize,
-    fontWeight: Typography.label.medium.fontWeight as '500',
-    lineHeight: Typography.label.medium.lineHeight,
-    color: colors['foreground/on-surface-muted'],
-    textAlign: 'center',
-    marginTop: FONT_BASELINE_OFFSET,
   },
 });

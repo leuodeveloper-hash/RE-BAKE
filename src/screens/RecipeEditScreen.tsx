@@ -1360,7 +1360,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                     <Text style={styles.breadcrumbPrefix}>재료</Text>
                     <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
                     <RNTextInput
-                      style={[styles.editableRowInput, {marginTop: 0, paddingTop: 0, paddingBottom: 0, textAlignVertical: 'center', includeFontPadding: false}, noOutline, inputHeights[`igt-${group.id}`] != null && {height: inputHeights[`igt-${group.id}`]}]}
+                      style={[styles.editableRowInput, noOutline, inputHeights[`igt-${group.id}`] != null && {height: inputHeights[`igt-${group.id}`]}]}
                       value={group.title}
                       onChangeText={v => { updateIngredientGroupTitle(group.id, v); resetInputHeight(`igt-${group.id}`); }}
                       placeholder="그룹 이름"
@@ -1405,7 +1405,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                           }}
                         />
                       )}
-                      <IconButton icon={IconPlusCircleFilled} onPress={() => addIngredient(group.id)} size="medium" />
+                      <IconButton icon={IconPlusCircleFilled} onPress={() => addIngredient(group.id)} variant="ghost-secondary" size="medium" />
                     </View>
                   )}}
                 />
@@ -1557,7 +1557,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                     <Text style={styles.breadcrumbPrefix}>도구</Text>
                     <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
                     <RNTextInput
-                      style={[styles.editableRowInput, {marginTop: 0, paddingTop: 0, paddingBottom: 0, textAlignVertical: 'center', includeFontPadding: false}, noOutline, inputHeights[`tgt-${group.id}`] != null && {height: inputHeights[`tgt-${group.id}`]}]}
+                      style={[styles.editableRowInput, noOutline, inputHeights[`tgt-${group.id}`] != null && {height: inputHeights[`tgt-${group.id}`]}]}
                       value={group.title}
                       onChangeText={v => { updateToolGroupTitle(group.id, v); resetInputHeight(`tgt-${group.id}`); }}
                       placeholder="그룹 이름"
@@ -1595,7 +1595,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                           }}
                         />
                       )}
-                      <IconButton icon={IconPlusCircleFilled} onPress={() => addTool(group.id)} size="medium" />
+                      <IconButton icon={IconPlusCircleFilled} onPress={() => addTool(group.id)} variant="ghost-secondary" size="medium" />
                     </View>
                   )}}
                 />
@@ -1728,8 +1728,8 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                   trailing={groupIndex === 0
                     ? {type: 'custom', element: (
                         <View style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
-                          <IconButton icon={IconBlockPlus} onPress={() => insertStepGroupAbove(group.id)} size="medium" />
-                          <IconButton icon={IconPlusCircleFilled} onPress={() => addStep(group.id)} size="medium" />
+                          <IconButton icon={IconBlockPlus} onPress={() => insertStepGroupAbove(group.id)} variant="ghost-secondary" size="medium" />
+                          <IconButton icon={IconPlusCircleFilled} onPress={() => addStep(group.id)} variant="ghost-secondary" size="medium" />
                         </View>
                       )}
                     : {type: 'iconButton', icon: IconPlusCircleFilled, onPress: () => addStep(group.id), variant: 'ghost-secondary'}}>
@@ -1737,7 +1737,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                     <Text style={styles.breadcrumbPrefix}>과정</Text>
                     <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
                     <RNTextInput
-                      style={[styles.editableRowInput, {marginTop: 0, paddingTop: 0, paddingBottom: 0, textAlignVertical: 'center', includeFontPadding: false}, noOutline, inputHeights[`sgt-${group.id}`] != null && {height: inputHeights[`sgt-${group.id}`]}]}
+                      style={[styles.editableRowInput, noOutline, inputHeights[`sgt-${group.id}`] != null && {height: inputHeights[`sgt-${group.id}`]}]}
                       value={group.title}
                       onChangeText={v => { updateStepGroupTitle(group.id, v); resetInputHeight(`sgt-${group.id}`); }}
                       placeholder="그룹 이름"
@@ -1778,7 +1778,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                         />
                       )}
                       {!stepsBulkMode && (
-                        <IconButton icon={IconPlusCircleFilled} onPress={() => addStep(group.id)} size="medium" />
+                        <IconButton icon={IconPlusCircleFilled} onPress={() => addStep(group.id)} variant="ghost-secondary" size="medium" />
                       )}
                     </View>
                   )}}
@@ -2203,7 +2203,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
             <IconButton
               icon={IconClose}
               onPress={onClose}
-              variant="ghost-secondary"
+              variant="ghost-primary"
               size="medium"
             />
           </GlassContainer>
@@ -2221,7 +2221,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
               <IconButton
                 icon={IconEllipsisVertical}
                 onPress={handleMenuPress}
-                variant="ghost-secondary"
+                variant="ghost-primary"
                 size="medium"
                 forcePressed={showMenu}
               />
@@ -2570,7 +2570,9 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
     letterSpacing: -0.25,
     color: colors['foreground/on-surface'],
     padding: 0,
-    marginTop: FONT_BASELINE_OFFSET,
+    // 모든 인라인 입력 세로 중앙 정렬 (그룹 제목/항목 입력 공통) — 개별 override 금지, 여기서 한 곳 관리
+    textAlignVertical: 'center',
+    includeFontPadding: false,
   },
   amountInputContainer: {
     flexDirection: 'row',
@@ -2664,7 +2666,7 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     minHeight: 48, // 다른 행(ListItem)과 동일한 높이
-    paddingVertical: Spacing.smd,
+    paddingVertical: Spacing.sm, // ListItem stateLayer와 동일(8) — 12면 더 높아짐
     gap: Spacing.xs,
   },
   addGroupText: {

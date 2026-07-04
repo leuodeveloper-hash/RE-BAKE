@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useRouter} from 'expo-router';
 import {FloatingNavBar, navPillStyle} from '@components/Navigation';
@@ -15,7 +15,10 @@ import {fetchAllSchedules, type ExamSchedule} from '@utils/examSchedules';
 import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {IconClose, IconBellFilled, IconDotFilled, IconCircleCheck, IconSorting} from '@components/Icon/IconIndex';
+import {IconClose, IconArrowTopRight, IconDotFilled, IconCircleCheckFilled, IconCircleDot} from '@components/Icon/IconIndex';
+
+// 큐넷 기능사 정기 시험일정 페이지
+const QNET_SCHEDULE_URL = 'https://www.q-net.or.kr/crf021.do?id=crf02101&scheType=04';
 
 /** 자격증 그룹 (Firestore examType의 접두사와 매칭) */
 type CertGroup = 'pastry' | 'baking';
@@ -174,8 +177,7 @@ export default function ExamScheduleRoute() {
               <Selector
                 label={certLabel}
                 showDropdown
-                dropdownIcon={IconSorting}
-                variant="soft"
+                variant="circle"
                 forcePressed={menuOpen}
                 onPress={() => setMenuOpen(prev => !prev)}
                 style={styles.selectorAnchor}
@@ -250,15 +252,15 @@ export default function ExamScheduleRoute() {
       <FloatingNavBar
         left={
           <GlassContainer contentStyle={navPillStyle}>
-            <IconButton icon={IconClose} onPress={() => router.back()} variant="ghost-secondary" size="medium" />
+            <IconButton icon={IconClose} onPress={() => router.back()} variant="ghost-primary" size="medium" />
           </GlassContainer>
         }
         right={
           <GlassContainer contentStyle={navPillStyle}>
             <IconButton
-              icon={IconBellFilled}
-              onPress={() => router.push('/exam-notifications' as any)}
-              variant="ghost-secondary"
+              icon={IconArrowTopRight}
+              onPress={() => Linking.openURL(QNET_SCHEDULE_URL)}
+              variant="ghost-primary"
               size="medium"
             />
           </GlassContainer>
@@ -294,14 +296,14 @@ function PeriodItem({schedule: s, gradientIndex, isFirst, isLast, variant, style
         {!isFirst && <View style={[styles.railLine, styles.railLineTop]} />}
         {!isLast && <View style={[styles.railLine, styles.railLineBottom]} />}
         {variant === 'current' ? (
-          // 현재: circle-on 라디오 (20)
-          <View style={styles.dotRing}>
-            <View style={styles.dotRingInner} />
+          // 현재: 라디오(circle-dot) 아이콘 — 과거/예정과 동일하게 railNode(20)+아이콘(16) 구조
+          <View style={styles.railNode}>
+            <IconCircleDot width={16} height={16} color={colors['foreground/on-surface']} />
           </View>
         ) : isPast ? (
           // 지난: check-circle-filled (12, 흐리게)
           <View style={styles.railNode}>
-            <IconCircleCheck width={12} height={12} color={colors['foreground/on-surface-var']} />
+            <IconCircleCheckFilled width={16} height={16} color={colors['foreground/on-surface-var']} />
           </View>
         ) : (
           // 예정: dot-filled (12)
@@ -327,9 +329,9 @@ function PeriodItem({schedule: s, gradientIndex, isFirst, isLast, variant, style
           {title}
         </Text>
         <Text style={[styles.dates, isPast && styles.datesPast]} numberOfLines={1}>
-          접수 {shortDate(s.registrationStart)}
-          {'  ·  '}시험 {shortDate(s.examDate)}
-          {'  ·  '}발표 {shortDate(s.resultDate)}
+          접수: {shortDate(s.registrationStart)}
+          {'  ·  '}시험: {shortDate(s.examDate)}
+          {'  ·  '}발표: {shortDate(s.resultDate)}
         </Text>
       </View>
     </View>
@@ -368,8 +370,8 @@ const createStyles = (colors: SemanticColorsV2) =>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      paddingHorizontal: Spacing.sm,
-      marginBottom: Spacing.sm,
+      paddingHorizontal: Spacing.md, // 좌우 16 (item/toggle과 동일)
+      paddingVertical: Spacing.sm, // 상하 8 (대칭)
       zIndex: 20,
     },
     selectorWrap: {
@@ -386,9 +388,9 @@ const createStyles = (colors: SemanticColorsV2) =>
       zIndex: 100,
     },
     dateLabel: {
-      ...Typography.label.medium,
+      ...Typography.body.small,
       color: colors['foreground/on-surface-muted'],
-      paddingHorizontal: Spacing.smd,
+      textAlign: 'right',
     },
 
     loading: {
@@ -410,7 +412,7 @@ const createStyles = (colors: SemanticColorsV2) =>
     toggleRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      minHeight: 44,
+      minHeight: 72,
       paddingHorizontal: Spacing.md,
     },
     // 지난 일정 토글 마커: 접힌 스택을 나타내는 둥근 캡슐 (디자인: 10×24, surface/container-high, border/normal)
@@ -425,7 +427,6 @@ const createStyles = (colors: SemanticColorsV2) =>
     toggleText: {
       ...Typography.label['xlarge - semibold'],
       color: colors['foreground/on-surface-muted'],
-      marginLeft: Spacing.smd,
       flex: 1,
     },
 
@@ -433,7 +434,7 @@ const createStyles = (colors: SemanticColorsV2) =>
     item: {
       flexDirection: 'row',
       alignItems: 'center',
-      minHeight: 64,
+      minHeight: 72, // 아바타48 + 상하12 = 72 (패딩 대신 minHeight로 레일이 행 전체를 채우게)
       paddingHorizontal: Spacing.md,
     },
     itemCurrent: {
@@ -448,8 +449,8 @@ const createStyles = (colors: SemanticColorsV2) =>
     },
     railLine: {
       position: 'absolute',
-      width: 2,
-      left: RAIL_WIDTH / 2 - 1,
+      width: 1,
+      left: RAIL_WIDTH / 2 - 0.5,
       backgroundColor: colors['border/normal'],
     },
     railLineTop: {top: 0, height: '50%'},
@@ -464,29 +465,11 @@ const createStyles = (colors: SemanticColorsV2) =>
       borderStyle: 'dashed',
     },
     railNode: {
-      // 마커 공통 20px 컨테이너 (글리프 크기만 다름). 배경은 레일 라인 마스킹
+      // 마커 공통 20px 컨테이너 (글리프 크기만 다름). 배경 없이 아이콘만 (흰 원 제거)
       width: 20,
       height: 20,
-      borderRadius: 10,
-      backgroundColor: colors['surface/normal'],
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    dotRing: {
-      width: 20,
-      height: 20,
-      borderRadius: 10,
-      borderWidth: 2,
-      borderColor: colors['foreground/on-surface'],
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: colors['surface/normal'],
-    },
-    dotRingInner: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: colors['foreground/on-surface'],
     },
     avatarPast: {
       opacity: 0.55,
@@ -494,7 +477,6 @@ const createStyles = (colors: SemanticColorsV2) =>
     content: {
       flex: 1,
       marginLeft: Spacing.smd,
-      paddingVertical: Spacing.smd,
     },
     periodName: {
       ...Typography.body.medium,

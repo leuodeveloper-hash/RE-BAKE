@@ -9,7 +9,7 @@ import {useColorsV2} from '@contexts/ThemeContext';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 
 const COLORS: AvatarColor[] = [
-  'yellow', 'orange', 'red', 'brown',
+  'yellow', 'orange', 'red',
   'lime', 'green', 'teal', 'lightblue', 'blue',
   'purple', 'lavender', 'greybrown', 'gray',
 ];
@@ -21,7 +21,8 @@ const SELECTION_GAP = 2;
 const COLOR_VALUES: Record<AvatarColor, {bg: string; fg: string}> = {
   gray:      {bg: BaseColors['color-base-grey-80'],      fg: BaseColors['color-base-grey-80']},
   greybrown: {bg: BaseColors['color-base-greybrown-80'], fg: BaseColors['color-base-greybrown-80']},
-  brown:     {bg: BaseColors['color-base-brown-80'],     fg: BaseColors['color-base-brown-50']},
+  // brown은 선택지에서 제거됨(너무 탁함). 저장된 데이터 호환 위해 burgundy(greybrown) 색으로 폴백
+  brown:     {bg: BaseColors['color-base-greybrown-80'], fg: BaseColors['color-base-greybrown-80']},
   darkred:   {bg: BaseColors['color-base-darkred-80'],   fg: BaseColors['color-base-darkred-80']},
   red:       {bg: BaseColors['color-base-red-80'],       fg: BaseColors['color-base-red-80']},
   orange:    {bg: BaseColors['color-base-orange-80'],    fg: BaseColors['color-base-orange-80']},
@@ -44,6 +45,8 @@ export function getColorValue(color: AvatarColor): string {
 const SLUG_MAP: Partial<Record<AvatarColor, string>> = {
   gray: 'grey',
   greybrown: 'burgundy',
+  // brown은 선택지에서 제거됨(너무 탁함). 기존 brown 데이터는 burgundy 토큰으로 매핑
+  brown: 'burgundy',
   lightblue: 'light-blue',
   // darkred는 선택지에서 제거됨. 저장된 데이터 호환 위해 red 토큰으로 폴백
   darkred: 'red',

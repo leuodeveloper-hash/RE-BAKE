@@ -82,7 +82,7 @@ export function Avatar({
   const BACKGROUND_COLORS: Record<AvatarColor, string> = {
     gray:      withOpacity(BaseColors['color-base-grey-80'], 0.16),
     greybrown: withOpacity(BaseColors['color-base-greybrown-80'], 0.16),
-    brown:     withOpacity(BaseColors['color-base-brown-80'], 0.16),
+    brown:     withOpacity(BaseColors['color-base-greybrown-80'], 0.16),
     darkred:   withOpacity(BaseColors['color-base-darkred-80'], 0.16),
     red:       withOpacity(BaseColors['color-base-red-80'], 0.16),
     orange:    withOpacity(BaseColors['color-base-orange-80'], 0.16),
@@ -100,7 +100,7 @@ export function Avatar({
   const FOREGROUND_COLORS: Record<AvatarColor, string> = {
     gray:      colors['custom/grey'],
     greybrown: colors['custom/burgundy'],
-    brown:     colors['custom/brown'],
+    brown:     colors['custom/burgundy'],
     darkred:   colors['custom/red'],
     red:       colors['custom/red'],
     orange:    colors['custom/orange'],

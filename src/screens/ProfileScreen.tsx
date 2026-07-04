@@ -377,7 +377,7 @@ export function ProfileScreen({
           <GlassContainer contentStyle={navPillStyle}>
             <IconButton
               icon={IconArrowLeft}
-              variant="ghost-secondary"
+              variant="ghost-primary"
               size="medium"
               onPress={onBack}
             />
@@ -528,19 +528,7 @@ export function ProfileScreen({
                   ),
                 }}
                 showDivider={false}
-                onPress={() => {
-                  if (!userEmail) {
-                    showMessage('계정이 있으면 알림 설정이 가능해요', {
-                      label: '로그인',
-                      onPress: () => {
-                        setShowSnackbar(false);
-                        setShowAuthSheet(true);
-                      },
-                    });
-                    return;
-                  }
-                  onExamNotifPress?.();
-                }}
+                onPress={() => onExamNotifPress?.()}
               />
             </Card>
           </ContentContainer>

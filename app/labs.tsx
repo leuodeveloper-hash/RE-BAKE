@@ -114,7 +114,7 @@ export default function LabsRoute() {
         <FloatingNavBar
           left={
             <GlassContainer contentStyle={navPillStyle}>
-              <IconButton icon={IconArrowLeft} onPress={() => router.back()} variant="ghost-secondary" size="medium" />
+              <IconButton icon={IconArrowLeft} onPress={() => router.back()} variant="ghost-primary" size="medium" />
             </GlassContainer>
           }
         />
@@ -160,7 +160,7 @@ export default function LabsRoute() {
       <FloatingNavBar
         left={
           <GlassContainer contentStyle={navPillStyle}>
-            <IconButton icon={IconArrowLeft} onPress={() => router.back()} variant="ghost-secondary" size="medium" />
+            <IconButton icon={IconArrowLeft} onPress={() => router.back()} variant="ghost-primary" size="medium" />
           </GlassContainer>
         }
       />

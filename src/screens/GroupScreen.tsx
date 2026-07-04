@@ -22,7 +22,7 @@ import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import type {Recipe} from '../types/recipe';
-import {IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconChartNoAxesGantt, IconChevronRight, IconSparkle, IconProcess, IconCardsFilled, IconArrowDownToLine} from '@components/Icon/IconIndex';
+import {IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconChartNoAxesGantt, IconChevronRight, IconSparkle, IconProcess, IconCards, IconCardsFilled, IconArrowDownToLine} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import {buildPaperPreview} from '@utils/recipePaperPreview';
 import {coverCards, recipeCoverCards, emptyCoverCard} from '@utils/cookbookCards';
@@ -149,7 +149,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
   const layoutMenuItems = useMemo(() => [
     {id: 'list', label: '리스트 뷰', icon: IconChartNoAxesGantt},
-    {id: 'pack', label: '팩뷰', icon: IconCardsFilled},
+    {id: 'pack', label: '팩뷰', icon: IconCards},
   ], []);
 
   const groupFilterMenuItems = useAxisMenuItems(availableAxes, axisOverrides);
@@ -250,8 +250,9 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
         footerRight: `${reviewTotal}개의\n회고`,
         icon: IconBookFilled,
         // 책 표지 글씨용: var(0.64 반투명) 대신 솔리드 커스텀 색 (반투명이면 글씨가 비쳐 보임)
+        // 미분류는 고정 옐로 표지 위에서 라이트/다크 대비가 뜨지 않도록 fixed 색 사용
         iconColor: isUngrouped
-          ? colors['custom/grey']
+          ? colors['foreground/on-surface-fixed']
           : colors[getColorVarKey(cookbookColors[cb.name] || DEFAULT_COOKBOOK_COLOR).replace('-var', '') as keyof typeof colors],
         cards,
         variant: 'book' as const,
@@ -284,67 +285,33 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
     return result;
   }, [recipes]);
 
-  // 회고 노트 팩: 회고 있는 레시피를 각각 개별 팩으로 (뱃지=레시피 제목, 탭=해당 레시피로 이동)
+  // 회고 노트 팩: 회고들을 하나의 노트 카드에 담아 ‹ ›로 미리보기 페이징 (탭=회고 바텀시트 열기)
   const retrospectivePacks = useMemo<PackBoardItem[]>(() => {
     if (retrospectives.length === 0) {
-      // 빈 상태: 엠티스테이트 일러스트 + 뱃지 '회고 노트 없음' → 탭하면 회고 바텀시트
       return [{
-        id: '__retrospective__',
-        title: '회고 노트 없음',
-        subtitle: '없음',
-        cards: [emptyCoverCard('회고 노트 없음')],
+        id: '__retro_note__',
+        title: '회고 노트',
+        subtitle: '',
+        variant: 'note' as const,
+        emptyCover: true,
+        cards: [],
         onPress: () => setShowReviewSheet(true),
       }];
     }
-    const groupSize = new Map<string, number>();
-    for (const r of recipes) {
-      const key = r.remakeGroupId ?? r.id;
-      groupSize.set(key, (groupSize.get(key) ?? 0) + 1);
-    }
-    return retrospectives.map(recipe => {
-      const groupKey = recipe.remakeGroupId ?? recipe.id;
-      const lineage = recipes
-        .filter(r => (r.remakeGroupId ?? r.id) === groupKey)
-        .sort((a, b) => parseSession(a.session).current - parseSession(b.session).current);
-      const totalSessions = lineage.length || (groupSize.get(groupKey) ?? 1);
-      const multi = totalSessions > 1;
-      const sessions: SessionFlowItem[] = lineage.map(x => ({
-        id: x.id,
-        title: x.title,
-        imageUrl: x.imageUri,
-        paperPreview: buildPaperPreview(x),
-        sessionLabel: `${parseSession(x.session).current}회차`,
-      }));
-      // 레시피 북 펼침(GroupExpandOverlay)과 동일한 카드 구성 (종이 유지):
-      // 다회차 → 회차 종이 2장(뒤) + 썸네일(앞), 단일 → 사진+종이 1장
-      const cards = multi
-        ? [
-            ...sessions
-              .slice(0, 2)
-              .reverse()
-              .map(s => ({title: `${s.title} #${s.sessionLabel.replace(/[^0-9]/g, '')}`, paperPreview: s.paperPreview})),
-            {imageUrl: recipe.imageUri, title: recipe.title},
-          ]
-        : [{imageUrl: recipe.imageUri, title: recipe.title, paperPreview: buildPaperPreview(recipe)}];
-      return {
-        id: `__retro_${recipe.id}`,
-        title: recipe.title,
-        subtitle: `${totalSessions}회차`,
-        count: totalSessions,
-        icon: IconChartNoAxesGantt,
-        iconColor: colors['custom/light-blue-var'],
-        cards,
-        onPress: (rect: PackOriginRect) => {
-          if (multi && sessions.length > 1) {
-            // 다회차 → 회차 펼침(SessionFlow)
-            setRetroFlow({sessions, origin: rect, root: {imageUrl: recipe.imageUri, title: recipe.title, count: totalSessions}});
-          } else {
-            onRecipePress?.(recipe.id);
-          }
-        },
-      };
-    });
-  }, [recipes, retrospectives, onRecipePress, colors]);
+    const cards = retrospectives.map(recipe => ({
+      title: recipe.title,
+      paperPreview: buildPaperPreview(recipe),
+    }));
+    return [{
+      id: '__retro_note__',
+      title: '회고 노트',
+      subtitle: '',
+      variant: 'note' as const,
+      count: retrospectives.length,
+      cards,
+      onPress: () => setShowReviewSheet(true),
+    }];
+  }, [retrospectives]);
 
   // 활성 축에 따른 팩 목록
   const activePacks = axis === 'cookbook' ? cookbookPacks : axis === 'method' ? methodPacks : retrospectivePacks;
@@ -482,12 +449,14 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
     <View style={styles.container}>
       <AppBar
         title={axisLabel(axis, axisOverrides)}
+        titleIcon={groupFilterMenuItems.find(i => i.id === axis)?.icon}
+        titleIconColor={groupFilterMenuItems.find(i => i.id === axis)?.iconColor}
         showDropdown
         showAddButton={showAddButton}
         onTitlePress={handleTitlePress}
         onAddPress={() => { setCookbookInitialOfficial(addAsOfficial); setShowCookbookDialog(true); }}
         onFilterPress={() => { setShowMoreMenu(false); setShowLayoutMenu(prev => !prev); }}
-        filterIcon={viewMode === 'pack' ? IconCardsFilled : IconChartNoAxesGantt}
+        filterIcon={viewMode === 'pack' ? IconCards : IconChartNoAxesGantt}
         filterMenuOpen={showLayoutMenu}
         onMenuPress={() => { setShowLayoutMenu(false); handleMenuPress(); }}
         menuOpen={showMoreMenu}
@@ -532,8 +501,8 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
           <PullIndicator progress={pullProgress} isRefreshing={isRefreshing} refreshStripProgress={refreshStripProgress} refreshOpacity={refreshOpacity} />
 
           {viewMode === 'pack' ? (
-            bookCarousel && axis === 'cookbook' ? (
-              /* 레시피 북 팩뷰: 센터 카드 캐러셀 (한 권씩 스와이프, 탭 시 펼침) */
+            (bookCarousel && axis === 'cookbook') || axis === 'retrospective' ? (
+              /* 레시피 북·회고 노트 팩뷰: 센터 카드 캐러셀 (하나씩 스와이프, 탭 시 펼침) */
               <CookbookCarousel items={activePacks} />
             ) : (
               /* 그 외 팩뷰: 흩뿌림 캔버스 + 패닝/핀치 줌 */

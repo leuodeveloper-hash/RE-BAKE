@@ -182,6 +182,7 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   },
   containerGhost: {
     flex: 1,
+    justifyContent: 'center',
   },
   label: {
     ...Typography.label.medium,

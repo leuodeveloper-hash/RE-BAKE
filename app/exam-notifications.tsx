@@ -16,7 +16,7 @@ import {useExamNotificationPrefs, EXAM_TYPES, type ExamType} from '@hooks/useExa
 import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {IconArrowLeft, IconBellFilled, IconCircleInfoFilled} from '@components/Icon/IconIndex';
+import {IconArrowLeft, IconBellFilled, IconCircleInfo} from '@components/Icon/IconIndex';
 
 export default function ExamNotificationsRoute() {
   const styles = useThemedStylesV2(createStyles);
@@ -160,12 +160,12 @@ export default function ExamNotificationsRoute() {
       <FloatingNavBar
         left={
           <GlassContainer contentStyle={navPillStyle}>
-            <IconButton icon={IconArrowLeft} onPress={() => router.back()} variant="ghost-secondary" size="medium" />
+            <IconButton icon={IconArrowLeft} onPress={() => router.back()} variant="ghost-primary" size="medium" />
           </GlassContainer>
         }
         right={
           <GlassContainer contentStyle={navPillStyle}>
-            <IconButton icon={IconCircleInfoFilled} onPress={() => router.push('/exam-schedule' as any)} variant="ghost-secondary" size="medium" />
+            <IconButton icon={IconCircleInfo} onPress={() => router.push('/exam-schedule' as any)} variant="ghost-primary" size="medium" />
           </GlassContainer>
         }
       />

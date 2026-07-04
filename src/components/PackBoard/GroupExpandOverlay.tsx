@@ -1,8 +1,10 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {Animated, Dimensions, Easing, StyleSheet, View} from 'react-native';
-import {FloatingNavBar, NAV_PILL_HEIGHT} from '@components/Navigation';
+import {FloatingNavBar, NAV_PILL_HEIGHT, navPillStyle} from '@components/Navigation';
 import {Breadcrumb} from '@components/Navigation/Breadcrumb';
-import {MAX_CONTENT_WIDTH} from '@components/Container';
+import {GlassContainer, MAX_CONTENT_WIDTH} from '@components/Container';
+import {IconButton} from '@components/IconButton';
+import {IconChevronLeft} from '@components/Icon/IconIndex';
 import {Menu} from '@components/Menu';
 import {EmptyState} from '@components/EmptyState';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
@@ -145,7 +147,7 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
                 <Breadcrumb
                   axisLabel={axisLabel}
                   itemLabel={active}
-                  onAxisPress={close}
+                  onBack={close}
                   onItemPress={showSelector ? () => setShowMethodMenu(prev => !prev) : undefined}
                 />
                 {showSelector && (

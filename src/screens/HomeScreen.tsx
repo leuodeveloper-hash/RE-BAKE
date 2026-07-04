@@ -27,16 +27,13 @@ import {generateRecipeListHtml, generateRecipeHtml} from '@utils/generateRecipeH
 import {parseSession, formatSession} from '@utils/session';
 import {getRecipeMenuItems} from '@utils/recipeMenuItems';
 import {CookbookSelectSheet} from '@components/BottomSheet';
-import {FloatingActionButton} from '@components/FloatingActionButton';
 import {
-  IconAdd,
   IconTrash,
   IconTrashTwotone,
   IconArrowDownToLine,
   IconCloudFilled,
 } from '@components/Icon/IconIndex';
 
-const emptyCookbookImage = require('../../assets/images/empty_no_cookbook_recipe.png');
 
 const MORE_MENU_ITEMS = [
   {id: 'downloadAll', label: 'PDF 다운로드', icon: IconArrowDownToLine},
@@ -410,7 +407,7 @@ export function HomeScreen() {
         !isLoading ? (
           selectedCookbook ? (
             <EmptyState
-              image={emptyCookbookImage}
+              category="no-recipe"
               title="레시피 북이 비어 있어요."
               subtitle="첫 레시피를 추가해보세요."
               actionLabel="레시피 추가하기"
@@ -439,11 +436,22 @@ export function HomeScreen() {
           titleNode={
             <Breadcrumb
               axisLabel={AXIS_LABELS[crumbAxis]}
+              axisIcon={axisMenuItems.find(i => i.id === crumbAxis)?.icon}
+              axisIconColor={axisMenuItems.find(i => i.id === crumbAxis)?.iconColor}
               itemLabel={crumbItemLabel}
               onAxisPress={() => {
                 closeMenus();
                 setShowMoreMenu(false);
                 setCrumbMenu(prev => (prev === 'axis' ? null : 'axis'));
+              }}
+              onBack={() => {
+                closeMenus();
+                setShowMoreMenu(false);
+                setCrumbMenu(null);
+                // 상위 목록(레시피북/공법 GroupScreen)으로 복귀
+                setGroupAxis(crumbAxis);
+                setSelectedCookbook(null);
+                setSelectedMethod(null);
               }}
               onItemPress={() => {
                 closeMenus();
@@ -497,15 +505,6 @@ export function HomeScreen() {
         />
       )}
     >
-      {/* 레시피북 진입 시: 우측 하단 + 플로팅 버튼으로 해당 북에 바로 추가 */}
-      {selectedCookbook && !isLoading && (
-        <FloatingActionButton
-          icon={IconAdd}
-          onPress={handleAddRecipe}
-          accessibilityLabel={`'${selectedCookbook}'에 레시피 추가`}
-        />
-      )}
-
       {/* 전체 삭제 확인 다이얼로그 */}
       <Dialog
         visible={showDeleteAllDialog}

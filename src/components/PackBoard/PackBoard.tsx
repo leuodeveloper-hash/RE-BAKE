@@ -1,6 +1,7 @@
 import React, {useMemo, useRef} from 'react';
-import {Animated, Easing, StyleSheet, View} from 'react-native';
+import {Animated, Easing, Platform, StyleSheet, View} from 'react-native';
 import {RecipePack, PACK_WIDTH, type RecipePackProps} from './RecipePack';
+import {RetrospectiveNote} from './RetrospectiveNote';
 
 export interface PackBoardItem extends RecipePackProps {
   id: string;
@@ -132,14 +133,21 @@ export function PackBoard({items, height, entrance = false, dimExceptId}: PackBo
             style={[
               styles.pack,
               {left, top, opacity, transform: [{translateX}, {translateY}, {scale}]},
+              // 웹: 그림자 요소를 transform 애니메이션할 때 box-shadow 잔상이 남음 →
+              // GPU 레이어로 승격해 깨끗이 리페인트 (상단에 그림자 박스 잔상 방지)
+              Platform.OS === 'web' && ({willChange: 'transform', backfaceVisibility: 'hidden'} as any),
             ]}>
             {/* 활성(원본)은 오버레이가 맨 위에 그리므로 보드에선 숨김 */}
             <View style={{opacity: isActive ? 0 : dimmed ? 0.5 : 1}}>
-              <RecipePack
-                {...item}
-                rotate={rotate}
-                pillCorner={item.pillBottom ? undefined : pillCorner}
-              />
+              {item.variant === 'note' ? (
+                <RetrospectiveNote {...item} rotate={rotate} />
+              ) : (
+                <RecipePack
+                  {...item}
+                  rotate={rotate}
+                  pillCorner={item.pillBottom ? undefined : pillCorner}
+                />
+              )}
             </View>
           </Animated.View>
         );

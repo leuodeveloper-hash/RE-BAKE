@@ -766,7 +766,7 @@ export function RecipeDetailScreen({
                 <Animated.View key="ing-content-empty" style={{opacity: sectionAnims[0]}}>
                   <ContentContainer>
                     <Card>
-                      <EmptyState variant="inline" title="아직 등록된 재료가 없습니다" />
+                      <EmptyState variant="simple" title="아직 등록된 재료가 없습니다" />
                     </Card>
                   </ContentContainer>
                 </Animated.View>,
@@ -802,7 +802,7 @@ export function RecipeDetailScreen({
           <ContentContainer>
             <Card>
               {!toolsHasContent ? (
-                <EmptyState variant="inline" title="아직 등록된 도구가 없습니다" />
+                <EmptyState variant="simple" title="아직 등록된 도구가 없습니다" />
               ) : resolvedToolGroups.length > 1 ? (
                 resolvedToolGroups.map((group, gIdx) => (
                   <React.Fragment key={gIdx}>
@@ -838,7 +838,7 @@ export function RecipeDetailScreen({
           <Animated.View key="step-content-empty" style={{opacity: sectionAnims[1]}}>
             <ContentContainer>
               <Card>
-                <EmptyState variant="inline" title="아직 등록된 과정이 없습니다" />
+                <EmptyState variant="simple" title="아직 등록된 과정이 없습니다" />
               </Card>
             </ContentContainer>
           </Animated.View>,
@@ -1024,7 +1024,7 @@ export function RecipeDetailScreen({
                     </View>
                   )} : undefined}
                 />
-                <EmptyState variant="inline" title="아직 작성된 회고가 없습니다" />
+                <EmptyState variant="simple" title="아직 작성된 회고가 없습니다" />
               </Card>
             )}
           </ContentContainer>
@@ -1097,7 +1097,7 @@ export function RecipeDetailScreen({
               <IconButton
                 icon={IconClose}
                 onPress={onBack}
-                variant="ghost-secondary"
+                variant="ghost-primary"
                 size="medium"
               />
             </GlassContainer>
@@ -1135,13 +1135,13 @@ export function RecipeDetailScreen({
             <IconButton
               icon={IconPlayFilled}
               onPress={locked ? () => setShowUnlockDialog(true) : () => { setCookingModeShowIngredients(true); setShowCookingMode(true); }}
-              variant="ghost-secondary"
+              variant="ghost-primary"
               size="medium"
             />
             <IconButton
               icon={IconEllipsisVertical}
               onPress={handleMenuPress}
-              variant="ghost-secondary"
+              variant="ghost-primary"
               size="medium"
               forcePressed={showMenu}
             />

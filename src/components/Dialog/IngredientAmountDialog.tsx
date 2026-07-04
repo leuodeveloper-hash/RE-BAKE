@@ -105,7 +105,7 @@ export function IngredientAmountDialog({visible, onClose, amount, unit, onConfir
                 label={currentUnitDef?.label ?? selectedUnit}
                 showDropdown
                 onPress={() => setShowUnitMenu(prev => !prev)}
-                variant="soft"
+                variant="tonal"
                 forcePressed={showUnitMenu}
               />
               <Menu
@@ -127,7 +127,7 @@ export function IngredientAmountDialog({visible, onClose, amount, unit, onConfir
                 label={currentUnitDef?.label ?? selectedUnit}
                 showDropdown
                 onPress={() => setShowUnitMenu(prev => !prev)}
-                variant="soft"
+                variant="tonal"
                 forcePressed={showUnitMenu}
               />
               <Menu

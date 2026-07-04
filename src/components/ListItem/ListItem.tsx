@@ -175,7 +175,7 @@ const createStyles = (colors: SemanticColorsV2) =>
     },
     stateLayerPressed: {
       backgroundColor:
-        colors['state/pressed'],
+        colors['fill/subtle'],
     },
     slotContainer: {
       width: 28,

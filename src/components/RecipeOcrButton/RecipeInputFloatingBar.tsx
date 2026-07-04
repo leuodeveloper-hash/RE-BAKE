@@ -15,6 +15,7 @@ import {
 import {IconButton} from '@components/IconButton';
 import {Menu} from '@components/Menu';
 import {KeyboardToolbar} from '@components/KeyboardToolbar';
+import {EditorToolbar} from '@components/EditorToolbar';
 import {useSTT} from '@hooks/useSTT';
 import {recognizeImageText, parseRecognizedText, type RecipeOcrField} from '@utils/recipeOcr';
 import {OcrCropModal} from './OcrCropModal';
@@ -139,8 +140,15 @@ export function RecipeInputFloatingBar({
     setBusy(true);
     // 픽 시작 → 부모가 바를 유지하도록 (사진 고를 때 blur로 언마운트되어 크롭 모달이 닫히는 것 방지)
     onPickActiveChange?.(true);
+    // iOS: 스캔 메뉴 닫힘 + 키보드가 떠 있는 상태에서 이미지 피커를 present하면
+    // "다른 화면 전환 중"이라 iOS가 present를 조용히 무시함(안드는 정상).
+    // → 키보드 내리고 한 틱 기다렸다가 피커를 띄운다. (키보드 툴바→메뉴 회귀 수정)
+    Keyboard.dismiss();
     let cropStarted = false;
     try {
+      if (Platform.OS === 'ios') {
+        await new Promise<void>(resolve => setTimeout(resolve, 350));
+      }
       if (source === 'camera') {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
         if (!perm.granted) {
@@ -216,57 +224,23 @@ export function RecipeInputFloatingBar({
 
   return (
     <>
-      <KeyboardToolbar
+      <EditorToolbar
         style={style}
-        left={
-          <>
-            {showRegionNav && (
-              <>
-                <IconButton
-                  icon={IconChevronLeft}
-                  onPress={onPrevField}
-                  variant="ghost-secondary"
-                  size="medium"
-                  disabled={!canPrev}
-                />
-                <IconButton
-                  icon={IconChevronRight}
-                  onPress={onNextField}
-                  variant="ghost-secondary"
-                  size="medium"
-                  disabled={!canNext}
-                />
-              </>
-            )}
-            {/* 칩 추가(+): 액션 고정, 해당사항 없으면 disabled */}
-            <IconButton
-              icon={IconAdd}
-              onPress={onAddChip}
-              variant="ghost-secondary"
-              size="medium"
-              disabled={!canAddChip}
-            />
-            <IconButton
-              icon={IconMic}
-              onPress={handleVoice}
-              variant="ghost-secondary"
-              size="medium"
-            />
-            <IconButton
-              icon={IconScanText}
-              onPress={() => {
-                if (externalBusy || busy) {
-                  onStop?.();
-                } else {
-                  handleScanTap();
-                }
-              }}
-              variant="ghost-secondary"
-              size="medium"
-              forcePressed={showScanMenu}
-            />
-          </>
-        }
+        prev={{onPress: onPrevField, disabled: !onPrevField || !canPrev}}
+        next={{onPress: onNextField, disabled: !onNextField || !canNext}}
+        add={{onPress: onAddChip, disabled: !canAddChip}}
+        voice={{onPress: handleVoice, active: stt.recording}}
+        scan={{
+          onPress: () => {
+            if (externalBusy || busy) {
+              onStop?.();
+            } else {
+              handleScanTap();
+            }
+          },
+          active: showScanMenu,
+        }}
+        onDone={handleDone}
         above={showScanMenu ? (
           <Menu
             items={[
@@ -282,14 +256,6 @@ export function RecipeInputFloatingBar({
             style={styles.scanMenu}
           />
         ) : undefined}
-        right={
-          <IconButton
-            icon={IconTick}
-            onPress={handleDone}
-            variant="ghost-primary"
-            size="medium"
-          />
-        }
       />
       <OcrCropModal
         visible={!!cropTarget}

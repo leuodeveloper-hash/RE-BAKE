@@ -1,5 +1,6 @@
 import React, {useCallback, useMemo, useState} from 'react';
 import {AppBar} from '@components/Navigation';
+import {Breadcrumb} from '@components/Navigation/Breadcrumb';
 import {EmptyState} from '@components/EmptyState';
 import {Menu} from '@components/Menu';
 import {Dialog, PdfPreviewDialog} from '@components/Dialog';
@@ -31,7 +32,6 @@ const EXPLORE_AXIS_OVERRIDES: AxisOverrides = {
 
 const FREE_RECIPE_COUNT = 3;
 
-const emptyCookbookImage = require('../../assets/images/empty_no_cookbook_recipe.png');
 const BASE_CARD_MENU_ITEMS = getRecipeMenuItems({showImport: true});
 const ADMIN_CARD_MENU_ITEMS = getRecipeMenuItems({showImport: true, showEdit: true, showDelete: true});
 
@@ -90,6 +90,7 @@ export function ExploreScreen({
     }
   }, [selectedExploreCookbook, setSelectedExploreCookbook]);
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
+  const [showItemMenu, setShowItemMenu] = useState(false);
   const [showFlatMoreMenu, setShowFlatMoreMenu] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [pdfRecipe, setPdfRecipe] = useState<Recipe | null>(null);
@@ -184,6 +185,37 @@ export function ExploreScreen({
     if (r) handleRecipePress(r);
   }, [data, handleRecipePress]);
 
+  // ===== 평면 리스트 뎁스 브레드크럼 (홈과 동일: 뒤로가기 + 항목 셀렉터) =====
+  const CRUMB_ALL = '__all__';
+  const crumbAxis: GroupAxis = selectedMethod ? 'method' : (selectedCategory !== CRUMB_ALL ? 'cookbook' : 'all');
+  const crumbItemMenuItems = useMemo(() => {
+    if (crumbAxis === 'cookbook') {
+      const names = new Set<string>();
+      for (const r of data) names.add(r.cookbook || '공식 레시피 북 없음');
+      exploreCookbooks?.forEach(c => names.add(c.name));
+      return [{id: CRUMB_ALL, label: '전체'}, ...[...names].map(n => ({id: n, label: n}))];
+    }
+    if (crumbAxis === 'method') {
+      const names = new Set<string>();
+      for (const r of data) names.add(r.method?.trim() || '공법 없음');
+      return [{id: CRUMB_ALL, label: '전체'}, ...[...names].map(n => ({id: n, label: n}))];
+    }
+    return [];
+  }, [crumbAxis, data, exploreCookbooks]);
+
+  const handleCrumbItemSelect = useCallback((id: string) => {
+    setShowItemMenu(false);
+    if (crumbAxis === 'cookbook') { setSelectedMethod(null); setSelectedCategory(id === CRUMB_ALL ? CRUMB_ALL : id); }
+    else if (crumbAxis === 'method') { setSelectedCategory(CRUMB_ALL); setSelectedMethod(id === CRUMB_ALL ? null : id); }
+  }, [crumbAxis]);
+
+  // 뒤로가기: 상위 목록(레시피북/공법 GroupScreen)으로
+  const handleCrumbBack = useCallback(() => {
+    setShowCategoryMenu(false); setShowItemMenu(false); setShowFlatMoreMenu(false);
+    setExploreAxis(crumbAxis);
+    setSelectedCategory(CRUMB_ALL); setSelectedMethod(null);
+  }, [crumbAxis]);
+
   // 그룹 모드(레시피북/공법): 홈과 동일하게 공통 GroupScreen 호스팅 (리스트/팩 + 펼침)
   if (exploreAxis !== 'all') {
     return (
@@ -220,8 +252,8 @@ export function ExploreScreen({
       cardMenuItems={cardMenuItems}
       onCardMenuSelect={handleCardMenuSelect}
       onRefresh={onRefresh}
-      onOverlayPress={() => { setShowCategoryMenu(false); setShowFlatMoreMenu(false); }}
-      extraOverlayVisible={showCategoryMenu || showFlatMoreMenu}
+      onOverlayPress={() => { setShowCategoryMenu(false); setShowItemMenu(false); setShowFlatMoreMenu(false); }}
+      extraOverlayVisible={showCategoryMenu || showItemMenu || showFlatMoreMenu}
       scrollEnabled
       lockedRecipeIds={lockedRecipeIds}
       listEmptyComponent={
@@ -233,7 +265,7 @@ export function ExploreScreen({
           />
         ) : selectedCategory && selectedCategory !== '__all__' ? (
           <EmptyState
-            image={emptyCookbookImage}
+            category="no-recipe"
             title="레시피 북이 비어 있어요."
             subtitle="첫 레시피를 추가해보세요."
             actionLabel={onAddRecipe ? '레시피 추가하기' : undefined}
@@ -249,8 +281,27 @@ export function ExploreScreen({
       }
       renderAppBar={({handleFilterPress, showLayoutMenu, closeMenus, layoutMenu, filterIcon}) =>
         <AppBar
-          title={flatFilterLabel ?? axisLabel(exploreAxis, EXPLORE_AXIS_OVERRIDES)}
-          showDropdown
+          titleNode={
+            <Breadcrumb
+              axisLabel={axisLabel(crumbAxis, EXPLORE_AXIS_OVERRIDES)}
+              axisIcon={axisMenuItems.find(i => i.id === crumbAxis)?.icon}
+              axisIconColor={axisMenuItems.find(i => i.id === crumbAxis)?.iconColor}
+              itemLabel={flatFilterLabel}
+              onAxisPress={() => {
+                closeMenus();
+                setShowFlatMoreMenu(false);
+                setShowItemMenu(false);
+                setShowCategoryMenu(prev => !prev);
+              }}
+              onBack={handleCrumbBack}
+              onItemPress={() => {
+                closeMenus();
+                setShowFlatMoreMenu(false);
+                setShowCategoryMenu(false);
+                setShowItemMenu(prev => !prev);
+              }}
+            />
+          }
           filterIcon={filterIcon}
           showAddButton={!!onAddRecipe}
           showMenuButton={!!onDownloadPdf}
@@ -258,12 +309,8 @@ export function ExploreScreen({
           onMenuPress={() => {
             closeMenus();
             setShowCategoryMenu(false);
+            setShowItemMenu(false);
             setShowFlatMoreMenu(prev => !prev);
-          }}
-          onTitlePress={() => {
-            closeMenus();
-            setShowFlatMoreMenu(false);
-            setShowCategoryMenu(prev => !prev);
           }}
           onAddPress={() => {
             closeMenus();
@@ -273,17 +320,28 @@ export function ExploreScreen({
           }}
           onFilterPress={() => {
             setShowCategoryMenu(false);
+            setShowItemMenu(false);
             setShowFlatMoreMenu(false);
             handleFilterPress();
           }}
           filterMenuOpen={showLayoutMenu}
           titleMenu={
-            <Menu
-              items={axisMenuItems}
-              selectedId={exploreAxis}
-              onSelect={handleAxisSelect}
-              visible={showCategoryMenu}
-            />
+            <>
+              <Menu
+                items={axisMenuItems}
+                selectedId={exploreAxis}
+                onSelect={handleAxisSelect}
+                visible={showCategoryMenu}
+              />
+              {flatFilterLabel != null && (
+                <Menu
+                  items={crumbItemMenuItems}
+                  selectedId={selectedMethod ?? selectedCategory}
+                  onSelect={handleCrumbItemSelect}
+                  visible={showItemMenu}
+                />
+              )}
+            </>
           }
           rightMenu={
             <>

@@ -146,7 +146,7 @@ export function IconButton({
       return colors['foreground/on-surface-inverse'];
     }
     if (variant === 'ghost-primary') {
-      return colors['foreground/accent'];
+      return colors['foreground/on-surface'];
     }
     if (variant === 'ghost-secondary') {
       return colors['foreground/on-surface-muted'];

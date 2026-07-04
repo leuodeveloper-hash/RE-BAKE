@@ -1,6 +1,7 @@
 import React, {useRef} from 'react';
 import {Animated, StyleSheet, useWindowDimensions, View} from 'react-native';
 import {RecipePack, BOOK_PACK_WIDTH} from './RecipePack';
+import {RetrospectiveNote} from './RetrospectiveNote';
 import type {PackBoardItem} from './PackBoard';
 
 const GAP = 24;
@@ -48,7 +49,9 @@ export function CookbookCarousel({items}: {items: PackBoardItem[]}) {
                 transform: [{scale}],
                 opacity,
               }}>
-              <RecipePack {...item} rotate={0} />
+              {item.variant === 'note'
+                ? <RetrospectiveNote {...item} rotate={0} />
+                : <RecipePack {...item} rotate={0} />}
             </Animated.View>
           );
         })}

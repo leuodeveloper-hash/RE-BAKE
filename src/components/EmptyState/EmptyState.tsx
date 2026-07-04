@@ -12,7 +12,7 @@ const emptyNoResultsImage = require('../../../assets/images/empty_no_results.png
 const emptyNetworkImage = require('../../../assets/images/empty_network.png');
 
 export type EmptyStateCategory = 'no-results' | 'no-recipe' | 'network-error' | 'error';
-export type EmptyStateVariant = 'fullscreen' | 'inline';
+export type EmptyStateVariant = 'fullscreen' | 'simple';
 
 export interface EmptyStateProps {
   /** 카테고리별 기본 일러스트레이션 */
@@ -30,35 +30,36 @@ export interface EmptyStateProps {
   variant?: EmptyStateVariant;
 }
 
-function CategoryIllustration({category, styles}: {category: EmptyStateCategory; styles: any}) {
+function categoryImage(category: EmptyStateCategory): ImageSourcePropType | null {
   switch (category) {
-    case 'no-results':
-      return <Image source={emptyNoResultsImage} style={styles.image} />;
-    case 'no-recipe':
-      return <Image source={emptyRecipeImage} style={styles.image} />;
-    case 'network-error':
-      return <Image source={emptyNetworkImage} style={styles.image} />;
-    case 'error':
-      return null;
+    case 'no-results': return emptyNoResultsImage;
+    case 'no-recipe': return emptyRecipeImage;
+    case 'network-error': return emptyNetworkImage;
+    case 'error': return null;
   }
 }
 
 export function EmptyState({category, image, icon, title, subtitle, actionLabel, onAction, variant = 'fullscreen'}: EmptyStateProps) {
   const styles = useThemedStylesV2(createStyles);
 
-  if (variant === 'inline') {
+  if (variant === 'simple') {
+    // 심플: 작은 일러스트(카테고리/이미지 있을 때만) + 텍스트. 이미지는 경우에 따라 있거나 없음.
+    const simpleImg = category ? categoryImage(category) : image;
     return (
-      <View style={styles.inlineContainer}>
-        <Text style={styles.inlineText}>{title}</Text>
-        {subtitle && <Text style={styles.inlineSubtitle}>{subtitle}</Text>}
+      // 일러스트 있을 때만 하단 여백 바이어스 → 부모 중앙 정렬 시 시각적 상하 중앙처럼 보임.
+      // 텍스트만일 땐 순수 중앙(바이어스 없음).
+      <View style={[styles.simpleContainer, !!simpleImg && styles.simpleContainerWithImage]}>
+        {simpleImg && <Image source={simpleImg} style={styles.smallImage} />}
+        <Text style={styles.simpleText}>{title}</Text>
+        {subtitle && <Text style={styles.simpleSubtitle}>{subtitle}</Text>}
       </View>
     );
   }
 
+  const fullImg = category ? categoryImage(category) : image;
   return (
     <View style={styles.container}>
-      {category && <CategoryIllustration category={category} styles={styles} />}
-      {!category && image && <Image source={image} style={styles.image} />}
+      {fullImg && <Image source={fullImg} style={styles.image} />}
       {!category && !image && icon && (
         <AppIcon icon={icon} size="lg" color={styles.iconColor.color} />
       )}
@@ -85,6 +86,10 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
     width: 120,
     height: 120,
   },
+  smallImage: {
+    width: 60,
+    height: 60,
+  },
   iconColor: {
     color: colors['foreground/on-surface-muted'],
   },
@@ -110,27 +115,31 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
     textAlign: 'center',
     marginTop: FONT_BASELINE_OFFSET,
   },
-  // ---- inline variant (카드/섹션 내부) ----
-  inlineContainer: {
+  // ---- simple variant (카드/섹션 내부 — 작은 일러스트 + 작은 텍스트) ----
+  simpleContainer: {
     paddingVertical: Spacing.lg,
     paddingHorizontal: Spacing.md,
     alignItems: 'center',
-    gap: Spacing.xs,
+    gap: Spacing.sm,
   },
-  inlineText: {
-    fontFamily: Typography.body.medium.fontFamily,
-    fontSize: Typography.body.medium.fontSize,
-    fontWeight: Typography.body.medium.fontWeight as '500',
-    lineHeight: Typography.body.medium.lineHeight,
-    color: colors['foreground/on-surface-muted'],
-    textAlign: 'center',
-    marginTop: FONT_BASELINE_OFFSET,
+  // 일러스트 있을 때만 하단 여백을 더 줘 시각 중앙 보정
+  simpleContainerWithImage: {
+    paddingBottom: 40,
   },
-  inlineSubtitle: {
+  simpleText: {
     fontFamily: Typography.label.medium.fontFamily,
     fontSize: Typography.label.medium.fontSize,
     fontWeight: Typography.label.medium.fontWeight as '500',
     lineHeight: Typography.label.medium.lineHeight,
+    color: colors['foreground/on-surface-muted'],
+    textAlign: 'center',
+    marginTop: FONT_BASELINE_OFFSET,
+  },
+  simpleSubtitle: {
+    fontFamily: Typography.label.small.fontFamily,
+    fontSize: Typography.label.small.fontSize,
+    fontWeight: Typography.label.small.fontWeight as '500',
+    lineHeight: Typography.label.small.lineHeight,
     color: colors['foreground/on-surface-muted'],
     textAlign: 'center',
     marginTop: FONT_BASELINE_OFFSET,

@@ -17,17 +17,17 @@ import type {Recipe} from '../../../types/recipe';
 import {parseSession} from '@utils/session';
 import {recipeToPdfData} from '@utils/generateRecipeHtml';
 import {
-  IconLayoutGridFilled,
+  IconLayoutGrid,
   IconLayoutPanelTop,
   IconList,
-  IconCardsFilled,
+  IconCards,
 } from '@components/Icon/IconIndex';
 
 const LAYOUT_MENU_ITEMS: MenuItemData[] = [
-  {id: 'grid', label: '그리드', icon: IconLayoutGridFilled},
+  {id: 'grid', label: '그리드', icon: IconLayoutGrid},
   {id: 'photoList', label: '사진 목록', icon: IconLayoutPanelTop},
   {id: 'list', label: '목록', icon: IconList},
-  {id: 'pack', label: '팩뷰', icon: IconCardsFilled},
+  {id: 'pack', label: '팩뷰', icon: IconCards},
 ];
 
 // 레이아웃 선택: 메뉴 박스 안 아이콘 탭(세그먼트)으로 표시 — 레이블 없이 아이콘만
@@ -488,7 +488,7 @@ export function RecipeListTemplate({
     closeMenus,
     layoutMenu: layoutMenuNode,
     // 현재 레이아웃의 아이콘 → AppBar 필터 버튼에 노출 (뷰 바꾸면 아이콘도 바뀜)
-    filterIcon: LAYOUT_MENU_ITEMS.find(i => i.id === activeLayout)?.icon ?? IconLayoutGridFilled,
+    filterIcon: LAYOUT_MENU_ITEMS.find(i => i.id === activeLayout)?.icon ?? IconLayoutGrid,
   };
 
   const renderItem = useCallback(({item, index}: {item: Recipe; index: number}) => {

@@ -107,7 +107,7 @@ export default function PrivacyScreen() {
             <IconButton
               icon={IconArrowLeft}
               onPress={() => router.back()}
-              variant="ghost-secondary"
+              variant="ghost-primary"
               size="medium"
             />
           </GlassContainer>

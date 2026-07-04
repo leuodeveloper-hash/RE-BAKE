@@ -116,7 +116,7 @@ export default function TermsScreen() {
             <IconButton
               icon={IconArrowLeft}
               onPress={() => router.back()}
-              variant="ghost-secondary"
+              variant="ghost-primary"
               size="medium"
             />
           </GlassContainer>

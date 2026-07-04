@@ -44,7 +44,7 @@ const SHADOW_SUBTLE: Shadow[] = [
 ];
 
 const SHADOW_NORMAL: Shadow[] = [
-  {offsetX: 0, offsetY: 3, blur: 24, spread: 0, color: rgba(SHADOW_COLOR, 0.05)},
+  {offsetX: 0, offsetY: 3, blur: 24, spread: 0, color: rgba(SHADOW_COLOR, 0.07)},
   {offsetX: 0, offsetY: 0, blur: 2, spread: 0, color: rgba(SHADOW_COLOR, 0.05)},
 ];
 
