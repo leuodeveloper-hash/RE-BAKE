@@ -1375,7 +1375,6 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 </ListItem>
               ) : (
                 <ListItem
-                  title="재료"
                   leading={{type: 'icon', icon: IconLeafFilled}}
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
@@ -1407,8 +1406,11 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                       )}
                       <IconButton icon={IconPlusCircleFilled} onPress={() => addIngredient(group.id)} variant="ghost-secondary" size="medium" />
                     </View>
-                  )}}
-                />
+                  )}}>
+                  <View style={styles.breadcrumbRow}>
+                    <Text style={styles.breadcrumbPrefix}>재료</Text>
+                  </View>
+                </ListItem>
               )}
 
               {/* Ingredients */}
@@ -1572,7 +1574,6 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 </ListItem>
               ) : (
                 <ListItem
-                  title="도구"
                   leading={{type: 'icon', icon: IconToolCaseFilled}}
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
@@ -1597,8 +1598,11 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                       )}
                       <IconButton icon={IconPlusCircleFilled} onPress={() => addTool(group.id)} variant="ghost-secondary" size="medium" />
                     </View>
-                  )}}
-                />
+                  )}}>
+                  <View style={styles.breadcrumbRow}>
+                    <Text style={styles.breadcrumbPrefix}>도구</Text>
+                  </View>
+                </ListItem>
               )}
 
               {/* Tools */}
@@ -1752,7 +1756,6 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 </ListItem>
               ) : (
                 <ListItem
-                  title="과정"
                   leading={{type: 'icon', icon: IconProcess}}
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
@@ -1781,8 +1784,11 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                         <IconButton icon={IconPlusCircleFilled} onPress={() => addStep(group.id)} variant="ghost-secondary" size="medium" />
                       )}
                     </View>
-                  )}}
-                />
+                  )}}>
+                  <View style={styles.breadcrumbRow}>
+                    <Text style={styles.breadcrumbPrefix}>과정</Text>
+                  </View>
+                </ListItem>
               )}
 
               {/* Steps — 한번에 쓰기 모드면 줄바꿈 구분 일괄 입력 */}
