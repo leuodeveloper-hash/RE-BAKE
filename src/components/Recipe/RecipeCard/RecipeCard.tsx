@@ -625,11 +625,7 @@ export function RecipeCard({
           style={StyleSheet.absoluteFill}
         />
 
-        {locked ? (
-          <View style={styles.gridMenuButton}>
-            <IconButton icon={IconLockFilled} variant="ghost-inverse" size="medium" />
-          </View>
-        ) : onMenuPress ? (
+        {onMenuPress ? (
           <View ref={menuButtonRef} style={styles.gridMenuButton}>
             <IconButton
               icon={IconEllipsisVertical}
@@ -641,7 +637,12 @@ export function RecipeCard({
         ) : null}
 
         <View style={styles.photoListContent}>
-          <Text style={styles.photoListTitle} numberOfLines={1}>{title}</Text>
+          <View style={styles.gridTitleRow}>
+            {locked && (
+              <IconLockFilled width={16} height={16} color="rgba(255,255,255,0.9)" />
+            )}
+            <Text style={styles.photoListTitle} numberOfLines={1}>{title}</Text>
+          </View>
           <View style={styles.gridSubtitleRow}>
             <Text style={styles.photoListSubtitle} numberOfLines={1}>{subtitle}</Text>
             {reviewCount > 0 && subtitle && <Text style={styles.photoListSubtitle}>·</Text>}
