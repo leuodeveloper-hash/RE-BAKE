@@ -261,10 +261,22 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   }, []);
 
   // 네이티브: 키보드가 완전히 내려가면 OCR 플로팅 바 숨김 (사진 픽/크롭 중이면 ocrPickActive가 바를 유지)
+  // 필드 전환 시 iOS가 순간적으로 hide→show를 쏘므로, hide를 잠깐 지연시키고 그 사이 show가 오면 취소해
+  // 바가 통째로 언마운트됐다 다시 뜨는 "자꾸 내려감" 깜빡임을 방지.
   useEffect(() => {
     if (Platform.OS === 'web') return;
-    const sub = Keyboard.addListener('keyboardDidHide', () => setFocusedOcrField(null));
-    return () => sub.remove();
+    const scheduleHide = () => {
+      if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+      blurTimerRef.current = setTimeout(() => setFocusedOcrField(null), 150);
+    };
+    const cancelHide = () => { if (blurTimerRef.current) clearTimeout(blurTimerRef.current); };
+    const subs = [
+      Keyboard.addListener('keyboardWillHide', scheduleHide),
+      Keyboard.addListener('keyboardDidHide', scheduleHide),
+      Keyboard.addListener('keyboardWillShow', cancelHide),
+      Keyboard.addListener('keyboardDidShow', cancelHide),
+    ];
+    return () => { cancelHide(); subs.forEach(s => s.remove()); };
   }, []);
   const [typing, setTyping] = useState(false);
   const [typingField, setTypingField] = useState<RecipeOcrField | null>(null);

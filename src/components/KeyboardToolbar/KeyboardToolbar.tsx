@@ -2,6 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {Keyboard, Platform, ScrollView, StyleSheet, View, ViewStyle} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {GlassContainer} from '@components/Container';
+import {MAX_CONTENT_WIDTH} from '@components/Container/ContentContainer';
 
 /** 바 대략 높이 — above 슬롯 위치 계산용 */
 const BAR_HEIGHT = 52;
@@ -88,10 +89,12 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     paddingHorizontal: 12,
-    alignItems: 'stretch',
+    // 콘텐츠(ContentContainer)와 동일하게 최대 너비 캡 + 중앙정렬
+    alignItems: 'center',
   },
   pill: {
     width: '100%',
+    maxWidth: MAX_CONTENT_WIDTH,
   },
   pillContent: {
     flexDirection: 'row',

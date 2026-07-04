@@ -212,8 +212,16 @@ export function RecipeInputFloatingBar({
       showSnackbar('이미지 인식(OCR)은 앱에서 사용할 수 있어요');
       return;
     }
-    setShowScanMenu(v => !v);
-  }, [busy, showSnackbar]);
+    if (showScanMenu) {
+      setShowScanMenu(false);
+      onPickActiveChange?.(false);
+    } else {
+      // 메뉴 여는 순간 바로 '활성' 신호 → 메뉴 탭 시 입력 blur로 툴바가 언마운트되지 않게 유지
+      // (안 그러면 focusedOcrField=null 되며 툴바+메뉴가 통째로 사라져 "내려가고 반응없음")
+      onPickActiveChange?.(true);
+      setShowScanMenu(true);
+    }
+  }, [busy, showScanMenu, showSnackbar, onPickActiveChange]);
 
   const handleDone = useCallback(() => {
     Keyboard.dismiss();
@@ -252,7 +260,7 @@ export function RecipeInputFloatingBar({
               setShowScanMenu(false);
               pickImage(id === 'camera' ? 'camera' : 'library');
             }}
-            onClose={() => setShowScanMenu(false)}
+            onClose={() => { setShowScanMenu(false); onPickActiveChange?.(false); }}
             style={styles.scanMenu}
           />
         ) : undefined}
