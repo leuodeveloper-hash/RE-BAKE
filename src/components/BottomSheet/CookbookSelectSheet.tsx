@@ -80,7 +80,7 @@ export function CookbookSelectSheet({
             ]}
             onPress={() => onSelect('__none__')}
           >
-            <BookIcon width={24} height={24} color={colors['foreground/on-surface-muted']} />
+            <BookIcon width={20} height={20} color={colors['foreground/on-surface-muted']} />
             <Text style={styles.itemLabel}>{ungroupedLabel}</Text>
           </Pressable>
           {cookbooks.map(name => {
@@ -97,8 +97,8 @@ export function CookbookSelectSheet({
                 onPress={() => onSelect(name)}
               >
                 <BookIcon
-                  width={24}
-                  height={24}
+                  width={20}
+                  height={20}
                   color={colors[getColorVarKey(cbColor || 'brown')]}
                 />
                 <Text style={styles.itemLabel}>{name}</Text>
@@ -114,7 +114,7 @@ export function CookbookSelectSheet({
               ]}
               onPress={handleAddPress}
             >
-              <IconAdd width={24} height={24} color={colors['foreground/on-surface-muted']} />
+              <IconAdd width={20} height={20} color={colors['foreground/on-surface-muted']} />
               <Text style={styles.itemLabel}>레시피 북 추가</Text>
             </Pressable>
           )}

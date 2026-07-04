@@ -2004,8 +2004,8 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 leading={{type: 'custom', element: (
                   <View style={styles.cookbookLeadingSlot}>
                     {React.createElement(isExplore ? IconExprolerBookFilled : IconBookFilled, {
-                      width: 16,
-                      height: 16,
+                      width: 20,
+                      height: 20,
                       color: cookbook
                         ? colors[getColorVarKey(cookbookColorsProp?.[cookbook] || (isExplore ? 'orange' : 'brown'))]
                         : colors['foreground/on-surface-muted'],
