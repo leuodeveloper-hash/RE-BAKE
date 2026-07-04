@@ -6,7 +6,11 @@
       "Bash(npx --no-install eas build:list --platform android --limit 5 --non-interactive)",
       "Bash(node -e \"console.log\\(require\\('./node_modules/expo-notifications/package.json'\\).version\\)\")",
       "Bash(node -e \"console.log\\(require\\('./node_modules/expo/package.json'\\).version\\)\")",
-      "Bash(echo \"expo SDK: $\\(node -e \"console.log\\(require\\('./node_modules/expo/package.json'\\).version\\)\" \\)\")"
+      "Bash(echo \"expo SDK: $\\(node -e \"console.log\\(require\\('./node_modules/expo/package.json'\\).version\\)\" \\)\")",
+      "Read(//tmp/**)",
+      "Bash(git add *)",
+      "Bash(git commit -q -m 'fix: 둘러보기 레시피 편집 후 즉시 반영 \\(explore reload — 1회 fetch 캐시라 새로고침 필요했던 것\\) *)",
+      "Bash(npm run *)"
     ]
   }
 }

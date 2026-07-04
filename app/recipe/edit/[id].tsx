@@ -35,7 +35,7 @@ export default function RecipeEditRoute() {
   const {findRecipeById, recipes, setRecipes, availableCookbooks, cookbookColors, setCookbookColor} = useRecipes();
   const {showSnackbar} = useSnackbar();
   const {user, isAdmin} = useAuth();
-  const {recipes: exploreRecipes, exploreCookbooks} = useExploreRecipeContext();
+  const {recipes: exploreRecipes, exploreCookbooks, reload: reloadExplore} = useExploreRecipeContext();
 
   const isMyRecipe = recipes.some(r => r.id === id);
   const isExploreTarget = target === 'explore';
@@ -87,6 +87,8 @@ export default function RecipeEditRoute() {
         const {imageSource: _imgSrc, ...rest} = data;
         const serializable = stripUndefined(rest);
         await setDoc(doc(db, 'explore_recipes', id!), serializable, {merge: true});
+        // explore는 1회 fetch+캐시라 저장 후 즉시 반영이 안 됨 → fresh reload로 바로 반영
+        await reloadExplore();
       } catch (e: any) {
         console.error('Explore recipe save failed:', e);
         showSnackbar(`저장 실패: ${e?.message ?? e}`);
