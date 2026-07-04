@@ -560,7 +560,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
                                   placeholderIcon={IconExprolerBookFilled}
                                   placeholderIconColor={isExploreUngrouped ? colors['foreground/on-surface-muted'] : colors[getColorVarKey(ecColor)]}
                                   onPress={() => onExploreCookbookPress?.(cookbook.name)}
-                                  onMenuPress={(pos) => handleExploreCookbookMenuPress(cookbook.name, pos)}
+                                  onMenuPress={isAdmin ? (pos) => handleExploreCookbookMenuPress(cookbook.name, pos) : undefined}
                                   hideDivider={isLast}
                                 />
                               </View>

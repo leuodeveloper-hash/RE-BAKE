@@ -51,7 +51,7 @@ import {
   IconRedo,
   IconCircleInfoFilled,
   IconEllipsisVertical,
-  IconListChecks,
+  IconCheckList,
   IconNoteFilled,
   IconLogoSymbol,
   IconArrowTopRight,
@@ -1501,7 +1501,7 @@ export function CookingMode({
                     />
                   )}
                   <IconButton
-                    icon={IconListChecks}
+                    icon={IconCheckList}
                     onPress={() => setShowIngredientList(true)}
                     variant="ghost-secondary"
                     size="medium"
@@ -1950,11 +1950,11 @@ const createStyles = (colors: SemanticColorsV2) =>
     },
     // 추가(+) 카드도 사진과 같은 흰 프레임 + 안쪽 dim 채움 (Figma)
     emptyPack: {
-      backgroundColor: colors['surface/bright'],
       padding: 6,
       borderRadius: 16,
-      // 이미지 미등록(+ 박스): 섀도우 없이 얇은 테두리
-      borderWidth: 1,
+      // 이미지 미등록(+ 박스): 하얀 배경/그림자 없이 점선 아웃라인만
+      borderWidth: 1.5,
+      borderStyle: 'dashed',
       borderColor: colors['border/normal'],
     },
     photoDeleteBtn: {
@@ -1991,7 +1991,6 @@ const createStyles = (colors: SemanticColorsV2) =>
       borderRadius: 11,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: colors['surface/dim'],
     },
     descLarge: {
       // Figma headline-medium/regular (24/30, -0.4, Medium 500)

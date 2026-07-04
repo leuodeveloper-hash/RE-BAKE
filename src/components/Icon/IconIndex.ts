@@ -60,6 +60,7 @@ export {default as IconTick} from '../../../assets/icons/tick.svg';
 export {default as IconFilter} from '../../../assets/icons/filter.svg';
 export {default as IconList} from '../../../assets/icons/list.svg';
 export {default as IconListChecks} from '../../../assets/icons/list-checks.svg';
+export {default as IconCheckList} from '../../../assets/icons/check-list.svg';
 export {default as IconLayoutGrid} from '../../../assets/icons/layout-grid.svg';
 export {default as IconLayoutGridFilled} from '../../../assets/icons/layout-grid-filled.svg';
 export {default as IconEllipsis} from '../../../assets/icons/ellipsis.svg';

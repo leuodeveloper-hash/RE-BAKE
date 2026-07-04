@@ -19,7 +19,7 @@ const MARGIN = 16;
 const HANDLE_H = 22; // 드래그 핸들 바 높이 (영상 위 바깥에 위치)
 const BOTTOM_RESERVE = MARGIN; // 하단 스냅 시 안전영역(win.bottom) 위로 MARGIN만 띄워 바닥에 붙임
 // 최소화(손톱) 크기 — 화면 왼쪽으로 던지면 우상단에 작게 도킹, 소리만 유지
-const NAIL_W = 72;
+const NAIL_W = 100;
 const NAIL_H = Math.round((NAIL_W * 9) / 16);
 
 const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), Math.max(min, max));
@@ -93,17 +93,24 @@ export function YouTubePlayerModal({visible, onClose, videoId}: YouTubePlayerMod
 
   // 우상단 손톱 도킹 — transform: scale는 중심 기준이라, 축소된 박스의 중심이
   // 우상단 손톱 위치에 오도록 전체(220×124) 박스의 좌상단을 역산해서 배치
-  const nailDock = () => ({
-    x: win.current.width - MARGIN - NAIL_W / 2 - PLAYER_WIDTH / 2,
-    y: win.current.top + APPBAR_CONTENT_BOTTOM + MARGIN + NAIL_H / 2 - PLAYER_HEIGHT / 2,
-  });
+  // 축소(손톱) 시 지정 코너에 도킹 — 중심기준 scale이라 축소박스 모서리가 화면 모서리에 오도록 full박스 좌상단 역산
+  const cornerDock = (isRight: boolean, isBottom: boolean) => {
+    const minX = MARGIN;
+    const maxX = win.current.width - MARGIN;
+    const minY = win.current.top + APPBAR_CONTENT_BOTTOM + MARGIN;
+    const maxY = win.current.height - win.current.bottom - BOTTOM_RESERVE - MARGIN;
+    return {
+      x: (isRight ? maxX - NAIL_W / 2 : minX + NAIL_W / 2) - PLAYER_WIDTH / 2,
+      y: (isBottom ? maxY - NAIL_H / 2 : minY + NAIL_H / 2) - PLAYER_HEIGHT / 2,
+    };
+  };
 
-  const minimize = () => {
+  const minimize = (isRight: boolean = true, isBottom: boolean = false) => {
     lastFull.current = clampPos(value.current.x, value.current.y, false);
     minimizedRef.current = true;
     setMinimized(true);
     Animated.parallel([
-      Animated.spring(pan, {toValue: nailDock(), friction: 9, tension: 70, useNativeDriver: false}),
+      Animated.spring(pan, {toValue: cornerDock(isRight, isBottom), friction: 9, tension: 70, useNativeDriver: false}),
       Animated.timing(minim, {toValue: 1, duration: 220, useNativeDriver: false}),
     ]).start();
   };
@@ -147,19 +154,17 @@ export function YouTubePlayerModal({visible, onClose, videoId}: YouTubePlayerMod
       onPanResponderMove: Animated.event([null, {dx: pan.x, dy: pan.y}], {useNativeDriver: false}),
       onPanResponderRelease: (_, g) => {
         pan.flattenOffset();
-        // 왼쪽 가장자리로 끌어 일부가 화면 밖으로 나가거나, 왼쪽으로 던지면 → 최소화(우상단 손톱)
-        const offLeft = value.current.x < -PLAYER_WIDTH * 0.18;
-        const flungLeft = g.vx < -0.6 && value.current.x < MARGIN + 24;
-        if (offLeft || flungLeft) {
-          minimize();
-          return;
-        }
-        // 던진 속도만큼 관성 반영한 지점에서 가장 가까운 네 모서리로 스냅 (상하좌우 어디든)
+        // 던진 속도 반영 지점의 중심으로 가장 가까운 네 모서리 판정 → 그 코너에 축소 도킹 (상하좌우 어디든)
         const PROJECT = 90;
         const projX = value.current.x + g.vx * PROJECT;
         const projY = value.current.y + g.vy * PROJECT;
-        const pos = snapToCorner(projX, projY);
-        Animated.spring(pan, {toValue: pos, friction: 7, tension: 50, useNativeDriver: false}).start();
+        const cx = projX + PLAYER_WIDTH / 2;
+        const cy = projY + (PLAYER_HEIGHT + HANDLE_H) / 2;
+        const minY = win.current.top + APPBAR_CONTENT_BOTTOM + MARGIN;
+        const maxY = win.current.height - win.current.bottom - BOTTOM_RESERVE - MARGIN;
+        const isRight = cx >= win.current.width / 2;
+        const isBottom = cy >= (minY + maxY) / 2;
+        minimize(isRight, isBottom);
       },
     }),
   ).current;

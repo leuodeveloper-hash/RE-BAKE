@@ -4,7 +4,7 @@ import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
 import {TextInput} from '@components/TextInput';
 import {ColorPicker} from '@components/ColorPicker';
-import {IconBookTwotone, IconExprolerBookTwotone} from '@components/Icon/IconIndex';
+import {IconBookTwotone, IconExprolerBookFilled} from '@components/Icon/IconIndex';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useColorsV2} from '@contexts/ThemeContext';
 import type {AvatarColor} from '@components/Avatar/Avatar';
@@ -64,7 +64,7 @@ export function CookbookDialog({visible, onClose, onConfirm, editTarget, isAdmin
     <Dialog
       visible={visible}
       onClose={onClose}
-      icon={isOfficial ? IconExprolerBookTwotone : IconBookTwotone}
+      icon={isOfficial ? IconExprolerBookFilled : IconBookTwotone}
       avatarColor={color}
       title={editTarget ? '레시피 북 편집' : '레시피 북 만들기'}
       actions={
