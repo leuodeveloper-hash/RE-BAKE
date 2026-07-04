@@ -1540,6 +1540,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                   <Pressable style={styles.addGroupButton} onPress={() => { triggerHaptic('light'); addIngredientGroup(group.id); }}>
                   <Text style={styles.addGroupText}>묶음 추가</Text>
                 </Pressable>
+                <View style={styles.addButtonVDivider} />
                 <Pressable style={styles.addGroupButton} onPress={() => { triggerHaptic('light'); addIngredient(group.id, 'bottom'); }}>
                   <Text style={styles.addGroupText}>갈래 추가</Text>
                 </Pressable>
@@ -1716,6 +1717,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                   <Pressable style={styles.addGroupButton} onPress={() => { triggerHaptic('light'); addToolGroup(group.id); }}>
                     <Text style={styles.addGroupText}>묶음 추가</Text>
                   </Pressable>
+                  <View style={styles.addButtonVDivider} />
                   <Pressable style={styles.addGroupButton} onPress={() => { triggerHaptic('light'); addTool(group.id, 'bottom'); }}>
                     <Text style={styles.addGroupText}>갈래 추가</Text>
                   </Pressable>
@@ -1982,6 +1984,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                   <Pressable style={styles.addGroupButton} onPress={() => { triggerHaptic('light'); addStepGroup(group.id); }}>
                     <Text style={styles.addGroupText}>묶음 추가</Text>
                   </Pressable>
+                  <View style={styles.addButtonVDivider} />
                   <Pressable style={styles.addGroupButton} onPress={() => { triggerHaptic('light'); addStep(group.id, 'bottom'); }}>
                     <Text style={styles.addGroupText}>갈래 추가</Text>
                   </Pressable>
@@ -2665,6 +2668,12 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
     width: '100%',
     paddingBottom: Spacing.sm,
   },
+  addButtonVDivider: {
+    width: 1,
+    height: 20,
+    alignSelf: 'center',
+    backgroundColor: colors['border/muted'],
+  },
   addButtonPair: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -2683,8 +2692,7 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    minHeight: 48, // 다른 행(ListItem)과 동일한 높이
-    paddingVertical: Spacing.sm, // ListItem stateLayer와 동일(8) — 12면 더 높아짐
+    height: 48, // 다른 행(ListItem)과 동일한 고정 높이 (패딩/텍스트에 안 눌리게)
     gap: Spacing.xs,
   },
   addGroupText: {
@@ -2693,7 +2701,6 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
     fontWeight: Typography.label['xlarge - semibold'].fontWeight as '600',
     lineHeight: Typography.label['xlarge - semibold'].lineHeight,
     color: colors['foreground/accent'],
-    marginTop: FONT_BASELINE_OFFSET,
   },
 
   // Tool bulk mode toggle
