@@ -1219,7 +1219,7 @@ export function CookingMode({
               <Text style={[styles.descLarge, cookingBodyFont]}>{item.description}</Text>
             </Pressable>
             {item.tip ? (
-              <View style={[styles.noteBlock, {borderLeftColor: colors['foreground/on-surface-var']}]}>
+              <View style={[styles.noteBlock, {borderLeftColor: colors['custom/grey-var']}]}>
                 <Text style={[styles.noteInlineText, cookingBodyFont, {marginTop: 0}]}>{item.tip}</Text>
               </View>
             ) : null}

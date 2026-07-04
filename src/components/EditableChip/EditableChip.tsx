@@ -81,7 +81,7 @@ export function EditableChip({
     tip: {
       backgroundColor: colors['surface/container-high'],
       iconColor: colors['foreground/on-surface-var'],
-      textColor: colors['foreground/on-surface-var'],
+      textColor: colors['custom/grey-var'],
       placeholderColor: colors['foreground/on-surface-muted'],
       Icon: IconAstriks,
     },
