@@ -22,7 +22,7 @@ import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import type {Recipe} from '../types/recipe';
-import {IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconChartNoAxesGantt, IconChevronRight, IconSparkle, IconProcess, IconCards, IconCardsFilled, IconArrowDownToLine} from '@components/Icon/IconIndex';
+import {IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconChartNoAxesGantt, IconChevronRight, IconSparkle, IconProcess, IconCards, IconCardsFilled, IconArrowDownToLine, IconList} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import {buildPaperPreview} from '@utils/recipePaperPreview';
 import {coverCards, recipeCoverCards, emptyCoverCard} from '@utils/cookbookCards';
@@ -148,7 +148,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
 
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
   const layoutMenuItems = useMemo(() => [
-    {id: 'list', label: '리스트 뷰', icon: IconChartNoAxesGantt},
+    {id: 'list', label: '리스트 뷰', icon: IconList},
     {id: 'pack', label: '팩뷰', icon: IconCards},
   ], []);
 
@@ -456,7 +456,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
         onTitlePress={handleTitlePress}
         onAddPress={() => { setCookbookInitialOfficial(addAsOfficial); setShowCookbookDialog(true); }}
         onFilterPress={() => { setShowMoreMenu(false); setShowLayoutMenu(prev => !prev); }}
-        filterIcon={viewMode === 'pack' ? IconCards : IconChartNoAxesGantt}
+        filterIcon={viewMode === 'pack' ? IconCards : IconList}
         filterMenuOpen={showLayoutMenu}
         onMenuPress={() => { setShowLayoutMenu(false); handleMenuPress(); }}
         menuOpen={showMoreMenu}
