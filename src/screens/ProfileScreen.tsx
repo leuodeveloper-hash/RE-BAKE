@@ -1,5 +1,6 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {useFocusEffect} from 'expo-router';
 import {LinearGradient} from 'expo-linear-gradient';
 import {BlurView} from 'expo-blur';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -8,17 +9,18 @@ import {GlassContainer, ContentContainer, Card, Container} from '@components/Con
 import {IconButton} from '@components/IconButton';
 import {SectionHeader} from '@components/SectionHeader';
 import {ListItem} from '@components/ListItem';
+import {Switch} from '@components/Switch';
 import {Avatar} from '@components/Avatar/Avatar';
 import {Tabs} from '@components/Tabs';
 import {TextInput} from '@components/TextInput';
 import {Button} from '@components/Button';
 import {Snackbar} from '@components/Snackbar';
 import {BottomSheet} from '@components/BottomSheet';
-import {Switch} from '@components/Switch';
-import {useExamNotificationPrefs, EXAM_TYPES} from '@hooks/useExamNotificationPrefs';
+import {useExamNotificationPrefs} from '@hooks/useExamNotificationPrefs';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useColorsV2, useTheme} from '@contexts/ThemeContext';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import {useSubscription} from '@contexts/SubscriptionContext';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {
@@ -36,7 +38,6 @@ import {
   IconMailFilled,
   IconCloudFilled,
   IconTicketFilled,
-  IconSparkleFilled,
 } from '@components/Icon/IconIndex';
 
 import Constants from 'expo-constants';
@@ -65,6 +66,8 @@ export interface ProfileScreenProps {
   onPrivacyPress: () => void;
   /** Labs(디버그) 화면 진입 */
   onLabsPress?: () => void;
+  /** 시험 일정 알림 설정 화면 진입 */
+  onExamNotifPress?: () => void;
   /** Pro 구독 여부 */
   isPro?: boolean;
   /** 어드민 여부 (디버그 도구 노출) */
@@ -149,6 +152,7 @@ export function ProfileScreen({
   onTermsPress,
   onPrivacyPress,
   onLabsPress,
+  onExamNotifPress,
   isPro = false,
   isAdmin = false,
   avatarSeed,
@@ -157,7 +161,14 @@ export function ProfileScreen({
   const styles = useThemedStylesV2(createStyles);
   const colors = useColorsV2();
   const {appearanceMode, setAppearanceMode} = useTheme();
-  const {prefs: examPrefs, setEnabled: setExamNotifEnabled, toggleTarget: toggleExamTarget} = useExamNotificationPrefs();
+  const {prefs: examPrefs, reload: reloadExamPrefs} = useExamNotificationPrefs();
+
+  // 알림 설정 화면에서 돌아오면 요약 표시 갱신
+  useFocusEffect(
+    useCallback(() => {
+      reloadExamPrefs();
+    }, [reloadExamPrefs]),
+  );
 
   const syncLabel = lastSyncedAt
     ? (lastSyncedDevice
@@ -183,6 +194,7 @@ export function ProfileScreen({
   const [isLoginMode, setIsLoginMode] = useState(true);
   const [authLoading, setAuthLoading] = useState(false);
   const [showPlanSheet, setShowPlanSheet] = useState(false);
+  const {photoCloudBackup, setPhotoCloudBackup} = useSubscription();
 
   useEffect(() => {
     if (openPlanSheetSignal > 0) setShowPlanSheet(true);
@@ -386,7 +398,7 @@ export function ProfileScreen({
                 <Pressable onPress={handleOpenHandleEdit}>
                   <Text style={styles.profileName}>@{handle || 'handle'}</Text>
                 </Pressable>
-                <Text style={styles.profileSub}>레시피 {recipeCount}개 · 회고록 {reviewCount}개</Text>
+                <Text style={styles.profileSub}>레시피 {recipeCount}개 · 회고 노트 {reviewCount}개</Text>
               </>
             ) : (
               <>
@@ -465,6 +477,27 @@ export function ProfileScreen({
                     />
                   ),
                 }}
+                showDivider
+              />
+              <ListItem
+                title={photoCloudBackup ? '사진 클라우드 백업 (켜짐)' : '사진 클라우드 백업 (이 기기에만)'}
+                leading={{type: 'icon', icon: IconCloudFilled}}
+                trailing={{
+                  type: 'custom',
+                  element: (
+                    <Switch
+                      value={photoCloudBackup}
+                      onValueChange={v => {
+                        // 켜기(업로드)는 구독 필요 → 비프로면 PlanSheet, 끄기(로컬)는 자유
+                        if (v && !isPro) {
+                          setShowPlanSheet(true);
+                          return;
+                        }
+                        setPhotoCloudBackup(v);
+                      }}
+                    />
+                  ),
+                }}
                 showDivider={false}
               />
             </Card>
@@ -480,65 +513,37 @@ export function ProfileScreen({
                 trailing={{
                   type: 'custom',
                   element: (
-                    <Switch
-                      value={examPrefs.enabled}
-                      onValueChange={(v) => {
-                        if (v && !userEmail) {
-                          showMessage('계정이 있으면 알림 설정이 가능해요', {
-                            label: '로그인',
-                            onPress: () => {
-                              setShowSnackbar(false);
-                              setShowAuthSheet(true);
-                            },
-                          });
-                          return;
-                        }
-                        setExamNotifEnabled(v);
-                      }}
-                    />
+                    <View style={styles.examNotifTrailing}>
+                      <Text style={styles.examNotifStatus}>
+                        {examPrefs.enabled && examPrefs.targets.length > 0
+                          ? `${examPrefs.targets.length}개 켜짐`
+                          : '꺼짐'}
+                      </Text>
+                      <IconChevronRight
+                        width={20}
+                        height={20}
+                        color={colors['foreground/on-surface-muted']}
+                      />
+                    </View>
                   ),
                 }}
-                showDivider={examPrefs.enabled && !!userEmail}
+                showDivider={false}
+                onPress={() => {
+                  if (!userEmail) {
+                    showMessage('계정이 있으면 알림 설정이 가능해요', {
+                      label: '로그인',
+                      onPress: () => {
+                        setShowSnackbar(false);
+                        setShowAuthSheet(true);
+                      },
+                    });
+                    return;
+                  }
+                  onExamNotifPress?.();
+                }}
               />
-              {examPrefs.enabled && !!userEmail && (
-                <View style={styles.examChipRow}>
-                  {EXAM_TYPES.map(t => {
-                    const checked = examPrefs.targets.includes(t.id);
-                    return (
-                      <Pressable
-                        key={t.id}
-                        onPress={() => toggleExamTarget(t.id)}
-                        style={({pressed}) => [
-                          styles.examChip,
-                          checked ? styles.examChipActive : styles.examChipInactive,
-                          pressed && {opacity: 0.7},
-                        ]}>
-                        <Text style={[styles.examChipLabel, checked ? styles.examChipLabelActive : styles.examChipLabelInactive]}>
-                          {t.label}
-                        </Text>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              )}
             </Card>
           </ContentContainer>
-
-          {/* Labs (어드민 전용) */}
-          {isAdmin && (
-            <ContentContainer style={styles.section}>
-              <SectionHeader title="Labs" />
-              <Card>
-                <ListItem
-                  title="Labs"
-                  leading={{type: 'icon', icon: IconSparkleFilled}}
-                  trailing={{type: 'icon', icon: IconChevronRight}}
-                  showDivider={false}
-                  onPress={onLabsPress}
-                />
-              </Card>
-            </ContentContainer>
-          )}
 
           {/* 로그아웃 (로그인 시만) */}
           {userEmail && (
@@ -751,7 +756,7 @@ export function ProfileScreen({
 const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors['surface/normal'],
+    backgroundColor: colors['surface/dim'],
   },
   safeArea: {
     flex: 1,
@@ -789,40 +794,16 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   section: {
     paddingTop: Spacing.md,
   },
-  examChipRow: {
+  examNotifTrailing: {
     flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: Spacing.xs,
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-    paddingBottom: Spacing.md,
-  },
-  examChip: {
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-    borderRadius: 999,
-    minHeight: 32,
     alignItems: 'center',
-    justifyContent: 'center',
+    gap: Spacing.xs,
   },
-  examChipActive: {
-    backgroundColor: colors['foreground/on-surface'],
-  },
-  examChipInactive: {
-    backgroundColor: colors['fill/normal'],
-  },
-  examChipLabel: {
-    fontFamily: Typography.label.medium.fontFamily,
-    fontSize: Typography.label.medium.fontSize,
-    fontWeight: '600',
-    lineHeight: Typography.label.medium.lineHeight,
-    letterSpacing: Typography.label.medium.letterSpacing,
-  },
-  examChipLabelActive: {
-    color: colors['surface/normal'],
-  },
-  examChipLabelInactive: {
-    color: colors['foreground/on-surface'],
+  examNotifStatus: {
+    fontFamily: Typography.body.medium.fontFamily,
+    fontSize: Typography.body.medium.fontSize,
+    lineHeight: Typography.body.medium.lineHeight,
+    color: colors['foreground/on-surface-muted'],
   },
   authForm: {
     paddingHorizontal: Spacing.md,

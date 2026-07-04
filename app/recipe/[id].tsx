@@ -23,7 +23,9 @@ import {usePlanSheet} from '@contexts/PlanSheetContext';
 import {useAuthSheet} from '@contexts/AuthSheetContext';
 
 export default function RecipeDetailRoute() {
-  const {id, from, locked: lockedParam} = useLocalSearchParams<{id: string; from?: string; locked?: string}>();
+  const {id: routeId, from, locked: lockedParam} = useLocalSearchParams<{id: string; from?: string; locked?: string}>();
+  // 회차 전환은 화면 이동 없이 제자리(setId)로 → RulerSlider 리마운트 없이 플립 유지
+  const [id, setId] = useState(routeId);
   const router = useRouter();
   const colors = useColorsV2();
   const {findRecipeById, recipes, setRecipes, availableCookbooks, cookbookColors} = useRecipes();
@@ -38,6 +40,9 @@ export default function RecipeDetailRoute() {
   const [showExploreCookbookSheet, setShowExploreCookbookSheet] = useState(false);
   const {open: openPlanSheet} = usePlanSheet();
   const isLocked = lockedParam === '1' && !unlocked;
+
+  // 라우트가 바뀌면(다른 레시피로 진입) active id 동기화
+  useEffect(() => { if (routeId) setId(routeId); }, [routeId]);
 
   const recipe = findRecipeById(id) ?? exploreRecipes.find(r => r.id === id);
   const isMyRecipe = recipes.some(r => r.id === id);
@@ -251,9 +256,28 @@ const handleDelete = useCallback(async () => {
     return items.length > 0 ? items : undefined;
   }, [recipe, recipes]);
 
+  // 2회차+ 이면 1회차 원본 데이터를 비교 기준으로 전달 (1회차 자신을 볼 땐 null)
+  const compareBaseline = useMemo(() => {
+    if (!recipe?.remakeGroupId) return null;
+    const group = recipes
+      .filter(r => r.remakeGroupId === recipe.remakeGroupId || r.id === recipe.remakeGroupId)
+      .sort((a, b) => parseSession(a.session).current - parseSession(b.session).current);
+    if (group.length < 2) return null;
+    const first = group[0];
+    if (first.id === recipe.id) return null;
+    return {
+      ingredientGroups: first.ingredientGroups,
+      steps: first.steps,
+      stepGroups: first.stepGroups,
+      method: first.method,
+      specificGravity: first.specificGravity,
+    };
+  }, [recipe, recipes]);
+
+  // 회차 전환은 화면 이동 없이 제자리에서 (리마운트 X → 눈금 플립 유지, 히스토리 안 꼬임)
   const handleSessionSelect = useCallback((recipeId: string) => {
-    router.replace(`/recipe/${recipeId}` as any);
-  }, [router]);
+    setId(recipeId);
+  }, []);
 
   const handleCookbookChange = useCallback((newCookbook: string) => {
     if (!isMyRecipe) return;
@@ -359,6 +383,7 @@ const handleDelete = useCallback(async () => {
         cookbookColors={cookbookColors}
         sessionItems={sessionItems}
         sessionReviews={sessionReviews}
+        compareBaseline={compareBaseline}
         onSessionSelect={handleSessionSelect}
         onUpdate={canEdit ? (data) => {
           if (isMyRecipe) {

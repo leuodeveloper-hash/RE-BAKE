@@ -36,13 +36,14 @@ import {Thumbnail} from '@components/Thumbnail';
 import {StepPhotos} from '@components/StepPhotos';
 import {EmptyState} from '@components/EmptyState';
 import {SearchCommandBar} from '@components/SearchCommandBar';
-import {YouTubePlayerModal} from '@components/YouTubePlayer';
+import {useYouTubePlayer} from '@contexts/YouTubePlayerContext';
 import {parseYouTubeVideoId} from '@utils/youtube';
 import {parseSession} from '@utils/session';
+import {buildSessionDiff, type SessionBaseline} from '@utils/sessionDiff';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useColorsV2} from '@contexts/ThemeContext';
-import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import {Radius, BaseColors} from '@constants/tokens';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {getRecipeMenuItems, getCookbookSubmenuItems} from '@utils/recipeMenuItems';
@@ -64,6 +65,7 @@ import {
   IconArrowTopRight,
   IconToolCaseFilled,
   IconSearch,
+  IconSparkle,
 } from '@components/Icon/IconIndex';
 
 // 메타 정보 타입
@@ -149,6 +151,8 @@ export interface RecipeDetailScreenProps {
   onSessionSelect?: (recipeId: string) => void;
   /** 회차별 회고 데이터 (바텀시트용) */
   sessionReviews?: {id: string; label: string; reviews: ReviewData[]}[];
+  /** 1회차 원본 데이터 (2회차+ 일 때만 전달). 있으면 "1회차와 비교" 토글 노출 */
+  compareBaseline?: SessionBaseline | null;
   /** 레시피 북 변경 콜백 (있을 때만 레시피 북 메뉴 표시) */
   onCookbookChange?: (cookbook: string) => void;
   /** 레시피 북 목록 (레시피 북 서브메뉴용) */
@@ -301,6 +305,7 @@ export function RecipeDetailScreen({
   onCookingModeChange,
   sessionItems,
   sessionReviews,
+  compareBaseline,
   onSessionSelect,
   onCookbookChange,
   availableCookbooks,
@@ -321,6 +326,20 @@ export function RecipeDetailScreen({
   const {width: windowWidth} = useWindowDimensions();
   const colors = useColorsV2();
   const canEdit = !!onUpdate;
+
+  // 1회차와 비교 토글 + diff — 기본 켜짐 (compareBaseline 있는 2회차+에서만 실제 표시)
+  const [showDiff, setShowDiff] = useState(true);
+  const diff = useMemo(
+    () =>
+      compareBaseline
+        ? buildSessionDiff(
+            {ingredientGroups, steps, stepGroups, method, specificGravity: ratio},
+            compareBaseline,
+          )
+        : null,
+    [compareBaseline, ingredientGroups, steps, stepGroups, method, ratio],
+  );
+  const diffOn = showDiff && !!diff;
 
   // 필드 활성 여부 헬퍼
   const isFieldActive = (id: string) => !activeFieldIds || activeFieldIds.includes(id);
@@ -350,25 +369,28 @@ export function RecipeDetailScreen({
   const [cookingModeInitialIndex, setCookingModeInitialIndex] = useState(0);
   const [cookingModeShowIngredients, setCookingModeShowIngredients] = useState(false);
   const hasMultipleSessions = sessionItems && sessionItems.length > 1;
+  // 회차(시리즈)에서 생긴 레시피면 현재 회차 번호(1-based)를 타이틀 옆에 #N으로 표시
+  const sessionNumber = hasMultipleSessions
+    ? sessionItems!.findIndex(i => i.id === currentRecipeId) + 1
+    : 0;
   // 상단 nav 탭은 항상 가로 Tabs로 고정 (너비에 따른 형태 전환 비활성화)
   const useCompactTabs = false;
   const [showTabMenu, setShowTabMenu] = useState(false);
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
-  const [youtubePlayerVideoId, setYoutubePlayerVideoId] = useState<string | null>(null);
-  // 상세화면이 unmount되면 PiP도 같이 닫힘
-  useEffect(() => () => { setYoutubePlayerVideoId(null); }, []);
+  // PiP는 앱 루트에서 단일 인스턴스로 관리 (편집 등 화면 전환 시에도 유지)
+  const {open: openYouTube} = useYouTubePlayer();
 
   const referenceYouTubeId = useMemo(() => parseYouTubeVideoId(referenceUrl), [referenceUrl]);
 
   const handleOpenReference = useCallback(() => {
     if (!referenceUrl) return;
     if (referenceYouTubeId) {
-      setYoutubePlayerVideoId(referenceYouTubeId);
+      openYouTube(referenceYouTubeId);
     } else {
       Linking.openURL(referenceUrl);
     }
-  }, [referenceUrl, referenceYouTubeId]);
+  }, [referenceUrl, referenceYouTubeId, openYouTube]);
   const [searchFilter, setSearchFilter] = useState<'cookbook' | 'method' | null>(null);
   const [showReviewSheet, setShowReviewSheet] = useState(false);
 
@@ -450,8 +472,8 @@ export function RecipeDetailScreen({
     [stepGroups, steps],
   );
 
-  const menuItems = useMemo(() =>
-    getRecipeMenuItems({
+  const menuItems = useMemo(() => {
+    const items = getRecipeMenuItems({
       session,
       showImport: !!onImport,
       showRemake: !!onRemake,
@@ -460,8 +482,17 @@ export function RecipeDetailScreen({
       showCookbook: !!onCookbookChange,
       showCopyToExplore: !!onCopyToExplore,
       showShare: !!onShare,
-    }),
-  [onImport, onRemake, onEdit, onDelete, onCookbookChange, onCopyToExplore, onShare, session]);
+    });
+    if (compareBaseline) {
+      items.unshift({
+        id: 'compareDiff',
+        label: showDiff ? '비교 끄기' : '1회차와 비교',
+        icon: IconSparkle,
+      });
+    }
+    return items;
+  },
+  [onImport, onRemake, onEdit, onDelete, onCookbookChange, onCopyToExplore, onShare, session, compareBaseline, showDiff]);
 
   const cookbookSubmenu = useMemo(() => {
     if (!onCookbookChange || !availableCookbooks) return null;
@@ -492,9 +523,15 @@ export function RecipeDetailScreen({
     }
     setShowMenu(false);
     setShowCookbookSubmenu(false);
-    if (id === 'save') {
-      // 잠금 무관 — 무료/게스트도 내 레시피로 복사 가능
-      onImport?.();
+    if (id === 'compareDiff') {
+      setShowDiff(prev => !prev);
+    } else if (id === 'save') {
+      // 잠긴(페이월) 레시피는 복사 불가 → 언락 다이얼로그 (게스트/무료)
+      if (locked) {
+        setShowUnlockDialog(true);
+      } else {
+        onImport?.();
+      }
     } else if (id === 'remake') {
       onRemake?.();
     } else if (id === 'edit') {
@@ -583,49 +620,6 @@ export function RecipeDetailScreen({
     </View>
   );
 
-  // stickyHeaderIndices 동적 계산
-  const stickyIndices = useMemo(() => {
-    const indices: number[] = [];
-    let i = 0;
-    i++; // hero
-    i++; // meta
-
-    if (isFieldActive('ingredients')) {
-      i++; // position marker View
-      if (ingredientsHasContent) {
-        for (let g = 0; g < computedGroups.length; g++) {
-          indices.push(i); i++; // header (sticky)
-          i++; // content
-        }
-      } else {
-        indices.push(i); i++; // empty header
-        i++; // empty content
-      }
-    }
-
-    indices.push(i); i++; // tools header (sticky)
-    i++; // tools content
-
-    if (isFieldActive('steps')) {
-      i++; // position marker View
-      if (!stepsHasContent) {
-        indices.push(i); i++; // empty header
-        i++; // empty content
-      } else if (stepGroups) {
-        for (let g = 0; g < stepGroups.length; g++) {
-          indices.push(i); i++; // header
-          i++; // content
-        }
-      } else {
-        indices.push(i); i++; // header
-        i++; // content
-      }
-    }
-
-    // advice, review, nav, padding — not sticky
-    return indices;
-  }, [activeFieldIds, computedGroups.length, stepGroups?.length, ingredientsHasContent, stepsHasContent]);
-
   return (
     <Animated.View style={[styles.container, {opacity: pageOpacity}]}>
       <Animated.ScrollView
@@ -637,7 +631,6 @@ export function RecipeDetailScreen({
         onScrollBeginDrag={handleScrollBeginDrag}
         scrollEventThrottle={16}
         scrollEnabled={!locked}
-        stickyHeaderIndices={stickyIndices}
       >
         {/* Hero Section */}
         <View style={styles.heroSection}>
@@ -650,7 +643,7 @@ export function RecipeDetailScreen({
               />
               <View style={styles.heroTextOverlay} />
               <LinearGradient
-                colors={[colors['surface/normal'] + '00', colors['surface/normal']]}
+                colors={[colors['surface/dim'] + '00', colors['surface/dim']]}
                 locations={[0.5, 0.85]}
                 style={styles.heroGradient}
               />
@@ -658,7 +651,12 @@ export function RecipeDetailScreen({
           ) : null}
           <View style={styles.heroContentWrapper}>
             <ContentContainer style={styles.heroContent}>
-              <Text style={styles.heroTitle}>{title}</Text>
+              <Text style={styles.heroTitle}>
+                {title}
+                {sessionNumber > 0 && (
+                  <Text style={styles.heroTitleSession}> #{sessionNumber}</Text>
+                )}
+              </Text>
               <View style={styles.heroDescriptionRow}>
                 {recipeItems ? (
                   <Pressable style={styles.heroDescriptionTappable} onPress={() => setSearchFilter('cookbook')}>
@@ -673,16 +671,16 @@ export function RecipeDetailScreen({
                     <Text style={styles.heroDescription}> · </Text>
                     {recipeItems ? (
                       <Pressable style={styles.heroDescriptionTappable} onPress={() => setSearchFilter('method')}>
-                        <Text style={styles.heroDescription}>{method}</Text>
+                        <Text style={[styles.heroDescription, diffOn && diff!.methodChanged && styles.hlChanged]}>{method}</Text>
                         <IconSearch width={12} height={12} color={colors['foreground/on-surface-inverse']} />
                       </Pressable>
                     ) : (
-                      <Text style={styles.heroDescription}>{method}</Text>
+                      <Text style={[styles.heroDescription, diffOn && diff!.methodChanged && styles.hlChanged]}>{method}</Text>
                     )}
                   </>
                 )}
                 {ratio && isFieldActive('ratio') && (
-                  <Text style={styles.heroDescription}> · 비중 {ratio}</Text>
+                  <Text style={[styles.heroDescription, diffOn && diff!.specificGravityChanged && styles.hlChanged]}> · 비중 {ratio}</Text>
                 )}
                 {totalReviewCount > 0 && (
                   <>
@@ -730,7 +728,9 @@ export function RecipeDetailScreen({
                 <Animated.View key={`ing-content-${groupIndex}`} style={{opacity: sectionAnims[0]}}>
                   <ContentContainer>
                     <Card>
-                      {group.ingredients.map((ingredient, index) => (
+                      {group.ingredients.map((ingredient, index) => {
+                        const d = diffOn ? diff!.ingredientStatus.get(ingredient.name.trim()) : undefined;
+                        return (
                         <View
                           key={index}
                           style={[
@@ -743,10 +743,20 @@ export function RecipeDetailScreen({
                             </Text>
                           )}
                           <Text style={styles.ingredientName}>
-                            {ingredient.name}{/\d/.test(ingredient.amount) ? ` ${ingredient.amount}` : ''}
+                            <Text
+                              style={[
+                                d?.status === 'added' && styles.hlAdded,
+                                d?.status === 'changed' && styles.hlChanged,
+                              ]}>
+                              {ingredient.name}{/\d/.test(ingredient.amount) ? ` ${ingredient.amount}` : ''}
+                            </Text>
+                            {d?.status === 'changed' && d.prevAmount ? (
+                              <Text style={styles.prevAmount}> {d.prevAmount}</Text>
+                            ) : null}
                           </Text>
                         </View>
-                      ))}
+                        );
+                      })}
                     </Card>
                   </ContentContainer>
                 </Animated.View>,
@@ -761,6 +771,29 @@ export function RecipeDetailScreen({
                   </ContentContainer>
                 </Animated.View>,
               ]
+        )}
+
+        {/* 1회차에서 빠진 재료 (비교 토글 ON) */}
+        {diffOn && diff!.removed.length > 0 && (
+          <Animated.View style={{opacity: sectionAnims[0]}}>
+            <ContentContainer>
+              <Text style={styles.diffCaption}>1회차 대비 빠진 재료</Text>
+              <Card>
+                {diff!.removed.map((ing, i) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.ingredientRow,
+                      i === diff!.removed.length - 1 && styles.ingredientRowLast,
+                    ]}>
+                    <Text style={[styles.ingredientName, styles.removedText]}>
+                      {ing.name}{/\d/.test(ing.amount) ? ` ${ing.amount}` : ''}
+                    </Text>
+                  </View>
+                ))}
+              </Card>
+            </ContentContainer>
+          </Animated.View>
         )}
 
         {/* Tools Section */}
@@ -817,7 +850,9 @@ export function RecipeDetailScreen({
               <Animated.View key={`step-content-${groupIndex}`} style={{opacity: sectionAnims[1]}}>
                 <ContentContainer>
                   <Card>
-                    {group.steps.map((step, index) => (
+                    {group.steps.map((step, index) => {
+                      const sd = diffOn ? diff!.stepStatus.get(groupOffset + index) : undefined;
+                      return (
                       <ListItem
                         key={index}
                         leading={{type: 'number', value: step.step}}
@@ -828,7 +863,13 @@ export function RecipeDetailScreen({
                           setShowCookingMode(true);
                         }}
                       >
-                        <Text style={styles.stepDescription}>{step.description}</Text>
+                        <Text style={styles.stepDescription}>
+                          <Text
+                            style={[
+                              sd === 'added' && styles.hlAdded,
+                              sd === 'changed' && styles.hlChanged,
+                            ]}>{step.description}</Text>
+                        </Text>
                         {step.tip && (
                           <View style={styles.tipChipInline}>
                             <EditableChip label={step.tip} variant="tip" />
@@ -843,7 +884,8 @@ export function RecipeDetailScreen({
                           <StepPhotos photos={step.photos} mode="view" />
                         )}
                       </ListItem>
-                    ))}
+                      );
+                    })}
                   </Card>
                 </ContentContainer>
               </Animated.View>,
@@ -854,7 +896,9 @@ export function RecipeDetailScreen({
           <Animated.View key="step-content" style={{opacity: sectionAnims[1]}}>
             <ContentContainer>
               <Card>
-                {steps.map((step, index) => (
+                {steps.map((step, index) => {
+                  const sd = diffOn ? diff!.stepStatus.get(index) : undefined;
+                  return (
                   <ListItem
                     key={index}
                     leading={{type: 'number', value: step.step}}
@@ -865,7 +909,13 @@ export function RecipeDetailScreen({
                       setShowCookingMode(true);
                     }}
                   >
-                    <Text style={styles.stepDescription}>{step.description}</Text>
+                    <Text style={styles.stepDescription}>
+                      <Text
+                        style={[
+                          sd === 'added' && styles.hlAdded,
+                          sd === 'changed' && styles.hlChanged,
+                        ]}>{step.description}</Text>
+                    </Text>
                     {step.tip && (
                       <View style={styles.tipChipInline}>
                         <EditableChip label={step.tip} variant="tip" />
@@ -880,7 +930,8 @@ export function RecipeDetailScreen({
                       <StepPhotos photos={step.photos} mode="view" />
                     )}
                   </ListItem>
-                ))}
+                  );
+                })}
               </Card>
             </ContentContainer>
           </Animated.View>,
@@ -1039,6 +1090,7 @@ export function RecipeDetailScreen({
 
       {/* Fixed Top Navigation Bar */}
       <FloatingNavBar
+        tintColor={imageUri ? (colors['fill/faint'] as string) : undefined}
         left={
           <View style={styles.navLeftRow}>
             <GlassContainer contentStyle={navPillStyle}>
@@ -1168,12 +1220,6 @@ export function RecipeDetailScreen({
         referenceUrl={referenceUrl}
       />
 
-      <YouTubePlayerModal
-        visible={youtubePlayerVideoId !== null}
-        onClose={() => setYoutubePlayerVideoId(null)}
-        videoId={youtubePlayerVideoId}
-      />
-
       {/* 회차 슬라이더: 하단 탭바 자리에서 좌우 슬라이드/스냅으로 회차 전환 */}
       {hasMultipleSessions && !locked && (
         <ContentMask topHeight={0} />
@@ -1265,7 +1311,7 @@ const HERO_HEIGHT = 280;
 const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors['surface/normal'],
+    backgroundColor: colors['surface/dim'],
     alignItems: 'center',
   },
   scrollView: {
@@ -1348,6 +1394,12 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
     textShadowOffset: {width: 0, height: 1},
     textShadowRadius: 4,
   },
+  heroTitleSession: {
+    fontFamily: Typography.headline.small.fontFamily,
+    fontSize: Typography.headline.small.fontSize,
+    fontWeight: Typography.headline.small.fontWeight as '600',
+    color: colors['foreground/on-surface-inverse'],
+  },
   heroDescription: {
     fontFamily: Typography.body.medium.fontFamily,
     fontSize: Typography.body.medium.fontSize,
@@ -1428,6 +1480,31 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
     fontWeight: Typography.body.medium.fontWeight as '500',
     lineHeight: Typography.body.medium.lineHeight,
     color: colors['foreground/on-surface'],
+  },
+
+  // 회차 비교 하이라이트
+  diffCaption: {
+    ...Typography.label.medium,
+    color: colors['foreground/on-surface-muted'],
+    marginBottom: Spacing.sm,
+  },
+  hlAdded: {
+    backgroundColor: BaseColors['color-base-lime-20'],
+    color: BaseColors['color-base-lime-99'],
+    borderRadius: 4,
+  },
+  hlChanged: {
+    backgroundColor: BaseColors['color-base-orange-20'],
+    color: BaseColors['color-base-orange-95'],
+    borderRadius: 4,
+  },
+  prevAmount: {
+    color: colors['foreground/on-surface-muted'],
+    textDecorationLine: 'line-through',
+  },
+  removedText: {
+    color: colors['foreground/on-surface-muted'],
+    textDecorationLine: 'line-through',
   },
 
   // Tools

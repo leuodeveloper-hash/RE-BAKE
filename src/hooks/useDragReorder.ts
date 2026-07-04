@@ -1,5 +1,6 @@
 import {useCallback, useRef, useState} from 'react';
 import {Animated, PanResponder, StyleSheet} from 'react-native';
+import {triggerHaptic} from '@utils/haptics';
 
 export const ROW_HEIGHT = 48;
 
@@ -64,6 +65,7 @@ export function useDragReorder() {
         onShouldBlockNativeResponder: () => true,
         onPanResponderGrant: (_, gesture) => {
           setScrollEnabled(false);
+          triggerHaptic('light'); // 드래그 시작(집어올림) 햅틱
           setDraggingId(callbacksRef.itemId);
           dragFromRef.current = callbacksRef.index;
           dropTargetRef.current = callbacksRef.index;
@@ -119,6 +121,7 @@ export function useDragReorder() {
           }
 
           if (fromIdx !== newIdx) {
+            triggerHaptic('medium'); // 순서 변경 완료(드롭) 햅틱
             callbacksRef.reorder(fromIdx, newIdx);
           }
           dragY.setValue(0);

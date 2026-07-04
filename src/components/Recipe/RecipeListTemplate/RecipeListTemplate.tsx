@@ -5,10 +5,12 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {ContentContainer, contentAreaPadding} from '@components/Container';
 import {RecipeCard, RecipeCardLayout} from '@components/Recipe/RecipeCard';
 import {Menu, MenuItemData} from '@components/Menu';
+import {Tabs, type TabItem} from '@components/Tabs';
 import {PullIndicator, RefreshGap, usePullProgress} from '@components/PullIndicator';
+import {RecipePackView} from '@components/RecipeGroups/RecipePackView';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useColorsV2} from '@contexts/ThemeContext';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import type {Recipe} from '../../../types/recipe';
@@ -18,13 +20,18 @@ import {
   IconLayoutGridFilled,
   IconLayoutPanelTop,
   IconList,
+  IconCardsFilled,
 } from '@components/Icon/IconIndex';
 
 const LAYOUT_MENU_ITEMS: MenuItemData[] = [
   {id: 'grid', label: '그리드', icon: IconLayoutGridFilled},
   {id: 'photoList', label: '사진 목록', icon: IconLayoutPanelTop},
   {id: 'list', label: '목록', icon: IconList},
+  {id: 'pack', label: '팩뷰', icon: IconCardsFilled},
 ];
+
+// 레이아웃 선택: 메뉴 박스 안 아이콘 탭(세그먼트)으로 표시 — 레이블 없이 아이콘만
+const LAYOUT_TABS: TabItem[] = LAYOUT_MENU_ITEMS.map(i => ({id: i.id, label: '', icon: i.icon}));
 
 const SORT_MENU_ITEMS: MenuItemData[] = [
   {id: 'default', label: '최신순'},
@@ -248,6 +255,8 @@ export interface RecipeListHelpers {
   closeMenus: () => void;
   /** 레이아웃 메뉴 (AppBar rightMenu로 전달) */
   layoutMenu: React.ReactNode;
+  /** 현재 레이아웃 아이콘 (AppBar 필터 버튼에 노출) */
+  filterIcon: MenuItemData['icon'];
 }
 
 export interface RecipeListTemplateProps {
@@ -307,7 +316,7 @@ export function RecipeListTemplate({
       AsyncStorage.getItem('recipe_list_layout'),
       AsyncStorage.getItem('recipe_list_sort'),
     ]).then(([savedLayout, savedSort]) => {
-      if (savedLayout && (savedLayout === 'grid' || savedLayout === 'photoList' || savedLayout === 'list')) {
+      if (savedLayout && (savedLayout === 'grid' || savedLayout === 'photoList' || savedLayout === 'list' || savedLayout === 'pack')) {
         setLayoutState(savedLayout);
       }
       if (savedSort) setSortIdState(savedSort);
@@ -363,7 +372,7 @@ export function RecipeListTemplate({
   }, []);
 
   const handleMenuSelect = useCallback((id: string) => {
-    const layoutIds = ['grid', 'photoList', 'list'];
+    const layoutIds = ['grid', 'photoList', 'list', 'pack'];
     if (layoutIds.includes(id)) {
       setLayout(id as RecipeCardLayout);
     } else {
@@ -450,7 +459,21 @@ export function RecipeListTemplate({
   const layoutMenuNode = (
     <Menu
       sections={[
-        {title: '레이아웃', items: LAYOUT_MENU_ITEMS, selectedId: layout},
+        {
+          title: '레이아웃',
+          content: (
+            <View style={styles.layoutTabsWrap}>
+              <Tabs
+                variant="icon"
+                size="large"
+                fullWidth
+                tabs={LAYOUT_TABS}
+                selectedId={layout}
+                onSelect={handleMenuSelect}
+              />
+            </View>
+          ),
+        },
         {title: '정렬', items: SORT_MENU_ITEMS, selectedId: sortId},
       ]}
       onSelect={handleMenuSelect}
@@ -464,6 +487,8 @@ export function RecipeListTemplate({
     handleFilterPress,
     closeMenus,
     layoutMenu: layoutMenuNode,
+    // 현재 레이아웃의 아이콘 → AppBar 필터 버튼에 노출 (뷰 바꾸면 아이콘도 바뀜)
+    filterIcon: LAYOUT_MENU_ITEMS.find(i => i.id === activeLayout)?.icon ?? IconLayoutGridFilled,
   };
 
   const renderItem = useCallback(({item, index}: {item: Recipe; index: number}) => {
@@ -541,33 +566,52 @@ export function RecipeListTemplate({
   return (
     <>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <ContentContainer style={styles.contentWrapper} horizontalPadding={false}>
-          <PullIndicator progress={pullProgress} isRefreshing={isRefreshing} refreshStripProgress={refreshStripProgress} refreshOpacity={refreshOpacity} />
+        {activeLayout === 'pack' ? (
+          // 팩뷰: 콘텐츠 너비(maxWidth 800)·패딩 제약 밖에서 전체 너비로 로밍
+          <View style={styles.packFull}>
+            <PullIndicator progress={pullProgress} isRefreshing={isRefreshing} refreshStripProgress={refreshStripProgress} refreshOpacity={refreshOpacity} />
+            {!loading && sortedData.length === 0 && listEmptyComponent ? (
+              // 팩뷰에서도 레시피가 없으면 빈 상태 표시 (FlatList 경로와 동일)
+              <View style={styles.packEmpty}>{listEmptyComponent}</View>
+            ) : (
+              <RecipePackView
+                recipes={loading ? [] : sortedData}
+                lockedRecipeIds={lockedRecipeIds}
+                onRecipePress={(id) => {
+                  const r = sortedData.find(x => x.id === id) ?? ({id} as Recipe);
+                  onRecipePress(r);
+                }}
+              />
+            )}
+          </View>
+        ) : (
+          <ContentContainer style={styles.contentWrapper} horizontalPadding={false}>
+            <PullIndicator progress={pullProgress} isRefreshing={isRefreshing} refreshStripProgress={refreshStripProgress} refreshOpacity={refreshOpacity} />
 
-          <FlatList
-            style={{flex: 1, zIndex: 2}}
-            showsVerticalScrollIndicator={false}
-            scrollEnabled={scrollEnabled !== false}
-            key={activeLayout}
-            data={displayData}
-            numColumns={numColumns}
-            keyExtractor={item => item.id}
-            contentContainerStyle={[
-              styles.listContent,
-              !loading && data.length === 0 && styles.listContentEmpty,
-            ]}
-            columnWrapperStyle={activeLayout === 'grid' ? styles.row : undefined}
-            onScroll={handleScroll}
-            scrollEventThrottle={16}
-            onEndReached={handleEndReached}
-            onEndReachedThreshold={0.5}
-            ListHeaderComponent={<>{<RefreshGap height={refreshGapHeight} />}{listHeaderExtra}</>}
-            ListEmptyComponent={loading && !isRefreshing ? undefined : listEmptyComponent}
-            ListFooterComponent={loadingMore ? <SkeletonFooter layout={activeLayout} /> : undefined}
-            renderItem={renderItem}
-          />
-
-        </ContentContainer>
+            <FlatList
+              style={{flex: 1, zIndex: 2}}
+              showsVerticalScrollIndicator={false}
+              scrollEnabled={scrollEnabled !== false}
+              key={activeLayout}
+              data={displayData}
+              numColumns={numColumns}
+              keyExtractor={item => item.id}
+              contentContainerStyle={[
+                styles.listContent,
+                !loading && data.length === 0 && styles.listContentEmpty,
+              ]}
+              columnWrapperStyle={activeLayout === 'grid' ? styles.row : undefined}
+              onScroll={handleScroll}
+              scrollEventThrottle={16}
+              onEndReached={handleEndReached}
+              onEndReachedThreshold={0.5}
+              ListHeaderComponent={<>{<RefreshGap height={refreshGapHeight} />}{listHeaderExtra}</>}
+              ListEmptyComponent={loading && !isRefreshing ? undefined : listEmptyComponent}
+              ListFooterComponent={loadingMore ? <SkeletonFooter layout={activeLayout} /> : undefined}
+              renderItem={renderItem}
+            />
+          </ContentContainer>
+        )}
       </SafeAreaView>
 
       {renderAppBar(helpers)}
@@ -604,10 +648,24 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   safeArea: {
     flex: 1,
     alignItems: 'center',
-    backgroundColor: colors['surface/normal'],
+    backgroundColor: colors['surface/dim'],
   },
   contentWrapper: {
     flex: 1,
+  },
+  packFull: {
+    flex: 1,
+    width: '100%',
+  },
+  packEmpty: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  layoutTabsWrap: {
+    // 메뉴 항목과 좌우 정렬 (GlassContainer 패딩만 적용되도록 가로 패딩 제거)
+    paddingHorizontal: 0,
+    paddingBottom: 4,
   },
   listContent: {
     ...contentAreaPadding,

@@ -8,7 +8,7 @@ import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useColorsV2} from '@contexts/ThemeContext';
 import {getColorVarKey} from '@components/ColorPicker';
 import type {AvatarColor} from '@components/Avatar/Avatar';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
@@ -30,6 +30,8 @@ export interface CookbookSelectSheetProps {
   onItemLayout?: (name: string, event: LayoutChangeEvent) => void;
   /** '그룹 없음' 항목 레이블 (기본: '레시피 북 없음') */
   ungroupedLabel?: string;
+  /** '레시피 북 추가' 팝업의 공식 레시피 북 토글 기본값 (둘러보기 레시피 생성 시 true) */
+  initialOfficial?: boolean;
   /** BottomSheet 내부 오버레이/메뉴 등 추가 요소 */
   children?: React.ReactNode;
 }
@@ -46,6 +48,7 @@ export function CookbookSelectSheet({
   renderItemTrailing,
   onItemLayout,
   ungroupedLabel = '레시피 북 없음',
+  initialOfficial = false,
   children,
 }: CookbookSelectSheetProps) {
   const styles = useThemedStylesV2(createStyles);
@@ -54,8 +57,10 @@ export function CookbookSelectSheet({
   const [showDialog, setShowDialog] = useState(false);
 
   const handleAddPress = useCallback(() => {
+    // 시트(Modal)를 먼저 닫고, 닫힘 애니메이션이 끝난 뒤 다이얼로그(Modal)를 연다.
+    // 중첩 Modal을 동시에 전환하면 RN에서 뒤 Modal이 안 뜨는 문제 방지.
     onClose();
-    setShowDialog(true);
+    setTimeout(() => setShowDialog(true), 300);
   }, [onClose]);
 
   const handleDialogConfirm = useCallback((name: string, color: AvatarColor) => {
@@ -122,6 +127,7 @@ export function CookbookSelectSheet({
           visible={showDialog}
           onClose={() => setShowDialog(false)}
           onConfirm={handleDialogConfirm}
+          initialOfficial={initialOfficial}
         />
       )}
     </>

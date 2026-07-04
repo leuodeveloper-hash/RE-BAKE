@@ -1,5 +1,5 @@
 /**
- * 썸네일이 없는 집계 팩(레시피 북 없음 / 회고록 등) 장식용 커버 이미지.
+ * 썸네일이 없는 집계 팩(레시피 북 없음 / 회고 노트 등) 장식용 커버 이미지.
  * assets/images/thumbnails/cover-01~04.png
  *
  * require() numeric 소스를 그대로 expo-image(ExpoImage)에 전달 → iOS/Android/web 모두 렌더.
@@ -26,9 +26,13 @@ function hashStr(s: string): number {
 /**
  * 시드 기반으로 중복 없이 최대 n개의 커버 소스(require numeric) 반환.
  * 같은 시드 → 항상 같은 결과 (렌더마다 바뀌지 않음).
+ * exclude: 이미 다른 곳에서 쓴 커버 목록. 풀에서 제외해 서로 안 겹치게 함.
+ *          (제외 후 풀이 부족하면 전체 풀로 폴백)
  */
-export function pickCovers(seed: string, n: number): number[] {
-  const pool = [...COVER_THUMBNAIL_SOURCES];
+export function pickCovers(seed: string, n: number, exclude: number[] = []): number[] {
+  let pool = COVER_THUMBNAIL_SOURCES.filter(c => !exclude.includes(c));
+  if (pool.length === 0) pool = [...COVER_THUMBNAIL_SOURCES];
+  else pool = [...pool];
   const out: number[] = [];
   let h = hashStr(seed) || 1;
   const count = Math.min(n, pool.length);

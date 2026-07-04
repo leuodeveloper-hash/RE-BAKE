@@ -10,7 +10,7 @@ import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useColorsV2} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Radius} from '@constants/tokens';
 import {Typography} from '@constants/typography';

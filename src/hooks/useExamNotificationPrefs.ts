@@ -33,8 +33,8 @@ export function useExamNotificationPrefs() {
   const [prefs, setPrefs] = useState<ExamNotificationPrefs>(DEFAULT_PREFS);
   const [loaded, setLoaded] = useState(false);
 
-  useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then(raw => {
+  const reload = useCallback(() => {
+    return AsyncStorage.getItem(STORAGE_KEY).then(raw => {
       if (raw) {
         try {
           const parsed = JSON.parse(raw);
@@ -46,6 +46,10 @@ export function useExamNotificationPrefs() {
       setLoaded(true);
     });
   }, []);
+
+  useEffect(() => {
+    reload();
+  }, [reload]);
 
   // prefs 로드/변경될 때마다 알림 동기화 (idempotent — 기존 취소 후 재등록)
   useEffect(() => {
@@ -68,5 +72,14 @@ export function useExamNotificationPrefs() {
     update({...prefs, targets});
   }, [prefs, update]);
 
-  return {prefs, loaded, setEnabled, toggleTarget};
+  /** 시험 유형별 알림을 켜고 끔. enabled는 켜진 유형 유무에 따라 자동 동기화. */
+  const setTargetEnabled = useCallback((type: ExamType, on: boolean) => {
+    const has = prefs.targets.includes(type);
+    const targets = on
+      ? (has ? prefs.targets : [...prefs.targets, type])
+      : prefs.targets.filter(t => t !== type);
+    update({enabled: targets.length > 0, targets});
+  }, [prefs, update]);
+
+  return {prefs, loaded, reload, setEnabled, toggleTarget, setTargetEnabled};
 }

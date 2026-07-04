@@ -5,7 +5,6 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import {BlurView} from 'expo-blur';
 import {LinearGradient} from 'expo-linear-gradient';
 import {Spacing} from '@constants/spacing';
-import {withOpacity} from '@constants/tokens';
 import {useColorsV2, useTheme} from '@contexts/ThemeContext';
 import {ContentContainer} from '@components/Container';
 import {TABBAR_BOTTOM_SPACE} from '@components/Container/ContentContainer';
@@ -19,7 +18,35 @@ export interface FloatingNavBarProps {
   rightMenu?: React.ReactNode;
   /** left 영역을 전체 너비로 확장 */
   leftFull?: boolean;
+  /**
+   * 배경 그라디언트 틴트 색 (기본: surface/normal = 거의 흰색 페이드).
+   * 이미지 위(상세 히어로 등)에선 fill/faint 같은 반투명 색을 넘겨 흰 웹을 없애고
+   * 블러(프로스티드 글래스)가 드러나게 한다. hex / rgba 모두 허용.
+   */
+  tintColor?: string;
   style?: ViewStyle;
+}
+
+/** 색(hex 또는 rgba)에서 알파 추출 (없으면 1) */
+function colorAlpha(color: string): number {
+  if (color.startsWith('rgba')) {
+    const n = color.match(/[\d.]+/g);
+    return n && n[3] !== undefined ? Number(n[3]) : 1;
+  }
+  return 1;
+}
+
+/** 색(hex 또는 rgb/rgba)에서 rgb 추출 */
+function colorRgb(color: string): [number, number, number] {
+  if (color.startsWith('rgb')) {
+    const n = (color.match(/[\d.]+/g) || []).map(Number);
+    return [n[0] ?? 0, n[1] ?? 0, n[2] ?? 0];
+  }
+  return [
+    parseInt(color.slice(1, 3), 16),
+    parseInt(color.slice(3, 5), 16),
+    parseInt(color.slice(5, 7), 16),
+  ];
 }
 
 /** NavBar pill 높이 */
@@ -40,10 +67,15 @@ export const APPBAR_CONTENT_BOTTOM = Spacing.smd + NAV_PILL_HEIGHT; // 10 + 44 =
 // pill 바로 아래에서 짧게 페이드아웃 — 콘텐츠 침범 방지 (이전 66 → 24)
 const GRADIENT_EXTENSION = Spacing.lg; // 24
 
-export function FloatingNavBar({left, right, leftMenu, rightMenu, leftFull, style}: FloatingNavBarProps) {
+export function FloatingNavBar({left, right, leftMenu, rightMenu, leftFull, tintColor, style}: FloatingNavBarProps) {
   const colors = useColorsV2();
   const {isDark} = useTheme();
   const surfaceDim = colors['surface/normal'] as string;
+  // 그라디언트 베이스: tintColor 지정 시 그 색(반투명 알파 반영), 아니면 surface/normal(불투명 흰색 페이드).
+  const gradBase = tintColor ?? surfaceDim;
+  const gradAlpha = tintColor ? colorAlpha(tintColor) : 1;
+  const [gr, gg, gb] = colorRgb(gradBase);
+  const gradStop = (a: number) => `rgba(${gr}, ${gg}, ${gb}, ${a * gradAlpha})`;
 
   return (
     <SafeAreaView
@@ -61,7 +93,7 @@ export function FloatingNavBar({left, right, leftMenu, rightMenu, leftFull, styl
           } as any]}
           pointerEvents="none">
           <LinearGradient
-            colors={[withOpacity(surfaceDim, 0.95), withOpacity(surfaceDim, 0)]}
+            colors={[gradStop(0.95), gradStop(0)]}
             style={StyleSheet.absoluteFill}
           />
         </View>
@@ -84,10 +116,10 @@ export function FloatingNavBar({left, right, leftMenu, rightMenu, leftFull, styl
           />
           <LinearGradient
             colors={[
-              withOpacity(surfaceDim, 0.95),
-              withOpacity(surfaceDim, 0.5),
-              withOpacity(surfaceDim, 0.12),
-              withOpacity(surfaceDim, 0),
+              gradStop(0.95),
+              gradStop(0.5),
+              gradStop(0.12),
+              gradStop(0),
             ] as [string, string, string, string]}
             locations={[0, 0.35, 0.7, 1]}
             style={StyleSheet.absoluteFill}

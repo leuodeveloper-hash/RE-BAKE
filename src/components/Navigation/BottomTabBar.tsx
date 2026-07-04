@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Typography} from '@constants/typography';
 import {Spacing} from '@constants/spacing';
 import {SvgProps} from 'react-native-svg';
@@ -276,13 +276,12 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
     width: BOTTOM_MENU_WIDTH,
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.xs,
-    backgroundColor: 'rgba(255,255,255,0.4)',
+    // 배경은 GlassContainer의 glass fill 토큰(fill/glass-normal, 테마대응)이 담당
   },
   // 확장 컨테이너 (추가 메뉴 상태)
   expandedContainer: {
     maxWidth: 380,
     width: '100%',
-    backgroundColor: 'rgba(255,255,255,0.4)',
   },
   // 탭 콘텐츠 (메인 - 높이 결정)
   tabContent: {

@@ -111,7 +111,10 @@ export async function scheduleExamNotifications(schedules: ExamSchedule[]): Prom
           body: t.body,
           data: {kind: 'exam_schedule', scheduleId: s.id, examType: s.examType},
         },
-        trigger: t.date,
+        // expo-notifications(SDK54)는 trigger에 type이 없으면 거부한다.
+        // Date를 그냥 넘기면 hasValidTriggerObject에서 TypeError → 스케줄 등록 실패.
+        // 반드시 {type:'date', date} 형태로 넘길 것.
+        trigger: {type: 'date', date: t.date},
       });
     }
   }

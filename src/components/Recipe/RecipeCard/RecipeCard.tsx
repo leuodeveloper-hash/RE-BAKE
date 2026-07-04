@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   Animated,
   Easing,
@@ -19,10 +19,9 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import {LinearGradient} from 'expo-linear-gradient';
 import {Image as ExpoImage} from 'expo-image';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {ElevationLight, ElevationDark} from '@constants/elevation';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {triggerHaptic} from '@utils/haptics';
 import {useColorsV2, useTheme} from '@contexts/ThemeContext';
@@ -121,25 +120,66 @@ const resizeToContentFit = {
   center: 'none',
 } as const;
 
+// 로딩 블러업(뭉개짐→선명): 같은 이미지를 두 겹으로 깔고 뒤는 항상 블러,
+// 앞(선명)은 expo-image 내장 transition(네이티브 크로스디졸브)으로 페이드인.
+// ⚠️ 수동 onLoad+Animated는 쓰지 않는다 — 캐시된 이미지에서 onLoad가 안 떠
+//    영영 블러로 멈추고(stuck blur), 마운트마다 opacity가 0으로 리셋돼 뷰 전환 때마다
+//    다시 블러부터 시작했다. 네이티브 transition은 캐시에서도 안정적으로 발화하고
+//    캐시 히트 시 거의 즉시 표시된다. (참고: feedback_rn_web_image_onload)
+const LOAD_BLUR_RADIUS = 18;
+
 function FadeInImage({
   source,
   style,
   resizeMode = 'cover',
+  local = false,
 }: {
   source: number | {uri: string};
   style?: StyleProp<ImageStyle | ViewStyle | TextStyle>;
   resizeMode?: keyof typeof resizeToContentFit;
+  /** 로컬 require 이미지 여부 — true면 블러 백킹·페이드·다운샘플 모두 끔(즉시 또렷) */
+  local?: boolean;
 }) {
+  const contentFit = resizeToContentFit[resizeMode];
+  // source를 uri(또는 require 숫자) 기준으로 안정화한다. 부모가 리렌더될 때마다
+  // {uri} 객체가 새로 만들어지면 expo-image가 같은 이미지를 재로딩하며 깜빡인다
+  // (검색 중 타이핑마다 카드 썸네일 깜빡임). 같은 키면 레퍼런스를 유지해 재로딩 방지.
+  const sourceKey = typeof source === 'object' && source !== null ? source.uri : source;
+  const stableSource = useMemo(() => source, [sourceKey]);
+  // 재활용 리스트(팩뷰/그리드)에서 뷰 재사용 시 옛 이미지 잔상 방지
+  const recyclingKey = typeof sourceKey === 'string' ? sourceKey : String(sourceKey);
+  // 로컬 require 이미지는 즉시 로드돼 로딩 블러업이 불필요하고, 투명 일러스트의 경우
+  // 뒤 블러 복사본이 가장자리로 번져 "그림자(헤일로)"처럼 보인다. → 로컬이면 블러 끔.
+  // ⚠️ source 모양(string/number/object)으로는 판별 불가(웹 require는 {uri} 객체라
+  //    원격으로 오판됨) → 호출부가 원본 imageUrl로 local 플래그를 명시적으로 넘긴다.
+  const isRemote = !local;
   return (
-    <ExpoImage
-      source={source}
-      style={style as any}
-      contentFit={resizeToContentFit[resizeMode]}
-      // 메모리+디스크 캐시: 한 번 로드한 이미지는 화면 이동 시 재요청 없이 즉시 표시
-      cachePolicy="memory-disk"
-      // 캐시 히트 시 깜빡임 없이, 신규 로드 시에만 부드러운 페이드인
-      transition={200}
-    />
+    <View style={[style as any, {overflow: 'hidden'}]}>
+      {/* 뒤: 원격 이미지 로딩 중 "뭉개짐" 상태로 보이는 블러 레이어 */}
+      {isRemote && (
+      <ExpoImage
+        source={stableSource}
+        style={StyleSheet.absoluteFill}
+        contentFit={contentFit}
+        cachePolicy="memory-disk"
+        recyclingKey={recyclingKey}
+        blurRadius={LOAD_BLUR_RADIUS}
+        pointerEvents="none"
+      />
+      )}
+      {/* 앞: 선명한 레이어 — 원격은 네이티브 transition으로 페이드인, 로컬 require는
+          즉시 로드되므로 transition 없이 바로 표시(투명 일러스트의 페이드 번짐 방지) */}
+      <ExpoImage
+        source={stableSource}
+        style={StyleSheet.absoluteFill}
+        contentFit={contentFit}
+        cachePolicy="memory-disk"
+        recyclingKey={recyclingKey}
+        transition={isRemote ? {duration: 400, effect: 'cross-dissolve'} : undefined}
+        // 로컬 일러스트는 다운샘플 끄고 원본 해상도로 그려 또렷하게(작게 줄어든 선화 번짐 방지)
+        allowDownscaling={isRemote}
+      />
+    </View>
   );
 }
 
@@ -152,6 +192,10 @@ export function StackedThumbnail({
   paperTitle,
   paperPreview,
   showPaper = true,
+  radius: radiusOverride,
+  fill = false,
+  bare = false,
+  transparent = false,
 }: {
   size: number;
   imageUrl?: string | number;
@@ -160,12 +204,24 @@ export function StackedThumbnail({
   paperPreview?: string[];
   /** 이미지 뒤 종이 표시 여부 (이미지 없으면 항상 표시) */
   showPaper?: boolean;
+  /** 카드/이미지 모서리 라운딩 (미지정 시 cardSize 비례 자동) */
+  radius?: number;
+  /** true면 카드가 size 박스를 꽉 채움(0.68 축소·팬 오프셋 없음). 책 표지용 정사각 이미지. */
+  fill?: boolean;
+  /** true면 이미지 카드의 그림자·테두리 제거 (책 표지 안 썸넬용) */
+  bare?: boolean;
+  /** true면 이미지 레이어 배경색 제거 (투명 일러스트가 떠 보이도록) */
+  transparent?: boolean;
 }) {
   const {isDark} = useTheme();
-  // 흰 테두리 제거 후 경계가 보이도록 강한 그림자 사용
-  const shadow = isDark ? ElevationDark.strong : ElevationLight.strong;
-  const cardSize = size * 0.68;
-  const radius = cardSize * 0.18;
+  // 흰 테두리 제거 후 경계가 보이도록 강한 그림자 사용 (토큰 strong보다 더 진하게 — 카드 전용 로컬값)
+  const shadow = {
+    boxShadow: isDark
+      ? '0px 8px 16px -4px rgba(0, 0, 0, 0.52)'
+      : '0px 8px 18px -4px rgba(14, 14, 13, 0.22)',
+  } as const;
+  const cardSize = fill ? size : size * 0.68;
+  const radius = radiusOverride ?? cardSize * 0.18;
   const offset = size * 0.1;
   const paperPadding = cardSize * 0.12;
   const lineHeight = Math.max(cardSize * 0.04, 1.5);
@@ -253,6 +309,9 @@ export function StackedThumbnail({
       </View>
       )}
       {/* 이미지 (앞쪽, 좌측 기울임) */}
+      {/* 그림자(바깥) + 클립(안) 레이어 분리: iOS에서 boxShadow+overflow:'hidden'+
+          borderRadius+rotate를 한 View에 같이 주면 코너 라운드가 깨져 한쪽만 둥글게
+          렌더된다. 바깥은 그림자만, 안쪽은 overflow로 이미지만 클립한다. */}
       {imageUrl ? (
         <View
           pointerEvents="none"
@@ -260,24 +319,27 @@ export function StackedThumbnail({
             position: 'absolute',
             width: cardSize,
             height: cardSize,
-            backgroundColor: colors['surface/bright'],
+            backgroundColor: transparent ? 'transparent' : colors['surface/bright'],
             borderRadius: radius,
-            overflow: 'hidden',
             // 종이가 같이 보일 때만 좌측 비킴+기울임(종이 노출), 종이 없으면 평평하게
             // (멀티 카드 팬은 FAN 회전만 적용돼 좌우 대칭 유지)
             transform: renderPaper
               ? [{translateX: -offset}, {rotate: '-8deg'}]
               : [{translateX: 0}, {rotate: '0deg'}],
-            ...shadow,
+            ...(bare ? {} : shadow),
           }}>
-          <FadeInImage
-            // 문자열 uri만 {uri}로 감싼다. 숫자(네이티브 require)·객체(웹 require)는
-            // 그대로 expo-image에 넘겨야 한다. 웹에서 require(png)는 객체를 반환하므로
-            // {uri: object}로 감싸면 expo-image 내부 startsWith 호출에서 크래시한다.
-            source={typeof imageUrl === 'string' ? {uri: imageUrl} : imageUrl}
-            style={{width: '100%', height: '100%'}}
-            resizeMode="cover"
-          />
+          <View style={{flex: 1, borderRadius: radius, overflow: 'hidden', ...(bare ? {} : {borderWidth: 1, borderColor: colors['surface/bright']})}}>
+            <FadeInImage
+              // 문자열 uri만 {uri}로 감싼다. 숫자(네이티브 require)·객체(웹 require)는
+              // 그대로 expo-image에 넘겨야 한다. 웹에서 require(png)는 객체를 반환하므로
+              // {uri: object}로 감싸면 expo-image 내부 startsWith 호출에서 크래시한다.
+              source={typeof imageUrl === 'string' ? {uri: imageUrl} : imageUrl}
+              // 문자열이 아니면(숫자/객체 require) 로컬 이미지 → 블러·페이드 끔
+              local={typeof imageUrl !== 'string'}
+              style={{width: '100%', height: '100%'}}
+              resizeMode="cover"
+            />
+          </View>
         </View>
       ) : null}
     </View>
@@ -305,22 +367,30 @@ function GridThumbnail({
     if (h > 0) setContainerHeight(h);
   }, []);
 
+  // 겹침(종이+기울임)은 팩뷰 전용. grid는 이미지 있으면 풀블리드 단일 이미지,
+  // 이미지 없을 때만 미리보기 종이 카드를 단독(겹침 없이) 표시한다.
   return (
     <View style={styles.thumbnail} onLayout={handleLayout}>
-      {containerHeight > 0 ? (
+      {imageUrl ? (
+        <FadeInImage
+          source={{uri: imageUrl}}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        />
+      ) : containerHeight > 0 ? (
         <StackedThumbnail
           size={Math.min(containerHeight * 1.4, 180)}
-          imageUrl={imageUrl}
           colors={colors}
           paperTitle={paperTitle}
           paperPreview={paperPreview}
+          showPaper={false}
         />
       ) : null}
     </View>
   );
 }
 
-export type RecipeCardLayout = 'grid' | 'photoList' | 'list';
+export type RecipeCardLayout = 'grid' | 'photoList' | 'list' | 'pack';
 
 export interface RecipeCardProps {
   /** 레시피 ID (shared element transition tag 용) */
@@ -453,12 +523,16 @@ export function RecipeCard({
             </View>
           ) : (
             <View style={[styles.listStackedWrapper, {width: isSmall ? 44 : 64, height: isSmall ? 44 : 64}]}>
+              {/* 겹침은 팩뷰 전용 — 이미지 있으면 슬롯을 꽉 채운 단일 썸네일,
+                  없으면 미리보기 종이 카드를 단독(겹침 없이) 표시 */}
               <StackedThumbnail
                 size={isSmall ? 44 : 64}
                 imageUrl={imageUrl}
                 colors={colors}
                 paperTitle={paperTitle || title}
                 paperPreview={paperPreview}
+                showPaper={false}
+                fill
               />
             </View>
           )}

@@ -1,13 +1,13 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, Easing, Image, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {Radius, BaseColors, withOpacity} from '@constants/tokens';
-import {getRandomAvatar} from './avatars';
+import {getRandomAvatar, getGradientAvatar} from './avatars';
 import {SvgProps} from 'react-native-svg';
 import {useColorsV2} from '@contexts/ThemeContext';
 
 export type AvatarSize = 'xsmall' | 'small' | 'medium' | 'large' | 'xlarge';
 export type AvatarShape = 'default' | 'rounded' | 'circle';
-export type AvatarType = 'monogram' | 'icon' | 'image' | 'random';
+export type AvatarType = 'monogram' | 'icon' | 'image' | 'random' | 'gradient';
 export type AvatarColor =
   | 'gray' | 'greybrown' | 'brown' | 'darkred' | 'red'
   | 'orange' | 'yellow' | 'lime' | 'green' | 'teal'
@@ -22,8 +22,10 @@ export interface AvatarProps {
   type?: AvatarType;
   /** 배경 색상 (image 타입에서는 무시) */
   color?: AvatarColor;
-  /** 모노그램 텍스트 (type='monogram'일 때) */
+  /** 모노그램 텍스트 (type='monogram'일 때, 첫 글자만 표시). type='gradient'일 때는 전체 텍스트(D-day 등)를 표시 */
   monogram?: string;
+  /** 그라데이션 배경 인덱스 1~6 (type='gradient'일 때). 없으면 seed 기반 자동 배정 */
+  gradientIndex?: number;
   /** 이미지 URL (type='image'일 때) */
   imageUrl?: string;
   /** 아이콘 컴포넌트 (type='icon'일 때) */
@@ -38,12 +40,15 @@ export interface AvatarProps {
 
 // 크기별 설정
 const SIZE_CONFIG = {
-  xsmall: {container: 16, icon: 8, fontSize: 8, lineHeight: 16},
-  small: {container: 32, icon: 16, fontSize: 16, lineHeight: 24},
-  medium: {container: 36, icon: 20, fontSize: 16, lineHeight: 24},
-  large: {container: 48, icon: 24, fontSize: 22, lineHeight: 28},
-  xlarge: {container: 72, icon: 32, fontSize: 28, lineHeight: 36},
+  xsmall: {container: 16, icon: 8, fontSize: 8, lineHeight: 16, ddayFontSize: 8, ddayLineHeight: 10},
+  small: {container: 32, icon: 16, fontSize: 16, lineHeight: 24, ddayFontSize: 10, ddayLineHeight: 14},
+  medium: {container: 36, icon: 20, fontSize: 16, lineHeight: 24, ddayFontSize: 11, ddayLineHeight: 14},
+  large: {container: 48, icon: 24, fontSize: 22, lineHeight: 28, ddayFontSize: 12, ddayLineHeight: 16},
+  xlarge: {container: 72, icon: 32, fontSize: 28, lineHeight: 36, ddayFontSize: 16, ddayLineHeight: 20},
 };
+
+/** type='gradient' D-day 텍스트 고정 색상 (라이트/다크 공통, foreground/on-surface-fixed) */
+const GRADIENT_TEXT_COLOR = '#0e0e0d';
 
 // 모양별 borderRadius
 const getShapeRadius = (shape: AvatarShape, size: AvatarSize): number => {
@@ -65,6 +70,7 @@ export function Avatar({
   type = 'monogram',
   color = 'gray',
   monogram = 'A',
+  gradientIndex,
   imageUrl,
   icon: IconComponent,
   seed,
@@ -93,7 +99,7 @@ export function Avatar({
   // 색상별 텍스트/아이콘 색상 (시멘틱 토큰 매핑)
   const FOREGROUND_COLORS: Record<AvatarColor, string> = {
     gray:      colors['custom/grey'],
-    greybrown: colors['custom/grey-brown'],
+    greybrown: colors['custom/burgundy'],
     brown:     colors['custom/brown'],
     darkred:   colors['custom/red'],
     red:       colors['custom/red'],
@@ -110,7 +116,7 @@ export function Avatar({
 
   const config = SIZE_CONFIG[size];
   const borderRadius = getShapeRadius(shape, size);
-  const isImageType = type === 'image' || type === 'random';
+  const isImageType = type === 'image' || type === 'random' || type === 'gradient';
   const backgroundColor = isImageType ? colors['surface/container'] : BACKGROUND_COLORS[color];
   const foregroundColor = FOREGROUND_COLORS[color];
 
@@ -121,6 +127,14 @@ export function Avatar({
     }
     return null;
   }, [type, seed]);
+
+  // 그라데이션 배경은 index 우선, 없으면 시드 기반으로 일관된 이미지 반환
+  const gradientAvatarSource = useMemo(() => {
+    if (type === 'gradient') {
+      return getGradientAvatar(gradientIndex, seed);
+    }
+    return null;
+  }, [type, gradientIndex, seed]);
 
   // 이미지 로딩 스켈레톤
   const [imageLoaded, setImageLoaded] = useState(false);
@@ -153,6 +167,32 @@ export function Avatar({
 
   const renderContent = () => {
     switch (type) {
+      case 'gradient':
+        return (
+          <>
+            <Image
+              source={gradientAvatarSource}
+              style={styles.image}
+              resizeMode="cover"
+            />
+            {!!monogram && (
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.dday,
+                  {
+                    fontSize: config.ddayFontSize,
+                    lineHeight: config.ddayLineHeight,
+                    // 그라디언트 이미지가 진해져 on-image(밝은색) 텍스트로
+                    color: colors['foreground/on-image'],
+                  },
+                ]}>
+                {monogram}
+              </Text>
+            )}
+          </>
+        );
+
       case 'random':
         return (
           <Image
@@ -229,5 +269,13 @@ const styles = StyleSheet.create({
     fontWeight: '700',
     textAlign: 'center',
     opacity: 0.56,
+  },
+  dday: {
+    position: 'absolute',
+    fontFamily: 'Pretendard-SemiBold',
+    fontWeight: '600',
+    textAlign: 'center',
+    letterSpacing: 0.2,
+    color: GRADIENT_TEXT_COLOR,
   },
 });

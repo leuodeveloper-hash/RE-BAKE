@@ -8,7 +8,7 @@ import {IconButton} from '@components/IconButton';
 import {IconClose, IconCircleInfoFilled1} from '@components/Icon/IconIndex';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useColorsV2, useTheme} from '@contexts/ThemeContext';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 

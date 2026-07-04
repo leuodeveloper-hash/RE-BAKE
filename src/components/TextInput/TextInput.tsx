@@ -9,11 +9,13 @@ import {
   NativeSyntheticEvent,
   TextInputContentSizeChangeEventData,
   Platform,
+  StyleProp,
+  TextStyle,
 } from 'react-native';
 import {IconCloseCircleFilled} from '@components/Icon/IconIndex';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useColorsV2} from '@contexts/ThemeContext';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
@@ -33,6 +35,8 @@ export interface TextInputProps extends RNTextInputProps {
   variant?: 'default' | 'yellow';
   /** 내용 지우기 (x) 버튼 표시 */
   clearable?: boolean;
+  /** 실제 입력 텍스트 스타일 오버라이드 (폰트 크기/색 등). variant 스타일 뒤에 병합되어 우선함 */
+  inputStyle?: StyleProp<TextStyle>;
 }
 
 export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
@@ -48,6 +52,7 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
   multiline = false,
   variant = 'default',
   clearable = false,
+  inputStyle,
   value,
   onChangeText,
   onContentSizeChange,
@@ -136,6 +141,7 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
             multiline && !isGhost && styles.inputMultiline,
             isYellow && styles.inputYellow,
             autoResize && contentHeight != null ? {height: contentHeight} : undefined,
+            inputStyle,
           ]}
           placeholder={placeholder}
           placeholderTextColor={isYellow ? colors['custom/yellow-var'] + '80' : colors['foreground/on-surface-muted']}

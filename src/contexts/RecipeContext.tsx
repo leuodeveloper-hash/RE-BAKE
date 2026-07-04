@@ -17,6 +17,8 @@ interface RecipeContextValue {
   lastSyncedDevice: string | null;
   selectedCookbook: string | null;
   setSelectedCookbook: (cookbook: string | null) => void;
+  selectedMethod: string | null;
+  setSelectedMethod: (method: string | null) => void;
   selectedExploreCookbook: string | null;
   setSelectedExploreCookbook: (cookbook: string | null) => void;
   availableCookbooks: string[];
@@ -34,13 +36,20 @@ interface RecipeContextValue {
   reload: () => Promise<void>;
   /** 레시피 추가 가능 여부 (로그인 유저 30개 제한) */
   canAddRecipe: () => boolean;
+  /** 게스트→로그인(Pro) 시 올릴 로컬 레시피 수 (>0이면 확인 팝업) */
+  migrationCount: number;
+  /** 로컬 데이터를 계정에 올리기 (이미지 업로드 + 동기화) */
+  confirmMigration: () => Promise<void>;
+  /** 나중에 (로컬 유지, 업로드 안 함) */
+  dismissMigration: () => void;
 }
 
 const RecipeContext = createContext<RecipeContextValue | null>(null);
 
 export function RecipeProvider({children}: {children: React.ReactNode}) {
-  const {recipes, setRecipes, exportRecipes, importRecipes, isLoading, lastSyncedAt, lastSyncedDevice, reload, canAddRecipe} = useRecipeStorage();
+  const {recipes, setRecipes, exportRecipes, importRecipes, isLoading, lastSyncedAt, lastSyncedDevice, reload, canAddRecipe, migrationCount, confirmMigration, dismissMigration} = useRecipeStorage();
   const [selectedCookbook, setSelectedCookbook] = useState<string | null>(null);
+  const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const [selectedExploreCookbook, setSelectedExploreCookbook] = useState<string | null>(null);
   const [cookbookColors, setCookbookColorsState] = useState<Record<string, AvatarColor>>({});
   const colorsLoaded = useRef(false);
@@ -102,6 +111,8 @@ export function RecipeProvider({children}: {children: React.ReactNode}) {
     lastSyncedDevice,
     selectedCookbook,
     setSelectedCookbook,
+    selectedMethod,
+    setSelectedMethod,
     selectedExploreCookbook,
     setSelectedExploreCookbook,
     availableCookbooks,
@@ -112,7 +123,10 @@ export function RecipeProvider({children}: {children: React.ReactNode}) {
     removeCookbookColor,
     reload,
     canAddRecipe,
-  }), [recipes, setRecipes, exportRecipes, importRecipes, isLoading, lastSyncedAt, lastSyncedDevice, selectedCookbook, selectedExploreCookbook, availableCookbooks, findRecipeById, cookbookColors, setCookbookColor, renameCookbookColor, removeCookbookColor, reload, canAddRecipe]);
+    migrationCount,
+    confirmMigration,
+    dismissMigration,
+  }), [recipes, setRecipes, exportRecipes, importRecipes, isLoading, lastSyncedAt, lastSyncedDevice, selectedCookbook, selectedMethod, selectedExploreCookbook, availableCookbooks, findRecipeById, cookbookColors, setCookbookColor, renameCookbookColor, removeCookbookColor, reload, canAddRecipe, migrationCount, confirmMigration, dismissMigration]);
 
   return (
     <RecipeContext.Provider value={value}>{children}</RecipeContext.Provider>

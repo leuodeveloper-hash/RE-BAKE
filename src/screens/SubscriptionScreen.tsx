@@ -6,7 +6,7 @@ import {useColorsV2} from '@contexts/ThemeContext';
 
 import {Typography} from '@constants/typography';
 import {Spacing} from '@constants/spacing';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {IconSparkleFilled} from '@components/Icon/IconIndex';
 import type {SvgProps} from 'react-native-svg';

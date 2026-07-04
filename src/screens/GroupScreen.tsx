@@ -1,12 +1,12 @@
 import React, {useEffect, useMemo, useState} from 'react';
-import {Dimensions, LayoutChangeEvent, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {Dimensions, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {AppBar} from '@components/Navigation';
 import {ContentContainer, GlassContainer} from '@components/Container';
 import {SectionHeader} from '@components/SectionHeader';
 import {RecipeCard} from '@components/Recipe/RecipeCard';
-import {PackBoard, MethodExpandOverlay, type PackBoardItem, type PackOriginRect} from '@components/PackBoard';
+import {PackCanvas, CookbookCarousel, GroupExpandOverlay, SessionFlow, type SessionFlowItem, type PackBoardItem, type PackOriginRect} from '@components/PackBoard';
 import {Menu, type MenuItemData} from '@components/Menu';
 import {Dialog} from '@components/Dialog';
 import {Button} from '@components/Button';
@@ -18,22 +18,34 @@ import {useColorsV2} from '@contexts/ThemeContext';
 import {useAddSheet} from '@contexts/AddSheetContext';
 import {DEFAULT_COOKBOOK_COLOR} from '@contexts/RecipeContext';
 import type {AvatarColor} from '@components/Avatar/Avatar';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import type {Recipe} from '../types/recipe';
-import {IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconChartNoAxesGantt, IconChevronRight, IconSparkle, IconLayoutGridFilled} from '@components/Icon/IconIndex';
+import {IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconChartNoAxesGantt, IconChevronRight, IconSparkle, IconProcess, IconCardsFilled, IconArrowDownToLine} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import {buildPaperPreview} from '@utils/recipePaperPreview';
-import {pickCovers} from '@utils/coverThumbnails';
+import {coverCards, recipeCoverCards, emptyCoverCard} from '@utils/cookbookCards';
 import type {ExploreCookbook} from '@hooks/useExploreRecipes';
+import {axisLabel, DEFAULT_AXES, useAxisMenuItems, type AxisOverrides, type GroupAxis} from '@components/RecipeGroups/groupAxis';
+
+// 축 정의는 공통 모듈(groupAxis)로 일원화 — 재노출(기존 import 경로 호환)
+export type {GroupAxis};
+
+// 레시피 없는 빈 레시피 북 표지 썸넬용 (no-recipe 일러스트)
 
 export interface GroupScreenProps {
   recipes: Recipe[];
   cookbookColors: Record<string, AvatarColor>;
+  /** 현재 그룹화 축 (홈이 소유, 'all'이면 홈이 평면 리스트를 그리므로 여기엔 cookbook/method/retrospective만 전달됨) */
+  axis: GroupAxis;
+  /** 축 변경 (드롭다운). 'all' 선택 시 홈이 평면 리스트로 전환 */
+  onAxisChange: (axis: GroupAxis) => void;
   onComingSoon: () => void;
   onDeleteCookbook?: (name: string) => void;
   onCookbookPress?: (cookbookName: string) => void;
+  /** 공법 행 탭 시 (홈을 해당 공법으로 필터) */
+  onMethodPress?: (method: string) => void;
   /** 둘러보기 레시피 (어드민 전용) */
   exploreRecipes?: Recipe[];
   /** 둘러보기 레시피 북 목록 (Firestore explore_cookbooks) */
@@ -48,15 +60,19 @@ export interface GroupScreenProps {
   onRefresh?: () => Promise<void> | void;
   /** 레시피 상세 이동 */
   onRecipePress?: (recipeId: string) => void;
+  /** 축 드롭다운에 노출할 축 목록 (기본: 전체/레시피북/공법/회고). 둘러보기는 회고 제외 */
+  availableAxes?: GroupAxis[];
+  /** 축별 라벨/아이콘 오버라이드 (둘러보기: cookbook → "공식 레시피북" + 로고 아이콘) */
+  axisOverrides?: AxisOverrides;
+  /** 상단 앱바 + 버튼 노출 (기본 true). 둘러보기(공식 북)에선 어드민만 true로 전달 */
+  showAddButton?: boolean;
+  /** 레시피 북 팩뷰를 센터 카드 캐러셀로 (홈 전용). 기본 false면 기존 흩뿌림 PackCanvas */
+  bookCarousel?: boolean;
+  /** 상단 + 로 레시피 북 추가 시 '공식 레시피 북' 토글 기본 ON (둘러보기 전용) */
+  addAsOfficial?: boolean;
+  /** PDF 다운로드(현재 리스트 익스포트) 콜백. 주어지면 오버플로우 메뉴에 'PDF 다운로드' 노출 (둘러보기 전용) */
+  onDownloadPdf?: () => void;
 }
-
-// 그룹 필터 메뉴 (색상은 컴포넌트 내부에서 적용)
-
-const GROUP_FILTER_LABELS: Record<string, string> = {
-  '__all__': '모든 그룹',
-  'cookbook': '레시피 북',
-  'retrospective': '회고록',
-};
 
 const COOKBOOK_MENU_ITEMS = [
   {id: 'rename', label: '편집', icon: IconEdit},
@@ -66,14 +82,13 @@ const COOKBOOK_MENU_ITEMS = [
 const VIEW_MODE_STORAGE_KEY = '@bakecycle_group_view_mode';
 type ViewMode = 'list' | 'pack';
 
-export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCookbook, onCookbookPress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress}: GroupScreenProps) {
+export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComingSoon, onDeleteCookbook, onCookbookPress, onMethodPress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress, availableAxes = DEFAULT_AXES, axisOverrides, showAddButton = true, bookCarousel = false, addAsOfficial = false, onDownloadPdf}: GroupScreenProps) {
   const styles = useThemedStylesV2(createStyles);
   const colors = useColorsV2();
-  const {setShowCookbookDialog, setCookbookEditTarget} = useAddSheet();
+  const {setShowCookbookDialog, setCookbookEditTarget, setCookbookInitialOfficial} = useAddSheet();
   const {pullProgress, isRefreshing, refreshStripProgress, refreshOpacity, refreshGapHeight, handleScroll} = usePullProgress(onRefresh);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showGroupFilterMenu, setShowGroupFilterMenu] = useState(false);
-  const [selectedGroupFilter, setSelectedGroupFilter] = useState('__all__');
   const [cookbookMenuTarget, setCookbookMenuTarget] = useState<string | null>(null);
   const [cookbookMenuPosition, setCookbookMenuPosition] = useState<{top: number; right: number} | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -82,9 +97,14 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
   const [exploreCookbookMenuTarget, setExploreCookbookMenuTarget] = useState<string | null>(null);
   const [showReviewSheet, setShowReviewSheet] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
-  const [boardWidth, setBoardWidth] = useState(0);
   const [expandedMethod, setExpandedMethod] = useState<string | null>(null);
   const [expandedOrigin, setExpandedOrigin] = useState<PackOriginRect | null>(null);
+  // 회고 팩(다회차) → 회차 펼침
+  const [retroFlow, setRetroFlow] = useState<{
+    sessions: SessionFlowItem[];
+    origin: PackOriginRect;
+    root: {imageUrl?: string | number; title: string; count: number};
+  } | null>(null);
 
   // viewMode 저장/복원
   useEffect(() => {
@@ -101,11 +121,6 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
     }
   };
 
-  const handleBoardLayout = (e: LayoutChangeEvent) => {
-    const w = e.nativeEvent.layout.width;
-    if (w > 0 && w !== boardWidth) setBoardWidth(w);
-  };
-
   // 레시피 0개인 레시피 북 목록 (정리 대상)
   const emptyCookbookNames = useMemo(() => {
     const used = new Set<string>();
@@ -120,24 +135,34 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
     if (emptyCookbookNames.length > 0) {
       items.push({id: 'cleanup', label: `빈 레시피 북 없애기 (${emptyCookbookNames.length})`, icon: IconSparkle});
     }
-    items.push({id: 'deleteAll', label: '전체 삭제', icon: IconTrash, destructive: true});
+    // PDF 다운로드(현재 리스트 익스포트) — 콜백이 주어질 때만 (둘러보기 전용)
+    if (onDownloadPdf) {
+      items.push({id: 'downloadPdf', label: 'PDF 다운로드', icon: IconArrowDownToLine});
+    }
+    // 전체 삭제는 어드민 전용 (게스트/일반 사용자에겐 노출하지 않음)
+    if (isAdmin) {
+      items.push({id: 'deleteAll', label: '전체 삭제', icon: IconTrash, destructive: true});
+    }
     return items;
-  }, [emptyCookbookNames]);
+  }, [emptyCookbookNames, isAdmin, onDownloadPdf]);
 
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
   const layoutMenuItems = useMemo(() => [
     {id: 'list', label: '리스트 뷰', icon: IconChartNoAxesGantt},
-    {id: 'pack', label: '팩뷰', icon: IconLayoutGridFilled},
+    {id: 'pack', label: '팩뷰', icon: IconCardsFilled},
   ], []);
 
-  const groupFilterMenuItems = useMemo(() => [
-    {id: '__all__', label: '모든 그룹'},
-    {id: 'cookbook', label: '레시피 북', icon: IconBookFilled, iconColor: colors['custom/brown-var']},
-    {id: 'retrospective', label: '회고록', icon: IconChartNoAxesGantt, iconColor: colors['custom/light-blue-var']},
-  ], [colors]);
+  const groupFilterMenuItems = useAxisMenuItems(availableAxes, axisOverrides);
 
   // 레시피를 카테고리별로 그룹핑 → 레시피 북 섹션
   const cookbooks = useMemo(() => {
+    // 회차(remakeGroup)는 최신 1개로 — 3회차여도 1개 레시피로 계산
+    const latestByLineage = new Map<string, Recipe>();
+    for (const r of recipes) {
+      const key = r.remakeGroupId ?? r.id;
+      const ex = latestByLineage.get(key);
+      if (!ex || parseSession(r.session).current > parseSession(ex.session).current) latestByLineage.set(key, r);
+    }
     const map = new Map<string, Recipe[]>();
     // '레시피 북 없음'을 기본으로 항상 포함
     map.set('레시피 북 없음', []);
@@ -145,13 +170,27 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
     for (const name of Object.keys(cookbookColors)) {
       if (!map.has(name)) map.set(name, []);
     }
-    for (const recipe of recipes) {
+    for (const recipe of latestByLineage.values()) {
       const key = recipe.cookbook || '레시피 북 없음';
       const list = map.get(key) || [];
       list.push(recipe);
       map.set(key, list);
     }
-    return Array.from(map.entries()).map(([name, items]) => ({name, items}));
+    // 정렬: '레시피 북 없음'은 항상 맨 뒤 → 콘텐츠 개수 많은 순 → 최신순 (모든 북 뷰 공용)
+    const latestTime = (items: {createdAt?: string}[]) =>
+      items.reduce((mx, r) => {
+        const t = r.createdAt ? new Date(r.createdAt).getTime() : 0;
+        return t > mx ? t : mx;
+      }, 0);
+    return Array.from(map.entries())
+      .map(([name, items]) => ({name, items}))
+      .sort((a, b) => {
+        const aUngrouped = a.name === '레시피 북 없음';
+        const bUngrouped = b.name === '레시피 북 없음';
+        if (aUngrouped !== bUngrouped) return aUngrouped ? 1 : -1;
+        if (b.items.length !== a.items.length) return b.items.length - a.items.length;
+        return latestTime(b.items) - latestTime(a.items);
+      });
   }, [recipes, cookbookColors]);
 
   // 팩뷰: 공법(method)별로 묶기 (어드민은 공식 레시피 합산, 회차는 최신 하나로)
@@ -175,9 +214,8 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
       // 서브타이틀: 모두 같은 레시피 북이면 그 이름, 섞여 있으면 '모든 요리책'
       const cookbookSet = new Set(items.map(r => r.cookbook || '레시피 북 없음'));
       const cookbookLabel = cookbookSet.size === 1 ? [...cookbookSet][0] : '모든 요리책';
-      // 대표 카드 최대 3장: 이미지 있는 레시피 우선
-      const sorted = [...items].sort((a, b) => (a.imageUri ? 0 : 1) - (b.imageUri ? 0 : 1));
-      const cards = sorted.slice(0, 3).map(r => ({imageUrl: r.imageUri, title: r.title, paperPreview: buildPaperPreview(r)}));
+      // 대표 카드 최대 3장 (공통 헬퍼: 이미지 우선 + 종이 미리보기)
+      const cards = recipeCoverCards(items);
       return {method, items, subtitle: `${cookbookLabel} · ${items.length}개`, cards};
     });
   }, [recipes, exploreRecipes, isAdmin]);
@@ -186,64 +224,134 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
     id: g.method,
     title: g.method,
     subtitle: g.subtitle,
+    count: g.items.length,
+    iconColor: colors['custom/lime-var'],
     cards: g.cards,
     onPress: (rect: PackOriginRect) => {
       setExpandedOrigin(rect);
       setExpandedMethod(g.method);
     },
-  })), [methodGroups]);
+  })), [methodGroups, colors]);
 
-  // 회고록 기준: 회고가 작성됐거나 회차가 2개 이상인 레시피 (같은 remakeGroup은 최신 회차 하나만)
-  const retrospectives = useMemo(() => {
-    // 2회차 이상인 그룹 ID 수집
-    const multiSessionGroups = new Set<string>();
-    for (const r of recipes) {
-      if (r.remakeGroupId) multiSessionGroups.add(r.remakeGroupId);
-    }
-    // 조건: 회고가 있거나 다회차 그룹에 속함
-    const candidates = recipes.filter(r => {
-      if (r.reviews && r.reviews.length > 0) return true;
-      const groupKey = r.remakeGroupId ?? r.id;
-      return multiSessionGroups.has(groupKey);
+  // 레시피 북 팩: 책마다 1팩, 탭하면 펼침 오버레이
+  const cookbookPacks = useMemo<PackBoardItem[]>(() => {
+    // 정렬은 공용 cookbooks에서 이미 처리됨 ('없음' 맨 뒤 → 개수순 → 최신순)
+    return cookbooks.map(cb => {
+      const isUngrouped = cb.name === '레시피 북 없음';
+      // 공통 헬퍼: 비었으면 빈 종이, 아니면 레시피 표지(사진/종이). 일러스트 이미지 안 씀.
+      const cards = coverCards(cb.items, cb.name);
+      const reviewTotal = cb.items.reduce((sum, r) => sum + (r.reviewCount ?? r.reviews?.length ?? 0), 0);
+      return {
+        id: `cb_${cb.name}`,
+        title: cb.name,
+        subtitle: `${cb.items.length}개`,
+        count: cb.items.length,
+        footerLeft: `${cb.items.length}개의\n레시피`,
+        footerRight: `${reviewTotal}개의\n회고`,
+        icon: IconBookFilled,
+        // 책 표지 글씨용: var(0.64 반투명) 대신 솔리드 커스텀 색 (반투명이면 글씨가 비쳐 보임)
+        iconColor: isUngrouped
+          ? colors['custom/grey']
+          : colors[getColorVarKey(cookbookColors[cb.name] || DEFAULT_COOKBOOK_COLOR).replace('-var', '') as keyof typeof colors],
+        cards,
+        variant: 'book' as const,
+        emptyCover: cb.items.length === 0, // 빈 북 → 일러스트 투명 렌더
+        onPress: (rect: PackOriginRect) => { setExpandedOrigin(rect); setExpandedMethod(cb.name); },
+      };
     });
+  }, [cookbooks, cookbookColors, colors]);
+
+  // 회고 노트 기준: 실제 작성된 회고가 있는 레시피만 (같은 remakeGroup은 회고 유무 합산 후 최신 회차 하나로 대표)
+  const retrospectives = useMemo(() => {
+    // 그룹 전체에 회고가 하나라도 있는지 집계
+    const groupHasReview = new Map<string, boolean>();
+    for (const r of recipes) {
+      const groupKey = r.remakeGroupId ?? r.id;
+      const has = (r.reviews?.length ?? 0) > 0;
+      groupHasReview.set(groupKey, (groupHasReview.get(groupKey) ?? false) || has);
+    }
+    // 회고가 있는 그룹만, 대표는 최신 회차
     const seenGroups = new Set<string>();
     const result: Recipe[] = [];
-    const sorted = [...candidates].sort((a, b) => parseSession(b.session).current - parseSession(a.session).current);
+    const sorted = [...recipes].sort((a, b) => parseSession(b.session).current - parseSession(a.session).current);
     for (const r of sorted) {
       const groupKey = r.remakeGroupId ?? r.id;
       if (seenGroups.has(groupKey)) continue;
+      if (!groupHasReview.get(groupKey)) continue;
       seenGroups.add(groupKey);
       result.push(r);
     }
     return result;
   }, [recipes]);
 
-  // 팩뷰 추가 팩: '레시피 북 없음' + 회고록 (비어 있어도 항상 표시)
-  // 집계 팩이라 자연 썸네일이 없어 cover-* 에셋을 랜덤(시드 고정)으로 채움
-  const extraPacks = useMemo<PackBoardItem[]>(() => {
-    // 콘텐츠 없는 집계 팩은 커버 2장 형태로 표시
-    const toCards = (seed: string, title: string) =>
-      pickCovers(seed, 2).map(src => ({imageUrl: src, title}));
-
-    const noCookbook = recipes.filter(r => !r.cookbook?.trim());
-
-    return [
-      {
-        id: '__no_cookbook__',
-        title: '레시피 북 없음',
-        subtitle: `${noCookbook.length}개`,
-        cards: toCards('__no_cookbook__', '레시피 북 없음'),
-        onPress: () => onCookbookPress?.('레시피 북 없음'),
-      },
-      {
+  // 회고 노트 팩: 회고 있는 레시피를 각각 개별 팩으로 (뱃지=레시피 제목, 탭=해당 레시피로 이동)
+  const retrospectivePacks = useMemo<PackBoardItem[]>(() => {
+    if (retrospectives.length === 0) {
+      // 빈 상태: 엠티스테이트 일러스트 + 뱃지 '회고 노트 없음' → 탭하면 회고 바텀시트
+      return [{
         id: '__retrospective__',
-        title: '회고록',
-        subtitle: retrospectives.length > 0 ? `${retrospectives.length}개` : '없음',
-        cards: toCards('__retrospective__', '회고록'),
+        title: '회고 노트 없음',
+        subtitle: '없음',
+        cards: [emptyCoverCard('회고 노트 없음')],
         onPress: () => setShowReviewSheet(true),
-      },
-    ];
-  }, [recipes, retrospectives, onCookbookPress]);
+      }];
+    }
+    const groupSize = new Map<string, number>();
+    for (const r of recipes) {
+      const key = r.remakeGroupId ?? r.id;
+      groupSize.set(key, (groupSize.get(key) ?? 0) + 1);
+    }
+    return retrospectives.map(recipe => {
+      const groupKey = recipe.remakeGroupId ?? recipe.id;
+      const lineage = recipes
+        .filter(r => (r.remakeGroupId ?? r.id) === groupKey)
+        .sort((a, b) => parseSession(a.session).current - parseSession(b.session).current);
+      const totalSessions = lineage.length || (groupSize.get(groupKey) ?? 1);
+      const multi = totalSessions > 1;
+      const sessions: SessionFlowItem[] = lineage.map(x => ({
+        id: x.id,
+        title: x.title,
+        imageUrl: x.imageUri,
+        paperPreview: buildPaperPreview(x),
+        sessionLabel: `${parseSession(x.session).current}회차`,
+      }));
+      // 레시피 북 펼침(GroupExpandOverlay)과 동일한 카드 구성 (종이 유지):
+      // 다회차 → 회차 종이 2장(뒤) + 썸네일(앞), 단일 → 사진+종이 1장
+      const cards = multi
+        ? [
+            ...sessions
+              .slice(0, 2)
+              .reverse()
+              .map(s => ({title: `${s.title} #${s.sessionLabel.replace(/[^0-9]/g, '')}`, paperPreview: s.paperPreview})),
+            {imageUrl: recipe.imageUri, title: recipe.title},
+          ]
+        : [{imageUrl: recipe.imageUri, title: recipe.title, paperPreview: buildPaperPreview(recipe)}];
+      return {
+        id: `__retro_${recipe.id}`,
+        title: recipe.title,
+        subtitle: `${totalSessions}회차`,
+        count: totalSessions,
+        icon: IconChartNoAxesGantt,
+        iconColor: colors['custom/light-blue-var'],
+        cards,
+        onPress: (rect: PackOriginRect) => {
+          if (multi && sessions.length > 1) {
+            // 다회차 → 회차 펼침(SessionFlow)
+            setRetroFlow({sessions, origin: rect, root: {imageUrl: recipe.imageUri, title: recipe.title, count: totalSessions}});
+          } else {
+            onRecipePress?.(recipe.id);
+          }
+        },
+      };
+    });
+  }, [recipes, retrospectives, onRecipePress, colors]);
+
+  // 활성 축에 따른 팩 목록
+  const activePacks = axis === 'cookbook' ? cookbookPacks : axis === 'method' ? methodPacks : retrospectivePacks;
+  // 펼침 오버레이용 그룹 (cookbook/method 축만)
+  const activeGroups = axis === 'cookbook'
+    ? cookbooks.map(c => ({label: c.name, items: c.items}))
+    : methodGroups.map(g => ({label: g.method, items: g.items}));
 
   // 그룹별 통계 (회고 수, 회차 수)
   const retroStats = useMemo(() => {
@@ -292,7 +400,7 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
 
   const handleGroupFilterSelect = (id: string) => {
     setShowGroupFilterMenu(false);
-    setSelectedGroupFilter(id);
+    onAxisChange(id as GroupAxis);
   };
 
   const handleMenuPress = () => {
@@ -365,25 +473,29 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
     }
   };
 
-  const showCookbookSection = selectedGroupFilter === 'cookbook' || selectedGroupFilter === '__all__';
-  const showRetrospectiveSection = selectedGroupFilter === 'retrospective' || selectedGroupFilter === '__all__';
+  const showCookbookSection = axis === 'cookbook';
+  const showMethodSection = axis === 'method';
+  const showRetrospectiveSection = axis === 'retrospective';
   const anyMenuOpen = showGroupFilterMenu || showMoreMenu || !!cookbookMenuTarget || !!exploreCookbookMenuTarget;
 
   return (
     <View style={styles.container}>
       <AppBar
-        title={GROUP_FILTER_LABELS[selectedGroupFilter]}
+        title={axisLabel(axis, axisOverrides)}
         showDropdown
+        showAddButton={showAddButton}
         onTitlePress={handleTitlePress}
-        onAddPress={() => setShowCookbookDialog(true)}
+        onAddPress={() => { setCookbookInitialOfficial(addAsOfficial); setShowCookbookDialog(true); }}
         onFilterPress={() => { setShowMoreMenu(false); setShowLayoutMenu(prev => !prev); }}
+        filterIcon={viewMode === 'pack' ? IconCardsFilled : IconChartNoAxesGantt}
         filterMenuOpen={showLayoutMenu}
         onMenuPress={() => { setShowLayoutMenu(false); handleMenuPress(); }}
         menuOpen={showMoreMenu}
+        showMenuButton={moreMenuItems.length > 0}
         titleMenu={
           <Menu
             items={groupFilterMenuItems}
-            selectedId={selectedGroupFilter}
+            selectedId={axis}
             visible={showGroupFilterMenu}
             onSelect={handleGroupFilterSelect}
           />
@@ -404,6 +516,8 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
                 if (id === 'cleanup') {
                   if (emptyCookbookNames.length === 0 || !onDeleteCookbook) return;
                   emptyCookbookNames.forEach(name => onDeleteCookbook(name));
+                } else if (id === 'downloadPdf') {
+                  onDownloadPdf?.();
                 } else if (id === 'deleteAll') {
                   onComingSoon();
                 }
@@ -417,6 +531,15 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
         <View style={styles.pullWrapper}>
           <PullIndicator progress={pullProgress} isRefreshing={isRefreshing} refreshStripProgress={refreshStripProgress} refreshOpacity={refreshOpacity} />
 
+          {viewMode === 'pack' ? (
+            bookCarousel && axis === 'cookbook' ? (
+              /* 레시피 북 팩뷰: 센터 카드 캐러셀 (한 권씩 스와이프, 탭 시 펼침) */
+              <CookbookCarousel items={activePacks} />
+            ) : (
+              /* 그 외 팩뷰: 흩뿌림 캔버스 + 패닝/핀치 줌 */
+              <PackCanvas items={activePacks} />
+            )
+          ) : (
           <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
@@ -425,17 +548,10 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
           scrollEventThrottle={16}>
           <RefreshGap height={refreshGapHeight} />
           <ContentContainer style={styles.sections}>
-            {/* 팩뷰: 공법별 흩뿌림 보드 */}
-            {viewMode === 'pack' && (
-              <View style={styles.packBoardWrapper} onLayout={handleBoardLayout}>
-                {boardWidth > 0 && <PackBoard items={[...methodPacks, ...extraPacks]} width={boardWidth} />}
-              </View>
-            )}
-
             {/* 레시피 북 섹션 */}
             {viewMode === 'list' && showCookbookSection && (
               <View style={styles.section}>
-                <SectionHeader title="레시피 북" style={styles.sectionHeader} />
+                <SectionHeader title={axisLabel('cookbook', axisOverrides)} style={styles.sectionHeader} />
                 <View>
                   {(() => {
                       const totalLen = cookbooks.length + exploreGroups.length;
@@ -451,7 +567,7 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
                                   cookbook={`${cookbook.items.length}개의 레시피`}
                                   reviewCount={cookbook.items.reduce((sum, r) => sum + (r.reviews?.length ?? 0), 0)}
                                   layout="list"
-                                  placeholderIcon={IconBookFilled}
+                                  placeholderIcon={axisOverrides?.cookbook?.icon ?? IconBookFilled}
                                   placeholderIconColor={isUngrouped ? colors['foreground/on-surface-muted'] : colors[getColorVarKey(cookbookColors[cookbook.name] || DEFAULT_COOKBOOK_COLOR)]}
                                   onPress={() => onCookbookPress?.(cookbook.name)}
                                   onMenuPress={isUngrouped ? undefined : (pos) => handleCookbookMenuPress(cookbook.name, pos)}
@@ -488,11 +604,41 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
               </View>
             )}
 
-            {/* 회고록 섹션 */}
+            {/* 공법 섹션 */}
+            {viewMode === 'list' && showMethodSection && (
+              <View style={styles.section}>
+                <SectionHeader title="공법" style={styles.sectionHeader} />
+                <View>
+                  {methodGroups.length > 0 ? methodGroups.map((g, idx) => (
+                    <RecipeCard
+                      key={g.method}
+                      title={g.method}
+                      cookbook={`${g.items.length}개의 레시피`}
+                      layout="list"
+                      placeholderIcon={IconProcess}
+                      placeholderIconColor={colors['custom/lime-var']}
+                      onPress={() => onMethodPress?.(g.method)}
+                      hideDivider={idx === methodGroups.length - 1}
+                    />
+                  )) : (
+                    <RecipeCard
+                      title=""
+                      cookbook="공법이 지정된 레시피가 없습니다."
+                      layout="list"
+                      placeholderIcon={IconProcess}
+                      placeholderIconColor={colors['custom/lime-var']}
+                      hideDivider
+                    />
+                  )}
+                </View>
+              </View>
+            )}
+
+            {/* 회고 노트 섹션 */}
             {viewMode === 'list' && showRetrospectiveSection && (
               <View style={styles.section}>
                 <Pressable style={[styles.sectionHeader, styles.retroHeader]} onPress={() => setShowReviewSheet(true)}>
-                  <Text style={styles.retroHeaderTitle}>회고록</Text>
+                  <Text style={styles.retroHeaderTitle}>회고 노트</Text>
                   <IconChevronRight width={14} height={14} color={colors['foreground/on-surface-muted']} />
                 </Pressable>
                 {retrospectives.length > 0 ? (
@@ -526,7 +672,7 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
                 ) : (
                   <RecipeCard
                     title=""
-                    cookbook="아직 작성된 회고록이 없습니다."
+                    cookbook="아직 작성된 회고 노트가 없습니다."
                     layout="list"
                     placeholderIcon={IconChartNoAxesGantt}
                     placeholderIconColor={colors['custom/light-blue-var']}
@@ -537,6 +683,7 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
             )}
           </ContentContainer>
           </ScrollView>
+          )}
         </View>
       </SafeAreaView>
 
@@ -600,7 +747,7 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
         </>}
       />
 
-      {/* 회고록 바텀시트 */}
+      {/* 회고 노트 바텀시트 */}
       <ReviewLogSheet
         visible={showReviewSheet}
         onClose={() => setShowReviewSheet(false)}
@@ -609,14 +756,27 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
         onRecipePress={onRecipePress}
       />
 
-      {/* 팩뷰 → 공법 확대 오버레이 */}
-      {expandedMethod && expandedOrigin && (
-        <MethodExpandOverlay
-          method={expandedMethod}
-          methods={methodGroups}
+      {/* 팩뷰 → 그룹 확대 오버레이 (레시피북/공법 축만) */}
+      {expandedMethod && expandedOrigin && axis !== 'retrospective' && (
+        <GroupExpandOverlay
+          activeLabel={expandedMethod}
+          axisLabel={axisLabel(axis, axisOverrides)}
+          groups={activeGroups}
+          allRecipes={axis === 'method' && isAdmin ? [...recipes, ...(exploreRecipes ?? [])] : recipes}
           origin={expandedOrigin}
           onClose={() => { setExpandedMethod(null); setExpandedOrigin(null); }}
           onRecipePress={onRecipePress}
+        />
+      )}
+
+      {/* 회고 팩(다회차) → 회차 펼침 */}
+      {retroFlow && (
+        <SessionFlow
+          sessions={retroFlow.sessions}
+          origin={retroFlow.origin}
+          root={retroFlow.root}
+          onSelect={(id) => { setRetroFlow(null); onRecipePress?.(id); }}
+          onClose={() => setRetroFlow(null)}
         />
       )}
     </View>
@@ -626,10 +786,7 @@ export function GroupScreen({recipes, cookbookColors, onComingSoon, onDeleteCook
 const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: colors['surface/normal'],
-  },
-  packBoardWrapper: {
-    width: '100%',
+    backgroundColor: colors['surface/dim'],
   },
   safeArea: {
     flex: 1,

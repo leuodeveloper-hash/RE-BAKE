@@ -105,7 +105,7 @@ export default function RecipeEditRoute() {
 
   return (
     <SafeAreaProvider>
-      <View style={[styles.container, {backgroundColor: colors['surface/normal']}]}>
+      <View style={[styles.container, {backgroundColor: colors['surface/dim']}]}>
         <RecipeEditScreen
           recipe={recipe}
           cookbooks={isExploreTarget

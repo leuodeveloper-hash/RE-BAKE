@@ -1,7 +1,7 @@
 import React from 'react';
 import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {BaseColors, withOpacity} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
@@ -9,7 +9,7 @@ import {useColorsV2} from '@contexts/ThemeContext';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 
 const COLORS: AvatarColor[] = [
-  'yellow', 'orange', 'red', 'darkred', 'brown',
+  'yellow', 'orange', 'red', 'brown',
   'lime', 'green', 'teal', 'lightblue', 'blue',
   'purple', 'lavender', 'greybrown', 'gray',
 ];
@@ -43,9 +43,10 @@ export function getColorValue(color: AvatarColor): string {
 /** AvatarColor → 토큰 슬러그 (대시 표기) */
 const SLUG_MAP: Partial<Record<AvatarColor, string>> = {
   gray: 'grey',
-  greybrown: 'grey-brown',
+  greybrown: 'burgundy',
   lightblue: 'light-blue',
-  darkred: 'dark-red',
+  // darkred는 선택지에서 제거됨. 저장된 데이터 호환 위해 red 토큰으로 폴백
+  darkred: 'red',
 };
 
 /** AvatarColor → 시맨틱 var 토큰 키 (예: 'custom/grey-brown-var') */

@@ -2,6 +2,7 @@ import React, {useCallback, useMemo, useState} from 'react';
 import {StyleSheet, Text} from 'react-native';
 import {useFocusEffect, useRouter} from 'expo-router';
 import {AppBar} from '@components/Navigation';
+import {Breadcrumb} from '@components/Navigation/Breadcrumb';
 import {Menu} from '@components/Menu';
 import {RecipeListTemplate} from '@components/Recipe/RecipeListTemplate';
 import {Dialog, PdfPreviewDialog} from '@components/Dialog';
@@ -9,21 +10,26 @@ import {Button} from '@components/Button';
 import {EmptyState} from '@components/EmptyState';
 import {InlineBanner} from '@components/InlineBanner';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import type {Recipe} from '../types/recipe';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useColorsV2} from '@contexts/ThemeContext';
 import {useSubscription} from '@contexts/SubscriptionContext';
 import {useAuth} from '@contexts/AuthContext';
+import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
+import {GroupScreen} from './GroupScreen';
+import {AXIS_LABELS, useAxisMenuItems, type GroupAxis} from '@components/RecipeGroups/groupAxis';
+import {deleteDoc, doc} from 'firebase/firestore';
+import {db} from '@config/firebase';
 import {Spacing} from '@constants/spacing';
 import {generateRecipeListHtml, generateRecipeHtml} from '@utils/generateRecipeHtml';
 import {parseSession, formatSession} from '@utils/session';
 import {getRecipeMenuItems} from '@utils/recipeMenuItems';
 import {CookbookSelectSheet} from '@components/BottomSheet';
-import {getColorVarKey} from '@components/ColorPicker/ColorPicker';
+import {FloatingActionButton} from '@components/FloatingActionButton';
 import {
-  IconBookFilled,
+  IconAdd,
   IconTrash,
   IconTrashTwotone,
   IconArrowDownToLine,
@@ -44,11 +50,19 @@ export function HomeScreen() {
   const styles = useThemedStylesV2(createStyles);
   const colors = useColorsV2();
   const router = useRouter();
-  const {recipes, setRecipes, selectedCookbook, setSelectedCookbook, availableCookbooks, cookbookColors, setCookbookColor, isLoading, reload, canAddRecipe} = useRecipes();
+  const {recipes, setRecipes, selectedCookbook, setSelectedCookbook, selectedMethod, setSelectedMethod, setSelectedExploreCookbook, availableCookbooks, cookbookColors, setCookbookColor, removeCookbookColor, isLoading, reload, canAddRecipe} = useRecipes();
   const {showSnackbar} = useSnackbar();
   const {isPro} = useSubscription();
-  const {user} = useAuth();
+  const {user, isAdmin} = useAuth();
+  const {recipes: exploreRecipes, exploreCookbooks, reload: exploreReload} = useExploreRecipeContext();
   const isGuest = !user;
+
+  // 그룹화 축: 'all'이면 평면 리스트, 그 외엔 그룹 화면(GroupScreen) 호스팅
+  const [groupAxis, setGroupAxis] = useState<GroupAxis>('all');
+  const handleAxisChange = useCallback((a: GroupAxis) => {
+    setGroupAxis(a);
+    if (a === 'all') { setSelectedCookbook(null); setSelectedMethod(null); }
+  }, [setSelectedCookbook, setSelectedMethod]);
   const [guestBannerDismissed, setGuestBannerDismissed] = useState(false);
 
   // 화면에 다시 진입할 때마다 게스트 배너 dismissal 초기화 → 재표시
@@ -59,39 +73,52 @@ export function HomeScreen() {
   );
 
   const [showMoreMenu, setShowMoreMenu] = useState(false);
-  const [showCookbookMenu, setShowCookbookMenu] = useState(false);
+  // 브레드크럼 메뉴: 'axis'(1뎁스 축) | 'item'(2뎁스 항목) | null
+  const [crumbMenu, setCrumbMenu] = useState<'axis' | 'item' | null>(null);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [pdfHtml, setPdfHtml] = useState('');
   const [cookbookSheetRecipe, setCookbookSheetRecipe] = useState<Recipe | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
 
-  const cookbookMenuItems = useMemo(() => {
-    const recipeCounts = new Map<string, number>();
-    for (const r of recipes) {
-      const key = r.cookbook || '레시피 북 없음';
-      recipeCounts.set(key, (recipeCounts.get(key) ?? 0) + 1);
+  // 홈 타이틀 드롭다운 = 그룹화 축 선택 (공통 모듈, 전체/레시피북/공법/회고)
+  const axisMenuItems = useAxisMenuItems();
+
+  const handleHomeAxisSelect = (id: string) => {
+    setCrumbMenu(null);
+    handleAxisChange(id as GroupAxis);
+  };
+
+  // ===== 브레드크럼 (2뎁스) ===== (AXIS_LABELS는 공통 모듈)
+  // 필터가 걸려 있으면 그 축으로, 아니면 현재 groupAxis
+  const crumbAxis: GroupAxis = selectedCookbook ? 'cookbook' : selectedMethod ? 'method' : groupAxis;
+  const crumbItemLabel = selectedCookbook ?? selectedMethod ?? undefined;
+
+  // 2뎁스 항목 메뉴 (책/공법 목록 + '전체로')
+  const ALL_ID = '__all__';
+  const crumbItemMenuItems = useMemo(() => {
+    if (crumbAxis === 'cookbook') {
+      const names = new Set<string>();
+      for (const r of recipes) names.add(r.cookbook || '레시피 북 없음');
+      availableCookbooks.forEach(n => names.add(n));
+      return [{id: ALL_ID, label: '전체'}, ...[...names].map(n => ({id: n, label: n}))];
     }
-    const allNames = new Set([
-      ...recipeCounts.keys(),
-      ...availableCookbooks,
-    ]);
-    const items: {id: string; label: string; icon?: typeof IconBookFilled; iconColor?: string; disabled?: boolean}[] = [
-      {id: '__all__', label: '모든 레시피 북'},
-    ];
-    for (const name of allNames) {
-      const count = recipeCounts.get(name) ?? 0;
-      const cbColor = cookbookColors[name];
-      items.push({
-        id: name,
-        label: name,
-        icon: IconBookFilled,
-        iconColor: cbColor ? colors[getColorVarKey(cbColor)] : undefined,
-        disabled: count === 0,
-      });
+    if (crumbAxis === 'method') {
+      const names = new Set<string>();
+      for (const r of recipes) names.add(r.method?.trim() || '공법 없음');
+      return [{id: ALL_ID, label: '전체'}, ...[...names].map(n => ({id: n, label: n}))];
     }
-    return items;
-  }, [recipes, availableCookbooks, cookbookColors, colors]);
+    return [];
+  }, [crumbAxis, recipes, availableCookbooks]);
+
+  const handleCrumbItemSelect = (id: string) => {
+    setCrumbMenu(null);
+    if (crumbAxis === 'cookbook') {
+      setSelectedCookbook(id === ALL_ID ? null : id);
+    } else if (crumbAxis === 'method') {
+      setSelectedMethod(id === ALL_ID ? null : id);
+    }
+  };
 
   // 리메이크 그룹에서 최신 회차만 표시 + 그룹 전체 회고 합산
   const visibleRecipes = useMemo(() => {
@@ -126,14 +153,15 @@ export function HomeScreen() {
   }, [recipes]);
 
   const filteredRecipes = useMemo(() => {
-    if (!selectedCookbook) return visibleRecipes;
-    return visibleRecipes.filter(r => (r.cookbook || '레시피 북 없음') === selectedCookbook);
-  }, [visibleRecipes, selectedCookbook]);
-
-  const handleCookbookSelect = (id: string) => {
-    setShowCookbookMenu(false);
-    setSelectedCookbook(id === '__all__' ? null : id);
-  };
+    let result = visibleRecipes;
+    if (selectedCookbook) {
+      result = result.filter(r => (r.cookbook || '레시피 북 없음') === selectedCookbook);
+    }
+    if (selectedMethod) {
+      result = result.filter(r => (r.method?.trim() || '공법 없음') === selectedMethod);
+    }
+    return result;
+  }, [visibleRecipes, selectedCookbook, selectedMethod]);
 
   const handleMoreMenuSelect = (id: string) => {
     setShowMoreMenu(false);
@@ -271,8 +299,88 @@ export function HomeScreen() {
 
   const closeLocalMenus = useCallback(() => {
     setShowMoreMenu(false);
-    setShowCookbookMenu(false);
+    setCrumbMenu(null);
   }, []);
+
+  // 레시피 추가 — 레시피북 진입 중이면 해당 북으로 미리 지정
+  const handleAddRecipe = useCallback(() => {
+    if (!canAddRecipe()) {
+      showSnackbar('레시피는 최대 30개까지 등록할 수 있어요');
+      return;
+    }
+    const params = selectedCookbook ? `?cookbook=${encodeURIComponent(selectedCookbook)}` : '';
+    router.push(`/recipe/edit${params}` as any);
+  }, [canAddRecipe, showSnackbar, selectedCookbook, router]);
+
+  // ===== 그룹 모드 (axis !== 'all') 핸들러 =====
+  const handleGroupComingSoon = useCallback(() => {
+    showSnackbar('기능 추가 예정입니다');
+  }, [showSnackbar]);
+
+  const handleGroupDeleteCookbook = useCallback((name: string) => {
+    setRecipes(prev => prev.map(r => (r.cookbook === name ? {...r, cookbook: undefined} : r)));
+    removeCookbookColor(name);
+    showSnackbar(`'${name}' 레시피 북이 삭제되었습니다`);
+  }, [setRecipes, removeCookbookColor, showSnackbar]);
+
+  // 그룹 탭 = 제자리 필터: 해당 그룹으로 필터하고 평면 리스트로 전환
+  const handleGroupCookbookPress = useCallback((name: string) => {
+    setSelectedMethod(null);
+    setSelectedCookbook(name);
+    setGroupAxis('all');
+  }, [setSelectedCookbook, setSelectedMethod]);
+
+  const handleGroupMethodPress = useCallback((method: string) => {
+    setSelectedCookbook(null);
+    setSelectedMethod(method);
+    setGroupAxis('all');
+  }, [setSelectedCookbook, setSelectedMethod]);
+
+  const handleGroupExploreCookbookPress = useCallback((name: string) => {
+    setSelectedExploreCookbook(name);
+    router.navigate('/explore' as any);
+  }, [setSelectedExploreCookbook, router]);
+
+  const handleGroupRecipePress = useCallback((recipeId: string) => {
+    router.push(`/recipe/${recipeId}` as any);
+  }, [router]);
+
+  const handleGroupRefresh = useCallback(async () => {
+    await Promise.all([reload(), exploreReload()]);
+  }, [reload, exploreReload]);
+
+  const handleGroupDeleteExploreCookbook = useCallback(async (name: string) => {
+    try {
+      await deleteDoc(doc(db, 'explore_cookbooks', name));
+      showSnackbar(`공식 레시피 북 '${name}'이(가) 삭제되었습니다`);
+    } catch {
+      showSnackbar('삭제에 실패했습니다');
+    }
+  }, [showSnackbar]);
+
+  // 그룹 모드: 홈 평면 리스트 대신 그룹 화면을 호스팅
+  if (groupAxis !== 'all') {
+    return (
+      <GroupScreen
+        recipes={recipes}
+        cookbookColors={cookbookColors}
+        axis={groupAxis}
+        onAxisChange={handleAxisChange}
+        onComingSoon={handleGroupComingSoon}
+        onDeleteCookbook={handleGroupDeleteCookbook}
+        onCookbookPress={handleGroupCookbookPress}
+        onMethodPress={handleGroupMethodPress}
+        exploreRecipes={exploreRecipes}
+        exploreCookbooks={exploreCookbooks}
+        isAdmin={isAdmin}
+        onExploreCookbookPress={handleGroupExploreCookbookPress}
+        onDeleteExploreCookbook={isAdmin ? handleGroupDeleteExploreCookbook : undefined}
+        onRefresh={handleGroupRefresh}
+        onRecipePress={handleGroupRecipePress}
+        bookCarousel
+      />
+    );
+  }
 
   return (
     <RecipeListTemplate
@@ -282,7 +390,7 @@ export function HomeScreen() {
       cardMenuItems={getDefaultCardMenuItems}
       onCardMenuSelect={handleCardMenuSelect}
       onOverlayPress={closeLocalMenus}
-      extraOverlayVisible={showMoreMenu || showCookbookMenu}
+      extraOverlayVisible={showMoreMenu || crumbMenu !== null}
       onRefresh={reload}
       listHeaderExtra={isGuest && !guestBannerDismissed ? (
         <InlineBanner
@@ -325,41 +433,54 @@ export function HomeScreen() {
           )
         ) : undefined
       }
-      renderAppBar={({handleFilterPress, showLayoutMenu, closeMenus, layoutMenu}) => (
+      renderAppBar={({handleFilterPress, showLayoutMenu, closeMenus, layoutMenu, filterIcon}) => (
         <AppBar
-          title={selectedCookbook || '모든 레시피 북'}
-          showDropdown
-          onTitlePress={() => {
-            closeMenus();
-            setShowMoreMenu(false);
-            setShowCookbookMenu(prev => !prev);
-          }}
-          onAddPress={() => {
-            if (!canAddRecipe()) {
-              showSnackbar('레시피는 최대 30개까지 등록할 수 있어요');
-              return;
-            }
-            const params = selectedCookbook ? `?cookbook=${encodeURIComponent(selectedCookbook)}` : '';
-            router.push(`/recipe/edit${params}` as any);
-          }}
+          filterIcon={filterIcon}
+          titleNode={
+            <Breadcrumb
+              axisLabel={AXIS_LABELS[crumbAxis]}
+              itemLabel={crumbItemLabel}
+              onAxisPress={() => {
+                closeMenus();
+                setShowMoreMenu(false);
+                setCrumbMenu(prev => (prev === 'axis' ? null : 'axis'));
+              }}
+              onItemPress={() => {
+                closeMenus();
+                setShowMoreMenu(false);
+                setCrumbMenu(prev => (prev === 'item' ? null : 'item'));
+              }}
+            />
+          }
+          onAddPress={handleAddRecipe}
           onFilterPress={() => {
             closeLocalMenus();
             handleFilterPress();
           }}
           onMenuPress={() => {
             closeMenus();
-            setShowCookbookMenu(false);
+            setCrumbMenu(null);
             setShowMoreMenu(prev => !prev);
           }}
           filterMenuOpen={showLayoutMenu}
           menuOpen={showMoreMenu}
           titleMenu={
-            <Menu
-              items={cookbookMenuItems}
-              selectedId={selectedCookbook || '__all__'}
-              onSelect={handleCookbookSelect}
-              visible={showCookbookMenu}
-            />
+            <>
+              <Menu
+                items={axisMenuItems}
+                selectedId={crumbAxis}
+                onSelect={handleHomeAxisSelect}
+                visible={crumbMenu === 'axis'}
+              />
+              {crumbItemLabel != null && (
+                <Menu
+                  items={crumbItemMenuItems}
+                  selectedId={crumbItemLabel}
+                  onSelect={handleCrumbItemSelect}
+                  visible={crumbMenu === 'item'}
+                />
+              )}
+            </>
           }
           rightMenu={
             <>
@@ -376,6 +497,15 @@ export function HomeScreen() {
         />
       )}
     >
+      {/* 레시피북 진입 시: 우측 하단 + 플로팅 버튼으로 해당 북에 바로 추가 */}
+      {selectedCookbook && !isLoading && (
+        <FloatingActionButton
+          icon={IconAdd}
+          onPress={handleAddRecipe}
+          accessibilityLabel={`'${selectedCookbook}'에 레시피 추가`}
+        />
+      )}
+
       {/* 전체 삭제 확인 다이얼로그 */}
       <Dialog
         visible={showDeleteAllDialog}

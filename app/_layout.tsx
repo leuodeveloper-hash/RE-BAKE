@@ -1,12 +1,14 @@
 import '../global.css';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Animated, StyleSheet, View, Easing, Pressable} from 'react-native';
+import {Animated, StyleSheet, View, Easing, Pressable, Platform} from 'react-native';
 import {Stack, usePathname, useRouter} from 'expo-router';
 import {StatusBar} from 'expo-status-bar';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
+import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {useFonts} from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
+import * as Notifications from 'expo-notifications';
 import {BlurView} from 'expo-blur';
 import {ThemeProvider, useTheme, useColorsV2} from '@contexts/ThemeContext';
 import {RecipeProvider} from '@contexts/RecipeContext';
@@ -19,19 +21,25 @@ import {PlanSheetProvider, usePlanSheet} from '@contexts/PlanSheetContext';
 import {AuthSheetProvider, useAuthSheet} from '@contexts/AuthSheetContext';
 import {PlanSheet} from '@components/PlanSheet';
 import {AuthSheet} from '@components/AuthSheet';
-import {ExploreRecipeProvider} from '@contexts/ExploreRecipeContext';
+import {ExploreRecipeProvider, useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
+import {YouTubePlayerProvider, useYouTubePlayer} from '@contexts/YouTubePlayerContext';
+import {YouTubePlayerModal} from '@components/YouTubePlayer';
+import {SearchCommandBar} from '@components/SearchCommandBar/SearchCommandBar';
+import {parseSession} from '@utils/session';
+import type {Recipe} from '../src/types/recipe';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {BaseColors} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {ContentMask} from '@components/Container';
 import {BottomTabBar, type TabItem, type AddMenuItem} from '@components/Navigation/BottomTabBar';
 import {Snackbar} from '@components/Snackbar';
-import {CookbookDialog} from '@components/Dialog';
+import {CookbookDialog, Dialog} from '@components/Dialog';
+import {Button} from '@components/Button';
 import {
   IconHomeFilled,
   IconBookFilled,
-  IconGroupFilled,
+  IconSearch,
   IconCompassFilled,
   IconExprolerBookFilled,
   IconAdd,
@@ -46,6 +54,16 @@ import LogoBadge from '../assets/images/logo_badge_reddark.svg';
 import LogoIcon from '../assets/images/logo_badge.svg';
 
 SplashScreen.preventAutoHideAsync();
+
+// 포그라운드에서도 알림 배너/사운드가 보이도록 핸들러 등록 (앱 실행 시 1회)
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowBanner: true,
+    shouldShowList: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+  }),
+});
 
 function ThemedStatusBar() {
   const {isDark} = useTheme();
@@ -203,15 +221,28 @@ function NavigationContent() {
   const pathname = usePathname();
   // 앱 시작 시 시험 알림 동기화 (저장된 prefs → Firestore 일정 fetch → 로컬 알림 재등록)
   useExamNotificationPrefs();
-  const {showAddSheet, setShowAddSheet, hideTabBar, hideContentMask, showCookbookDialog, setShowCookbookDialog, cookbookEditTarget, setCookbookEditTarget, onCookbookCreatedRef} = useAddSheet();
+  const {showAddSheet, setShowAddSheet, setShowSearchSheet, hideTabBar, hideContentMask, showCookbookDialog, setShowCookbookDialog, cookbookEditTarget, setCookbookEditTarget, cookbookInitialOfficial, setCookbookInitialOfficial, onCookbookCreatedRef} = useAddSheet();
   const {snackbar, clearSnackbar, showSnackbar} = useSnackbar();
   const {user, isAdmin, avatarSeed} = useAuth();
-  const {recipes, setRecipes, lastSyncedAt, setCookbookColor, renameCookbookColor} = useRecipes();
+  const {recipes, setRecipes, lastSyncedAt, setCookbookColor, renameCookbookColor, migrationCount, confirmMigration, dismissMigration} = useRecipes();
+  const [migrating, setMigrating] = useState(false);
+
+  const handleConfirmMigration = useCallback(async () => {
+    setMigrating(true);
+    showSnackbar('클라우드에 올리는 중…');
+    try {
+      await confirmMigration();
+      showSnackbar('계정에 올렸어요');
+    } catch {
+      showSnackbar('올리기에 실패했어요');
+    } finally {
+      setMigrating(false);
+    }
+  }, [confirmMigration, showSnackbar]);
   const prevUserRef = useRef(user);
   const tabStyles = useThemedStylesV2(createTabBarStyles);
   const colors = useColorsV2();
   const [activeTab, setActiveTab] = useState('home');
-  const [cookbookInitialOfficial, setCookbookInitialOfficial] = useState(false);
 
   // 로그인 후 첫 싱크 완료 시 스낵바 표시
   useEffect(() => {
@@ -234,11 +265,11 @@ function NavigationContent() {
 
   const tabs = useMemo<TabItem[]>(() => [
     {id: 'home', label: '홈', icon: IconHomeFilled, onPress: () => router.navigate('/' as any)},
-    {id: 'group', label: '그룹', icon: IconGroupFilled, onPress: () => router.navigate('/group' as any)},
+    {id: 'search', label: '검색', icon: IconSearch, onPress: () => setShowSearchSheet(true)},
     {id: 'add', label: '추가', icon: IconAdd, onPress: () => setShowAddSheet(true)},
     {id: 'explore', label: '둘러보기', icon: IconCompassFilled, onPress: () => router.navigate('/explore' as any)},
     {id: 'profile', label: user ? '나' : '게스트', icon: IconUserFilled, useRandomAvatar: true, avatarSeed: avatarSeed ?? 0, onPress: () => router.navigate('/profile' as any)},
-  ], [router, setShowAddSheet, avatarSeed, user]);
+  ], [router, setShowAddSheet, setShowSearchSheet, avatarSeed, user]);
 
   const addMenuItems = useMemo<AddMenuItem[]>(() => {
     const items: AddMenuItem[] = [
@@ -380,6 +411,18 @@ function NavigationContent() {
         initialOfficial={cookbookInitialOfficial}
       />
 
+      {/* 게스트→로그인(Pro) 시 로컬 데이터 업로드 확인 */}
+      <Dialog
+        visible={migrationCount > 0}
+        onClose={migrating ? () => {} : dismissMigration}
+        title="레시피를 계정에 올릴까요?"
+        description={`이 기기에 있는 레시피 ${migrationCount}개를 계정에 올리면 다른 기기에서도 볼 수 있어요.`}
+        actions={<>
+          <Button label="나중에" variant="soft" onPress={dismissMigration} disabled={migrating} />
+          <Button label={migrating ? '올리는 중…' : '올리기'} variant="filled" onPress={handleConfirmMigration} disabled={migrating} />
+        </>}
+      />
+
       {shouldShowTabBar && (
         <>
           {/* 스크림 */}
@@ -437,6 +480,77 @@ function GlobalAuthSheet() {
   return <AuthSheet visible={visible} onClose={close} onSuccess={fireSuccess} />;
 }
 
+// 무료 유저가 둘러보기에서 열람 가능한 레시피 수 (ExploreScreen FREE_RECIPE_COUNT와 일치)
+const FREE_EXPLORE_COUNT = 3;
+
+// 검색 탭에서 띄우는 통합 검색 모달: 내 레시피 + 둘러보기 레시피 통합 검색
+function GlobalSearchSheet() {
+  const router = useRouter();
+  const {showSearchSheet, setShowSearchSheet} = useAddSheet();
+  const {recipes} = useRecipes();
+  const {recipes: exploreRecipes} = useExploreRecipeContext();
+  const {isAdmin} = useAuth();
+  const {isPro} = useSubscription();
+  const isFreeUser = !isAdmin && !isPro;
+
+  const {items, lockedExploreIds} = useMemo(() => {
+    // 내 레시피: remakeGroup별 최신 회차 하나만
+    const byGroup = new Map<string, Recipe>();
+    for (const r of recipes) {
+      const key = r.remakeGroupId ?? r.id;
+      const ex = byGroup.get(key);
+      if (!ex || parseSession(r.session).current > parseSession(ex.session).current) byGroup.set(key, r);
+    }
+    const mine = [...byGroup.values()].map(r => ({
+      id: r.id,
+      label: r.title,
+      imageUrl: r.imageUri,
+      searchableTexts: [r.cookbook, r.method, r.specificGravity].filter(Boolean) as string[],
+    }));
+
+    // 둘러보기: 무료 유저는 앞 3개 외 잠금
+    const lockedSet = new Set<string>();
+    if (isFreeUser) exploreRecipes.slice(FREE_EXPLORE_COUNT).forEach(r => lockedSet.add(r.id));
+    const explore = exploreRecipes.map(r => ({
+      id: `explore:${r.id}`,
+      label: r.title,
+      imageUrl: r.imageUri,
+      locked: lockedSet.has(r.id),
+      searchableTexts: [r.cookbook, r.method, r.specificGravity].filter(Boolean) as string[],
+    }));
+
+    return {items: [...mine, ...explore], lockedExploreIds: lockedSet};
+  }, [recipes, exploreRecipes, isFreeUser]);
+
+  const handleSelect = useCallback((id: string) => {
+    setShowSearchSheet(false);
+    if (id.startsWith('explore:')) {
+      const realId = id.slice('explore:'.length);
+      const locked = lockedExploreIds.has(realId);
+      router.push(`/recipe/${realId}?from=explore${locked ? '&locked=1' : ''}` as any);
+    } else {
+      router.push(`/recipe/${id}` as any);
+    }
+  }, [router, setShowSearchSheet, lockedExploreIds]);
+
+  return (
+    <SearchCommandBar
+      visible={showSearchSheet}
+      onClose={() => setShowSearchSheet(false)}
+      items={items}
+      onSelect={handleSelect}
+      placeholder="레시피 검색"
+      useRecipeCards
+    />
+  );
+}
+
+// 모든 화면(상세/편집 포함) 위에 떠 있는 단일 YouTube PiP
+function GlobalYouTubePlayer() {
+  const {videoId, close} = useYouTubePlayer();
+  return <YouTubePlayerModal visible={videoId !== null} onClose={close} videoId={videoId} />;
+}
+
 export default function RootLayout() {
   const [fontsLoaded] = useFonts({
     'Pretendard-Regular': require('../assets/fonts/Pretendard-Regular.otf'),
@@ -467,11 +581,24 @@ export default function RootLayout() {
     }
   }, [fontsLoaded]);
 
+  // Android 8+ 알림 채널 등록 (없으면 알림이 묵음/미표시될 수 있음)
+  useEffect(() => {
+    if (Platform.OS !== 'android') return;
+    Notifications.setNotificationChannelAsync('default', {
+      name: '기본 알림',
+      importance: Notifications.AndroidImportance.HIGH,
+      lightColor: '#FCEEE3',
+    }).catch(() => {
+      /* 무시 */
+    });
+  }, []);
+
   if (!fontsLoaded) {
     return null;
   }
 
   return (
+    <GestureHandlerRootView style={{flex: 1}}>
     <ThemeProvider>
       <AuthProvider>
       <SubscriptionProvider>
@@ -482,13 +609,17 @@ export default function RootLayout() {
             <AddSheetProvider>
               <PlanSheetProvider>
                 <AuthSheetProvider>
-                  <ThemedStatusBar />
-                  <NavigationContent />
-                  <GlobalPlanSheet />
-                  <GlobalAuthSheet />
-                  {showSplash && (
-                    <AnimatedSplash onFinish={() => setShowSplash(false)} />
-                  )}
+                  <YouTubePlayerProvider>
+                    <ThemedStatusBar />
+                    <NavigationContent />
+                    <GlobalYouTubePlayer />
+                    <GlobalPlanSheet />
+                    <GlobalAuthSheet />
+                    <GlobalSearchSheet />
+                    {showSplash && (
+                      <AnimatedSplash onFinish={() => setShowSplash(false)} />
+                    )}
+                  </YouTubePlayerProvider>
                 </AuthSheetProvider>
               </PlanSheetProvider>
             </AddSheetProvider>
@@ -499,6 +630,7 @@ export default function RootLayout() {
       </SubscriptionProvider>
       </AuthProvider>
     </ThemeProvider>
+    </GestureHandlerRootView>
   );
 }
 

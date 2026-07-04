@@ -39,7 +39,7 @@ export default function ProfileRoute() {
   }, [signOut, showSnackbar]);
 
   return (
-    <View style={[styles.container, {backgroundColor: colors['surface/normal']}]}>
+    <View style={[styles.container, {backgroundColor: colors['surface/dim']}]}>
       <ProfileScreen
         recipeCount={recipes.length}
         reviewCount={reviewCount}
@@ -58,6 +58,7 @@ export default function ProfileRoute() {
         onTermsPress={() => router.push('/terms')}
         onPrivacyPress={() => router.push('/privacy')}
         onLabsPress={() => router.push('/labs' as any)}
+        onExamNotifPress={() => router.push('/exam-notifications' as any)}
         isPro={isPro}
         isAdmin={isAdmin}
         avatarSeed={avatarSeed}

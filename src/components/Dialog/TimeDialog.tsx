@@ -4,7 +4,7 @@ import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
 import {TextInput} from '@components/TextInput';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {IconClockTwotone} from '@components/Icon/IconIndex';

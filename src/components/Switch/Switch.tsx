@@ -2,8 +2,9 @@ import React from 'react';
 import {Animated, Pressable, StyleSheet, Text, View} from 'react-native';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {triggerHaptic} from '@utils/haptics';
 
 interface SwitchProps {
   label?: string;
@@ -15,7 +16,9 @@ export function Switch({label, value, onValueChange}: SwitchProps) {
   const styles = useThemedStylesV2(createStyles);
 
   return (
-    <Pressable style={styles.container} onPress={() => onValueChange(!value)}>
+    <Pressable
+      style={styles.container}
+      onPress={() => { triggerHaptic('light'); onValueChange(!value); }}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <View style={[styles.track, value && styles.trackActive]}>
         <Animated.View style={[styles.thumb, value && {transform: [{translateX: 16}]}]} />

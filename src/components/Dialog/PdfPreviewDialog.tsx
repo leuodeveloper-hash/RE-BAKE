@@ -4,7 +4,7 @@ import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
 import {RecipeHtmlPreview} from '@components/Recipe/RecipeHtmlPreview';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {
   RecipePdfData,

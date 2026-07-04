@@ -1,7 +1,7 @@
 import React from 'react';
 import {Pressable, StyleSheet, Text, ViewStyle} from 'react-native';
 import {SvgProps} from 'react-native-svg';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {Card} from '@components/Container/Card';

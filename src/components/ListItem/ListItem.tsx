@@ -1,7 +1,7 @@
 import React from 'react';
 import {Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {SvgProps} from 'react-native-svg';
@@ -18,7 +18,7 @@ export type ListItemElementType =
   | {type: 'icon'; icon: React.FC<SvgProps>}
   | {type: 'number'; value: number}
   | {type: 'checkbox'; checked: boolean}
-  | {type: 'iconButton'; icon: React.FC<SvgProps>; onPress?: () => void; variant?: 'soft' | 'ghost-secondary' | 'ghost-yellow'; disabled?: boolean}
+  | {type: 'iconButton'; icon: React.FC<SvgProps>; onPress?: () => void; variant?: 'filled' | 'tonal' | 'soft' | 'ghost-secondary' | 'ghost-yellow'; disabled?: boolean}
   | {type: 'custom'; element: React.ReactNode};
 
 // ---- ListItem Props ----
@@ -63,8 +63,8 @@ function renderSlotElement(
       return (
         <View style={styles.slotContainer}>
           <Icon
-            width={16}
-            height={16}
+            width={20}
+            height={20}
             color={iconColor}
           />
         </View>
@@ -78,19 +78,22 @@ function renderSlotElement(
       );
     case 'checkbox':
       return (
-        <View style={styles.slotContainer}>
+        <View style={styles.iconButtonSlot}>
           <Checkbox checked={element.checked} />
         </View>
       );
     case 'iconButton':
+      // 아이콘 슬롯(28)과 정렬 맞춤: 40 버튼을 28 슬롯 중앙에 넘치게(overflow) 배치
       return (
-        <IconButton
-          icon={element.icon}
-          onPress={element.onPress}
-          variant={element.variant ?? 'soft'}
-          size="small"
-          disabled={element.disabled}
-        />
+        <View style={styles.iconButtonSlot}>
+          <IconButton
+            icon={element.icon}
+            onPress={element.onPress}
+            variant={element.variant ?? 'tonal'}
+            size="medium"
+            disabled={element.disabled}
+          />
+        </View>
       );
     case 'custom':
       return <>{element.element}</>;
@@ -182,6 +185,13 @@ const createStyles = (colors: SemanticColorsV2) =>
       overflow: 'hidden',
       borderRadius: Radius['radius-full'],
     },
+    // 아이콘버튼/체크박스 등 28보다 큰 요소용 슬롯: 중앙정렬 + overflow 허용(넘치게)
+    iconButtonSlot: {
+      width: 28,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     numberContainer: {
       backgroundColor: colors['surface/container'],
     },
@@ -209,11 +219,11 @@ const createStyles = (colors: SemanticColorsV2) =>
       marginTop: FONT_BASELINE_OFFSET,
     },
     dividerContainer: {
-      paddingLeft: 44,
+      // 디바이더(선) 대신 칸과 칸 사이 1px 배경색 간격으로 구분
     },
     divider: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: colors['border/muted'],
+      height: 1,
+      backgroundColor: colors['surface/dim'],
     },
     titleYellow: {
       color: colors['custom/yellow-var'],

@@ -67,3 +67,7 @@ google-services.json
 
 *storybook.log
 storybook-static
+
+# Firebase service account key (secret — do not commit)
+*firebase-adminsdk*.json
+*serviceAccount*.json

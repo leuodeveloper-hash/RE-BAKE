@@ -7,16 +7,18 @@ import {ColorPicker} from '@components/ColorPicker';
 import {IconBookTwotone, IconExprolerBookTwotone} from '@components/Icon/IconIndex';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useColorsV2} from '@contexts/ThemeContext';
-import {DEFAULT_COOKBOOK_COLOR} from '@contexts/RecipeContext';
 import type {AvatarColor} from '@components/Avatar/Avatar';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 
+// 레시피 북 색상: 브라운·그레이브라운 제외
 const COOKBOOK_COLORS: AvatarColor[] = [
-  'gray', 'greybrown', 'brown', 'yellow', 'red',
+  'gray', 'yellow', 'red',
   'orange', 'lime', 'green', 'lightblue', 'purple',
 ];
+// 기본 선택색 (brown이 제외돼 목록의 첫 색을 기본으로)
+const DEFAULT_COOKBOOK_PICK: AvatarColor = COOKBOOK_COLORS[0];
 
 export interface CookbookDialogProps {
   visible: boolean;
@@ -32,7 +34,7 @@ export interface CookbookDialogProps {
 
 export function CookbookDialog({visible, onClose, onConfirm, editTarget, isAdmin, initialOfficial}: CookbookDialogProps) {
   const [name, setName] = useState('');
-  const [color, setColor] = useState<AvatarColor>(DEFAULT_COOKBOOK_COLOR);
+  const [color, setColor] = useState<AvatarColor>(DEFAULT_COOKBOOK_PICK);
   const [isOfficial, setIsOfficial] = useState(false);
   const s = useThemedStylesV2(createStyles);
   const colors = useColorsV2();
@@ -45,7 +47,7 @@ export function CookbookDialog({visible, onClose, onConfirm, editTarget, isAdmin
         setIsOfficial(!!editTarget.isExplore);
       } else {
         setName('');
-        setColor(initialOfficial ? 'orange' : DEFAULT_COOKBOOK_COLOR);
+        setColor(initialOfficial ? 'orange' : DEFAULT_COOKBOOK_PICK);
         setIsOfficial(!!initialOfficial);
       }
     }

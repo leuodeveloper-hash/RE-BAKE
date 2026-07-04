@@ -81,22 +81,28 @@ export function YouTubePlayerModal({visible, onClose, videoId}: YouTubePlayerMod
         borderRadius: Radius['radius-xl'],
         overflow: 'hidden',
         boxShadow: '0 12px 32px rgba(0, 0, 0, 0.35)',
-        cursor: dragging ? 'grabbing' : 'grab',
         userSelect: 'none',
-      } as any}
-      // @ts-ignore web pointer events
-      onPointerDown={onPointerDown}
-      onPointerMove={onPointerMove}
-      onPointerUp={onPointerUp}
-      onPointerCancel={onPointerUp}>
-      <View style={styles.iframeWrap} pointerEvents="none">
+      } as any}>
+      {/* 비디오: YouTube 기본 컨트롤 사용 (이동은 상단 핸들로) */}
+      <View style={styles.iframeWrap}>
         {/* @ts-ignore web-only iframe */}
         <iframe
           src={embedUrl}
-          style={{border: 'none', width: '100%', height: '100%', display: 'block', pointerEvents: 'none'}}
+          style={{border: 'none', width: '100%', height: '100%', display: 'block'}}
           allow="accelerated-2d-canvas; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
           allowFullScreen
         />
+      </View>
+
+      {/* 상단 드래그 핸들 — 이 영역만 이동 담당 */}
+      <View
+        // @ts-ignore web pointer events + cursor
+        style={{...styles.dragHandle, cursor: dragging ? 'grabbing' : 'grab'} as any}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}>
+        <View style={styles.grabber} />
       </View>
 
       <View
@@ -106,8 +112,8 @@ export function YouTubePlayerModal({visible, onClose, videoId}: YouTubePlayerMod
         <IconButton
           icon={IconClose}
           onPress={onClose}
-          variant="ghost-inverse"
-          size="small"
+          variant="soft"
+          size="medium"
           onImage
         />
       </View>
@@ -120,9 +126,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#000',
   },
+  dragHandle: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 28,
+    zIndex: 5,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  grabber: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: 'rgba(255, 255, 255, 0.6)',
+  },
   closeBtnWrap: {
     position: 'absolute',
     top: 4,
     right: 4,
+    zIndex: 6,
   },
 });

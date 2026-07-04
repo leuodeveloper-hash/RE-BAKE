@@ -1,15 +1,35 @@
 import React, {useRef} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {SvgProps} from 'react-native-svg';
+import Animated, {useAnimatedStyle, type SharedValue} from 'react-native-reanimated';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColorsV2, useTheme} from '@contexts/ThemeContext';
 import {StackedThumbnail} from '@components/Recipe/RecipeCard';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import {IconLockFilled} from '@components/Icon/IconIndex';
+import {type SemanticColorsV2, PrimitiveColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
+import {getElevation} from '@constants/elevation';
+import {triggerHaptic} from '@utils/haptics';
 
-export const PACK_WIDTH = 184;
-const STACK_HEIGHT = 158; // 보이는 카드에 맞춰 타이트하게 (라벨 갭 축소)
-const THUMB_SIZE = 180; // 그리드 뷰 카드 크기(상한 180)와 동일
+export const PACK_WIDTH = 220;
+/** 레시피 북(책) 팩 폭 — 책만 1.2배 (표지/썸넬/폰트도 동일 비율) */
+export const BOOK_PACK_WIDTH = Math.round(PACK_WIDTH * 1.2); // 264
+const STACK_HEIGHT = 188; // 카드 키운 만큼 스택 높이도 키움
+const THUMB_SIZE = 214; // 팩 카드 크기
+
+// #RRGGBB 색을 흰색 쪽으로 ratio(0~1)만큼 섞어 옅은 톤 생성.
+// 레시피 북 표지 배경을 제목(쿡북) 색과 같은 계열의 연한 색으로 만들 때 사용.
+function tintToWhite(color: string, ratio: number, fallback: string): string {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(color.trim());
+  if (!m) return fallback;
+  const n = parseInt(m[1], 16);
+  const mix = (c: number) => Math.round(c + (255 - c) * ratio);
+  const r = mix((n >> 16) & 255);
+  const g = mix((n >> 8) & 255);
+  const b = mix(n & 255);
+  return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
+}
 
 // 더미 카드 팬 효과 (뒤 → 앞). 장수별로 좌우 대칭이 되도록 구성.
 type Fan = {x: number; y: number; rotate: number};
@@ -57,11 +77,41 @@ export interface RecipePackProps {
   onPress?: (rect: PackOriginRect) => void;
   /** 카드 스택 기울기 (deg). 텍스트는 기울지 않고 스택에만 적용 */
   rotate?: number;
+  /** 뱃지 pill에 표시할 숫자 (2 이상일 때만 표시 — 회차/개수) */
+  count?: number;
+  /** pill을 상단(기본) 대신 하단에 배치 (회차 종이용) */
+  pillBottom?: boolean;
+  /** 뱃지 위치 — 좌상(기본)/우상/좌하/우하/하단중앙. 보드에서 팩별 랜덤 배치용 */
+  pillCorner?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'bottom-center';
+  /** pill 페이드용 진행값 (0=숨김 → 1=보임). 회차 종이 접힐 때 서서히 사라지게 */
+  pillProgress?: SharedValue<number>;
+  /** 뱃지(pill) 왼쪽 아이콘 — 회고 노트/그룹 등 팩 종류 구분용 */
+  icon?: React.FC<SvgProps>;
+  /** 뱃지 아이콘 색상 */
+  iconColor?: string;
+  /** 잠긴 레시피 — 뱃지에 자물쇠 표시 */
+  locked?: boolean;
+  /** 'book' = 레시피 북 전용 책 형태 (3:4 표지 + 정사각 썸넬 중앙 + 제목 우상단) */
+  variant?: 'default' | 'book';
+  /** 책 표지 하단 좌측 부가정보 (예: "3개의 레시피") */
+  footerLeft?: string;
+  /** 책 표지 하단 우측 부가정보 (예: "2개의 회고") */
+  footerRight?: string;
+  /** 빈 레시피 북(투명 일러스트 표지) — 표지 배경/테두리/그림자 제거하고 일러스트만 띄움 */
+  emptyCover?: boolean;
 }
 
-export function RecipePack({title, subtitle, cards, onPress, rotate = 0}: RecipePackProps) {
+export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom, pillCorner, pillProgress, icon: PillIcon, iconColor, locked, variant = 'default', footerLeft, footerRight, emptyCover}: RecipePackProps) {
   const styles = useThemedStylesV2(createStyles);
+  const pillAnim = useAnimatedStyle(() => ({opacity: pillProgress ? pillProgress.value : 1}));
   const colors = useColorsV2();
+  const {isDark} = useTheme();
+  // 뱃지(pill) 그림자: 경계가 보이되 부드럽게 (너무 진하면 지저분해 보임)
+  const pillShadow = {
+    boxShadow: isDark
+      ? '0px 2px 12px 0px rgba(0, 0, 0, 0.42)'
+      : '0px 2px 12px 0px rgba(14, 14, 13, 0.16)',
+  } as const;
   const ref = useRef<View>(null);
 
   // 최소 1장, 최대 3장 (뒤 카드부터 그려 마지막이 위로)
@@ -71,6 +121,7 @@ export function RecipePack({title, subtitle, cards, onPress, rotate = 0}: Recipe
 
   const handlePress = () => {
     if (!onPress) return;
+    triggerHaptic('light');
     const node = ref.current;
     if (node && typeof node.measureInWindow === 'function') {
       node.measureInWindow((x, y, width, height) => onPress({x, y, width, height}));
@@ -78,6 +129,64 @@ export function RecipePack({title, subtitle, cards, onPress, rotate = 0}: Recipe
       onPress({x: 0, y: 0, width: 0, height: 0});
     }
   };
+
+  // 제목 뱃지 (책/일반 공통)
+  const pillContent = (
+    <View style={[styles.pill, pillShadow]}>
+      {locked
+        ? <IconLockFilled width={13} height={13} color={colors['foreground/on-surface-muted']} />
+        : PillIcon && <PillIcon width={13} height={13} color={iconColor ?? colors['foreground/on-surface-muted']} />}
+      <Text style={styles.pillLabel} numberOfLines={1}>{title}</Text>
+      {count != null && count > 1 && <Text style={styles.pillCount}>{count}</Text>}
+    </View>
+  );
+
+  // 레시피 북 전용: 정사각 그레이 표지에 제목(쿡북 색 글자)을 얹은 포스터 형태 + 중앙 썸넬. 뱃지 없음.
+  if (variant === 'book') {
+    const BOOK_W = Math.round(188 * 1.2); // 226 (책만 1.2배)
+    const BOOK_H = BOOK_W; // 정사각
+    const BOOK_IMG = Math.round(85 * 1.2); // 102 (표지 안 정사각 썸넬)
+    const titleColor = iconColor ?? colors['foreground/on-surface'];
+    // 표지 배경: 쿡북 색이 있으면 그 색을 흰색 쪽으로 옅게 섞어 같은 계열의 연한 톤(배경·글씨 연관색).
+    // 색이 없으면(미분류 = custom/grey) 가장 옅은 노랑.
+    const isNoColor = !iconColor || iconColor === colors['custom/grey'];
+    // 한 단계 더 진하게: 무채색 노랑 98→96, 컬러 표지는 흰색 혼합 비율을 낮춰(0.9→0.84) 살짝 진하게
+    const coverBg = isNoColor
+      ? PrimitiveColorsV2['yellow/96']
+      : tintToWhite(titleColor, 0.84, PrimitiveColorsV2['yellow/96']);
+    // 그림자 토큰 두 번째 (normal)
+    const bookShadow = getElevation('normal', isDark ? 'dark' : 'light');
+    return (
+      <Pressable
+        ref={ref}
+        onPress={handlePress}
+        style={({pressed}) => [styles.container, {width: BOOK_PACK_WIDTH}, pressed && {opacity: 0.85, transform: [{scale: 0.97}]}]}>
+        <View style={[styles.bookCover, bookShadow, {width: BOOK_W, height: BOOK_H, backgroundColor: coverBg, transform: [{rotate: `${rotate}deg`}]}]}>
+          {/* 썸넬 중앙 */}
+          <StackedThumbnail
+            size={BOOK_IMG}
+            fill
+            bare
+            transparent={emptyCover}
+            imageUrl={shown[0].imageUrl}
+            colors={colors}
+            paperTitle={shown[0].title}
+            paperPreview={shown[0].paperPreview}
+            radius={0}
+            showPaper={!shown[0].imageUrl}
+          />
+          {/* 제목 — 썸넬 상단에 살짝 겹치게 (absolute) */}
+          <Text style={[styles.bookTitle, {color: titleColor}]} numberOfLines={2}>{title}</Text>
+          {/* 부가정보 — 하단 좌·중·우 (레퍼런스 풋터): 레시피 수 · 브랜드 · 회고 수 */}
+          <View style={styles.bookFooter} pointerEvents="none">
+            <Text style={[styles.bookMeta, {flex: 1, textAlign: 'left', color: titleColor}]} numberOfLines={2}>{footerLeft ?? `${count ?? shown.length}개의\n레시피`}</Text>
+            <Text style={[styles.bookMeta, {flex: 1, textAlign: 'center', color: titleColor}]} numberOfLines={2}>베이크싸이클</Text>
+            <Text style={[styles.bookMeta, {flex: 1, textAlign: 'right', color: titleColor}]} numberOfLines={2}>{footerRight ?? ''}</Text>
+          </View>
+        </View>
+      </Pressable>
+    );
+  }
 
   return (
     <Pressable
@@ -100,14 +209,33 @@ export function RecipePack({title, subtitle, cards, onPress, rotate = 0}: Recipe
                 colors={colors}
                 paperTitle={card.title}
                 paperPreview={card.paperPreview}
-                showPaper={!multi || !card.imageUrl}
+                radius={8}
+                // 이미지만 있는 카드(미리보기 없음) 뒤엔 빈 종이를 그리지 않음
+                showPaper={(!multi && !!card.paperPreview) || !card.imageUrl}
               />
             </View>
           );
         }); })()}
+        {/* 썸네일 위 pill 뱃지 (라벨 + 개수) — Figma 75166:53685 */}
+        <Animated.View
+          style={[
+            pillBottom
+              ? styles.pillWrapBottom
+              : pillCorner === 'top-right'
+                ? styles.pillWrapTopRight
+                : pillCorner === 'bottom-left'
+                  ? styles.pillWrapBottom
+                  : pillCorner === 'bottom-right'
+                    ? styles.pillWrapBottomRight
+                    : pillCorner === 'bottom-center'
+                      ? styles.pillWrapBottomCenter
+                      : styles.pillWrap,
+            pillAnim,
+          ]}
+          pointerEvents="none">
+          {pillContent}
+        </Animated.View>
       </View>
-      <Text style={styles.title} numberOfLines={1}>{title}</Text>
-      <Text style={styles.subtitle} numberOfLines={1}>{subtitle}</Text>
     </Pressable>
   );
 }
@@ -126,16 +254,95 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   thumbWrap: {
     position: 'absolute',
   },
-  title: {
-    ...Typography.label['large - semibold'],
-    color: colors['foreground/on-surface'],
-    marginTop: Spacing.xs,
+  pillWrap: {
+    position: 'absolute',
+    left: -4,
+    top: 36,
+    alignItems: 'flex-start',
+  },
+  pillWrapBottom: {
+    position: 'absolute',
+    left: -4,
+    bottom: 36,
+    alignItems: 'flex-start',
+  },
+  pillWrapBottomRight: {
+    position: 'absolute',
+    right: -4,
+    bottom: 36,
+    alignItems: 'flex-end',
+  },
+  pillWrapTopRight: {
+    position: 'absolute',
+    right: -4,
+    top: 36,
+    alignItems: 'flex-end',
+  },
+  pillWrapBottomCenter: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 22,
+    alignItems: 'center',
+  },
+  // 레시피 북 책 표지 (3:4) — 색은 레시피 북 색(iconColor) 주입
+  // 포스터형 표지: 정사각 진한 그레이 배경, 썸넬 중앙 + 제목(쿡북 색)을 썸넬에 살짝 걸침
+  bookCover: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: PrimitiveColorsV2['yellow/96'], // 옐로우 계열 표지 배경(밝게)
+    borderWidth: 1,
+    borderColor: colors['border/muted'],
+  },
+  bookTitle: {
+    position: 'absolute',
+    top: 36,
+    left: 16,
+    right: 16,
+    fontFamily: 'Pretendard-Bold',
+    fontSize: 23,
+    lineHeight: 28,
+    letterSpacing: -0.24,
     textAlign: 'center',
   },
-  subtitle: {
-    ...Typography.label.small,
+  bookFooter: {
+    position: 'absolute',
+    bottom: 12,
+    left: 16,
+    right: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  bookMeta: {
+    fontFamily: 'Pretendard-Bold',
+    fontSize: 6,
+    lineHeight: 8.2,
+    letterSpacing: 0.3,
+  },
+  pill: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+    borderRadius: 1000,
+    backgroundColor: colors['surface/normal'],
+    maxWidth: PACK_WIDTH - 16,
+  },
+  pillLabel: {
+    fontFamily: Typography.label['large - semibold'].fontFamily,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.2,
+    color: colors['foreground/on-surface'],
+    flexShrink: 1,
+  },
+  pillCount: {
+    fontFamily: Typography.label['large - semibold'].fontFamily,
+    fontSize: 12,
+    lineHeight: 16,
+    letterSpacing: 0.2,
     color: colors['foreground/on-surface-muted'],
-    marginTop: 2,
-    textAlign: 'center',
   },
 });

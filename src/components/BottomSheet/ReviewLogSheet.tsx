@@ -1,12 +1,12 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
 import {BottomSheet} from './BottomSheet';
 import {TextInput as StyledTextInput} from '@components/TextInput';
 import {RecipeCard} from '@components/Recipe/RecipeCard';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useColorsV2} from '@contexts/ThemeContext';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import type {Recipe} from '../../types/recipe';
@@ -17,6 +17,8 @@ import {
   IconCornerDownRight,
   IconSearch,
 } from '@components/Icon/IconIndex';
+
+const emptyNoResultsImage = require('../../../assets/images/empty_no_results.png');
 
 export interface ReviewLogSheetProps {
   visible: boolean;
@@ -194,16 +196,16 @@ export function ReviewLogSheet({
                 <>
                   {canGoBack ? (
                     <Pressable onPress={handleBackToList}>
-                      <Text style={styles.titleMuted}>회고록</Text>
+                      <Text style={styles.titleMuted}>회고 노트</Text>
                     </Pressable>
                   ) : (
-                    <Text style={styles.titleMuted}>회고록</Text>
+                    <Text style={styles.titleMuted}>회고 노트</Text>
                   )}
                   <Text style={styles.titleSlash}>/</Text>
                   <Text style={styles.title} numberOfLines={1}>{currentTitle}</Text>
                 </>
               ) : (
-                <Text style={styles.title}>회고록</Text>
+                <Text style={styles.title}>회고 노트</Text>
               )}
             </View>
             <Pressable onPress={handleToggleSearch} hitSlop={8}>
@@ -237,10 +239,11 @@ export function ReviewLogSheet({
             })
           ) : (
             <View style={styles.empty}>
+              {searchQuery.trim() ? <Image source={emptyNoResultsImage} style={styles.emptyImage} /> : null}
               <Text style={styles.emptyText}>
                 {searchQuery.trim()
                   ? `'${searchQuery.trim()}'에 해당하는 레시피를 찾지 못했어요`
-                  : '아직 작성된 회고록이 없습니다'}
+                  : '아직 작성된 회고 노트가 없습니다'}
               </Text>
             </View>
           )}
@@ -266,6 +269,7 @@ export function ReviewLogSheet({
               ))
             ) : (
               <View style={styles.empty}>
+                <Image source={emptyNoResultsImage} style={styles.emptyImage} />
                 <Text style={styles.emptyText}>
                   {`'${searchQuery.trim()}'에 해당하는 회고를 찾지 못했어요`}
                 </Text>
@@ -386,6 +390,11 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   empty: {
     paddingVertical: Spacing.lg,
     alignItems: 'center',
+    gap: Spacing.smd,
+  },
+  emptyImage: {
+    width: 60,
+    height: 60,
   },
   emptyText: {
     fontFamily: Typography.label.medium.fontFamily,

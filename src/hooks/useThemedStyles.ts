@@ -1,7 +1,7 @@
 import {useMemo} from 'react';
 import {useColors, useColorsV2} from '@contexts/ThemeContext';
 import type {SemanticColors} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 
 export function useThemedStyles<T>(factory: (colors: SemanticColors) => T): T {
   const colors = useColors();

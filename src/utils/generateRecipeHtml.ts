@@ -66,17 +66,15 @@ function buildSubtitle(data: RecipePdfData): string {
 }
 
 function buildMetaHtml(data: RecipePdfData): string {
-  const items: {label: string; value: string}[] = [];
-  if (data.time) items.push({label: '시간', value: data.time});
-  if (data.servings) items.push({label: '분량', value: data.servings});
-  if (data.session) items.push({label: '회차', value: data.session});
+  // 박스 없이 인라인 텍스트로 (문서형 정리)
+  const items: string[] = [];
+  if (data.time) items.push(`시간 ${escapeHtml(data.time)}`);
+  if (data.servings) items.push(`분량 ${escapeHtml(data.servings)}`);
+  if (data.session) items.push(`회차 ${escapeHtml(data.session)}`);
 
   if (items.length === 0) return '';
 
-  return `
-    <div class="meta-row">
-      ${items.map(item => `<div class="meta-item"><span class="meta-value">${escapeHtml(item.value)}</span></div>`).join('')}
-    </div>`;
+  return `<div class="meta-row">${items.join('<span class="meta-sep">·</span>')}</div>`;
 }
 
 function buildIngredientsHtml(data: RecipePdfData): string {
@@ -154,6 +152,63 @@ function buildProcessHtml(data: RecipePdfData): string {
   return '';
 }
 
+// 공용 PDF 스타일 — 배경/카드 박스 없이 구분선·타이포 기반의 깔끔한 문서형.
+// (PDF는 흰 배경에 저장되므로 흰 카드 박스는 안 보이고 구조만 붕 떠 보였음 → 제거)
+const PDF_CSS = `
+  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    color: #1a1a1a;
+    padding: 40px 34px;
+    max-width: 640px;
+    margin: 0 auto;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .recipe-page { padding-bottom: 8px; }
+  .header { margin-bottom: 16px; }
+  .title { font-size: 26px; font-weight: 700; line-height: 1.25; margin-bottom: 6px; letter-spacing: -0.01em; }
+  .subtitle { font-size: 13px; color: #6b6f76; }
+  .meta-row { font-size: 13px; color: #4a4d52; margin-bottom: 24px; }
+  .meta-sep { color: #cfd2d6; margin: 0 7px; }
+  .section-title {
+    font-size: 13px; font-weight: 700; color: #1a1a1a;
+    margin: 28px 0 4px; padding-bottom: 7px;
+    border-bottom: 1.5px solid #1a1a1a;
+    display: flex; align-items: center; gap: 5px;
+  }
+  .chevron { color: #a9adb3; font-weight: 400; }
+  .card { display: block; }
+  .ingredient-row { display: flex; align-items: baseline; padding: 7px 1px; border-bottom: 1px solid #eef0f2; }
+  .ingredient-row:last-child { border-bottom: none; }
+  .ingredient-pct { width: 46px; font-size: 12px; font-weight: 500; color: #9aa0a6; text-align: right; margin-right: 14px; flex-shrink: 0; }
+  .ingredient-name { font-size: 14px; color: #1a1a1a; }
+  .tools-text { padding: 8px 1px; font-size: 14px; color: #1a1a1a; line-height: 1.6; }
+  .step-row { display: flex; gap: 12px; padding: 11px 1px; border-bottom: 1px solid #eef0f2; }
+  .step-row:last-child { border-bottom: none; }
+  .step-number { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid #1a1a1a; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #1a1a1a; }
+  .step-content { flex: 1; min-width: 0; }
+  .step-desc { font-size: 14px; line-height: 1.6; color: #1a1a1a; }
+  .step-tip { margin-top: 6px; font-size: 12px; line-height: 1.5; color: #6b6f76; padding-left: 10px; border-left: 2px solid #e3e5e8; }
+  .step-caution { margin-top: 6px; font-size: 12px; line-height: 1.5; color: #9a6a00; padding-left: 10px; border-left: 2px solid #e6c17a; }
+  @media print { body { padding: 24px 20px; } }
+`;
+
+function pdfDocument(inner: string): string {
+  return `<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<style>${PDF_CSS}</style>
+</head>
+<body>
+${inner}
+</body>
+</html>`;
+}
+
 export function generateRecipeListHtml(recipes: RecipePdfData[]): string {
   const recipeSections = recipes
     .map((data, index) => {
@@ -173,52 +228,7 @@ export function generateRecipeListHtml(recipes: RecipePdfData[]): string {
     })
     .join('');
 
-  return `<!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: transparent;
-    color: #121318;
-    padding: 24px;
-    max-width: 600px;
-    margin: 0 auto;
-  }
-
-  .recipe-page { padding-bottom: 40px; }
-  .header { margin-bottom: 24px; }
-  .title { font-size: 24px; font-weight: 700; line-height: 1.3; margin-bottom: 4px; }
-  .subtitle { font-size: 14px; font-weight: 400; color: #1F2126A3; }
-  .meta-row { display: flex; gap: 8px; margin-bottom: 20px; }
-  .meta-item { flex: 1; background: #FFFFFF; border-radius: 12px; padding: 12px; text-align: center; }
-  .meta-value { font-size: 14px; font-weight: 600; color: #121318; }
-  .section-title { font-size: 14px; font-weight: 600; color: #1F2126A3; margin-bottom: 8px; margin-top: 20px; display: flex; align-items: center; gap: 4px; }
-  .chevron { font-size: 12px; color: #1F2126A3; }
-  .card { background: #FFFFFF; border-radius: 12px; overflow: hidden; }
-  .ingredient-row { display: flex; align-items: center; padding: 12px 16px; border-bottom: 1px solid #ECEEF2; }
-  .ingredient-row:last-child { border-bottom: none; }
-  .ingredient-pct { width: 48px; font-size: 13px; font-weight: 500; color: #1F2126A3; text-align: right; margin-right: 12px; flex-shrink: 0; }
-  .ingredient-name { font-size: 14px; font-weight: 400; color: #121318; }
-  .tools-text { padding: 12px 16px; font-size: 14px; font-weight: 400; color: #121318; line-height: 1.5; }
-  .step-row { display: flex; padding: 12px 16px; border-bottom: 1px solid #ECEEF2; gap: 12px; }
-  .step-row:last-child { border-bottom: none; }
-  .step-number { width: 24px; height: 24px; border-radius: 50%; background: #F3F4F6; font-size: 12px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #1F2126A3; }
-  .step-content { flex: 1; min-width: 0; }
-  .step-desc { font-size: 14px; font-weight: 400; line-height: 1.5; color: #121318; }
-  .step-tip { margin-top: 6px; font-size: 12px; font-weight: 400; line-height: 1.4; color: #1F21265C; background: #F3F4F6; border-radius: 8px; padding: 6px 10px; }
-</style>
-</head>
-<body>
-  ${recipeSections}
-</body>
-</html>`;
+  return pdfDocument(recipeSections);
 }
 
 /** Recipe → RecipePdfData 변환 헬퍼. PDF 미리보기/카드 썸네일 공통 사용. */
@@ -257,177 +267,14 @@ export function recipeToPdfData(recipe: {
 export function generateRecipeHtml(data: RecipePdfData): string {
   const subtitle = buildSubtitle(data);
 
-  return `<!DOCTYPE html>
-<html lang="ko">
-<head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width, initial-scale=1"/>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
-
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-
-  body {
-    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
-    background: transparent;
-    color: #121318;
-    padding: 24px;
-    max-width: 600px;
-    margin: 0 auto;
-  }
-
-  .header {
-    margin-bottom: 24px;
-  }
-
-  .title {
-    font-size: 24px;
-    font-weight: 700;
-    line-height: 1.3;
-    margin-bottom: 4px;
-  }
-
-  .subtitle {
-    font-size: 14px;
-    font-weight: 400;
-    color: #1F2126A3;
-  }
-
-  .meta-row {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 20px;
-  }
-
-  .meta-item {
-    flex: 1;
-    background: #FFFFFF;
-    border-radius: 12px;
-    padding: 12px;
-    text-align: center;
-  }
-
-  .meta-value {
-    font-size: 14px;
-    font-weight: 600;
-    color: #121318;
-  }
-
-  .section-title {
-    font-size: 14px;
-    font-weight: 600;
-    color: #1F2126A3;
-    margin-bottom: 8px;
-    margin-top: 20px;
-    display: flex;
-    align-items: center;
-    gap: 4px;
-  }
-
-  .chevron {
-    font-size: 12px;
-    color: #1F2126A3;
-  }
-
-  .card {
-    background: #FFFFFF;
-    border-radius: 12px;
-    overflow: hidden;
-  }
-
-  .ingredient-row {
-    display: flex;
-    align-items: center;
-    padding: 12px 16px;
-    border-bottom: 1px solid #ECEEF2;
-  }
-
-  .ingredient-row:last-child {
-    border-bottom: none;
-  }
-
-  .ingredient-pct {
-    width: 48px;
-    font-size: 13px;
-    font-weight: 500;
-    color: #1F2126A3;
-    text-align: right;
-    margin-right: 12px;
-    flex-shrink: 0;
-  }
-
-  .ingredient-name {
-    font-size: 14px;
-    font-weight: 400;
-    color: #121318;
-  }
-
-  .tools-text {
-    padding: 12px 16px;
-    font-size: 14px;
-    font-weight: 400;
-    color: #121318;
-    line-height: 1.5;
-  }
-
-  .step-row {
-    display: flex;
-    padding: 12px 16px;
-    border-bottom: 1px solid #ECEEF2;
-    gap: 12px;
-  }
-
-  .step-row:last-child {
-    border-bottom: none;
-  }
-
-  .step-number {
-    width: 24px;
-    height: 24px;
-    border-radius: 50%;
-    background: #F3F4F6;
-    font-size: 12px;
-    font-weight: 600;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-    color: #1F2126A3;
-  }
-
-  .step-content {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .step-desc {
-    font-size: 14px;
-    font-weight: 400;
-    line-height: 1.5;
-    color: #121318;
-  }
-
-  .step-tip {
-    margin-top: 6px;
-    font-size: 12px;
-    font-weight: 400;
-    line-height: 1.4;
-    color: #1F21265C;
-    background: #F3F4F6;
-    border-radius: 8px;
-    padding: 6px 10px;
-  }
-</style>
-</head>
-<body>
+  const inner = `
   <div class="header">
     <div class="title">${escapeHtml(data.title)}</div>
     ${subtitle ? `<div class="subtitle">${escapeHtml(subtitle)}</div>` : ''}
   </div>
   ${buildMetaHtml(data)}
-  ${buildIngredientsHtml(data)}
+  ${data.ingredientGroups.length > 0 ? buildIngredientsHtml(data) : ''}
   ${buildToolsHtml(data)}
-  ${buildProcessHtml(data)}
-</body>
-</html>`;
+  ${buildProcessHtml(data)}`;
+  return pdfDocument(inner);
 }

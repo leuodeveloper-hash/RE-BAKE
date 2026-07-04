@@ -4,10 +4,13 @@ import {useRouter} from 'expo-router';
 import {doc, updateDoc, deleteField} from 'firebase/firestore';
 import {ExploreScreen} from '@screens/ExploreScreen';
 import {PlanSheet} from '@components/PlanSheet';
+import {PdfPreviewDialog} from '@components/Dialog';
+import {generateRecipeListHtml} from '@utils/generateRecipeHtml';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useColorsV2} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
+import {useAuthSheet} from '@contexts/AuthSheetContext';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {useOnlineStatus} from '@hooks/useOnlineStatus';
 import {useSubscription} from '@contexts/SubscriptionContext';
@@ -23,8 +26,11 @@ export default function ExploreRoute() {
   const isOnline = useOnlineStatus();
   const {recipes: exploreRecipes, exploreCookbooks, isLoading: exploreLoading, reload: exploreReload} = useExploreRecipeContext();
   const {isPro} = useSubscription();
+  const {open: openAuthSheet} = useAuthSheet();
   const isFreeUser = !isAdmin && !isPro;
   const [showPlanSheet, setShowPlanSheet] = useState(false);
+  const [showPdfPreview, setShowPdfPreview] = useState(false);
+  const [pdfHtml, setPdfHtml] = useState('');
 
   const prevOnlineRef = useRef(isOnline);
   useEffect(() => {
@@ -98,8 +104,40 @@ export default function ExploreRoute() {
     showSnackbar('기능 추가 예정입니다');
   }, [showSnackbar]);
 
+  // 둘러보기 리스트 PDF 익스포트 (기존 리스트 HTML + PdfPreviewDialog 재사용)
+  const runListPdf = useCallback(() => {
+    if (exploreRecipes.length === 0) {
+      showSnackbar('내보낼 레시피가 없어요');
+      return;
+    }
+    const pdfData = exploreRecipes.map(r => ({
+      title: r.title,
+      cookbook: r.cookbook,
+      method: r.method,
+      reviewCount: r.reviewCount,
+      time: r.time,
+      servings: r.servings,
+      session: r.session,
+      ingredientGroups: r.ingredientGroups ?? [],
+      tools: r.tools ?? [],
+      steps: r.steps,
+      stepGroups: r.stepGroups,
+    }));
+    setPdfHtml(generateRecipeListHtml(pdfData));
+    setShowPdfPreview(true);
+  }, [exploreRecipes, showSnackbar]);
+
+  // 게스트면 로그인 유도 → 성공 시 PDF, 로그인 상태면 바로 PDF
+  const handleDownloadPdf = useCallback(() => {
+    if (!user) {
+      openAuthSheet({onSuccess: () => setTimeout(runListPdf, 300)});
+      return;
+    }
+    runListPdf();
+  }, [user, openAuthSheet, runListPdf]);
+
   return (
-    <View style={[styles.container, {backgroundColor: colors['surface/normal']}]}>
+    <View style={[styles.container, {backgroundColor: colors['surface/dim']}]}>
       <ExploreScreen
         data={exploreRecipes}
         loading={exploreLoading}
@@ -115,11 +153,18 @@ export default function ExploreRoute() {
         onRefresh={exploreReload}
         exploreCookbooks={exploreCookbooks}
         isFreeUser={isFreeUser}
+        onDownloadPdf={handleDownloadPdf}
       />
       <PlanSheet
         visible={showPlanSheet}
         onClose={() => setShowPlanSheet(false)}
         isPro={isPro}
+      />
+      <PdfPreviewDialog
+        visible={showPdfPreview}
+        onClose={() => setShowPdfPreview(false)}
+        html={pdfHtml}
+        filename="공식 레시피 북"
       />
     </View>
   );

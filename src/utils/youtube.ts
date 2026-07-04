@@ -51,7 +51,7 @@ export function buildYouTubeEmbedUrl(videoId: string): string {
     playsinline: '1',
     rel: '0',
     modestbranding: '1',
-    controls: '0',          // YouTube 컨트롤 자체를 렌더하지 않음
+    controls: '1',          // YouTube 기본 컨트롤(재생/정지/탐색) 사용
     iv_load_policy: '3',    // annotation 숨김
     disablekb: '1',         // 키보드 단축키 차단
     fs: '0',                // 풀스크린 버튼 숨김
@@ -64,6 +64,10 @@ export function buildYouTubeEmbedUrl(videoId: string): string {
  * iOS WebView 임베드용 HTML 래퍼.
  * - 직접 URL 로드 시 about:blank origin이라 YouTube가 error 153으로 거부
  * - HTML로 wrap + baseUrl을 youtube.com으로 → embed 정상 동작
+ * - ⚠️ iOS(WKWebView)는 3rd-party 쿠키/스토리지를 기본 차단한다. baseUrl이
+ *   youtube.com인데 iframe을 youtube-nocookie.com으로 넣으면 교차 도메인(3rd-party)
+ *   프레임이 돼 일부 영상이 error 150/153으로 재생 거부된다(웹 브라우저는 통과).
+ *   → iframe도 baseUrl과 같은 1st-party(youtube.com/embed)로 맞춘다.
  */
 export function buildYouTubeEmbedHtml(videoId: string): string {
   const params = new URLSearchParams({
@@ -71,12 +75,13 @@ export function buildYouTubeEmbedHtml(videoId: string): string {
     playsinline: '1',
     rel: '0',
     modestbranding: '1',
-    controls: '0',
+    controls: '1',          // YouTube 기본 컨트롤(재생/정지/탐색) 사용
     iv_load_policy: '3',
     disablekb: '1',
     fs: '0',
   });
-  const src = `https://www.youtube-nocookie.com/embed/${videoId}?${params.toString()}`;
+  // baseUrl(youtube.com)과 동일 도메인 → 1st-party 프레임으로 WKWebView 차단 회피
+  const src = `https://www.youtube.com/embed/${videoId}?${params.toString()}`;
   return `<!DOCTYPE html>
 <html>
   <head>

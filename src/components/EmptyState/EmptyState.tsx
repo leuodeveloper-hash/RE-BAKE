@@ -4,7 +4,7 @@ import {SvgProps} from 'react-native-svg';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {Button} from '@components/Button';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 const emptyRecipeImage = require('../../../assets/images/empty_recipe.png');

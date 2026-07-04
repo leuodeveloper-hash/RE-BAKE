@@ -1,6 +1,11 @@
 import {initializeApp} from 'firebase/app';
 import {getAuth, initializeAuth, getReactNativePersistence} from 'firebase/auth';
-import {getFirestore} from 'firebase/firestore';
+import {
+  getFirestore,
+  initializeFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+} from 'firebase/firestore';
 import {getStorage} from 'firebase/storage';
 import {Platform} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -25,6 +30,13 @@ export const auth = Platform.OS === 'web'
       persistence: getReactNativePersistence(AsyncStorage),
     });
 
-export const db = getFirestore(app);
+// Firestore 캐시:
+// - 웹: IndexedDB 영구 캐시(persistentLocalCache)로 새로고침 간 읽기를 재사용해 읽기 비용 절감.
+// - 네이티브: IndexedDB 미지원 → 기본(getFirestore) 사용.
+export const db = Platform.OS === 'web'
+  ? initializeFirestore(app, {
+      localCache: persistentLocalCache({tabManager: persistentMultipleTabManager()}),
+    })
+  : getFirestore(app);
 export const storage = getStorage(app);
 export default app;

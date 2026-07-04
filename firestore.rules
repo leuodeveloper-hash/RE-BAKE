@@ -1,0 +1,47 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // users: 본인 문서만 읽기/쓰기
+    match /users/{uid} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // admin: 로그인 사용자 본인 문서만 읽기 (쓰기는 Firebase Console에서만)
+    match /admin/{uid} {
+      allow read: if request.auth != null && request.auth.uid == uid;
+      allow write: if false;
+    }
+
+    // user_recipes: 본인 레시피만 읽기/쓰기
+    match /user_recipes/{uid}/recipes/{recipeId} {
+      allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // explore_recipes: 누구나 읽기, 쓰기는 어드민만
+    match /explore_recipes/{recipeId} {
+      allow read: if true;
+      allow write: if exists(/databases/$(database)/documents/admin/$(request.auth.uid));
+    }
+
+    // explore_meta: 누구나 읽기, 쓰기는 어드민만
+    match /explore_meta/{docId} {
+      allow read: if true;
+      allow write: if exists(/databases/$(database)/documents/admin/$(request.auth.uid));
+    }
+
+    // explore_cookbooks: 누구나 읽기, 쓰기는 어드민만
+    match /explore_cookbooks/{docId} {
+      allow read: if true;
+      allow write: if exists(/databases/$(database)/documents/admin/$(request.auth.uid));
+    }
+
+    // exam_schedules: 누구나 읽기(공개 시험일정), 쓰기는 어드민만
+    match /exam_schedules/{docId} {
+      allow read: if true;
+      allow write: if exists(/databases/$(database)/documents/admin/$(request.auth.uid));
+    }
+
+  }
+}

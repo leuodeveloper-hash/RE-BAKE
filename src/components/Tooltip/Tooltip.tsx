@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useRef} from 'react';
 import {Animated, Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useTheme} from '@contexts/ThemeContext';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';

@@ -1,8 +1,8 @@
 import React from 'react';
-import {StyleSheet, View, ViewStyle} from 'react-native';
+import {StyleProp, StyleSheet, View, ViewStyle} from 'react-native';
 import {BlurView} from 'expo-blur';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useTheme} from '@contexts/ThemeContext';
 
@@ -31,7 +31,7 @@ export interface ContainerProps {
   /** Glass material 만 적용. BlurView intensity (0-100). 기본 64 */
   intensity?: number;
   /** Glass material 의 inner content View 스타일 (padding/min-size 등) */
-  contentStyle?: ViewStyle;
+  contentStyle?: StyleProp<ViewStyle>;
   style?: ViewStyle;
 }
 

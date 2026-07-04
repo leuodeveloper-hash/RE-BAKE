@@ -10,7 +10,7 @@ import {SectionHeader} from '@components/SectionHeader';
 import {Snackbar} from '@components/Snackbar';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useAuth} from '@contexts/AuthContext';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {IconArrowLeft, IconBellFilled} from '@components/Icon/IconIndex';
 

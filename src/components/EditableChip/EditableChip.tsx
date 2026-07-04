@@ -1,13 +1,12 @@
-import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Pressable, StyleProp, StyleSheet, Text, TextInput as RNTextInput, View, ViewStyle} from 'react-native';
+import React, {useMemo} from 'react';
+import {Pressable, StyleProp, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {IconAstriks, IconCircleAlertFilled, IconCloseCircleFilled} from '@components/Icon/IconIndex';
+import {TextInput} from '@components/TextInput';
 import {Radius} from '@constants/tokens';
 import {useColorsV2} from '@contexts/ThemeContext';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
-
-const noOutline: any = {outlineStyle: 'none', fieldSizing: 'content'};
 
 export type EditableChipVariant = 'tip' | 'yellow';
 export type EditableChipSize = 'small' | 'medium' | 'large';
@@ -97,68 +96,39 @@ export function EditableChip({
 
   const config = variantConfig[variant];
   const Icon = icon ?? config.Icon;
-  const [inputHeight, setInputHeight] = useState<number>(sizeConfig.lineHeight);
-  const inputRef = useRef<any>(null);
 
-  // 웹: scrollHeight로 grow + shrink 모두 지원
-  const resizeFromDom = useCallback(() => {
-    const node = inputRef.current;
-    if (!node) return;
-    const el = (node as any)?._node ?? node;
-    const textarea = el?.tagName === 'TEXTAREA' ? el : el?.querySelector?.('textarea');
-    if (!textarea) return;
-    textarea.style.height = '0';
-    const h = Math.max(sizeConfig.lineHeight, textarea.scrollHeight);
-    textarea.style.height = h + 'px';
-    setInputHeight(prev => (prev === h ? prev : h));
-  }, []);
-
-  const handleChangeText = useCallback((text: string) => {
-    onChangeText?.(text);
-    resizeFromDom();
-  }, [onChangeText, resizeFromDom]);
-
-  // 마운트 시 기존 텍스트에 맞게 높이 설정
-  useEffect(() => {
-    if (onChangeText && label) {
-      requestAnimationFrame(resizeFromDom);
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  // 입력/표시 공통 텍스트 스타일 (사이즈별 폰트 + variant 색)
+  const textStyle = {
+    color: config.textColor,
+    fontFamily: sizeConfig.fontFamily,
+    fontSize: sizeConfig.fontSize,
+    fontWeight: sizeConfig.fontWeight,
+    lineHeight: sizeConfig.lineHeight,
+    letterSpacing: -0.25,
+  };
 
   return (
-    <View style={[styles.container, {backgroundColor: config.backgroundColor, padding: sizeConfig.padding, gap: sizeConfig.gap, borderRadius: sizeConfig.borderRadius}, style]}>
-      <View style={[styles.iconWrap, {height: sizeConfig.lineHeight + FONT_BASELINE_OFFSET}]}>
-        <Icon width={sizeConfig.iconSize} height={sizeConfig.iconSize} color={config.iconColor} />
-      </View>
+    <View style={[styles.container, {backgroundColor: config.backgroundColor, padding: sizeConfig.padding, gap: sizeConfig.gap, borderRadius: sizeConfig.borderRadius}, onChangeText && styles.containerEditing, style]}>
       {onChangeText ? (
-        <RNTextInput
-          ref={inputRef}
-          style={[styles.label, styles.labelInput, noOutline, {
-            color: config.textColor,
-            height: inputHeight,
-            fontFamily: sizeConfig.fontFamily,
-            fontSize: sizeConfig.fontSize,
-            fontWeight: sizeConfig.fontWeight,
-            lineHeight: sizeConfig.lineHeight,
-          }]}
+        // 편집 모드: 아이콘 없이 풀폭 입력(좌측 끝부터). 공용 TextInput 멀티라인 변형 사용
+        // → flex:1+minWidth:0 로 줄바꿈, 자동 높이 증가 내장
+        <TextInput
+          style="ghost"
+          multiline
           value={label}
-          onChangeText={handleChangeText}
+          onChangeText={onChangeText}
           placeholder={placeholder}
           placeholderTextColor={config.placeholderColor}
-          multiline
-          onContentSizeChange={e => {
-            setInputHeight(Math.max(sizeConfig.lineHeight, Math.ceil(e.nativeEvent.contentSize.height)));
-          }}
+          selectionColor={config.textColor}
+          inputStyle={[styles.inputReset, textStyle]}
         />
       ) : (
-        <Text style={[styles.label, {
-          color: config.textColor,
-          fontFamily: sizeConfig.fontFamily,
-          fontSize: sizeConfig.fontSize,
-          fontWeight: sizeConfig.fontWeight,
-          lineHeight: sizeConfig.lineHeight,
-        }]}>
-          {label}
+        // 보기 모드: 아이콘을 글 속에 인라인으로 (줄바꿈 시 좌측 안 비게)
+        <Text style={[styles.label, textStyle]}>
+          <View style={[styles.inlineIcon, {width: sizeConfig.iconSize, height: sizeConfig.iconSize}]}>
+            <Icon width={sizeConfig.iconSize} height={sizeConfig.iconSize} color={config.iconColor} />
+          </View>
+          {'  '}{label}
         </Text>
       )}
       {onRemove && (
@@ -185,6 +155,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingTop: FONT_BASELINE_OFFSET,
   },
+  // 보기 모드 인라인 아이콘 (Text 안 View) — 텍스트 baseline에 맞춰 살짝 내림
+  inlineIcon: {
+    transform: [{translateY: 3}],
+  },
   label: {
     fontFamily: Typography.body.small.fontFamily,
     fontSize: Typography.body.small.fontSize,
@@ -194,7 +168,13 @@ const styles = StyleSheet.create({
     marginTop: FONT_BASELINE_OFFSET,
     flexShrink: 1,
   },
-  labelInput: {
-    padding: 0,
+  // 공용 TextInput ghost 기본 marginTop 상쇄 (칩 아이콘과 baseline 맞춤)
+  inputReset: {
+    marginTop: 0,
+  },
+  // 편집 모드: 내용에 쪼그라들지(flex-start) 않고 가로로 펴져 멀티라인이 자연 줄바꿈
+  containerEditing: {
+    alignSelf: 'stretch',
+    width: '100%',
   },
 });

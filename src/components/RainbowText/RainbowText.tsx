@@ -20,11 +20,11 @@ export interface RainbowTextProps {
 }
 
 /**
- * OCR/STT 결과 표시 애니메이션.
- * 1) reveal — 글자가 muted 색으로 좌→우로 쭉쭉 찍힘
- * 2) hold  — 잠깐 멈춤
- * 3) convert — 처음 글자부터 on-surface로 재색칠되는 파도가 우측으로 지나가고,
- *    파도 앞 8글자는 각기 다른 무지개색으로 보였다가 우측으로 사라짐.
+ * OCR/STT 결과 표시 애니메이션 (연속 흐름).
+ * reveal(연한색 등장)과 convert(진한색 변환) 파도가 동시에 흐르되,
+ * 진한색 파도가 reveal 뒤를 일정 간격(lag)으로 쫓아간다.
+ * → 글자가 뜨는 즉시 차례로 진해져, "전체 등장 후 일괄 변환"의 끊김 없이
+ *   스트리밍처럼 매끄럽게 완성된다. 파도 앞 8글자는 무지개색으로 스쳐 지나감.
  */
 export function RainbowText({children, style, animated = true, onDone}: RainbowTextProps) {
   const colors = useColorsV2();
@@ -47,25 +47,30 @@ export function RainbowText({children, style, animated = true, onDone}: RainbowT
     }
     reveal.setValue(0);
     convert.setValue(0);
-    // 쭉쭉 — 글자당 14ms, 220~1400ms로 클램프
-    const revealMs = Math.min(1400, Math.max(220, n * 14));
-    const holdMs = 380;
-    // 변환 파도 — 글자당 28ms, 700~3200ms로 클램프
-    const convertMs = Math.min(3200, Math.max(700, (n + BAND) * 28));
-    const anim = Animated.sequence([
+    // 두 파도가 같은 속도(글자당 PER_CHAR)로 흘러야 간격이 일정하게 유지됨 → linear
+    const PER_CHAR = 20;
+    // 진한색 파도가 reveal 뒤를 쫓는 간격(글자 수). 클수록 연한색 꼬리가 길게 보임
+    const LAG = 6;
+    const revealMs = Math.min(2000, Math.max(220, n * PER_CHAR));
+    const lagMs = LAG * PER_CHAR;
+    // 변환 파도는 reveal보다 lag만큼 늦게 시작해 무지개 BAND까지 마저 통과
+    const convertMs = Math.min(2000, Math.max(220, (n + BAND) * PER_CHAR));
+    const anim = Animated.parallel([
       Animated.timing(reveal, {
         toValue: n,
         duration: revealMs,
-        easing: Easing.out(Easing.cubic),
+        easing: Easing.linear,
         useNativeDriver: false,
       }),
-      Animated.delay(holdMs),
-      Animated.timing(convert, {
-        toValue: n + BAND,
-        duration: convertMs,
-        easing: Easing.inOut(Easing.cubic),
-        useNativeDriver: false,
-      }),
+      Animated.sequence([
+        Animated.delay(lagMs),
+        Animated.timing(convert, {
+          toValue: n + BAND,
+          duration: convertMs,
+          easing: Easing.linear,
+          useNativeDriver: false,
+        }),
+      ]),
     ]);
     anim.start(({finished}) => {
       if (finished) onDoneRef.current?.();

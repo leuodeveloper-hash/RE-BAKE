@@ -1,20 +1,23 @@
 import {useCallback, useEffect, useState} from 'react';
-import {collection, getDocs, onSnapshot, doc, deleteDoc} from 'firebase/firestore';
+import {collection, getDocs} from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {db} from '@config/firebase';
 import type {Recipe} from '../types/recipe';
 
 const CACHE_KEY = 'explore_recipes_cache';
-const TWENTY_FOUR_HOURS = 24 * 60 * 60 * 1000;
+const COOKBOOKS_CACHE_KEY = 'explore_cookbooks_cache';
+const CACHE_TS_KEY = 'explore_cache_ts';
+/**
+ * 캐시 신선도(TTL). 이 시간 안이면 Firestore를 아예 호출하지 않고 캐시만 사용한다.
+ * 둘러보기 콘텐츠는 자주 바뀌지 않으므로 읽기 비용을 크게 줄인다. 갱신은 당김-새로고침(reload).
+ */
+const CACHE_TTL = 12 * 60 * 60 * 1000; // 12h
 
-/** 만료된 소프트 삭제 레시피를 영구 삭제하고, 표시용 레시피만 반환 */
-function purgeAndFilter(allRecipes: Recipe[]): Recipe[] {
-  const now = Date.now();
-  for (const r of allRecipes) {
-    if (r.deletedAt && now - new Date(r.deletedAt).getTime() > TWENTY_FOUR_HOURS) {
-      deleteDoc(doc(db, 'explore_recipes', r.id)).catch(() => {});
-    }
-  }
+/**
+ * 표시용 레시피만 필터. 만료 소프트삭제 문서의 영구 삭제는 서버측(스케줄 Cloud Function)이 담당한다.
+ * (예전엔 클라이언트가 스냅샷마다 deleteDoc을 날려 중복 쓰기 비용이 발생 → 제거)
+ */
+function filterVisible(allRecipes: Recipe[]): Recipe[] {
   return allRecipes.filter(r => !r.deletedAt);
 }
 
@@ -46,8 +49,12 @@ function migrateRecipe(recipe: any): Recipe {
 }
 
 /**
- * 둘러보기 레시피를 Firestore explore_recipes 컬렉션에서 구독.
- * Firestore 연결 실패 시 캐시 사용.
+ * 둘러보기 레시피를 Firestore explore_recipes 컬렉션에서 로드.
+ * 실시간 구독(onSnapshot) 대신 캐시-우선 + 1회 getDocs로 읽기 비용을 최소화한다.
+ * - 캐시가 TTL 이내면 Firestore 호출 없이 캐시만 사용
+ * - TTL 만료/캐시 없음이면 getDocs 1회로 갱신
+ * - 명시적 갱신은 reload()
+ * Firestore 실패 시 캐시를 유지하고 에러만 알린다.
  */
 export interface ExploreCookbook {
   name: string;
@@ -59,86 +66,81 @@ export function useExploreRecipes(onError?: (msg: string) => void) {
   const [exploreCookbooks, setExploreCookbooks] = useState<ExploreCookbook[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  /** Firestore 데이터를 캐시에 저장 */
-  const cacheRecipes = useCallback((firestoreRecipes: Recipe[]) => {
-    AsyncStorage.setItem(CACHE_KEY, JSON.stringify(firestoreRecipes)).catch(() => {});
-  }, []);
-
-  /** Firestore 성공 시: 상태 업데이트 + 캐시 저장 */
-  const applyFirestoreRecipes = useCallback((firestoreRecipes: Recipe[]) => {
-    setRecipes(firestoreRecipes);
-    cacheRecipes(firestoreRecipes);
-  }, [cacheRecipes]);
-
-  // explore_cookbooks 구독
-  useEffect(() => {
-    const colRef = collection(db, 'explore_cookbooks');
-    const unsub = onSnapshot(colRef, (snapshot) => {
-      setExploreCookbooks(snapshot.docs.map(d => d.data() as ExploreCookbook));
-    }, () => {});
-    return () => unsub();
+  /** Firestore에서 recipes + cookbooks를 1회 읽고 상태·캐시 갱신 */
+  const fetchFromFirestore = useCallback(async () => {
+    const [recSnap, cbSnap] = await Promise.all([
+      getDocs(collection(db, 'explore_recipes')),
+      getDocs(collection(db, 'explore_cookbooks')),
+    ]);
+    const allRecipes: Recipe[] = recSnap.docs.map(d => migrateRecipe({id: d.id, ...d.data()}));
+    const visible = filterVisible(allRecipes);
+    const cookbooks: ExploreCookbook[] = cbSnap.docs.map(d => d.data() as ExploreCookbook);
+    setRecipes(visible);
+    setExploreCookbooks(cookbooks);
+    AsyncStorage.multiSet([
+      [CACHE_KEY, JSON.stringify(visible)],
+      [COOKBOOKS_CACHE_KEY, JSON.stringify(cookbooks)],
+      [CACHE_TS_KEY, String(Date.now())],
+    ]).catch(() => {});
   }, []);
 
   useEffect(() => {
-    let unsub: (() => void) | undefined;
     let cancelled = false;
 
     const init = async () => {
-      // 캐시에서 먼저 로드
+      // 1) 캐시 먼저 로드
+      let cacheFresh = false;
       try {
-        const cached = await AsyncStorage.getItem(CACHE_KEY);
-        if (cached && !cancelled) {
-          const parsed: Recipe[] = JSON.parse(cached);
-          if (parsed.length > 0) {
-            setRecipes(parsed.map(migrateRecipe));
-          }
+        const [[, rc], [, cbc], [, ts]] = await AsyncStorage.multiGet([
+          CACHE_KEY,
+          COOKBOOKS_CACHE_KEY,
+          CACHE_TS_KEY,
+        ]);
+        if (!cancelled && rc) {
+          const parsed: Recipe[] = JSON.parse(rc);
+          if (parsed.length > 0) setRecipes(parsed.map(migrateRecipe));
         }
+        if (!cancelled && cbc) {
+          setExploreCookbooks(JSON.parse(cbc));
+        }
+        cacheFresh = !!ts && Date.now() - Number(ts) < CACHE_TTL;
       } catch {}
 
       if (cancelled) return;
 
-      // Firestore 구독 시작
-      const colRef = collection(db, 'explore_recipes');
-      unsub = onSnapshot(colRef, (snapshot) => {
-        if (snapshot.empty) {
-          setRecipes([]);
-        } else {
-          const allRecipes: Recipe[] = snapshot.docs.map(
-            d => migrateRecipe({id: d.id, ...d.data()}),
-          );
-          applyFirestoreRecipes(purgeAndFilter(allRecipes));
-        }
+      // 2) 캐시가 신선하면 Firestore 호출 생략 (읽기 0)
+      if (cacheFresh) {
         setIsLoading(false);
-      }, () => {
+        return;
+      }
+
+      // 3) 만료/없음 → 1회 getDocs로 갱신
+      try {
+        await fetchFromFirestore();
+      } catch {
         onError?.('레시피를 불러오지 못했어요');
-        setIsLoading(false);
-      });
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
     };
 
     init();
 
     return () => {
       cancelled = true;
-      unsub?.();
     };
-  }, [applyFirestoreRecipes]);
+    // onError는 의도적으로 deps에서 제외 (재조회 루프 방지)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchFromFirestore]);
 
   const reload = useCallback(async () => {
     try {
-      const colRef = collection(db, 'explore_recipes');
-      const snapshot = await getDocs(colRef);
-      if (snapshot.empty) {
-        setRecipes([]);
-      } else {
-        const allRecipes: Recipe[] = snapshot.docs.map(
-          d => migrateRecipe({id: d.id, ...d.data()}),
-        );
-        applyFirestoreRecipes(purgeAndFilter(allRecipes));
-      }
+      await fetchFromFirestore();
     } catch {
       onError?.('새로고침에 실패했어요');
     }
-  }, [applyFirestoreRecipes]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fetchFromFirestore]);
 
   return {recipes, exploreCookbooks, isLoading, reload};
 }

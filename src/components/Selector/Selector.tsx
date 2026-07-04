@@ -3,6 +3,7 @@ import {Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
+import {SvgProps} from 'react-native-svg';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {IconChevronDown} from '@components/Icon/IconIndex';
 import {useColorsV2} from '@contexts/ThemeContext';
@@ -18,6 +19,8 @@ export interface SelectorProps {
   forcePressed?: boolean;
   /** 텍스트 색상 muted 적용 (disabled와 독립) */
   muted?: boolean;
+  /** 드롭다운 아이콘 override (기본: chevron-down). 예: 소팅/익스펜드(IconSorting) */
+  dropdownIcon?: React.FC<SvgProps>;
   style?: import('react-native').ViewStyle;
 }
 
@@ -29,6 +32,7 @@ export function Selector({
   disabled = false,
   forcePressed = false,
   muted = false,
+  dropdownIcon,
   style,
 }: SelectorProps) {
   const colors = useColorsV2();
@@ -119,7 +123,7 @@ export function Selector({
           {showDropdown && (
             <View style={{width: 12}}>
               <AppIcon
-                icon={IconChevronDown}
+                icon={dropdownIcon ?? IconChevronDown}
                 size="xs"
                 color={getIconColor()}
               />

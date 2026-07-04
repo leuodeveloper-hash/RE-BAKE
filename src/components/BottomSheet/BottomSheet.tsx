@@ -10,11 +10,13 @@ import {
   View,
 } from 'react-native';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {BlurView} from 'expo-blur';
+import {useColorsV2} from '@contexts/ThemeContext';
+import {BottomActionBar} from '@components/BottomActionBar';
 import {SheetHeader} from './SheetHeader';
 
 const ANIMATION_CONFIG = {
@@ -55,6 +57,12 @@ export interface BottomSheetProps {
   backgroundElement?: React.ReactNode;
   /** 배경 오버레이에 블러 적용 (다이얼로그처럼) */
   blurBackdrop?: boolean;
+  /** 등장/퇴장 애니메이션. 'slide'(기본, 아래→위) | 'fade'(같은 자리에서 페이드) */
+  animationType?: 'slide' | 'fade';
+  /** 상단 드래그 핸들 바 숨김 (드래그 비활성 + 전체 팝업 느낌) */
+  hideHandle?: boolean;
+  /** 하단 고정 액션 영역 (버튼 등). 콘텐츠 스크롤과 무관하게 하단 고정 + 상단 마스크 그라디언트 */
+  bottomAction?: React.ReactNode;
 }
 
 export function BottomSheet({
@@ -73,12 +81,18 @@ export function BottomSheet({
   maxWidth,
   backgroundElement,
   blurBackdrop = false,
+  animationType = 'slide',
+  hideHandle = false,
+  bottomAction,
 }: BottomSheetProps) {
   const styles = useThemedStylesV2(createStyles);
+  const colors = useColorsV2();
   const {height: windowHeight} = useWindowDimensions();
   const {top: safeTop, bottom: safeBottom} = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(windowHeight)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
+  // fade 모드 전용 시트 투명도 (slide 모드에선 항상 1로 두어 영향 없음)
+  const sheetOpacity = useRef(new Animated.Value(1)).current;
   const contentHeight = useRef(0);
   // 내부 마운트 상태: 닫기 애니메이션 완료까지 유지
   const [mounted, setMounted] = useState(false);
@@ -92,18 +106,16 @@ export function BottomSheet({
     if (closingRef.current) return;
     closingRef.current = true;
     const targetY = contentHeight.current || windowHeight;
-    Animated.parallel([
-      Animated.spring(translateY, {
-        toValue: targetY,
-        velocity: velocity,
-        ...ANIMATION_CONFIG.springFast,
-      }),
-      Animated.timing(backdropOpacity, {
-        toValue: 0,
-        duration: 200,
-        useNativeDriver: true,
-      }),
-    ]).start((result) => {
+    const closeAnims = animationType === 'fade'
+      ? [
+          Animated.timing(sheetOpacity, {toValue: 0, duration: 180, useNativeDriver: true}),
+          Animated.timing(backdropOpacity, {toValue: 0, duration: 180, useNativeDriver: true}),
+        ]
+      : [
+          Animated.spring(translateY, {toValue: targetY, velocity, ...ANIMATION_CONFIG.springFast}),
+          Animated.timing(backdropOpacity, {toValue: 0, duration: 200, useNativeDriver: true}),
+        ];
+    Animated.parallel(closeAnims).start((result) => {
       closingRef.current = false;
       setMounted(false);
       translateY.setValue(windowHeight);
@@ -118,7 +130,7 @@ export function BottomSheet({
         onCloseRef.current();
       }
     }, 500);
-  }, [translateY, backdropOpacity]);
+  }, [translateY, backdropOpacity, sheetOpacity, animationType]);
 
   // visible prop 변화 감지
   useEffect(() => {
@@ -126,15 +138,28 @@ export function BottomSheet({
       // 열기
       closingRef.current = false;
       setMounted(true);
-      translateY.setValue(windowHeight);
       backdropOpacity.setValue(0);
-      // 다음 프레임에서 애니메이션 시작 (마운트 후)
-      requestAnimationFrame(() => {
-        Animated.parallel([
-          Animated.spring(translateY, {toValue: 0, ...ANIMATION_CONFIG.spring}),
-          Animated.timing(backdropOpacity, {toValue: 1, ...ANIMATION_CONFIG.timing}),
-        ]).start();
-      });
+      if (animationType === 'fade') {
+        // 같은 자리에서 페이드인 (슬라이드 없음)
+        translateY.setValue(0);
+        sheetOpacity.setValue(0);
+        requestAnimationFrame(() => {
+          Animated.parallel([
+            Animated.timing(sheetOpacity, {toValue: 1, duration: 200, useNativeDriver: true}),
+            Animated.timing(backdropOpacity, {toValue: 1, ...ANIMATION_CONFIG.timing}),
+          ]).start();
+        });
+      } else {
+        translateY.setValue(windowHeight);
+        sheetOpacity.setValue(1);
+        // 다음 프레임에서 애니메이션 시작 (마운트 후)
+        requestAnimationFrame(() => {
+          Animated.parallel([
+            Animated.spring(translateY, {toValue: 0, ...ANIMATION_CONFIG.spring}),
+            Animated.timing(backdropOpacity, {toValue: 1, ...ANIMATION_CONFIG.timing}),
+          ]).start();
+        });
+      }
     } else if (!visible && mounted && !closingRef.current) {
       // 외부에서 visible=false로 바뀜 → 애니메이션 후 닫기
       animateClose();
@@ -147,6 +172,7 @@ export function BottomSheet({
   const dragLastTime = useRef(0);
   const dragVelocity = useRef(0);
   const contentTouchStartY = useRef(0);
+  const contentTouchStartX = useRef(0);
   const scrollOffsetY = useRef(0);
 
   const onDragGrant = useCallback((e: GestureResponderEvent) => {
@@ -231,7 +257,7 @@ export function BottomSheet({
             height !== 'auto' && !fullScreen && {height},
             !fullScreen && {maxHeight: windowHeight - safeTop - safeBottom - Spacing.sm * 2},
             maxWidth != null && {maxWidth},
-            {transform: [{translateY}]},
+            {transform: [{translateY}], opacity: sheetOpacity},
           ]}
           onLayout={handleLayout}>
           {backgroundElement}
@@ -245,19 +271,23 @@ export function BottomSheet({
               onResponderTerminate={onDragTerminate}
               style={[styles.handleContainer, fullScreen && {paddingTop: safeTop}]}
             >
-              <View style={styles.handle} />
+              {!hideHandle && <View style={styles.handle} />}
             </View>
 
             <View
               style={fullScreen ? {flex: 1} : undefined}
               onStartShouldSetResponderCapture={(e: GestureResponderEvent) => {
                 contentTouchStartY.current = e.nativeEvent.pageY;
+                contentTouchStartX.current = e.nativeEvent.pageX;
                 return false;
               }}
               onMoveShouldSetResponderCapture={(e: GestureResponderEvent) => {
                 if (!enableDragToDismiss) return false;
                 const dy = e.nativeEvent.pageY - contentTouchStartY.current;
-                return dy > 10 && scrollOffsetY.current <= 0;
+                const dx = e.nativeEvent.pageX - contentTouchStartX.current;
+                // 세로가 가로보다 우세한(수직에 가까운) 끌기일 때만 시트가 가로챈다.
+                // 좌우 스와이프(요리모드 스텝 넘기기)는 dx가 커서 시트로 새지 않음.
+                return dy > 10 && dy > Math.abs(dx) * 1.5 && scrollOffsetY.current <= 0;
               }}
               onResponderGrant={(e: GestureResponderEvent) => {
                 dragStartY.current = contentTouchStartY.current;
@@ -286,6 +316,11 @@ export function BottomSheet({
                   {children}
                 </ScrollView>
               )}
+              {bottomAction ? (
+                <BottomActionBar background={backgroundColor ?? colors['surface/bright']}>
+                  {bottomAction}
+                </BottomActionBar>
+              ) : null}
             </View>
           </View>
         </Animated.View>

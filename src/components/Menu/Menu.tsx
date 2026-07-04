@@ -1,6 +1,6 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, Easing, Pressable, ScrollView, StyleSheet, View, ViewStyle} from 'react-native';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {SvgProps} from 'react-native-svg';
 import {GlassContainer} from '@components/Container';
@@ -31,8 +31,10 @@ export interface MenuItemData {
 
 export interface MenuSection {
   title?: string;
-  items: MenuItemData[];
+  items?: MenuItemData[];
   selectedId?: string;
+  /** items 대신 임의 요소를 섹션 본문으로 렌더 (예: 아이콘 탭) */
+  content?: React.ReactNode;
 }
 
 export interface MenuProps {
@@ -157,7 +159,7 @@ export function Menu({
             sections.map((section, idx) => (
               <React.Fragment key={idx}>
                 {section.title && <Subheader title={section.title} />}
-                {section.items.map(item => (
+                {section.content ?? section.items?.map(item => (
                   <MenuItem
                     key={item.id}
                     id={item.id}

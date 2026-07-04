@@ -7,7 +7,7 @@ import {ContentContainer, GlassContainer} from '@components/Container';
 import {IconButton} from '@components/IconButton';
 import {IconArrowLeft} from '@components/Icon/IconIndex';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 

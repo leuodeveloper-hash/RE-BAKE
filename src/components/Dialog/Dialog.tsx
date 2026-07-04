@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import type {AvatarColor} from '@components/Avatar/Avatar';

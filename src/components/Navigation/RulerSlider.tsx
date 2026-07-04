@@ -1,6 +1,7 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {
   Animated,
+  Easing,
   PanResponder,
   Pressable,
   StyleSheet,
@@ -12,7 +13,7 @@ import {IconButton} from '@components/IconButton';
 import {IconChevronLeft, IconChevronRight} from '@components/Icon/IconIndex';
 import {Typography} from '@constants/typography';
 import {Spacing} from '@constants/spacing';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useColorsV2} from '@contexts/ThemeContext';
 import * as Haptics from 'expo-haptics';
@@ -41,13 +42,16 @@ const TICK_W = 2;
 const TICK_GAP = 12;
 const SPACING = TICK_W + TICK_GAP; // 14
 const TICK_H = 8;
-const TICK_H_MAJOR = 16; // 5칸마다 긴 눈금 (Figma 기준 active와 동일 높이, 색만 다름)
+const TICK_H_MAJOR = 16; // 긴 눈금 (Figma 기준 active와 동일 높이, 색만 다름)
 const TICK_H_ACTIVE = 16;
 const RULER_W = 168; // 눈금 뷰포트 가로폭 (양옆 클립)
 // 측정 자처럼 항상 꽉 차 보이도록 실제 항목 양옆에 채우는 장식 눈금 수
 const PAD = 7;
-// 손가락 이동 대비 눈금 이동 비율 (<1 일수록 더 길게 끌어야 한 칸 이동 → 스냅 느낌 강화)
-const DRAG_GAIN = 0.5;
+// 항목당 눈금 수: 한 항목 = 긴 눈금 1 + 사이 짧은 눈금 1 → 항목 이동 시 2눈금씩 이동
+const TICKS_PER_ITEM = 2;
+// 손가락 이동 대비 눈금 이동 비율. 항목 간격이 2눈금(=2*SPACING)으로 늘었으므로
+// 기존과 동일한 "한 항목당 손가락 이동량"을 유지하려고 0.5→1.0로 보정.
+const DRAG_GAIN = 1.0;
 
 /**
  * 눈금 슬라이더: 가로로 드래그하면 눈금에 딱딱 스냅, 좌우 화살표로 한 칸 이동.
@@ -68,8 +72,9 @@ export function RulerSlider({
     items.findIndex(i => i.id === selectedId),
   );
 
-  // 실제 항목 i를 중앙에 놓는 translateX (앞쪽 PAD개 장식 눈금만큼 보정)
-  const resting = (i: number) => -(PAD + i) * SPACING;
+  // 실제 항목 i를 중앙에 놓는 translateX
+  // 항목은 2눈금마다 위치(긴 눈금) → 앞쪽 PAD개 장식 + i*2 눈금만큼 보정
+  const resting = (i: number) => -(PAD + i * TICKS_PER_ITEM) * SPACING;
 
   const translateX = useRef(new Animated.Value(resting(selectedIndex))).current;
   const committedIndex = useRef(selectedIndex);
@@ -82,6 +87,32 @@ export function RulerSlider({
   const setLive = (i: number) => {
     liveIndexRef.current = i;
     setLiveIndexState(i);
+  };
+
+  // 라벨 플립: 이동 방향에 따라 뒤집히는 방향이 반대 (앞=아래→위, 뒤=위→아래)
+  const labelFlip = useRef(new Animated.Value(1)).current;
+  const prevLive = useRef(selectedIndex);
+  const [flipDir, setFlipDir] = useState(1); // 1=앞(증가), -1=뒤(감소)
+  useEffect(() => {
+    const dir = liveIndex >= prevLive.current ? 1 : -1;
+    prevLive.current = liveIndex;
+    setFlipDir(dir);
+    labelFlip.setValue(0);
+    Animated.timing(labelFlip, {
+      toValue: 1,
+      duration: 240,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: true,
+    }).start();
+  }, [liveIndex, labelFlip]);
+  // 이동(translateY) + 회전(rotateX) 동시, 방향(flipDir)에 따라 반대로
+  const labelAnimStyle = {
+    opacity: labelFlip.interpolate({inputRange: [0, 0.45, 1], outputRange: [0, 1, 1]}),
+    transform: [
+      {perspective: 500},
+      {translateY: labelFlip.interpolate({inputRange: [0, 1], outputRange: [18 * flipDir, 0]})},
+      {rotateX: labelFlip.interpolate({inputRange: [0, 1], outputRange: [`${90 * flipDir}deg`, '0deg']})},
+    ] as any,
   };
 
   // 최신 props/상태를 반영하는 commit (PanResponder는 1회만 생성되므로 ref로 호출)
@@ -135,7 +166,7 @@ export function RulerSlider({
         translateX.setValue(next);
         const live = Math.min(
           c - 1,
-          Math.max(0, Math.round(-next / SPACING) - PAD),
+          Math.max(0, Math.round((-next / SPACING - PAD) / TICKS_PER_ITEM)),
         );
         if (live !== liveIndexRef.current) {
           setLive(live);
@@ -145,7 +176,7 @@ export function RulerSlider({
       onPanResponderRelease: (_, g) => {
         // 관성 약간 반영해 가까운 눈금으로 스냅
         const projected = panStart.current + (g.dx + g.vx * 50) * DRAG_GAIN;
-        commitRef.current(Math.round(-projected / SPACING) - PAD);
+        commitRef.current(Math.round((-projected / SPACING - PAD) / TICKS_PER_ITEM));
       },
       onPanResponderTerminate: () => {
         commitRef.current(committedIndex.current, false, false);
@@ -160,7 +191,7 @@ export function RulerSlider({
     <GlassContainer borderRadius="full" intensity={80} contentStyle={styles.pill}>
       <IconButton
         icon={IconChevronLeft}
-        variant={atStart ? 'ghost' : 'soft'}
+        variant={atStart ? 'ghost' : 'tonal'}
         size="medium"
         disabled={atStart}
         onPress={() => commitRef.current(committedIndex.current - 1)}
@@ -169,32 +200,39 @@ export function RulerSlider({
       <View style={styles.center} {...pan.panHandlers}>
         {onLabelPress ? (
           <Pressable onPress={onLabelPress} hitSlop={8}>
+            <Animated.View style={labelAnimStyle}>
+              <Text style={styles.label} numberOfLines={1}>
+                {items[liveIndex]?.label}
+              </Text>
+            </Animated.View>
+          </Pressable>
+        ) : (
+          <Animated.View style={labelAnimStyle}>
             <Text style={styles.label} numberOfLines={1}>
               {items[liveIndex]?.label}
             </Text>
-          </Pressable>
-        ) : (
-          <Text style={styles.label} numberOfLines={1}>
-            {items[liveIndex]?.label}
-          </Text>
+          </Animated.View>
         )}
         <View style={styles.rulerViewport}>
           <Animated.View
             style={[styles.rulerRow, {transform: [{translateX}]}]}>
-            {Array.from({length: PAD + count + PAD}).map((_, slot) => {
-              // slot 0..PAD-1: 앞쪽 장식, PAD..PAD+count-1: 실제 항목, 이후: 뒤쪽 장식
-              const real = slot - PAD;
-              const isItem = real >= 0 && real < count;
-              const isActive = isItem && real === liveIndex;
-              const isMajor = slot % 5 === 0;
+            {Array.from({
+              length: PAD + (count - 1) * TICKS_PER_ITEM + 1 + PAD,
+            }).map((_, slot) => {
+              // 항목 0의 눈금을 기준으로 한 오프셋. 짝수=긴 눈금(항목 자리), 홀수=짧은 눈금(사이 교차)
+              const fromFirstItem = slot - PAD;
+              const isLong = fromFirstItem % 2 === 0;
+              const itemIdx = isLong ? fromFirstItem / TICKS_PER_ITEM : -1;
+              const isItem = itemIdx >= 0 && itemIdx < count;
+              const isActive = isItem && itemIdx === liveIndex;
               const height = isActive
                 ? TICK_H_ACTIVE
-                : isMajor
+                : isLong
                   ? TICK_H_MAJOR
                   : TICK_H;
               return (
                 <View
-                  key={isItem ? items[real].id : `pad-${slot}`}
+                  key={isItem ? items[itemIdx].id : `tick-${slot}`}
                   style={[
                     styles.tick,
                     {
@@ -213,7 +251,7 @@ export function RulerSlider({
 
       <IconButton
         icon={IconChevronRight}
-        variant={atEnd ? 'ghost' : 'soft'}
+        variant={atEnd ? 'ghost' : 'tonal'}
         size="medium"
         disabled={atEnd}
         onPress={() => commitRef.current(committedIndex.current + 1)}
@@ -249,7 +287,8 @@ const createStyles = (colors: SemanticColorsV2) =>
     },
     rulerViewport: {
       position: 'absolute',
-      bottom: 0,
+      // pill의 하단 paddingVertical(smd)만큼 더 내려 바닥에 붙임 (아래 패딩 제거 효과)
+      bottom: -Spacing.smd,
       left: '50%',
       marginLeft: -RULER_W / 2,
       width: RULER_W,

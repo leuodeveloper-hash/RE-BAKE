@@ -6,7 +6,7 @@ import {useColorsV2} from '@contexts/ThemeContext';
 export default function HomeRoute() {
   const colors = useColorsV2();
   return (
-    <View style={[styles.container, {backgroundColor: colors['surface/normal']}]}>
+    <View style={[styles.container, {backgroundColor: colors['surface/dim']}]}>
       <HomeScreen />
     </View>
   );

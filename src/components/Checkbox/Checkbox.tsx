@@ -2,7 +2,7 @@ import React from 'react';
 import {Pressable, StyleSheet, View} from 'react-native';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useColorsV2} from '@contexts/ThemeContext';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {
   IconCheckSquareFilled,
   IconSquare,
@@ -50,7 +50,7 @@ export function Checkbox({
       case 'gray':
         return colors['custom/grey'];
       default:
-        return colors['custom/brown'];
+        return colors['custom/lime'];
     }
   })();
 

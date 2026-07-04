@@ -1,7 +1,8 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Animated, Easing, Image, KeyboardAvoidingView, Modal, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput as RNTextInput, TextInputKeyPressEventData, View} from 'react-native';
+import {Animated, Easing, Image, Modal, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput as RNTextInput, TextInputKeyPressEventData, View} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import type {SvgProps} from 'react-native-svg';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {GlassContainer} from '@components/Container';
@@ -13,7 +14,8 @@ import {RecipeCard} from '@components/Recipe/RecipeCard';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 import {useColorsV2} from '@contexts/ThemeContext';
 
-const emptyNoResultsImage = require('../../../assets/images/empty_no_results.png');
+// 검색 빈 상태: 꽃 일러스트 사용 (기존 노트+돋보기 대신)
+const emptyNoResultsImage = require('../../../assets/images/empty_recipe.png');
 
 export interface SearchCommandBarItem {
   id: string;
@@ -58,6 +60,7 @@ export function SearchCommandBar({
 }: SearchCommandBarProps) {
   const styles = useThemedStylesV2(createStyles);
   const colors = useColorsV2();
+  const insets = useSafeAreaInsets();
   const scale = useRef(new Animated.Value(0.95)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const [mounted, setMounted] = useState(false);
@@ -162,10 +165,14 @@ export function SearchCommandBar({
       animationType="none"
       statusBarTranslucent
       onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={styles.keyboardAvoiding}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
-        <Pressable style={styles.overlay} onPress={onClose}>
+      <View style={styles.root}>
+        {/* 전체 화면 딤 — 키보드와 무관하게 고정되어 relayout/깜빡임 없음 */}
+        <Pressable style={[StyleSheet.absoluteFill, styles.dim]} onPress={onClose} />
+        {/* 검색 카드는 상단에 고정(살짝 아래). 키보드가 올라와도 위치가 안 바뀌어
+            덜컹임/리레이아웃 없음 — 카드가 상단이라 키보드와 겹치지 않음. */}
+        <View
+          style={[styles.topAnchor, {paddingTop: insets.top + Spacing.md}]}
+          pointerEvents="box-none">
           <Animated.View
             style={[
               styles.container,
@@ -182,7 +189,7 @@ export function SearchCommandBar({
                     onChangeText={setSearchQuery}
                     style="ghost"
                     size="small"
-                    autoFocus
+                    autoFocus={Platform.OS === 'web'}
                     onKeyPress={handleKeyPress}
                     leadingIcon={<AppIcon icon={IconSearch} size="xs" color={colors['foreground/on-surface-muted']} />}
                     trailingIcon={searchQuery.length > 0 ? (
@@ -238,23 +245,25 @@ export function SearchCommandBar({
               </GlassContainer>
             </Pressable>
           </Animated.View>
-        </Pressable>
-      </KeyboardAvoidingView>
+        </View>
+      </View>
     </Modal>
   );
 }
 
 const createStyles = (colors: SemanticColorsV2) =>
   StyleSheet.create({
-    keyboardAvoiding: {
+    root: {
       flex: 1,
     },
-    overlay: {
-      flex: 1,
-      justifyContent: 'center',
-      alignItems: 'center',
+    dim: {
       backgroundColor: 'rgba(0,0,0,0.3)',
-      padding: Spacing.lg,
+    },
+    topAnchor: {
+      flex: 1,
+      justifyContent: 'flex-start',
+      alignItems: 'center',
+      paddingHorizontal: Spacing.lg,
     },
     container: {
       width: '100%',

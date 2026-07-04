@@ -11,12 +11,23 @@ import {useRecipes} from '@contexts/RecipeContext';
 import type {Recipe} from '../types/recipe';
 import {getRecipeMenuItems} from '@utils/recipeMenuItems';
 import {
-  IconExprolerBookFilled,
   IconNoteFilled,
   IconTrashTwotone,
+  IconArrowDownToLine,
 } from '@components/Icon/IconIndex';
 import {getColorVarKey} from '@components/ColorPicker/ColorPicker';
 import type {ExploreCookbook} from '@hooks/useExploreRecipes';
+import {GroupScreen} from './GroupScreen';
+import {axisLabel, useAxisMenuItems, type AxisOverrides, type GroupAxis} from '@components/RecipeGroups/groupAxis';
+import {IconExprolerBookFilled} from '@components/Icon/IconIndex';
+import type {AvatarColor} from '@components/Avatar/Avatar';
+
+// 둘러보기 노출 축: 회고 제외 (둘러보기 레시피엔 회고가 없음)
+const EXPLORE_AXES: GroupAxis[] = ['all', 'cookbook', 'method'];
+// 둘러보기에선 '레시피 북' → '공식 레시피북' + 로고(네모) 아이콘
+const EXPLORE_AXIS_OVERRIDES: AxisOverrides = {
+  cookbook: {label: '공식 레시피북', icon: IconExprolerBookFilled},
+};
 
 const FREE_RECIPE_COUNT = 3;
 
@@ -41,6 +52,8 @@ export interface ExploreScreenProps {
   exploreCookbooks?: ExploreCookbook[];
   /** 무료 유저 여부 (true면 3개 제한 + paywall) */
   isFreeUser?: boolean;
+  /** PDF 다운로드(둘러보기 리스트 익스포트) — 게스트면 로그인 유도 처리는 상위에서 */
+  onDownloadPdf?: () => void;
 }
 
 export function ExploreScreen({
@@ -57,19 +70,27 @@ export function ExploreScreen({
   onRefresh,
   exploreCookbooks,
   isFreeUser = false,
+  onDownloadPdf,
 }: ExploreScreenProps) {
   const colors = useColorsV2();
   const {selectedExploreCookbook, setSelectedExploreCookbook} = useRecipes();
-  const [selectedCategory, setSelectedCategory] = useState(selectedExploreCookbook ?? '제과기능사');
+  // 홈과 동일한 그룹화 축 (전체/레시피북/공법). 'all'=평면 리스트, 그 외=GroupScreen.
+  const [exploreAxis, setExploreAxis] = useState<GroupAxis>('all');
+  const [selectedCategory, setSelectedCategory] = useState<string>('__all__');
+  const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
+  const axisMenuItems = useAxisMenuItems(EXPLORE_AXES, EXPLORE_AXIS_OVERRIDES);
 
-  // 외부에서 레시피 북 필터가 설정되면 반영 후 초기화
+  // 외부에서 레시피 북 필터가 설정되면 반영 후 초기화 (해당 레시피 북으로 평면 필터)
   React.useEffect(() => {
     if (selectedExploreCookbook) {
+      setSelectedMethod(null);
       setSelectedCategory(selectedExploreCookbook);
+      setExploreAxis('all');
       setSelectedExploreCookbook(null);
     }
   }, [selectedExploreCookbook, setSelectedExploreCookbook]);
   const [showCategoryMenu, setShowCategoryMenu] = useState(false);
+  const [showFlatMoreMenu, setShowFlatMoreMenu] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [pdfRecipe, setPdfRecipe] = useState<Recipe | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
@@ -85,48 +106,36 @@ export function ExploreScreen({
     return map;
   }, [exploreCookbooks]);
 
-  const categoryMenuItems = useMemo(() => {
-    // 레시피가 있는 레시피 북 카운트
-    const recipeCounts = new Map<string, number>();
-    for (const r of data) {
-      const key = r.cookbook || '공식 레시피 북 없음';
-      recipeCounts.set(key, (recipeCounts.get(key) ?? 0) + 1);
+  // GroupScreen용 레시피 북 색상 맵 (둘러보기 레시피 북 이름 → 색)
+  const exploreCookbookColors = useMemo(() => {
+    const map: Record<string, AvatarColor> = {};
+    exploreCookbooks?.forEach(c => { map[c.name] = c.color as AvatarColor; });
+    return map;
+  }, [exploreCookbooks]);
+
+  // 축 드롭다운 선택: 전체→평면 리스트(필터 해제), 레시피북/공법→GroupScreen
+  const handleAxisSelect = useCallback((id: string) => {
+    setShowCategoryMenu(false);
+    const a = id as GroupAxis;
+    if (a === 'all') {
+      setSelectedCategory('__all__');
+      setSelectedMethod(null);
     }
-    // exploreCookbooks의 빈 레시피 북도 포함
-    const allNames = new Set([
-      ...recipeCounts.keys(),
-      ...(exploreCookbooks ?? []).map(c => c.name),
-    ]);
-    const items: {id: string; label: string; icon?: React.FC<any>; iconColor?: string; disabled?: boolean}[] = [
-      {id: '__all__', label: '모든 레시피 북'},
-    ];
-    for (const name of allNames) {
-      if (name === '공식 레시피 북 없음') continue;
-      const ecColor = exploreCookbookMap.get(name);
-      const count = recipeCounts.get(name) ?? 0;
-      items.push({
-        id: name,
-        label: name,
-        icon: IconExprolerBookFilled,
-        iconColor: colors[getColorVarKey((ecColor ?? 'orange') as any)],
-        disabled: count === 0,
-      });
-    }
-    if (recipeCounts.has('공식 레시피 북 없음')) {
-      items.push({id: '공식 레시피 북 없음', label: '공식 레시피 북 없음'});
-    }
-    return items;
-  }, [data, exploreCookbookMap, exploreCookbooks, colors]);
+    setExploreAxis(a);
+  }, []);
+
 
   const filteredData = useMemo(() => {
     let result = data;
-    if (selectedCategory === '공식 레시피 북 없음') {
+    if (selectedMethod) {
+      result = result.filter(r => (r.method?.trim() || '공법 없음') === selectedMethod);
+    } else if (selectedCategory === '공식 레시피 북 없음') {
       result = result.filter(r => !r.cookbook);
     } else if (selectedCategory && selectedCategory !== '__all__') {
       result = result.filter(r => r.cookbook === selectedCategory);
     }
     return result;
-  }, [data, selectedCategory]);
+  }, [data, selectedCategory, selectedMethod]);
 
   // 무료 유저: 전체 표시하되 잠금 처리
   const paywallData = filteredData;
@@ -170,6 +179,38 @@ export function ExploreScreen({
     }
   }, [onImportRecipe, onEditRecipe, onDeleteRecipe, onComingSoon]);
 
+  const handleGroupRecipePress = useCallback((id: string) => {
+    const r = data.find(x => x.id === id);
+    if (r) handleRecipePress(r);
+  }, [data, handleRecipePress]);
+
+  // 그룹 모드(레시피북/공법): 홈과 동일하게 공통 GroupScreen 호스팅 (리스트/팩 + 펼침)
+  if (exploreAxis !== 'all') {
+    return (
+      <GroupScreen
+        recipes={data}
+        cookbookColors={exploreCookbookColors}
+        axis={exploreAxis}
+        onAxisChange={handleAxisSelect}
+        availableAxes={EXPLORE_AXES}
+        axisOverrides={EXPLORE_AXIS_OVERRIDES}
+        onComingSoon={onComingSoon}
+        onCookbookPress={(n) => { setSelectedMethod(null); setSelectedCategory(n); setExploreAxis('all'); }}
+        onMethodPress={(m) => { setSelectedCategory('__all__'); setSelectedMethod(m); setExploreAxis('all'); }}
+        onRecipePress={handleGroupRecipePress}
+        onRefresh={onRefresh}
+        isAdmin={!!onAddRecipe}
+        showAddButton={!!onAddRecipe}
+        bookCarousel
+        addAsOfficial
+        onDownloadPdf={onDownloadPdf}
+      />
+    );
+  }
+
+  // 평면 리스트('전체' 축): 필터(레시피북/공법)된 결과 + 축 드롭다운
+  const flatFilterLabel = selectedMethod ?? (selectedCategory !== '__all__' ? selectedCategory : undefined);
+
   return (
     <>
     <RecipeListTemplate
@@ -179,8 +220,8 @@ export function ExploreScreen({
       cardMenuItems={cardMenuItems}
       onCardMenuSelect={handleCardMenuSelect}
       onRefresh={onRefresh}
-      onOverlayPress={() => setShowCategoryMenu(false)}
-      extraOverlayVisible={showCategoryMenu}
+      onOverlayPress={() => { setShowCategoryMenu(false); setShowFlatMoreMenu(false); }}
+      extraOverlayVisible={showCategoryMenu || showFlatMoreMenu}
       scrollEnabled
       lockedRecipeIds={lockedRecipeIds}
       listEmptyComponent={
@@ -206,44 +247,59 @@ export function ExploreScreen({
           />
         ) : undefined
       }
-      renderAppBar={({handleFilterPress, showLayoutMenu, closeMenus, layoutMenu}) =>
+      renderAppBar={({handleFilterPress, showLayoutMenu, closeMenus, layoutMenu, filterIcon}) =>
         <AppBar
-          title={categoryMenuItems.find(c => c.id === selectedCategory)?.label ?? selectedCategory}
+          title={flatFilterLabel ?? axisLabel(exploreAxis, EXPLORE_AXIS_OVERRIDES)}
           showDropdown
+          filterIcon={filterIcon}
           showAddButton={!!onAddRecipe}
-          showSearchButton
-          showMenuButton={false}
+          showMenuButton={!!onDownloadPdf}
+          menuOpen={showFlatMoreMenu}
+          onMenuPress={() => {
+            closeMenus();
+            setShowCategoryMenu(false);
+            setShowFlatMoreMenu(prev => !prev);
+          }}
           onTitlePress={() => {
             closeMenus();
+            setShowFlatMoreMenu(false);
             setShowCategoryMenu(prev => !prev);
           }}
           onAddPress={() => {
             closeMenus();
             setShowCategoryMenu(false);
+            setShowFlatMoreMenu(false);
             onAddRecipe?.(selectedCategory !== '__all__' ? selectedCategory : undefined);
-          }}
-          onSearchPress={() => {
-            closeMenus();
-            setShowCategoryMenu(false);
-            setShowSearch(true);
           }}
           onFilterPress={() => {
             setShowCategoryMenu(false);
+            setShowFlatMoreMenu(false);
             handleFilterPress();
           }}
           filterMenuOpen={showLayoutMenu}
           titleMenu={
             <Menu
-              items={categoryMenuItems}
-              selectedId={selectedCategory}
-              onSelect={(id) => {
-                setSelectedCategory(id);
-                setShowCategoryMenu(false);
-              }}
+              items={axisMenuItems}
+              selectedId={exploreAxis}
+              onSelect={handleAxisSelect}
               visible={showCategoryMenu}
             />
           }
-          rightMenu={layoutMenu}
+          rightMenu={
+            <>
+              {layoutMenu}
+              {onDownloadPdf ? (
+                <Menu
+                  items={[{id: 'downloadPdf', label: 'PDF 다운로드', icon: IconArrowDownToLine}]}
+                  visible={showFlatMoreMenu}
+                  onSelect={(id) => {
+                    setShowFlatMoreMenu(false);
+                    if (id === 'downloadPdf') onDownloadPdf();
+                  }}
+                />
+              ) : null}
+            </>
+          }
         />
       }
     />

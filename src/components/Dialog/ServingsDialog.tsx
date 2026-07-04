@@ -5,7 +5,7 @@ import {Button} from '@components/Button';
 import {Tabs} from '@components/Tabs';
 import {TextInput} from '@components/TextInput';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {IconUsersRoundTwotone} from '@components/Icon/IconIndex';
@@ -68,7 +68,8 @@ export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDia
   const handleConfirm = () => {
     const num = parseInt(amount, 10);
     if (num > 0) {
-      const specPart = spec.trim();
+      // 규격은 '개' 단위에서만 의미 있음 (인분엔 규격을 붙이지 않음)
+      const specPart = unit === 'piece' ? spec.trim() : '';
       const formatted = specPart
         ? `${specPart} ${num}${UNIT_SUFFIX[unit]}`
         : `${num}${UNIT_SUFFIX[unit]}`;
@@ -98,19 +99,34 @@ export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDia
           onSelect={setUnit}
           fullWidth
         />
-        <View style={styles.row}>
-          <View style={styles.inputWrap}>
-            <TextInput
-              label="규격"
-              value={spec}
-              onChangeText={setSpec}
-              placeholder="0"
-              maxLength={10}
-              selectTextOnFocus
-              clearable
-            />
+        {unit === 'piece' ? (
+          <View style={styles.row}>
+            <View style={styles.inputWrap}>
+              <TextInput
+                label="규격"
+                value={spec}
+                onChangeText={setSpec}
+                placeholder="예: 3호"
+                maxLength={10}
+                selectTextOnFocus
+                clearable
+              />
+            </View>
+            <Text style={styles.separator}>/</Text>
+            <View style={styles.inputWrap}>
+              <TextInput
+                label="수량"
+                value={amount}
+                onChangeText={setAmount}
+                keyboardType="number-pad"
+                placeholder="0"
+                maxLength={4}
+                selectTextOnFocus
+                clearable
+              />
+            </View>
           </View>
-          <Text style={styles.separator}>/</Text>
+        ) : (
           <View style={styles.inputWrap}>
             <TextInput
               label="수량"
@@ -123,7 +139,7 @@ export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDia
               clearable
             />
           </View>
-        </View>
+        )}
       </View>
     </Dialog>
   );

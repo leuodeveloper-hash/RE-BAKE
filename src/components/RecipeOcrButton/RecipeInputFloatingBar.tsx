@@ -1,14 +1,23 @@
-import React, {useCallback, useEffect, useState} from 'react';
-import {Keyboard, Platform, StyleSheet, View, ViewStyle} from 'react-native';
-import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import React, {useCallback, useState} from 'react';
+import {Keyboard, Platform, StyleSheet, ViewStyle} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import {useColorsV2} from '@contexts/ThemeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
-import {IconMic, IconCameraFilled, IconPhoto} from '@components/Icon/IconIndex';
+import {
+  IconMic,
+  IconScanText,
+  IconPhoto,
+  IconCameraFilled,
+  IconChevronLeft,
+  IconChevronRight,
+  IconTick,
+  IconAdd,
+} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
-import {NAV_PILL_HEIGHT} from '@components/Navigation';
+import {Menu} from '@components/Menu';
+import {KeyboardToolbar} from '@components/KeyboardToolbar';
 import {useSTT} from '@hooks/useSTT';
 import {recognizeImageText, parseRecognizedText, type RecipeOcrField} from '@utils/recipeOcr';
+import {OcrCropModal} from './OcrCropModal';
 
 export interface RecipeInputFloatingBarProps {
   /** 어떤 필드 타입에 결과를 적용할지 */
@@ -25,12 +34,31 @@ export interface RecipeInputFloatingBarProps {
   onStop?: () => void;
   /** 음성 입력 핸들러 */
   onVoicePress?: () => void;
+  /** 이전 입력 구역으로 이동 (◀). 없으면 영역이동 버튼 숨김 */
+  onPrevField?: () => void;
+  /** 다음 입력 구역으로 이동 (▶) */
+  onNextField?: () => void;
+  /** ◀ 활성화 여부 */
+  canPrev?: boolean;
+  /** ▶ 활성화 여부 */
+  canNext?: boolean;
+  /** 칩 추가(+): 포커스된 과정에 팁/주의/사진 추가 메뉴 열기. 없으면 + 버튼 숨김 */
+  onAddChip?: () => void;
+  /** + 활성화 여부 (해당사항 없으면 false → disabled) */
+  canAddChip?: boolean;
+  /** 완료(✓): 기본은 키보드 내리기 */
+  onDone?: () => void;
+  /**
+   * 사진 픽/크롭/OCR 진행 중 여부를 부모에 알림. 부모는 이 값이 true면 바를 계속 마운트 유지해야 한다.
+   * (사진 고를 때 입력창 blur → 바 언마운트 → 크롭 모달이 닫히는 문제 방지)
+   */
+  onPickActiveChange?: (active: boolean) => void;
   style?: ViewStyle;
 }
 
 /**
- * 키보드 바로 위에 고정되는 입력 도구 툴바 (가운데 둥근 알약).
- * 키보드 높이를 추적해 키보드 위에 떠 있고, 키보드가 없을 땐 화면 하단 안전영역 위에 위치.
+ * 키보드 위에 붙는 입력 도구 툴바 (아이콘 전용).
+ * 좌: 영역이동(◀▶) · 음성 · 카메라 · 갤러리 / 우: 완료(✓)
  */
 export function RecipeInputFloatingBar({
   field,
@@ -40,26 +68,27 @@ export function RecipeInputFloatingBar({
   externalBusy,
   onStop,
   onVoicePress,
+  onPrevField,
+  onNextField,
+  canPrev = true,
+  canNext = true,
+  onAddChip,
+  canAddChip = false,
+  onDone,
+  onPickActiveChange,
   style,
 }: RecipeInputFloatingBarProps) {
-  const colors = useColorsV2();
   const {showSnackbar} = useSnackbar();
   const stt = useSTT();
-  const insets = useSafeAreaInsets();
   const [busy, setBusy] = useState(false);
-  const [kbHeight, setKbHeight] = useState(0);
-
-  useEffect(() => {
-    if (Platform.OS === 'web') return;
-    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const showSub = Keyboard.addListener(showEvt, e => setKbHeight(e.endCoordinates?.height ?? 0));
-    const hideSub = Keyboard.addListener(hideEvt, () => setKbHeight(0));
-    return () => {
-      showSub.remove();
-      hideSub.remove();
-    };
-  }, []);
+  const [showScanMenu, setShowScanMenu] = useState(false);
+  // 촬영/선택 후 영역 지정 크롭 대상
+  const [cropTarget, setCropTarget] = useState<{
+    uri: string;
+    width: number;
+    height: number;
+    field: RecipeOcrField;
+  } | null>(null);
 
   const handleVoice = useCallback(() => {
     if (onVoicePress) {
@@ -108,6 +137,9 @@ export function RecipeInputFloatingBar({
     if (busy) return;
     const capturedField = field;
     setBusy(true);
+    // 픽 시작 → 부모가 바를 유지하도록 (사진 고를 때 blur로 언마운트되어 크롭 모달이 닫히는 것 방지)
+    onPickActiveChange?.(true);
+    let cropStarted = false;
     try {
       if (source === 'camera') {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
@@ -130,94 +162,159 @@ export function RecipeInputFloatingBar({
       const result = source === 'camera'
         ? await ImagePicker.launchCameraAsync(pickerOptions)
         : await ImagePicker.launchImageLibraryAsync(pickerOptions);
-      if (result.canceled || !result.assets[0]) return;
-      await runOcrPipeline(result.assets[0].uri, capturedField);
+      const asset = result.canceled ? undefined : result.assets[0];
+      if (!asset) return;
+      // 크기를 알면 영역 지정 크롭, 모르면(드묾) 전체 이미지로 바로 인식
+      if (asset.width && asset.height) {
+        setCropTarget({uri: asset.uri, width: asset.width, height: asset.height, field: capturedField});
+        cropStarted = true; // 크롭 모달이 뜨는 동안 바 유지 (모달 닫힐 때 false)
+      } else {
+        await runOcrPipeline(asset.uri, capturedField);
+      }
     } catch (err) {
       // eslint-disable-next-line no-console
       console.warn('Image pick failed', err);
       showSnackbar('이미지를 불러오지 못했어요');
     } finally {
       setBusy(false);
+      // 크롭이 뜨지 않았으면(취소/직접 인식/에러) 여기서 유지 해제
+      if (!cropStarted) onPickActiveChange?.(false);
     }
-  }, [busy, field, runOcrPipeline, showSnackbar]);
+  }, [busy, field, runOcrPipeline, showSnackbar, onPickActiveChange]);
 
   const handleCameraTap = useCallback(() => {
     if (busy) return;
     if (Platform.OS === 'web') {
-      pickImage('library');  // 웹은 카메라 미지원 → 라이브러리
+      // 웹 이미지 인식(OCR)은 정확도·안정성이 낮아 막고 앱으로 안내
+      showSnackbar('이미지 인식(OCR)은 앱에서 사용할 수 있어요');
       return;
     }
     pickImage('camera');
-  }, [busy, pickImage]);
+  }, [busy, pickImage, showSnackbar]);
 
   const handleGalleryTap = useCallback(() => {
     if (busy) return;
     pickImage('library');
   }, [busy, pickImage]);
 
-  // 키보드 위에 고정 (키보드 없으면 하단 안전영역 위). 8px 간격.
-  const bottom = (kbHeight > 0 ? kbHeight : insets.bottom) + 8;
+  // 스캔 버튼: 촬영/갤러리 선택 메뉴 토글 (웹은 OCR 미지원 안내)
+  const handleScanTap = useCallback(() => {
+    if (busy) return;
+    if (Platform.OS === 'web') {
+      showSnackbar('이미지 인식(OCR)은 앱에서 사용할 수 있어요');
+      return;
+    }
+    setShowScanMenu(v => !v);
+  }, [busy, showSnackbar]);
+
+  const handleDone = useCallback(() => {
+    Keyboard.dismiss();
+    onDone?.();
+  }, [onDone]);
+
+  const showRegionNav = !!(onPrevField || onNextField);
 
   return (
-    <View
-      style={[styles.container, {bottom}, style]}
-      pointerEvents="box-none">
-      <View style={[styles.pill, {backgroundColor: colors['surface/bright']}]}>
-        <IconButton
-          icon={IconMic}
-          onPress={handleVoice}
-          variant="ghost-secondary"
-          size="medium"
-        />
-        <IconButton
-          icon={IconCameraFilled}
-          onPress={() => {
-            if (externalBusy || busy) {
-              onStop?.();
-            } else {
-              handleCameraTap();
-            }
-          }}
-          variant="ghost-secondary"
-          size="medium"
-        />
-        {Platform.OS !== 'web' && (
-          <IconButton
-            icon={IconPhoto}
-            onPress={() => {
-              if (externalBusy || busy) {
-                onStop?.();
-              } else {
-                handleGalleryTap();
-              }
+    <>
+      <KeyboardToolbar
+        style={style}
+        left={
+          <>
+            {showRegionNav && (
+              <>
+                <IconButton
+                  icon={IconChevronLeft}
+                  onPress={onPrevField}
+                  variant="ghost-secondary"
+                  size="medium"
+                  disabled={!canPrev}
+                />
+                <IconButton
+                  icon={IconChevronRight}
+                  onPress={onNextField}
+                  variant="ghost-secondary"
+                  size="medium"
+                  disabled={!canNext}
+                />
+              </>
+            )}
+            {/* 칩 추가(+): 액션 고정, 해당사항 없으면 disabled */}
+            <IconButton
+              icon={IconAdd}
+              onPress={onAddChip}
+              variant="ghost-secondary"
+              size="medium"
+              disabled={!canAddChip}
+            />
+            <IconButton
+              icon={IconMic}
+              onPress={handleVoice}
+              variant="ghost-secondary"
+              size="medium"
+            />
+            <IconButton
+              icon={IconScanText}
+              onPress={() => {
+                if (externalBusy || busy) {
+                  onStop?.();
+                } else {
+                  handleScanTap();
+                }
+              }}
+              variant="ghost-secondary"
+              size="medium"
+              forcePressed={showScanMenu}
+            />
+          </>
+        }
+        above={showScanMenu ? (
+          <Menu
+            items={[
+              {id: 'camera', label: '촬영해서 스캔', icon: IconCameraFilled},
+              {id: 'gallery', label: '갤러리에서 스캔', icon: IconPhoto},
+            ]}
+            visible={showScanMenu}
+            onSelect={(id) => {
+              setShowScanMenu(false);
+              pickImage(id === 'camera' ? 'camera' : 'library');
             }}
-            variant="ghost-secondary"
+            onClose={() => setShowScanMenu(false)}
+            style={styles.scanMenu}
+          />
+        ) : undefined}
+        right={
+          <IconButton
+            icon={IconTick}
+            onPress={handleDone}
+            variant="ghost-primary"
             size="medium"
           />
-        )}
-      </View>
-    </View>
+        }
+      />
+      <OcrCropModal
+        visible={!!cropTarget}
+        imageUri={cropTarget?.uri ?? null}
+        imageWidth={cropTarget?.width ?? 0}
+        imageHeight={cropTarget?.height ?? 0}
+        onCancel={() => { setCropTarget(null); onPickActiveChange?.(false); }}
+        onConfirm={croppedUri => {
+          const capturedField = cropTarget?.field;
+          setCropTarget(null);
+          if (capturedField) {
+            runOcrPipeline(croppedUri, capturedField).finally(() => onPickActiveChange?.(false));
+          } else {
+            onPickActiveChange?.(false);
+          }
+        }}
+      />
+    </>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-  },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    height: NAV_PILL_HEIGHT,
-    padding: 2,
-    gap: 2,
-    borderRadius: 999,
-    shadowColor: '#000',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.12,
-    shadowRadius: 6,
-    elevation: 4,
+  // 스캔 선택 메뉴: 바 위쪽, 스캔 버튼 근처에 앵커
+  scanMenu: {
+    marginLeft: 96,
+    marginBottom: 6,
   },
 });

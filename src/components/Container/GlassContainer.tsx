@@ -1,5 +1,5 @@
 import React from 'react';
-import {StyleSheet, View, ViewStyle} from 'react-native';
+import {StyleProp, StyleSheet, View, ViewStyle} from 'react-native';
 import {Radius} from '@constants/tokens';
 import {ElevationLight, ElevationDark} from '@constants/elevation';
 import {useTheme} from '@contexts/ThemeContext';
@@ -26,7 +26,7 @@ export interface GlassContainerProps {
   /** 추가 스타일 */
   style?: ViewStyle;
   /** 내부 콘텐츠 스타일 */
-  contentStyle?: ViewStyle;
+  contentStyle?: StyleProp<ViewStyle>;
   /** blur intensity (기본: 64 — 기존 호환) */
   intensity?: number;
 }

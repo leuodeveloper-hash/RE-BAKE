@@ -165,7 +165,7 @@ async function syncToFirestore(uid: string, recipes: Recipe[]) {
 
 export function useRecipeStorage() {
   const {user} = useAuth();
-  const {isPro} = useSubscription();
+  const {isPro, photoCloudBackup} = useSubscription();
   const cloudEnabled = !!user && isPro;
   const isOnline = useOnlineStatus();
   const [recipes, setRecipesState] = useState<Recipe[]>([]);
@@ -176,6 +176,9 @@ export function useRecipeStorage() {
   const firestoreUnsubRef = useRef<(() => void) | null>(null);
   /** 로컬 쓰기 중 onSnapshot이 state를 덮어쓰지 않도록 하는 가드 */
   const localWritePending = useRef(false);
+  /** 게스트→로그인(Pro) 시 올릴 로컬 레시피 후보 (확인 팝업 대기) */
+  const migrationRecipesRef = useRef<Recipe[] | null>(null);
+  const [migrationCount, setMigrationCount] = useState(0);
 
   // 데이터 로드: Pro 유저 Firestore, 그 외 AsyncStorage
   useEffect(() => {
@@ -190,7 +193,7 @@ export function useRecipeStorage() {
       const colRef = collection(db, 'user_recipes', user.uid, 'recipes');
       const unsub = onSnapshot(colRef, (snapshot) => {
         if (snapshot.empty && !initialized.current) {
-          // Pro 전환 시: 로컬 데이터를 Firestore에 시딩
+          // Pro 전환 시: 자동 업로드 대신 "확인 팝업" 대기 — 로컬 후보만 잡아두고 표시
           (async () => {
             try {
               const stored = await AsyncStorage.getItem(STORAGE_KEY);
@@ -198,10 +201,13 @@ export function useRecipeStorage() {
                 ? (JSON.parse(stored) as Recipe[]).map(migrateRecipe)
                 : [];
               if (localRecipes.length > 0) {
-                await syncToFirestore(user.uid, localRecipes);
+                migrationRecipesRef.current = localRecipes;
+                setMigrationCount(localRecipes.length);
+                setRecipesState(localRecipes); // 확인 전까진 로컬 데이터 그대로 보여줌
               }
             } catch {}
             initialized.current = true;
+            setIsLoading(false);
           })();
           return;
         }
@@ -300,8 +306,10 @@ export function useRecipeStorage() {
 
           (async () => {
             try {
-              // 로컬 이미지 → Storage 업로드 후 URL로 교체
-              const uploaded = await Promise.all(next.map(uploadLocalImages));
+              // 사진 클라우드 백업 ON일 때만 로컬 이미지 → Storage 업로드. OFF면 로컬 URI 유지(이 기기 전용).
+              const uploaded = photoCloudBackup
+                ? await Promise.all(next.map(uploadLocalImages))
+                : next;
               const hasUploads = JSON.stringify(uploaded) !== JSON.stringify(next);
               if (hasUploads) {
                 setRecipesState(uploaded);
@@ -340,7 +348,7 @@ export function useRecipeStorage() {
         return next;
       });
     },
-    [cloudEnabled, user],
+    [cloudEnabled, user, photoCloudBackup],
   );
 
   // JSON 내보내기
@@ -484,5 +492,35 @@ export function useRecipeStorage() {
     return recipes.length < MAX_CLOUD_RECIPES;
   }, [cloudEnabled, recipes.length]);
 
-  return {recipes, setRecipes, exportRecipes, importRecipes, isLoading, lastSyncedAt, lastSyncedDevice, reload, canAddRecipe};
+  // 확인 팝업 "올리기": 로컬 이미지 Storage 업로드 후 Firestore 동기화
+  const confirmMigration = useCallback(async () => {
+    const cand = migrationRecipesRef.current;
+    if (!cand || !user) return;
+    localWritePending.current = true;
+    try {
+      const uploaded = photoCloudBackup
+        ? await Promise.all(cand.map(uploadLocalImages))
+        : cand;
+      await syncToFirestore(user.uid, uploaded);
+      setRecipesState(uploaded);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(uploaded));
+      setLastSyncedAt(new Date());
+      setLastSyncedDevice(getDeviceName());
+    } catch (e) {
+      console.warn('[migration] 업로드/동기화 실패:', e);
+      throw e;
+    } finally {
+      localWritePending.current = false;
+      migrationRecipesRef.current = null;
+      setMigrationCount(0);
+    }
+  }, [user, photoCloudBackup]);
+
+  // 확인 팝업 "나중에": 후보만 비움(로컬 유지, 업로드 안 함)
+  const dismissMigration = useCallback(() => {
+    migrationRecipesRef.current = null;
+    setMigrationCount(0);
+  }, []);
+
+  return {recipes, setRecipes, exportRecipes, importRecipes, isLoading, lastSyncedAt, lastSyncedDevice, reload, canAddRecipe, migrationCount, confirmMigration, dismissMigration};
 }

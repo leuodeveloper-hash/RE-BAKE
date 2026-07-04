@@ -6,7 +6,7 @@ import {Selector} from '@components/Selector';
 import {Menu} from '@components/Menu';
 import {TextInput} from '@components/TextInput';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {IconScaleTwotone} from '@components/Icon/IconIndex';

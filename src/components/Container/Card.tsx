@@ -1,7 +1,7 @@
 import React, {createContext, useContext} from 'react';
 import {StyleSheet, View, ViewStyle} from 'react-native';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
 
 export type CardVariant = 'default' | 'yellow';

@@ -1,7 +1,7 @@
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {SvgProps} from 'react-native-svg';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {IconClose} from '@components/Icon/IconIndex';
@@ -49,7 +49,7 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
             {onClose && (
               <IconButton
                 icon={IconClose}
-                variant="ghost-secondary"
+                variant="tonal"
                 size="medium"
                 onPress={onClose}
               />
@@ -68,7 +68,7 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
             {onClose ? (
               <IconButton
                 icon={IconClose}
-                variant="ghost-secondary"
+                variant="tonal"
                 size="medium"
                 onPress={onClose}
               />
@@ -92,7 +92,7 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
             {onClose && (
               <IconButton
                 icon={IconClose}
-                variant="ghost-secondary"
+                variant="tonal"
                 size="medium"
                 onPress={onClose}
               />

@@ -11,7 +11,7 @@ import {
   IconShare,
 } from '@components/Icon/IconIndex';
 import type {AvatarColor} from '@components/Avatar/Avatar';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {getColorVarKey} from '@components/ColorPicker';
 
 interface RecipeMenuOptions {

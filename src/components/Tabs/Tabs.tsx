@@ -3,8 +3,8 @@ import {Animated, Easing, LayoutChangeEvent, Pressable, StyleProp, StyleSheet, T
 import {SvgProps} from 'react-native-svg';
 import {Radius} from '@constants/tokens';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import {useColorsV2, useTheme} from '@contexts/ThemeContext';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {triggerHaptic} from '@utils/haptics';
@@ -31,9 +31,14 @@ export interface TabsProps {
   variant?: TabsVariant;
   /** 탭 비활성화 (표시는 하되 터치 불가) */
   disabled?: boolean;
+  /** filled 탭 높이 — 'large'면 메뉴 아이템(정렬 등)과 높이 통일 (기본: medium) */
+  size?: 'medium' | 'large';
 }
 
 const FILLED_TAB_HEIGHT = 32;
+// 트랙 박스 총높이를 메뉴 항목(38)과 맞추기 위해: 탭 34 + 컨테이너 패딩 2*2 = 38
+const FILLED_TAB_HEIGHT_LARGE = 34;
+const ICON_SIZE_LARGE = 20;
 const TEXT_TAB_HEIGHT = 40;
 const ICON_SIZE = 16;
 const ICON_CONTAINER_WIDTH = 12;
@@ -43,10 +48,21 @@ interface TabLayout {
   width: number;
 }
 
-export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'filled', disabled}: TabsProps) {
+export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'filled', disabled, size = 'medium'}: TabsProps) {
   const isText = variant === 'text';
+  const isLarge = size === 'large';
+  const filledTabHeight = isLarge ? FILLED_TAB_HEIGHT_LARGE : FILLED_TAB_HEIGHT;
+  const iconSize = isLarge ? ICON_SIZE_LARGE : ICON_SIZE;
+  // large: 둥근 사각(스퀘어, 메뉴 선택과 동일 radius-md), 기본: 알약(full)
+  const filledRadius = isLarge ? Radius['radius-md'] : Radius['radius-full'];
   const styles = useThemedStylesV2(createStyles);
   const colors = useColorsV2();
+  const {isDark} = useTheme();
+  // filled 활성 인디케이터를 트랙보다 확실히 밝게.
+  // 라이트: 트랙(container=#F4F3F1) 위에 순백(surface/bright)으로 또렷한 알약. (기존 surface/normal은
+  //         흰 배경에서 회끄무레하게 떠 "어둡게" 보였음)
+  // 다크: surface/normal이 트랙보다 어두우므로 container-high(더 밝음) 사용.
+  const filledActiveBg = isDark ? colors['surface/container-high'] : colors['surface/bright'];
 
   // Sliding indicator (both variants)
   const [tabLayouts, setTabLayouts] = useState<Record<string, TabLayout>>({});
@@ -114,13 +130,18 @@ export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'f
   const hasLayout = tabLayouts[selectedId] != null;
 
   return (
-    <View style={[isText ? styles.textContainer : styles.container, style]}>
+    <View style={[isText ? styles.textContainer : styles.container, !isText && isLarge && {borderRadius: filledRadius, backgroundColor: 'transparent'}, style]}>
       <View style={isText ? styles.textTabGroup : styles.tabGroup}>
         {/* 슬라이딩 인디케이터 */}
         {hasLayout && (
           <Animated.View
             style={[
               isText ? styles.textIndicator : styles.indicator,
+              !isText && {height: filledTabHeight, borderRadius: filledRadius},
+              // filled(non-large): 트랙보다 밝은 활성 알약 (라이트=순백, 다크=container-high)
+              !isText && !isLarge && {backgroundColor: filledActiveBg},
+              // 배경 없는 large 변형: 트랙은 투명, 선택 탭만 메뉴 선택색으로 채움
+              isLarge && {backgroundColor: colors['state/pressed']},
               {
                 left: indicatorX,
                 width: indicatorWidth,
@@ -136,6 +157,7 @@ export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'f
               key={tab.id}
               style={[
                 isText ? styles.textTab : styles.tab,
+                !isText && {height: filledTabHeight, borderRadius: filledRadius},
                 fullWidth && styles.tabFull,
                 isText && uniformTabWidth != null && {minWidth: uniformTabWidth},
               ]}
@@ -155,10 +177,10 @@ export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'f
               ) : (
                 <View style={styles.tabContents}>
                   {tab.icon && (
-                    <View style={styles.iconContainer}>
+                    <View style={[styles.iconContainer, !tab.label && [styles.iconContainerCentered, {width: iconSize}]]}>
                       <tab.icon
-                        width={ICON_SIZE}
-                        height={ICON_SIZE}
+                        width={iconSize}
+                        height={iconSize}
                         color={
                           isSelected
                             ? (tab.activeIconColor ?? colors['foreground/on-surface'])
@@ -227,6 +249,11 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
     width: ICON_CONTAINER_WIDTH,
     alignItems: 'flex-end',
     justifyContent: 'center',
+  },
+  // 레이블 없는 아이콘 전용 탭 — 아이콘을 탭 중앙에 정렬
+  iconContainerCentered: {
+    width: ICON_SIZE,
+    alignItems: 'center',
   },
   label: {
     fontFamily: Typography.label['large - semibold'].fontFamily,

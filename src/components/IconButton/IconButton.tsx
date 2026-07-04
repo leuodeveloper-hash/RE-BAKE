@@ -9,8 +9,10 @@ import {triggerHaptic} from '@utils/haptics';
 export type IconButtonStyle =
   | 'filled'
   | 'soft'
+  | 'tonal'
   | 'outlined'
   | 'ghost'
+  | 'ghost-primary'
   | 'ghost-secondary'
   | 'ghost-inverse'
   | 'ghost-yellow';
@@ -91,6 +93,12 @@ export function IconButton({
             ? colors['fill/subtle-inverse']
             : colors['fill/glass-normal'];
         break;
+      case 'tonal':
+        // tonal = fill/faint 배경 (글래스가 아닌 옅은 채움)
+        baseStyle.backgroundColor = disabled
+          ? colors['fill/strong']
+          : colors['fill/faint'];
+        break;
       case 'outlined':
         baseStyle.backgroundColor =
           colors['surface/container'];
@@ -100,6 +108,7 @@ export function IconButton({
           : colors['border/normal'];
         break;
       case 'ghost':
+      case 'ghost-primary':
       case 'ghost-secondary':
       case 'ghost-inverse':
       case 'ghost-yellow':
@@ -136,6 +145,9 @@ export function IconButton({
     if (variant === 'filled') {
       return colors['foreground/on-surface-inverse'];
     }
+    if (variant === 'ghost-primary') {
+      return colors['foreground/accent'];
+    }
     if (variant === 'ghost-secondary') {
       return colors['foreground/on-surface-muted'];
     }
@@ -145,7 +157,7 @@ export function IconButton({
     if (variant === 'ghost-inverse') {
       return colors['foreground/on-surface-inverse'];
     }
-    if (variant === 'soft') {
+    if (variant === 'soft' || variant === 'tonal') {
       return colors['foreground/on-surface-var'];
     }
     return colors['foreground/on-surface'];

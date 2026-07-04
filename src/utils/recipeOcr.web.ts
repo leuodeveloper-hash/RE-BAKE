@@ -24,10 +24,23 @@ export function normalizeOcrWhitespace(s: string): string {
     .trim();
 }
 
+/** 웹 OCR: tesseract 워커/언어데이터를 CDN에서 로드 → 행(hang) 방지용 타임아웃 + 실패 시 워커 리셋 */
 export async function recognizeImageText(imageUri: string): Promise<string> {
-  const worker = await getWorker();
-  const result = await worker.recognize(imageUri);
-  return normalizeOcrWhitespace(result.data?.text || '');
+  const run = (async () => {
+    const worker = await getWorker();
+    const result = await worker.recognize(imageUri);
+    return normalizeOcrWhitespace(result.data?.text || '');
+  })();
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(() => reject(new Error('OCR timeout')), 40000),
+  );
+  try {
+    return await Promise.race([run, timeout]);
+  } catch (e) {
+    // 워커 로드/인식 실패·타임아웃 시 캐시된 워커를 버려 다음 시도에 재생성 (CDN 실패 복구)
+    workerPromise = null;
+    throw e;
+  }
 }
 
 export function parseRecognizedText(text: string, field: RecipeOcrField): string | string[] {

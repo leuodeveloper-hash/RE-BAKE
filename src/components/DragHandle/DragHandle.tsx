@@ -9,13 +9,13 @@ export interface DragHandleProps {
   responder?: {panHandlers: object} | null;
   /** 비활성 시 아이콘 흐리게 표시 (기본 true) */
   enabled?: boolean;
-  /** 아이콘 사이즈 (기본 16) */
+  /** 아이콘 사이즈 (기본 20) */
   size?: number;
   /** 아이콘 색상 override */
   color?: string;
 }
 
-export function DragHandle({responder, enabled = true, size = 16, color}: DragHandleProps) {
+export function DragHandle({responder, enabled = true, size = 20, color}: DragHandleProps) {
   const colors = useColorsV2();
   // IconButton ghost-secondary 변형과 동일한 색 토큰 사용 (활성: on-surface-muted, 비활성: on-surface-disabled)
   const iconColor = color

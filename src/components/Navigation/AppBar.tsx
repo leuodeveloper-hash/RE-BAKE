@@ -10,7 +10,7 @@ import {
 import {IconButton} from '@components/IconButton';
 import {Selector} from '@components/Selector';
 import {GlassContainer} from '@components/Container';
-import type {SemanticColorsV2} from '@constants/tokensV2';
+import type {SemanticColorsV2} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {useThemedStylesV2} from '@hooks/useThemedStyles';
@@ -29,6 +29,8 @@ export interface AppBarProps {
   onTitlePress?: () => void;
   onAddPress?: () => void;
   onFilterPress?: () => void;
+  /** 필터(뷰 전환) 버튼 아이콘 — 현재 뷰의 아이콘을 노출 (기본: IconFilter) */
+  filterIcon?: React.FC<SvgProps>;
   onMenuPress?: () => void;
   onSearchPress?: () => void;
   showDropdown?: boolean;
@@ -42,6 +44,8 @@ export interface AppBarProps {
   titleMenu?: React.ReactNode;
   /** 우측 캡슐 아래 메뉴 */
   rightMenu?: React.ReactNode;
+  /** 좌측 타이틀을 커스텀 노드로 대체 (예: 브레드크럼). 지정 시 title/Selector 대신 렌더 */
+  titleNode?: React.ReactNode;
 }
 
 export function AppBar({
@@ -54,6 +58,7 @@ export function AppBar({
   onTitlePress,
   onAddPress,
   onFilterPress,
+  filterIcon = IconFilter,
   onMenuPress,
   onSearchPress,
   showDropdown = true,
@@ -65,6 +70,7 @@ export function AppBar({
   menuOpen = false,
   titleMenu,
   rightMenu,
+  titleNode,
 }: AppBarProps) {
   const themedStyles = useThemedStylesV2(createThemedStyles);
 
@@ -101,14 +107,16 @@ export function AppBar({
   return (
     <FloatingNavBar
       left={
-        <GlassContainer contentStyle={styles.titlePill}>
-          <Selector
-            label={title}
-            showDropdown={showDropdown}
-            onPress={onTitlePress}
-            variant="ghost"
-          />
-        </GlassContainer>
+        titleNode ?? (
+          <GlassContainer contentStyle={styles.titlePill}>
+            <Selector
+              label={title}
+              showDropdown={showDropdown}
+              onPress={onTitlePress}
+              variant="ghost"
+            />
+          </GlassContainer>
+        )
       }
       right={
         hasRightButtons ? (
@@ -131,7 +139,7 @@ export function AppBar({
             )}
             {showFilterButton && (
               <IconButton
-                icon={IconFilter}
+                icon={filterIcon}
                 onPress={onFilterPress}
                 variant="ghost-secondary"
                 size="medium"

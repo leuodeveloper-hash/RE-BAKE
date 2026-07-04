@@ -1,5 +1,6 @@
 import React, {createContext, useCallback, useContext, useEffect, useMemo, useRef, useState} from 'react';
 import {Platform} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useAuth} from './AuthContext';
 
 // ──────────────────────────────────────────────
@@ -18,12 +19,17 @@ const REVENUECAT_API_KEY_ANDROID = 'appl_test_ZmSXPUTutGSzSNLHEhtPDKRNNqf';
 // RevenueCat Entitlement ID (대시보드에서 설정)
 const PRO_ENTITLEMENT_ID = 'pro';
 
+const PHOTO_BACKUP_KEY = '@bakecycle_photo_cloud_backup';
+
 interface SubscriptionContextValue {
   isPro: boolean;
   offerings: any | null;
   purchasePackage: (pkg: any) => Promise<boolean>;
   restorePurchases: () => Promise<boolean>;
   isLoading: boolean;
+  /** 사진 클라우드 백업(업로드) 여부. true면 Storage 업로드(구독 필요), false면 이 기기에만 로컬 */
+  photoCloudBackup: boolean;
+  setPhotoCloudBackup: (v: boolean) => void;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextValue | null>(null);
@@ -34,6 +40,19 @@ export function SubscriptionProvider({children}: {children: React.ReactNode}) {
   const [offerings, setOfferings] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const purchasesRef = useRef<any>(null);
+  // 사진 클라우드 백업 선호도 (기본 true — 기존 Pro 업로드 동작 유지)
+  const [photoCloudBackup, setPhotoCloudBackupState] = useState(true);
+
+  useEffect(() => {
+    AsyncStorage.getItem(PHOTO_BACKUP_KEY)
+      .then(v => { if (v != null) setPhotoCloudBackupState(v === 'true'); })
+      .catch(() => {});
+  }, []);
+
+  const setPhotoCloudBackup = useCallback((v: boolean) => {
+    setPhotoCloudBackupState(v);
+    AsyncStorage.setItem(PHOTO_BACKUP_KEY, v ? 'true' : 'false').catch(() => {});
+  }, []);
 
   // 어드민이면 즉시 프로 (useEffect 타이밍 이슈 없이 파생 값으로 계산)
   const isPro = isAdmin || isProFromPurchases;
@@ -132,8 +151,8 @@ export function SubscriptionProvider({children}: {children: React.ReactNode}) {
   }, [checkProStatus, getPurchases]);
 
   const value = useMemo<SubscriptionContextValue>(() => ({
-    isPro, offerings, purchasePackage, restorePurchases, isLoading,
-  }), [isPro, offerings, purchasePackage, restorePurchases, isLoading]);
+    isPro, offerings, purchasePackage, restorePurchases, isLoading, photoCloudBackup, setPhotoCloudBackup,
+  }), [isPro, offerings, purchasePackage, restorePurchases, isLoading, photoCloudBackup, setPhotoCloudBackup]);
 
   return (
     <SubscriptionContext.Provider value={value}>

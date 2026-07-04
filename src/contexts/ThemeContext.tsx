@@ -9,7 +9,7 @@ import {
   SemanticColorsV2Light,
   SemanticColorsV2Dark,
   type SemanticColorsV2,
-} from '@constants/tokensV2';
+} from '@constants/tokens';
 import {ElevationLight, ElevationDark} from '@constants/elevation';
 
 export type AppearanceMode = 'light' | 'auto' | 'dark';

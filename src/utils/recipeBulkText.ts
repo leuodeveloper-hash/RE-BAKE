@@ -68,6 +68,16 @@ export function bulkTextToIngredients(text: string): IngredientBulkItem[] {
     .map(parseIngredientBulkLine);
 }
 
+/** 과정(스텝) 배열 → 줄바꿈 구분 벌크 텍스트 (설명만). 과정은 문장이라 줄 단위로 구분 */
+export function stepsToBulkText(steps: Array<{description?: string}>): string {
+  return steps.map(s => (s.description ?? '').trim()).filter(Boolean).join('\n');
+}
+
+/** 벌크 텍스트 → 과정 설명 배열 (줄 단위) */
+export function bulkTextToStepDescriptions(text: string): string[] {
+  return text.split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+}
+
 /** 도구 배열 → 벌크 텍스트 (이름만) */
 export function toolsToBulkText(tools: Array<{name?: string}>): string {
   return tools.map(t => (t.name ?? '').trim()).filter(Boolean).join(', ');

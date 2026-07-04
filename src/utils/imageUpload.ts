@@ -7,8 +7,23 @@ import {storage} from '@config/firebase';
  * blob URL은 일시적이므로 선택 직후 호출해야 함.
  */
 export async function getPersistentUri(uri: string, base64?: string | null): Promise<string> {
-  // 네이티브는 file:// URI가 안정적이므로 그대로 사용
-  if (Platform.OS !== 'web') return uri;
+  // 네이티브: ImagePicker/카메라가 준 uri는 캐시(임시) 경로라 iOS가 비우면 사라진다.
+  // documentDirectory로 복사해 영구 보관 (재진입/앱 재시작 후에도 유지).
+  if (Platform.OS !== 'web') {
+    try {
+      const FileSystem = require('expo-file-system');
+      if (!FileSystem?.documentDirectory) return uri;
+      const dir = `${FileSystem.documentDirectory}recipe_photos/`;
+      await FileSystem.makeDirectoryAsync(dir, {intermediates: true}).catch(() => {});
+      const ext = (uri.split('?')[0].split('.').pop() || 'jpg').slice(0, 5);
+      const dest = `${dir}${Date.now()}_${Math.floor(Math.random() * 1e9)}.${ext}`;
+      await FileSystem.copyAsync({from: uri, to: dest});
+      return dest;
+    } catch (e) {
+      console.warn('[getPersistentUri] native copy failed', e);
+      return uri;
+    }
+  }
   // 이미 base64가 있으면 data URL로
   if (base64) return `data:image/jpeg;base64,${base64}`;
   // blob: URL → data URL 변환
