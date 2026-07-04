@@ -18,6 +18,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {recognizeImageText} from '@utils/recipeOcr';
+import Svg, {Rect} from 'react-native-svg';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import {getPersistentUri} from '@utils/imageUpload';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -1188,6 +1189,11 @@ export function CookingMode({
           <Pressable
             onPress={onAdd}
             style={[styles.emptyPack, {width: photoW, height: photoW, marginLeft: photos.length === 0 ? 0 : -(photoW - photoStep), zIndex: photos.length}]}>
+            {/* 점선 아웃라인: RN 기본 dashed는 간격 조절 불가 → SVG로 dash/gap 넓게 */}
+            <Svg width={photoW} height={photoW} style={StyleSheet.absoluteFill} pointerEvents="none">
+              <Rect x={1.5} y={1.5} width={photoW - 3} height={photoW - 3} rx={15} ry={15}
+                fill="none" stroke={colors['border/normal']} strokeWidth={2} strokeDasharray="9 8" />
+            </Svg>
             <View style={styles.addCircle}>
               <AppIcon icon={IconAdd} size="md" color={colors['foreground/on-surface-muted']} />
             </View>
@@ -1213,16 +1219,14 @@ export function CookingMode({
               <Text style={[styles.descLarge, cookingBodyFont]}>{item.description}</Text>
             </Pressable>
             {item.tip ? (
-              <Text style={[styles.noteInlineText, cookingBodyFont]}>
-                <View style={styles.noteIconInline}><AppIcon icon={IconAstriks} size="sm" color={colors['foreground/on-surface-muted']} /></View>
-                {' '}{item.tip}
-              </Text>
+              <View style={[styles.noteBlock, {borderLeftColor: colors['foreground/on-surface-var']}]}>
+                <Text style={[styles.noteInlineText, cookingBodyFont, {marginTop: 0}]}>{item.tip}</Text>
+              </View>
             ) : null}
             {item.caution ? (
-              <Text style={[styles.noteInlineText, cookingBodyFont, {color: colors['custom/yellow-var']}]}>
-                <View style={styles.noteIconInline}><AppIcon icon={IconAstriks} size="sm" color={colors['custom/yellow-var']} /></View>
-                {' '}{item.caution}
-              </Text>
+              <View style={[styles.noteBlock, {borderLeftColor: colors['custom/yellow']}]}>
+                <Text style={[styles.noteInlineText, cookingBodyFont, {color: colors['custom/yellow-var'], marginTop: 0}]}>{item.caution}</Text>
+              </View>
             ) : null}
             {item.matchedIngredients.length > 0 ? (
               <View style={[styles.ingredientsSection, {paddingHorizontal: 0}]}>
@@ -1952,10 +1956,7 @@ const createStyles = (colors: SemanticColorsV2) =>
     emptyPack: {
       padding: 6,
       borderRadius: 16,
-      // 이미지 미등록(+ 박스): 하얀 배경/그림자 없이 점선 아웃라인만
-      borderWidth: 1.5,
-      borderStyle: 'dashed',
-      borderColor: colors['border/normal'],
+      // 점선 아웃라인은 SVG(Rect strokeDasharray)로 그림 — 하얀 배경/그림자/RN 테두리 없음
     },
     photoDeleteBtn: {
       position: 'absolute',
@@ -2017,6 +2018,12 @@ const createStyles = (colors: SemanticColorsV2) =>
       width: 18,
       height: 22,
       transform: [{translateY: 4}],
+    },
+    // 참고/주의: PDF처럼 좌측 세로 라인(블록쿼트) — 색은 인라인으로 지정
+    noteBlock: {
+      borderLeftWidth: 3,
+      paddingLeft: 12,
+      marginTop: 12,
     },
     // 재료 인라인 — 본문과 같은 크기
     viewIngredientText: {

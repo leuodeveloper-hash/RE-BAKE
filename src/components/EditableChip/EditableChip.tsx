@@ -108,7 +108,7 @@ export function EditableChip({
   };
 
   return (
-    <View style={[styles.container, {backgroundColor: config.backgroundColor, padding: sizeConfig.padding, gap: sizeConfig.gap, borderRadius: sizeConfig.borderRadius}, onChangeText && styles.containerEditing, style]}>
+    <View style={[styles.container, {borderLeftWidth: 3, borderLeftColor: config.iconColor, borderRadius: 0, paddingVertical: sizeConfig.padding, paddingLeft: 12, paddingRight: 4, gap: sizeConfig.gap}, onChangeText && styles.containerEditing, style]}>
       {onChangeText ? (
         // 편집 모드: 아이콘 없이 풀폭 입력(좌측 끝부터). 공용 TextInput 멀티라인 변형 사용
         // → flex:1+minWidth:0 로 줄바꿈, 자동 높이 증가 내장
@@ -123,13 +123,8 @@ export function EditableChip({
           inputStyle={[styles.inputReset, textStyle]}
         />
       ) : (
-        // 보기 모드: 아이콘을 글 속에 인라인으로 (줄바꿈 시 좌측 안 비게)
-        <Text style={[styles.label, textStyle]}>
-          <View style={[styles.inlineIcon, {width: sizeConfig.iconSize, height: sizeConfig.iconSize}]}>
-            <Icon width={sizeConfig.iconSize} height={sizeConfig.iconSize} color={config.iconColor} />
-          </View>
-          {'  '}{label}
-        </Text>
+        // 보기 모드: 아이콘 없이 텍스트만 (칩 타입 일관 — tip/주의 색만 다름)
+        <Text style={[styles.label, textStyle]}>{label}</Text>
       )}
       {onRemove && (
         <Pressable onPress={onRemove} hitSlop={4} style={[styles.iconWrap, {height: sizeConfig.lineHeight + FONT_BASELINE_OFFSET}]}>
