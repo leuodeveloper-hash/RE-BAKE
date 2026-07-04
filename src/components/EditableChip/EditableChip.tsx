@@ -127,7 +127,7 @@ export function EditableChip({
         <Text style={[styles.label, textStyle]}>{label}</Text>
       )}
       {onRemove && (
-        <Pressable onPress={onRemove} hitSlop={4} style={[styles.iconWrap, {height: sizeConfig.lineHeight + FONT_BASELINE_OFFSET}]}>
+        <Pressable onPress={onRemove} hitSlop={4} style={[styles.iconWrap, {height: sizeConfig.lineHeight + FONT_BASELINE_OFFSET, marginLeft: 10}]}>
           <IconClose width={sizeConfig.iconSize + 4} height={sizeConfig.iconSize + 4} color={config.iconColor} />
         </Pressable>
       )}
