@@ -1,7 +1,7 @@
 import React, {useMemo} from 'react';
 import {Pressable, StyleProp, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {SvgProps} from 'react-native-svg';
-import {IconAstriks, IconCircleAlertFilled, IconCloseCircleFilled} from '@components/Icon/IconIndex';
+import {IconAstriks, IconCircleAlertFilled, IconClose} from '@components/Icon/IconIndex';
 import {TextInput} from '@components/TextInput';
 import {Radius} from '@constants/tokens';
 import {useColorsV2} from '@contexts/ThemeContext';
@@ -128,7 +128,7 @@ export function EditableChip({
       )}
       {onRemove && (
         <Pressable onPress={onRemove} hitSlop={4} style={[styles.iconWrap, {height: sizeConfig.lineHeight + FONT_BASELINE_OFFSET}]}>
-          <IconCloseCircleFilled width={sizeConfig.iconSize} height={sizeConfig.iconSize} color={config.iconColor} />
+          <IconClose width={sizeConfig.iconSize + 4} height={sizeConfig.iconSize + 4} color={config.iconColor} />
         </Pressable>
       )}
     </View>
