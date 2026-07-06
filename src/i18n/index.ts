@@ -18,7 +18,7 @@ export function deviceLanguage(): Language {
 
 /**
  * 키로 번역 문구 조회. 없으면 ko 폴백 → 그래도 없으면 키 그대로.
- * 파라미터: 문구 안 {{name}} 치환. 예: t('greet', {name: '베이키'})
+ * 파라미터: 문구 안 {{name}} 치환. 예: t('recipeDetail.specificGravity', {ratio: 1.5})
  */
 export function translate(
   lang: Language,

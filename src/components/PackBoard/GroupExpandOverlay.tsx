@@ -97,12 +97,15 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
           .filter(x => (x.remakeGroupId ?? x.id) === key)
           .sort((a, b) => parseSession(a.session).current - parseSession(b.session).current)
       : [r];
-    const sessions: SessionFlowItem[] = lineage.map(x => ({
+    // #번호·라벨 모두 session 문자열이 아니라 정렬된 lineage 위치(1-based) 기준.
+    // 그룹이 1개(단일)면 displayNumber 0 → # 표시 안 함.
+    const sessions: SessionFlowItem[] = lineage.map((x, i) => ({
       id: x.id,
       title: x.title,
       imageUrl: x.imageUri,
       paperPreview: buildPaperPreview(x),
-      sessionLabel: t('groupExpandOverlay.sessionLabel', {current: parseSession(x.session).current}),
+      displayNumber: multi ? i + 1 : 0,
+      sessionLabel: t('groupExpandOverlay.sessionLabel', {current: i + 1}),
     }));
     // 원본 팩: 멀티면 회차 종이들(뒤) + 썸네일(앞), 단일이면 이미지 카드.
     // 이미지 없으면 undefined → paperPreview로 종이 렌더 (랜덤 샘플 매핑 안 함)
@@ -113,7 +116,7 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
           ...sessions
             .slice(0, 2)
             .reverse()
-            .map(s => ({title: `${s.title} #${s.sessionLabel.replace(/[^0-9]/g, '')}`, paperPreview: s.paperPreview})),
+            .map(s => ({title: s.displayNumber > 0 ? `${s.title} #${s.displayNumber}` : s.title, paperPreview: s.paperPreview})),
           {imageUrl: thumb, title: r.title, paperPreview: buildPaperPreview(r)},
         ]
       : [{imageUrl: thumb, title: r.title, paperPreview: buildPaperPreview(r)}];

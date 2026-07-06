@@ -11,7 +11,7 @@ import {useAuth} from '@contexts/AuthContext';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {useRewardedAd} from '@hooks/useRewardedAd';
 import {db} from '@config/firebase';
-import {parseSession, formatSession} from '@utils/session';
+import {parseSession, formatSession, sortSessionGroup} from '@utils/session';
 import {shareRecipe} from '@utils/shareRecipe';
 import {uploadRecipeImage, isLocalUri} from '@utils/imageUpload';
 import {getColorVarKey} from '@components/ColorPicker';
@@ -235,11 +235,12 @@ const handleDelete = useCallback(async () => {
 
   const sessionItems = useMemo(() => {
     if (!recipe?.remakeGroupId) return [];
-    const group = recipes
-      .filter(r => r.remakeGroupId === recipe.remakeGroupId || r.id === recipe.remakeGroupId)
-      .sort((a, b) => parseSession(a.session).current - parseSession(b.session).current);
+    const group = sortSessionGroup(
+      recipes.filter(r => r.remakeGroupId === recipe.remakeGroupId || r.id === recipe.remakeGroupId),
+    );
     if (group.length < 2) return [];
-    return group.map(r => ({id: r.id, label: t('id.sessionLabel', {current: parseSession(r.session).current})}));
+    // #번호 = session 문자열이 아니라 정렬된 배열 위치(1-based)
+    return group.map((r, i) => ({id: r.id, label: t('id.sessionLabel', {current: i + 1})}));
   }, [recipe, recipes, t]);
 
   const sessionReviews = useMemo(() => {

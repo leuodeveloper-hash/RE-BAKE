@@ -28,6 +28,8 @@ export interface SessionFlowItem {
   paperPreview?: string[];
   /** "2회차" 같은 라벨 */
   sessionLabel: string;
+  /** 회차 #번호(1-based, 정렬된 그룹 위치). 그룹이 1개면 0(=# 표시 안 함) */
+  displayNumber: number;
 }
 
 const CARD_H = 188; // RecipePack 스택 높이 근사
@@ -189,7 +191,7 @@ function FlowNode({
       opacity: 1,
     };
   });
-  const num = item.sessionLabel.replace(/[^0-9]/g, '');
+  const cardTitle = item.displayNumber > 0 ? `${item.title} #${item.displayNumber}` : item.title;
   return (
     <Animated.View style={[styles.node, st]}>
       <RecipePack
@@ -198,7 +200,7 @@ function FlowNode({
         count={0}
         pillBottom
         pillProgress={prog}
-        cards={[{title: `${item.title} #${num}`, paperPreview: item.paperPreview}]}
+        cards={[{title: cardTitle, paperPreview: item.paperPreview}]}
         onPress={() => { triggerHaptic('light'); onSelect(item.id); }}
       />
     </Animated.View>

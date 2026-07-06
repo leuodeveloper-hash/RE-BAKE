@@ -9,7 +9,7 @@ export type TranslateFn = (key: string, params?: Record<string, string | number>
 interface LanguageContextValue {
   language: Language;
   setLanguage: (lang: Language) => void;
-  /** UI 문구 번역. t('some.key') / t('key', {name}) */
+  /** UI 문구 번역. t('profile.save') / t('home.undo') */
   t: (key: string, params?: Record<string, string | number>) => string;
 }
 
