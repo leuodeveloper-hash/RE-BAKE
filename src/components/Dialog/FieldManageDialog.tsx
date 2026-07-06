@@ -6,6 +6,7 @@ import {Card} from '@components/Container';
 import {ListItem} from '@components/ListItem';
 import {Button} from '@components/Button';
 import {Spacing} from '@constants/spacing';
+import {useTranslation} from '@contexts/LanguageContext';
 import {
   IconAdd,
   IconBookFilled,
@@ -34,20 +35,20 @@ interface FieldDef {
   fixed: boolean;
 }
 
-const ALL_FIELDS: FieldDef[] = [
-  {id: 'info', label: '레시피 정보', icon: IconDescription, fixed: true},
-  {id: 'photo', label: '사진', icon: IconPhoto, fixed: true},
-  {id: 'time', label: '시간', icon: IconClockFilled, fixed: true},
-  {id: 'ingredients', label: '재료', icon: IconLeafFilled, fixed: false},
-  {id: 'tools', label: '도구', icon: IconToolCaseFilled, fixed: false},
-  {id: 'steps', label: '과정', icon: IconProcess, fixed: true},
-  {id: 'servings', label: '분량', icon: IconUserFilled, fixed: true},
-  {id: 'method', label: '공법', icon: IconOpenbookFilled, fixed: false},
-  {id: 'ratio', label: '비중', icon: IconWind, fixed: false},
-  {id: 'cookbook', label: '레시피 북', icon: IconBookFilled, fixed: false},
-  {id: 'advice', label: '베이키의 조언', icon: IconLogoSymbol, fixed: false},
-  {id: 'review', label: '회고', icon: IconChartNoAxesGantt, fixed: false},
-  {id: 'source', label: '참고 링크', icon: IconLink, fixed: true},
+const makeAllFields = (t: (key: string) => string): FieldDef[] => [
+  {id: 'info', label: t('fieldManage.recipeInfo'), icon: IconDescription, fixed: true},
+  {id: 'photo', label: t('fieldManage.photo'), icon: IconPhoto, fixed: true},
+  {id: 'time', label: t('fieldManage.time'), icon: IconClockFilled, fixed: true},
+  {id: 'ingredients', label: t('fieldManage.ingredients'), icon: IconLeafFilled, fixed: false},
+  {id: 'tools', label: t('fieldManage.tools'), icon: IconToolCaseFilled, fixed: false},
+  {id: 'steps', label: t('fieldManage.steps'), icon: IconProcess, fixed: true},
+  {id: 'servings', label: t('fieldManage.servings'), icon: IconUserFilled, fixed: true},
+  {id: 'method', label: t('fieldManage.method'), icon: IconOpenbookFilled, fixed: false},
+  {id: 'ratio', label: t('fieldManage.ratio'), icon: IconWind, fixed: false},
+  {id: 'cookbook', label: t('fieldManage.cookbook'), icon: IconBookFilled, fixed: false},
+  {id: 'advice', label: t('fieldManage.advice'), icon: IconLogoSymbol, fixed: false},
+  {id: 'review', label: t('fieldManage.review'), icon: IconChartNoAxesGantt, fixed: false},
+  {id: 'source', label: t('fieldManage.source'), icon: IconLink, fixed: true},
 ];
 
 export interface FieldManageDialogProps {
@@ -66,6 +67,7 @@ export function FieldManageDialog({
   onConfirm,
   isExplore,
 }: FieldManageDialogProps) {
+  const {t} = useTranslation();
   const [localActiveIds, setLocalActiveIds] = useState<string[]>(activeFieldIds);
 
   useEffect(() => {
@@ -74,9 +76,10 @@ export function FieldManageDialog({
     }
   }, [visible, activeFieldIds]);
 
+  const allFields = makeAllFields(t);
   const fields = isExplore
-    ? ALL_FIELDS.map(f => f.id === 'cookbook' ? {...f, fixed: true, icon: IconExprolerBookFilled} : f)
-    : ALL_FIELDS;
+    ? allFields.map(f => f.id === 'cookbook' ? {...f, fixed: true, icon: IconExprolerBookFilled} : f)
+    : allFields;
   const fixedFields = fields.filter(f => f.fixed);
   const optionalFields = fields.filter(f => !f.fixed);
   const activeOptional = optionalFields.filter(f =>
@@ -116,12 +119,12 @@ export function FieldManageDialog({
       onClose={onClose}
       icon={IconBookTwotone}
       avatarColor="brown"
-      title="필드 관리"
+      title={t('fieldManage.title')}
       surface="dim"
       actions={
         <>
-          <Button label="취소" variant="soft" onPress={onClose} />
-          <Button label="확인" variant="filled" onPress={handleConfirm} />
+          <Button label={t('fieldManage.cancel')} variant="soft" onPress={onClose} />
+          <Button label={t('fieldManage.confirm')} variant="filled" onPress={handleConfirm} />
         </>
       }>
       <ScrollView

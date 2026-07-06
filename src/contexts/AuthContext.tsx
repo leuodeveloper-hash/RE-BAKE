@@ -20,7 +20,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {RANDOM_AVATARS} from '@components/Avatar/avatars';
 import {auth, db} from '@config/firebase';
 
-const GUEST_AVATAR_SEED_KEY = '@bakecycle_avatar_seed';
+const GUEST_AVATAR_SEED_KEY = '@bakle_avatar_seed';
 const DAILY_SIGNUP_LIMIT = 10;
 
 async function checkSignupLimit(): Promise<void> {

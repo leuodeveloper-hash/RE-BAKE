@@ -10,7 +10,7 @@ import * as SplashScreen from 'expo-splash-screen';
 import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
 import {BlurView} from 'expo-blur';
-import {ThemeProvider, useTheme, useColorsV2} from '@contexts/ThemeContext';
+import {ThemeProvider, useTheme, useColors} from '@contexts/ThemeContext';
 import {RecipeProvider} from '@contexts/RecipeContext';
 import {SnackbarProvider, useSnackbar} from '@contexts/SnackbarContext';
 import {AddSheetProvider, useAddSheet} from '@contexts/AddSheetContext';
@@ -22,14 +22,16 @@ import {AuthSheetProvider, useAuthSheet} from '@contexts/AuthSheetContext';
 import {PlanSheet} from '@components/PlanSheet';
 import {AuthSheet} from '@components/AuthSheet';
 import {ExploreRecipeProvider, useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
+import {migrateExploreCategoryToCookbook} from '@hooks/useExploreRecipes';
+import {migrateStorageKeys} from '@utils/migrateStorageKeys';
+import {LanguageProvider, useTranslation} from '@contexts/LanguageContext';
 import {YouTubePlayerProvider, useYouTubePlayer} from '@contexts/YouTubePlayerContext';
 import {YouTubePlayerModal} from '@components/YouTubePlayer';
 import {SearchCommandBar} from '@components/SearchCommandBar/SearchCommandBar';
 import {parseSession} from '@utils/session';
 import type {Recipe} from '../src/types/recipe';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {BaseColors} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {ContentMask} from '@components/Container';
 import {BottomTabBar, type TabItem, type AddMenuItem} from '@components/Navigation/BottomTabBar';
@@ -209,7 +211,7 @@ function AnimatedSplash({onFinish}: {onFinish: () => void}) {
 const splashStyles = StyleSheet.create({
   container: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: BaseColors['color-base-orange-10'],
+    backgroundColor: '#F8F5ED', // 크림 — 네이티브 스플래시 배경(#F8F5ED)과 통일 (기존 피치 orange-10 대체)
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 999,
@@ -219,38 +221,50 @@ const splashStyles = StyleSheet.create({
 function NavigationContent() {
   const router = useRouter();
   const pathname = usePathname();
+  const {t} = useTranslation();
   // 앱 시작 시 시험 알림 동기화 (저장된 prefs → Firestore 일정 fetch → 로컬 알림 재등록)
   useExamNotificationPrefs();
   const {showAddSheet, setShowAddSheet, setShowSearchSheet, hideTabBar, hideContentMask, showCookbookDialog, setShowCookbookDialog, cookbookEditTarget, setCookbookEditTarget, cookbookInitialOfficial, setCookbookInitialOfficial, onCookbookCreatedRef} = useAddSheet();
   const {snackbar, clearSnackbar, showSnackbar} = useSnackbar();
   const {user, isAdmin, avatarSeed} = useAuth();
   const {recipes, setRecipes, lastSyncedAt, setCookbookColor, renameCookbookColor, migrationCount, confirmMigration, dismissMigration} = useRecipes();
+  const {reload: exploreReload, exploreCookbooks} = useExploreRecipeContext();
   const [migrating, setMigrating] = useState(false);
+
+  // 기존 데이터 마이그레이션(어드민 1회): explore_recipes 레거시 category → cookbook 필드 정리.
+  useEffect(() => {
+    if (!isAdmin) return;
+    migrateExploreCategoryToCookbook()
+      .then(n => { if (n > 0) { showSnackbar(t('layout.officialFieldsCleaned', {count: n})); exploreReload(); } })
+      .catch(e => console.warn('explore category 마이그레이션 실패:', e));
+    // isAdmin 전환 시 1회. showSnackbar/exploreReload는 안정적이라 deps 최소화.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isAdmin]);
 
   const handleConfirmMigration = useCallback(async () => {
     setMigrating(true);
-    showSnackbar('클라우드에 올리는 중…');
+    showSnackbar(t('layout.uploadingToCloud'));
     try {
       await confirmMigration();
-      showSnackbar('계정에 올렸어요');
+      showSnackbar(t('layout.uploadedToAccount'));
     } catch {
-      showSnackbar('올리기에 실패했어요');
+      showSnackbar(t('layout.uploadFailed'));
     } finally {
       setMigrating(false);
     }
-  }, [confirmMigration, showSnackbar]);
+  }, [confirmMigration, showSnackbar, t]);
   const prevUserRef = useRef(user);
-  const tabStyles = useThemedStylesV2(createTabBarStyles);
-  const colors = useColorsV2();
+  const tabStyles = useThemedStyles(createTabBarStyles);
+  const colors = useColors();
   const [activeTab, setActiveTab] = useState('home');
 
   // 로그인 후 첫 싱크 완료 시 스낵바 표시
   useEffect(() => {
     if (!prevUserRef.current && user && lastSyncedAt) {
-      showSnackbar('클라우드 동기화 완료');
+      showSnackbar(t('layout.cloudSyncComplete'));
     }
     prevUserRef.current = user;
-  }, [user, lastSyncedAt, showSnackbar]);
+  }, [user, lastSyncedAt, showSnackbar, t]);
 
   useEffect(() => {
     if (pathname === '/') setActiveTab('home');
@@ -264,26 +278,26 @@ function NavigationContent() {
   const shouldShowTabBar = !isRecipeRoute && !hideTabBar;
 
   const tabs = useMemo<TabItem[]>(() => [
-    {id: 'home', label: '홈', icon: IconHomeFilled, onPress: () => router.navigate('/' as any)},
-    {id: 'search', label: '검색', icon: IconSearch, onPress: () => setShowSearchSheet(true)},
-    {id: 'add', label: '추가', icon: IconAdd, onPress: () => setShowAddSheet(true)},
-    {id: 'explore', label: '둘러보기', icon: IconCompassFilled, onPress: () => router.navigate('/explore' as any)},
-    {id: 'profile', label: user ? '나' : '게스트', icon: IconUserFilled, useRandomAvatar: true, avatarSeed: avatarSeed ?? 0, onPress: () => router.navigate('/profile' as any)},
-  ], [router, setShowAddSheet, setShowSearchSheet, avatarSeed, user]);
+    {id: 'home', label: t('layout.tabHome'), icon: IconHomeFilled, onPress: () => router.navigate('/' as any)},
+    {id: 'search', label: t('layout.tabSearch'), icon: IconSearch, onPress: () => setShowSearchSheet(true)},
+    {id: 'add', label: t('layout.tabAdd'), icon: IconAdd, onPress: () => setShowAddSheet(true)},
+    {id: 'explore', label: t('layout.tabExplore'), icon: IconCompassFilled, onPress: () => router.navigate('/explore' as any)},
+    {id: 'profile', label: user ? t('layout.tabMe') : t('layout.tabGuest'), icon: IconUserFilled, useRandomAvatar: true, avatarSeed: avatarSeed ?? 0, onPress: () => router.navigate('/profile' as any)},
+  ], [router, setShowAddSheet, setShowSearchSheet, avatarSeed, user, t]);
 
   const addMenuItems = useMemo<AddMenuItem[]>(() => {
     const items: AddMenuItem[] = [
-      {id: 'recipe', label: '레시피', icon: IconNoteFilled, iconColor: colors['custom/lime']},
+      {id: 'recipe', label: t('layout.addRecipe'), icon: IconNoteFilled, iconColor: colors['custom/lime']},
     ];
     if (isAdmin) {
-      items.push({id: 'official', label: '공식 레시피', icon: LogoIcon, iconColor: colors['custom/yellow-var']});
+      items.push({id: 'official', label: t('layout.addOfficialRecipe'), icon: LogoIcon, iconColor: colors['custom/yellow-var']});
     }
-    items.push({id: 'cookbook', label: '레시피 북', icon: IconBookFilled, iconColor: colors['custom/brown-var']});
+    items.push({id: 'cookbook', label: t('layout.addCookbook'), icon: IconBookFilled, iconColor: colors['custom/brown-var']});
     if (isAdmin) {
-      items.push({id: 'official-cookbook', label: '공식 레시피 북', icon: IconExprolerBookFilled, iconColor: colors['custom/orange-var']});
+      items.push({id: 'official-cookbook', label: t('layout.addOfficialCookbook'), icon: IconExprolerBookFilled, iconColor: colors['custom/orange-var']});
     }
     return items;
-  }, [colors, isAdmin]);
+  }, [colors, isAdmin, t]);
 
   const handleAddItemPress = useCallback((item: AddMenuItem) => {
     setShowAddSheet(false);
@@ -302,17 +316,21 @@ function NavigationContent() {
     }
   }, [router, setShowAddSheet, setCookbookEditTarget, setShowCookbookDialog]);
 
-  const handleCookbookConfirm = useCallback(async (name: string, color: AvatarColor, isOfficial?: boolean) => {
-    if (cookbookEditTarget?.isExplore) {
+  const handleCookbookConfirm = useCallback(async (name: string, color: AvatarColor, isOfficial?: boolean, hidden?: boolean) => {
+    // 중앙 가드: 이름이 공식(explore) 레시피 북이면 어느 경로로 왔든 개인 데이터로 새지 않게 Firestore 경로로.
+    const officialNames = new Set(exploreCookbooks.map(c => c.name));
+    const editingOfficial = !!cookbookEditTarget && (cookbookEditTarget.isExplore || officialNames.has(cookbookEditTarget.name));
+    if (editingOfficial) {
       // 둘러보기(공식) 레시피 북 편집
       try {
-        const oldName = cookbookEditTarget.name;
+        const oldName = cookbookEditTarget!.name;
         if (name !== oldName) {
           // 이름 변경: 기존 문서 삭제 + 새 문서 생성
           await deleteDoc(doc(db, 'explore_cookbooks', oldName));
           await setDoc(doc(db, 'explore_cookbooks', name), {
             name,
             color,
+            hidden: !!hidden,
             createdAt: new Date().toISOString(),
           });
           // 연결된 explore_recipes의 cookbook 필드 업데이트
@@ -321,13 +339,14 @@ function NavigationContent() {
           const updates = snapshot.docs.map(d => updateDoc(d.ref, {cookbook: name}));
           await Promise.all(updates);
         } else {
-          // 색상만 변경
-          await setDoc(doc(db, 'explore_cookbooks', name), {name, color, createdAt: new Date().toISOString()});
+          // 색상/숨김만 변경 (merge로 createdAt 등 기존 필드 보존)
+          await setDoc(doc(db, 'explore_cookbooks', name), {name, color, hidden: !!hidden}, {merge: true});
         }
-        showSnackbar(`공식 레시피 북 '${name}'이(가) 수정되었습니다`);
+        await exploreReload();
+        showSnackbar(t('layout.officialCookbookUpdated', {name}));
       } catch (e) {
         console.error('공식 레시피 북 수정 실패:', e);
-        showSnackbar('공식 레시피 북 수정에 실패했습니다');
+        showSnackbar(t('layout.officialCookbookUpdateFailed'));
       }
     } else if (cookbookEditTarget) {
       if (name !== cookbookEditTarget.name) {
@@ -337,32 +356,34 @@ function NavigationContent() {
         renameCookbookColor(cookbookEditTarget.name, name);
       }
       setCookbookColor(name, color);
-    } else if (isOfficial) {
+    } else if (isOfficial || officialNames.has(name)) {
       try {
         await setDoc(doc(db, 'explore_cookbooks', name), {
           name,
           color,
+          hidden: false,
           createdAt: new Date().toISOString(),
         });
-        showSnackbar(`공식 레시피 북 '${name}'이(가) 추가되었습니다`);
+        await exploreReload();
+        showSnackbar(t('layout.officialCookbookAdded', {name}));
       } catch (e) {
         console.error('공식 레시피 북 추가 실패:', e);
-        showSnackbar('공식 레시피 북 추가에 실패했습니다');
+        showSnackbar(t('layout.officialCookbookAddFailed'));
       }
     } else {
       const exists = recipes.some(r => r.cookbook === name);
       if (exists) {
-        showSnackbar('이미 존재하는 레시피 북입니다');
+        showSnackbar(t('layout.cookbookAlreadyExists'));
       } else {
         setCookbookColor(name, color);
-        showSnackbar(`'${name}' 레시피 북이 추가되었습니다`);
+        showSnackbar(t('layout.cookbookAdded', {name}));
       }
     }
     onCookbookCreatedRef.current?.(name, color);
     onCookbookCreatedRef.current = null;
     setShowCookbookDialog(false);
     setCookbookEditTarget(null);
-  }, [cookbookEditTarget, recipes, setRecipes, renameCookbookColor, setCookbookColor, showSnackbar, setShowCookbookDialog, setCookbookEditTarget, onCookbookCreatedRef]);
+  }, [cookbookEditTarget, recipes, setRecipes, renameCookbookColor, setCookbookColor, showSnackbar, setShowCookbookDialog, setCookbookEditTarget, onCookbookCreatedRef, exploreReload, exploreCookbooks, t]);
 
   const handleCookbookClose = useCallback(() => {
     onCookbookCreatedRef.current = null;
@@ -415,11 +436,11 @@ function NavigationContent() {
       <Dialog
         visible={migrationCount > 0}
         onClose={migrating ? () => {} : dismissMigration}
-        title="레시피를 계정에 올릴까요?"
-        description={`이 기기에 있는 레시피 ${migrationCount}개를 계정에 올리면 다른 기기에서도 볼 수 있어요.`}
+        title={t('layout.migrationTitle')}
+        description={t('layout.migrationDescription', {count: migrationCount})}
         actions={<>
-          <Button label="나중에" variant="soft" onPress={dismissMigration} disabled={migrating} />
-          <Button label={migrating ? '올리는 중…' : '올리기'} variant="filled" onPress={handleConfirmMigration} disabled={migrating} />
+          <Button label={t('layout.later')} variant="soft" onPress={dismissMigration} disabled={migrating} />
+          <Button label={migrating ? t('layout.uploading') : t('layout.upload')} variant="filled" onPress={handleConfirmMigration} disabled={migrating} />
         </>}
       />
 
@@ -458,6 +479,7 @@ function GlobalPlanSheet() {
   const {user} = useAuth();
   const {isPro} = useSubscription();
   const {showSnackbar} = useSnackbar();
+  const {t} = useTranslation();
 
   const handleSubscribePress = useCallback(() => {
     if (!user) {
@@ -468,9 +490,9 @@ function GlobalPlanSheet() {
       }, 300);
     } else {
       // 로그인 상태: 실제 구독은 모바일 결제 SDK 필요 (미구현)
-      showSnackbar('구독 결제는 모바일 앱에서 곧 제공됩니다');
+      showSnackbar(t('layout.subscriptionComingSoon'));
     }
-  }, [user, close, openAuthSheet, openPlanSheet, showSnackbar]);
+  }, [user, close, openAuthSheet, openPlanSheet, showSnackbar, t]);
 
   return <PlanSheet visible={visible} onClose={close} isPro={isPro} onSubscribePress={handleSubscribePress} />;
 }
@@ -491,6 +513,7 @@ function GlobalSearchSheet() {
   const {recipes: exploreRecipes} = useExploreRecipeContext();
   const {isAdmin} = useAuth();
   const {isPro} = useSubscription();
+  const {t} = useTranslation();
   const isFreeUser = !isAdmin && !isPro;
 
   const {items, lockedExploreIds} = useMemo(() => {
@@ -539,7 +562,7 @@ function GlobalSearchSheet() {
       onClose={() => setShowSearchSheet(false)}
       items={items}
       onSelect={handleSelect}
-      placeholder="레시피 검색"
+      placeholder={t('layout.searchPlaceholder')}
       useRecipeCards
     />
   );
@@ -547,8 +570,10 @@ function GlobalSearchSheet() {
 
 // 모든 화면(상세/편집 포함) 위에 떠 있는 단일 YouTube PiP
 function GlobalYouTubePlayer() {
-  const {videoId, close} = useYouTubePlayer();
-  return <YouTubePlayerModal visible={videoId !== null} onClose={close} videoId={videoId} />;
+  const {videoId, close, hostInModal} = useYouTubePlayer();
+  // hostInModal이면 요리모드 등 네이티브 Modal이 자기 안에서 같은 PiP를 렌더하므로
+  // 앱 루트 PiP는 숨긴다(중복 재생·가려짐 방지).
+  return <YouTubePlayerModal visible={videoId !== null && !hostInModal} onClose={close} videoId={videoId} />;
 }
 
 export default function RootLayout() {
@@ -559,6 +584,12 @@ export default function RootLayout() {
     'Pretendard-Bold': require('../assets/fonts/Pretendard-Bold.otf'),
   });
   const [showSplash, setShowSplash] = useState(true);
+  // 리브랜딩 스토리지 키 마이그레이션(옛 bakecycle_* → 새 bakle_*). 다른 store가 새 키를
+  // 읽기 전에 끝나야 하므로, 완료 전엔 아래에서 렌더를 막는다(게이트).
+  const [keysMigrated, setKeysMigrated] = useState(false);
+  useEffect(() => {
+    migrateStorageKeys().finally(() => setKeysMigrated(true));
+  }, []);
 
   useEffect(() => {
     if (__DEV__) return;
@@ -593,12 +624,13 @@ export default function RootLayout() {
     });
   }, []);
 
-  if (!fontsLoaded) {
+  if (!fontsLoaded || !keysMigrated) {
     return null;
   }
 
   return (
     <GestureHandlerRootView style={{flex: 1}}>
+    <LanguageProvider>
     <ThemeProvider>
       <AuthProvider>
       <SubscriptionProvider>
@@ -630,11 +662,12 @@ export default function RootLayout() {
       </SubscriptionProvider>
       </AuthProvider>
     </ThemeProvider>
+    </LanguageProvider>
     </GestureHandlerRootView>
   );
 }
 
-const createTabBarStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createTabBarStyles = (colors: SemanticColors) => StyleSheet.create({
   scrim: {
     ...StyleSheet.absoluteFillObject,
     backgroundColor: 'rgba(0, 0, 0, 0.12)',

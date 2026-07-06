@@ -3,9 +3,9 @@ import {Image, Pressable, StyleSheet, View} from 'react-native';
 import {IconClose} from '@components/Icon/IconIndex';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
-import type {SemanticColorsV2} from '@constants/tokens';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
+import type {SemanticColors} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
 
 export interface StepPhotosProps {
   /** 사진 URI 배열 */
@@ -44,8 +44,8 @@ export function StepPhotos({
   onRemove,
   onReplace,
 }: StepPhotosProps) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const editable = mode === 'edit';
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [manage, setManage] = useState(false);
@@ -86,7 +86,7 @@ export function StepPhotos({
   );
 }
 
-const createStyles = (_colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (_colors: SemanticColors) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     flexWrap: 'wrap',

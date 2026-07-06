@@ -4,11 +4,12 @@ import {SvgProps} from 'react-native-svg';
 import {BottomSheet} from './BottomSheet';
 import {CookbookDialog} from '@components/Dialog';
 import {IconAdd, IconBookFilled} from '@components/Icon/IconIndex';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
+import {useTranslation} from '@contexts/LanguageContext';
 import {getColorVarKey} from '@components/ColorPicker';
 import type {AvatarColor} from '@components/Avatar/Avatar';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
@@ -47,12 +48,14 @@ export function CookbookSelectSheet({
   bookIcon,
   renderItemTrailing,
   onItemLayout,
-  ungroupedLabel = '레시피 북 없음',
+  ungroupedLabel,
   initialOfficial = false,
   children,
 }: CookbookSelectSheetProps) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
+  const {t} = useTranslation();
+  const resolvedUngroupedLabel = ungroupedLabel ?? t('cookbookSelect.noCookbook');
   const BookIcon = bookIcon || IconBookFilled;
   const [showDialog, setShowDialog] = useState(false);
 
@@ -70,7 +73,7 @@ export function CookbookSelectSheet({
 
   return (
     <>
-      <BottomSheet visible={visible} onClose={onClose} title="레시피 북" headerType="center">
+      <BottomSheet visible={visible} onClose={onClose} title={t('cookbookSelect.title')} headerType="center">
         <View>
           <Pressable
             style={({pressed}: {pressed: boolean}) => [
@@ -81,7 +84,7 @@ export function CookbookSelectSheet({
             onPress={() => onSelect('__none__')}
           >
             <BookIcon width={20} height={20} color={colors['foreground/on-surface-muted']} />
-            <Text style={styles.itemLabel}>{ungroupedLabel}</Text>
+            <Text style={styles.itemLabel}>{resolvedUngroupedLabel}</Text>
           </Pressable>
           {cookbooks.map(name => {
             const cbColor = cookbookColors?.[name] as AvatarColor | undefined;
@@ -115,7 +118,7 @@ export function CookbookSelectSheet({
               onPress={handleAddPress}
             >
               <IconAdd width={20} height={20} color={colors['foreground/on-surface-muted']} />
-              <Text style={styles.itemLabel}>레시피 북 추가</Text>
+              <Text style={styles.itemLabel}>{t('cookbookSelect.addCookbook')}</Text>
             </Pressable>
           )}
         </View>
@@ -134,7 +137,7 @@ export function CookbookSelectSheet({
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   item: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -37,13 +37,14 @@ import {StepPhotos} from '@components/StepPhotos';
 import {EmptyState} from '@components/EmptyState';
 import {SearchCommandBar} from '@components/SearchCommandBar';
 import {useYouTubePlayer} from '@contexts/YouTubePlayerContext';
+import {useTranslation} from '@contexts/LanguageContext';
 import {parseYouTubeVideoId} from '@utils/youtube';
 import {parseSession} from '@utils/session';
 import {buildSessionDiff, type SessionBaseline} from '@utils/sessionDiff';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
 import {Radius, BaseColors} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {getRecipeMenuItems, getCookbookSubmenuItems} from '@utils/recipeMenuItems';
@@ -66,6 +67,7 @@ import {
   IconToolCaseFilled,
   IconSearch,
   IconSparkle,
+  IconEyeClosed,
 } from '@components/Icon/IconIndex';
 
 // 메타 정보 타입
@@ -161,6 +163,8 @@ export interface RecipeDetailScreenProps {
   cookbookColors?: Record<string, import('@components/Avatar/Avatar').AvatarColor>;
   /** 잠금 상태 (paywall): 스크롤 비활성 + 하단 잠금해제 버튼 */
   locked?: boolean;
+  /** 비공개(숨김) — 제목 뒤 자물쇠 (어드민 전용 공식 콘텐츠) */
+  hidden?: boolean;
   /** 잠금 해제 요청 (광고 시청) */
   onUnlock?: () => void;
   /** 광고 로딩 중 여부 */
@@ -267,16 +271,16 @@ const DEFAULT_STEPS: ProcessStep[] = [
   {step: 11, description: '다 구워진 후 팬에서 빼서 평철판 위에서 냉각시켜요.', tip: '나무꼬치로 꽂아서 반죽이 안 묻어 나오면 다 익은 것!'},
 ];
 
-const SECTION_TABS = [
-  {id: 'ingredients', label: '재료'},
-  {id: 'steps', label: '과정'},
-  {id: 'review', label: '회고'},
+const makeSectionTabs = (t: (key: string) => string) => [
+  {id: 'ingredients', label: t('recipeDetail.tabIngredients')},
+  {id: 'steps', label: t('recipeDetail.tabSteps')},
+  {id: 'review', label: t('recipeDetail.tabReview')},
 ];
 
 
 export function RecipeDetailScreen({
   id,
-  title = '레시피 이름',
+  title: titleProp,
   cookbook,
   method,
   reviewCount = 0,
@@ -311,6 +315,7 @@ export function RecipeDetailScreen({
   availableCookbooks,
   cookbookColors,
   locked = false,
+  hidden = false,
   onUnlock,
   adLoading = false,
   onSubscribe,
@@ -322,10 +327,13 @@ export function RecipeDetailScreen({
   referenceUrl,
   onShare,
 }: RecipeDetailScreenProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
+  const {t} = useTranslation();
   const {width: windowWidth} = useWindowDimensions();
-  const colors = useColorsV2();
+  const colors = useColors();
   const canEdit = !!onUpdate;
+  const SECTION_TABS = useMemo(() => makeSectionTabs(t), [t]);
+  const title = titleProp ?? t('recipeDetail.defaultTitle');
 
   // 1회차와 비교 토글 + diff — 기본 켜짐 (compareBaseline 있는 2회차+에서만 실제 표시)
   const [showDiff, setShowDiff] = useState(true);
@@ -347,8 +355,8 @@ export function RecipeDetailScreen({
   // toolGroups 우선, 없으면 tools를 단일 그룹으로 래핑
   const resolvedToolGroups: ToolGroupInput[] = useMemo(() => {
     if (toolGroups && toolGroups.length > 0) return toolGroups;
-    return [{title: '도구', tools: tools ?? []}];
-  }, [toolGroups, tools]);
+    return [{title: t('recipeDetail.tools'), tools: tools ?? []}];
+  }, [toolGroups, tools, t]);
   const toolsHasContent = useMemo(
     () => resolvedToolGroups.some(g => g.tools.length > 0),
     [resolvedToolGroups],
@@ -379,7 +387,7 @@ export function RecipeDetailScreen({
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   // PiP는 앱 루트에서 단일 인스턴스로 관리 (편집 등 화면 전환 시에도 유지)
-  const {open: openYouTube} = useYouTubePlayer();
+  const {open: openYouTube, videoId: ytVideoId} = useYouTubePlayer();
 
   const referenceYouTubeId = useMemo(() => parseYouTubeVideoId(referenceUrl), [referenceUrl]);
 
@@ -474,6 +482,7 @@ export function RecipeDetailScreen({
 
   const menuItems = useMemo(() => {
     const items = getRecipeMenuItems({
+      t,
       session,
       showImport: !!onImport,
       showRemake: !!onRemake,
@@ -486,23 +495,24 @@ export function RecipeDetailScreen({
     if (compareBaseline) {
       items.unshift({
         id: 'compareDiff',
-        label: showDiff ? '비교 끄기' : '1회차와 비교',
+        label: showDiff ? t('recipeDetail.compareOff') : t('recipeDetail.compareWithFirst'),
         icon: IconSparkle,
       });
     }
     return items;
   },
-  [onImport, onRemake, onEdit, onDelete, onCookbookChange, onCopyToExplore, onShare, session, compareBaseline, showDiff]);
+  [onImport, onRemake, onEdit, onDelete, onCookbookChange, onCopyToExplore, onShare, session, compareBaseline, showDiff, t]);
 
   const cookbookSubmenu = useMemo(() => {
     if (!onCookbookChange || !availableCookbooks) return null;
     return getCookbookSubmenuItems({
+      t,
       availableCookbooks,
       cookbookColors: cookbookColors ?? {},
       currentCookbook: cookbook ?? '',
       colors,
     });
-  }, [onCookbookChange, availableCookbooks, cookbookColors, cookbook, colors]);
+  }, [onCookbookChange, availableCookbooks, cookbookColors, cookbook, colors, t]);
 
   const handleMenuPress = () => {
     setShowMenu(prev => !prev);
@@ -613,7 +623,7 @@ export function RecipeDetailScreen({
           title={label}
           breadcrumb={breadcrumb}
           breadcrumbIcon={breadcrumb ? IconChevronRight : undefined}
-          actionLabel={onEdit ? '편집' : undefined}
+          actionLabel={onEdit ? t('recipeDetail.edit') : undefined}
           onAction={onEdit ? () => onEdit(sectionId) : undefined}
         />
       </ContentContainer>
@@ -651,16 +661,21 @@ export function RecipeDetailScreen({
           ) : null}
           <View style={styles.heroContentWrapper}>
             <ContentContainer style={styles.heroContent}>
-              <Text style={styles.heroTitle}>
-                {title}
-                {sessionNumber > 0 && (
-                  <Text style={styles.heroTitleSession}> #{sessionNumber}</Text>
+              <View style={styles.heroTitleRow}>
+                <Text style={styles.heroTitle}>
+                  {title}
+                  {sessionNumber > 0 && (
+                    <Text style={styles.heroTitleSession}> #{sessionNumber}</Text>
+                  )}
+                </Text>
+                {hidden && (
+                  <IconEyeClosed width={18} height={18} color={colors['foreground/on-surface-inverse']} />
                 )}
-              </Text>
+              </View>
               <View style={styles.heroDescriptionRow}>
                 {recipeItems ? (
                   <Pressable style={styles.heroDescriptionTappable} onPress={() => setSearchFilter('cookbook')}>
-                    <Text style={styles.heroDescription}>{cookbook}</Text>
+                    <Text style={[styles.heroDescription, {flexShrink: 1}]} numberOfLines={1}>{cookbook}</Text>
                     <IconSearch width={12} height={12} color={colors['foreground/on-surface-inverse']} />
                   </Pressable>
                 ) : (
@@ -671,7 +686,7 @@ export function RecipeDetailScreen({
                     <Text style={styles.heroDescription}> · </Text>
                     {recipeItems ? (
                       <Pressable style={styles.heroDescriptionTappable} onPress={() => setSearchFilter('method')}>
-                        <Text style={[styles.heroDescription, diffOn && diff!.methodChanged && styles.hlChanged]}>{method}</Text>
+                        <Text style={[styles.heroDescription, diffOn && diff!.methodChanged && styles.hlChanged, {flexShrink: 1}]} numberOfLines={1}>{method}</Text>
                         <IconSearch width={12} height={12} color={colors['foreground/on-surface-inverse']} />
                       </Pressable>
                     ) : (
@@ -680,7 +695,7 @@ export function RecipeDetailScreen({
                   </>
                 )}
                 {ratio && isFieldActive('ratio') && (
-                  <Text style={[styles.heroDescription, diffOn && diff!.specificGravityChanged && styles.hlChanged]}> · 비중 {ratio}</Text>
+                  <Text style={[styles.heroDescription, diffOn && diff!.specificGravityChanged && styles.hlChanged]}> · {t('recipeDetail.specificGravity', {ratio})}</Text>
                 )}
                 {totalReviewCount > 0 && (
                   <>
@@ -691,15 +706,22 @@ export function RecipeDetailScreen({
                     </Pressable>
                   </>
                 )}
-                {referenceUrl && (
+                {referenceUrl && (() => {
+                  // 이미 같은 영상이 재생 중이면 참고 링크 비활성 (중복 열기 방지)
+                  const referenceOpen = !!referenceYouTubeId && ytVideoId === referenceYouTubeId;
+                  return (
                   <>
                     <Text style={styles.heroDescription}> · </Text>
-                    <Pressable style={styles.reviewBadge} onPress={handleOpenReference}>
-                      <Text style={styles.heroDescription}>참고 링크</Text>
+                    <Pressable
+                      style={[styles.reviewBadge, referenceOpen && {opacity: 0.4}]}
+                      onPress={referenceOpen ? undefined : handleOpenReference}
+                      disabled={referenceOpen}>
+                      <Text style={styles.heroDescription}>{t('recipeDetail.referenceLink')}</Text>
                       <IconArrowTopRight width={12} height={12} color={colors['foreground/on-surface-inverse']} />
                     </Pressable>
                   </>
-                )}
+                  );
+                })()}
               </View>
             </ContentContainer>
           </View>
@@ -721,7 +743,7 @@ export function RecipeDetailScreen({
             ? computedGroups.flatMap((group, groupIndex) => [
                 renderSectionHeader(
                   `ing-header-${groupIndex}`,
-                  '재료',
+                  t('recipeDetail.tabIngredients'),
                   'ingredients',
                   computedGroups.length > 1 ? group.title : undefined,
                 ),
@@ -762,11 +784,11 @@ export function RecipeDetailScreen({
                 </Animated.View>,
               ])
             : [
-                renderSectionHeader('ing-header-empty', '재료', 'ingredients'),
+                renderSectionHeader('ing-header-empty', t('recipeDetail.tabIngredients'), 'ingredients'),
                 <Animated.View key="ing-content-empty" style={{opacity: sectionAnims[0]}}>
                   <ContentContainer>
                     <Card>
-                      <EmptyState variant="simple" title="아직 등록된 재료가 없습니다" />
+                      <EmptyState variant="simple" title={t('recipeDetail.emptyIngredients')} />
                     </Card>
                   </ContentContainer>
                 </Animated.View>,
@@ -777,7 +799,7 @@ export function RecipeDetailScreen({
         {diffOn && diff!.removed.length > 0 && (
           <Animated.View style={{opacity: sectionAnims[0]}}>
             <ContentContainer>
-              <Text style={styles.diffCaption}>1회차 대비 빠진 재료</Text>
+              <Text style={styles.diffCaption}>{t('recipeDetail.removedIngredients')}</Text>
               <Card>
                 {diff!.removed.map((ing, i) => (
                   <View
@@ -797,12 +819,12 @@ export function RecipeDetailScreen({
         )}
 
         {/* Tools Section */}
-        {renderSectionHeader('tools-header', '도구', 'tools')}
+        {renderSectionHeader('tools-header', t('recipeDetail.tools'), 'tools')}
         <Animated.View style={{opacity: sectionAnims[0]}}>
           <ContentContainer>
             <Card>
               {!toolsHasContent ? (
-                <EmptyState variant="simple" title="아직 등록된 도구가 없습니다" />
+                <EmptyState variant="simple" title={t('recipeDetail.emptyTools')} />
               ) : resolvedToolGroups.length > 1 ? (
                 resolvedToolGroups.map((group, gIdx) => (
                   <React.Fragment key={gIdx}>
@@ -834,11 +856,11 @@ export function RecipeDetailScreen({
         {/* Process Section */}
         {isFieldActive('steps') && <View onLayout={(e) => { sectionPositions.current.steps = e.nativeEvent.layout.y; }} />}
         {isFieldActive('steps') && (!stepsHasContent ? [
-          renderSectionHeader('step-header-empty', '과정', 'steps'),
+          renderSectionHeader('step-header-empty', t('recipeDetail.tabSteps'), 'steps'),
           <Animated.View key="step-content-empty" style={{opacity: sectionAnims[1]}}>
             <ContentContainer>
               <Card>
-                <EmptyState variant="simple" title="아직 등록된 과정이 없습니다" />
+                <EmptyState variant="simple" title={t('recipeDetail.emptySteps')} />
               </Card>
             </ContentContainer>
           </Animated.View>,
@@ -846,7 +868,7 @@ export function RecipeDetailScreen({
           stepGroups.flatMap((group, groupIndex) => {
             const groupOffset = stepGroups.slice(0, groupIndex).reduce((sum, g) => sum + g.steps.length, 0);
             return [
-              renderSectionHeader(`step-header-${groupIndex}`, '과정', 'steps', group.title),
+              renderSectionHeader(`step-header-${groupIndex}`, t('recipeDetail.tabSteps'), 'steps', group.title),
               <Animated.View key={`step-content-${groupIndex}`} style={{opacity: sectionAnims[1]}}>
                 <ContentContainer>
                   <Card>
@@ -892,7 +914,7 @@ export function RecipeDetailScreen({
             ];
           })
         ) : [
-          renderSectionHeader('step-header', '과정', 'steps'),
+          renderSectionHeader('step-header', t('recipeDetail.tabSteps'), 'steps'),
           <Animated.View key="step-content" style={{opacity: sectionAnims[1]}}>
             <ContentContainer>
               <Card>
@@ -946,7 +968,7 @@ export function RecipeDetailScreen({
             <ContentContainer style={styles.sectionCard}>
               <Card variant="yellow">
                 <ListItem
-                  title="베이키의 조언"
+                  title={t('recipeDetail.bakeyAdvice')}
                   leading={{type: 'icon', icon: IconLogoSymbol}}
                   trailing={onEdit ? {type: 'iconButton', icon: IconEditFilled, onPress: () => onEdit('advice'), variant: 'ghost-yellow'} : undefined}
                 />
@@ -977,7 +999,7 @@ export function RecipeDetailScreen({
             {reviews && reviews.some(rv => rv.evaluation || rv.improvement) ? (
               <Card>
                 <ListItem
-                  title="회고"
+                  title={t('recipeDetail.tabReview')}
                   leading={{type: 'icon', icon: IconChartNoAxesGantt}}
                   trailing={onEdit || sessionReviews ? {type: 'custom', element: (
                     <View style={styles.reviewTrailingRow}>
@@ -1011,7 +1033,7 @@ export function RecipeDetailScreen({
             ) : (
               <Card>
                 <ListItem
-                  title="회고"
+                  title={t('recipeDetail.tabReview')}
                   leading={{type: 'icon', icon: IconChartNoAxesGantt}}
                   trailing={onEdit || sessionReviews ? {type: 'custom', element: (
                     <View style={styles.reviewTrailingRow}>
@@ -1024,7 +1046,7 @@ export function RecipeDetailScreen({
                     </View>
                   )} : undefined}
                 />
-                <EmptyState variant="simple" title="아직 작성된 회고가 없습니다" />
+                <EmptyState variant="simple" title={t('recipeDetail.emptyReview')} />
               </Card>
             )}
           </ContentContainer>
@@ -1033,9 +1055,11 @@ export function RecipeDetailScreen({
         {/* Prev / Next Recipe Navigation */}
         {recipeItems && recipeItems.length > 1 && currentRecipeId && onRecipeSelect && (() => {
           const idx = recipeItems.findIndex(r => r.id === currentRecipeId);
-          const prev = idx > 0 ? recipeItems[idx - 1] : null;
-          const next = idx < recipeItems.length - 1 ? recipeItems[idx + 1] : null;
-          if (!prev && !next) return null;
+          if (idx < 0) return null;
+          // 순환(circular): 끝에서 처음으로 감싸 이전/다음이 항상 존재하게
+          const n = recipeItems.length;
+          const prev = recipeItems[(idx - 1 + n) % n];
+          const next = recipeItems[(idx + 1) % n];
           const isWide = windowWidth >= 480;
           return (
             <ContentContainer style={styles.recipeNav}>
@@ -1051,7 +1075,7 @@ export function RecipeDetailScreen({
                       <Text style={styles.recipeNavTitle} numberOfLines={1}>{prev.label}</Text>
                       <View style={styles.recipeNavMeta}>
                         <View style={{width: 8}}><IconChevronLeft width={12} height={12} color={colors['foreground/on-surface-muted']} /></View>
-                        <Text style={styles.recipeNavSub}>이전</Text>
+                        <Text style={styles.recipeNavSub}>{t('recipeDetail.prev')}</Text>
                       </View>
                     </View>
                   </Pressable>
@@ -1063,7 +1087,7 @@ export function RecipeDetailScreen({
                     <View style={[styles.recipeNavContent, {alignItems: 'flex-end'}]}>
                       <Text style={styles.recipeNavTitle} numberOfLines={1}>{next.label}</Text>
                       <View style={styles.recipeNavMeta}>
-                        <Text style={styles.recipeNavSub}>다음</Text>
+                        <Text style={styles.recipeNavSub}>{t('recipeDetail.next')}</Text>
                         <View style={{width: 8}}><IconChevronRight width={12} height={12} color={colors['foreground/on-surface-muted']} /></View>
                       </View>
                     </View>
@@ -1105,7 +1129,7 @@ export function RecipeDetailScreen({
               <View>
                 <GlassContainer contentStyle={navPillStyle}>
                   <Selector
-                    label={SECTION_TABS.find(t => t.id === activeTab)?.label ?? '재료'}
+                    label={SECTION_TABS.find(tab => tab.id === activeTab)?.label ?? t('recipeDetail.tabIngredients')}
                     showDropdown
                     onPress={locked ? undefined : () => setShowTabMenu(prev => !prev)}
                   />
@@ -1150,7 +1174,7 @@ export function RecipeDetailScreen({
         rightMenu={
           showCookbookSubmenu && cookbookSubmenu ? (
             <Menu
-              title="레시피 북"
+              title={t('recipeDetail.cookbook')}
               items={cookbookSubmenu.items}
               selectedId={cookbookSubmenu.selectedId}
               onSelect={handleMenuSelect}
@@ -1171,7 +1195,7 @@ export function RecipeDetailScreen({
         visible={showPdfPreview}
         onClose={() => setShowPdfPreview(false)}
         data={{
-          title: title ?? '레시피 이름',
+          title: title,
           cookbook,
           method,
           reviewCount,
@@ -1262,15 +1286,15 @@ export function RecipeDetailScreen({
         onClose={() => setShowDeleteDialog(false)}
         icon={IconTrashTwotone}
         avatarColor="red"
-        title={parseSession(session).total > 1 ? `${parseSession(session).current}회차를 삭제할까요?` : '레시피를 삭제할까요?'}
+        title={parseSession(session).total > 1 ? t('recipeDetail.deleteSessionTitle', {session: parseSession(session).current}) : t('recipeDetail.deleteRecipeTitle')}
         description={parseSession(session).total > 1
-          ? `'${title ?? ''}'의 ${parseSession(session).current}회차만 삭제됩니다.\n다른 회차는 그대로 유지되고, 삭제된 회차는 되돌릴 수 있습니다.`
-          : `'${title ?? ''}'을(를) 삭제합니다.\n삭제된 레시피는 되돌릴 수 있습니다.`}
+          ? t('recipeDetail.deleteSessionDesc', {title: title ?? '', session: parseSession(session).current})
+          : t('recipeDetail.deleteRecipeDesc', {title: title ?? ''})}
         actions={
           <>
-            <Button label="취소" variant="soft" onPress={() => setShowDeleteDialog(false)} />
+            <Button label={t('recipeDetail.cancel')} variant="soft" onPress={() => setShowDeleteDialog(false)} />
             <Button
-              label="삭제"
+              label={t('recipeDetail.delete')}
               variant="soft"
               destructive
               onPress={() => {
@@ -1308,7 +1332,7 @@ export function RecipeDetailScreen({
 
 const HERO_HEIGHT = 280;
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors['surface/dim'],
@@ -1383,6 +1407,11 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
     paddingHorizontal: 28,
     gap: Spacing.xs,
   },
+  heroTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   heroTitle: {
     fontFamily: Typography.headline.small.fontFamily,
     fontSize: Typography.headline.small.fontSize,
@@ -1415,6 +1444,9 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     gap: 3,
+    // 칸이 모자라면 쿡북·공법 텍스트가 양보(줄임표) → 뒤의 참고 링크 칩은 안 눌리게
+    flexShrink: 1,
+    minWidth: 0,
   },
   heroDescriptionRow: {
     flexDirection: 'row',
@@ -1425,6 +1457,8 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
+    // 리뷰/참고 링크 칩은 절대 줄어들지 않게 (텍스트 잘림 방지)
+    flexShrink: 0,
   },
 
   // Meta Section

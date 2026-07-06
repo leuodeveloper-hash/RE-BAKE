@@ -6,6 +6,8 @@ export interface CookbookEditTarget {
   color: AvatarColor;
   /** 둘러보기(공식) 레시피 북 편집 여부 */
   isExplore?: boolean;
+  /** 공식 북 숨김 여부(편집 프리필용) — 어드민만 보임 */
+  hidden?: boolean;
 }
 
 interface AddSheetContextValue {

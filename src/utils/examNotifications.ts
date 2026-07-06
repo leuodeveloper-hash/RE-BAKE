@@ -1,8 +1,12 @@
 import {Platform} from 'react-native';
 import type {ExamSchedule} from './examSchedules';
-import {EXAM_TYPES} from '@constants/examTypes';
+import {getExamTypes} from '@constants/examTypes';
+import {translate, deviceLanguage} from '../i18n';
 
-const LABEL_BY_TYPE = Object.fromEntries(EXAM_TYPES.map(t => [t.id, t.label]));
+const t = (key: string, params?: Record<string, string | number>) =>
+  translate(deviceLanguage(), key, params);
+
+const LABEL_BY_TYPE = Object.fromEntries(getExamTypes(t).map(e => [e.id, e.label]));
 
 /**
  * 시험 일정 기반 로컬 알림 스케줄링.
@@ -54,7 +58,7 @@ export async function scheduleExamNotifications(schedules: ExamSchedule[]): Prom
   };
 
   for (const s of schedules) {
-    const label = LABEL_BY_TYPE[s.examType] ?? '시험';
+    const label = LABEL_BY_TYPE[s.examType] ?? t('examNotifications.defaultExamLabel');
     const round = s.round ? ` (${s.round})` : '';
 
     const triggers: {date: Date; title: string; body: string}[] = [];
@@ -63,8 +67,8 @@ export async function scheduleExamNotifications(schedules: ExamSchedule[]): Prom
     if (reg15Before) {
       triggers.push({
         date: reg15Before,
-        title: `${label} 접수 15분 전${round}`,
-        body: '곧 접수가 열려요. 준비됐나요?',
+        title: t('examNotifications.registration15minTitle', {label, round}),
+        body: t('examNotifications.registration15minBody'),
       });
     }
 
@@ -72,8 +76,8 @@ export async function scheduleExamNotifications(schedules: ExamSchedule[]): Prom
     if (regAt) {
       triggers.push({
         date: regAt,
-        title: `${label} 접수 시작${round}`,
-        body: '오늘부터 접수예요. 신청했나요?',
+        title: t('examNotifications.registrationStartTitle', {label, round}),
+        body: t('examNotifications.registrationStartBody'),
       });
     }
 
@@ -81,8 +85,8 @@ export async function scheduleExamNotifications(schedules: ExamSchedule[]): Prom
     if (examMinus7) {
       triggers.push({
         date: examMinus7,
-        title: `${label} 시험 1주일 전${round}`,
-        body: '시험까지 일주일이에요. 준비는 잘 되고 있나요?',
+        title: t('examNotifications.examWeekBeforeTitle', {label, round}),
+        body: t('examNotifications.examWeekBeforeBody'),
       });
     }
 
@@ -90,8 +94,8 @@ export async function scheduleExamNotifications(schedules: ExamSchedule[]): Prom
     if (examMinus1) {
       triggers.push({
         date: examMinus1,
-        title: `${label} 시험 D-1${round}`,
-        body: '내일이 시험이에요. 준비물 챙겼나요?',
+        title: t('examNotifications.examDayBeforeTitle', {label, round}),
+        body: t('examNotifications.examDayBeforeBody'),
       });
     }
 
@@ -99,8 +103,8 @@ export async function scheduleExamNotifications(schedules: ExamSchedule[]): Prom
     if (resultAt) {
       triggers.push({
         date: resultAt,
-        title: `${label} 결과 발표${round}`,
-        body: '오늘 결과 발표예요. 확인했나요?',
+        title: t('examNotifications.resultTitle', {label, round}),
+        body: t('examNotifications.resultBody'),
       });
     }
 

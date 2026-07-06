@@ -8,16 +8,18 @@ import {IconButton} from '@components/IconButton';
 import {ListItem} from '@components/ListItem';
 import {SectionHeader} from '@components/SectionHeader';
 import {Snackbar} from '@components/Snackbar';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useAuth} from '@contexts/AuthContext';
-import type {SemanticColorsV2} from '@constants/tokens';
+import {useTranslation} from '@contexts/LanguageContext';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {IconArrowLeft, IconBellFilled} from '@components/Icon/IconIndex';
 
 export default function LabsRoute() {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const {isAdmin} = useAuth();
+  const {t} = useTranslation();
 
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [showSnackbar, setShowSnackbar] = useState(false);
@@ -29,7 +31,7 @@ export default function LabsRoute() {
 
   const handleTestPush = useCallback(async () => {
     if (Platform.OS === 'web') {
-      showMessage('웹에서는 푸시 테스트가 지원되지 않아요');
+      showMessage(t('labs.pushNotSupportedWeb'));
       return;
     }
     try {
@@ -38,28 +40,28 @@ export default function LabsRoute() {
       if (settings.status !== 'granted') {
         const req = await Notifications.requestPermissionsAsync();
         if (req.status !== 'granted') {
-          showMessage('알림 권한이 필요해요');
+          showMessage(t('labs.notificationPermissionNeeded'));
           return;
         }
       }
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '🧪 푸시 테스트',
-          body: '3초 후 알림이에요. 플로팅 배너로 보이는지 확인하세요.',
+          title: t('labs.pushTestTitle'),
+          body: t('labs.pushTestBody'),
           data: {kind: 'debug_test'},
         },
         trigger: {seconds: 3},
       });
-      showMessage('3초 후 알림이 도착합니다');
+      showMessage(t('labs.pushTestScheduled'));
     } catch (err) {
       console.error('push test failed', err);
-      showMessage('푸시 테스트 실패');
+      showMessage(t('labs.pushTestFailed'));
     }
-  }, [showMessage]);
+  }, [showMessage, t]);
 
   const handleTestRegistrationBanner = useCallback(async () => {
     if (Platform.OS === 'web') {
-      showMessage('웹에서는 푸시 테스트가 지원되지 않아요');
+      showMessage(t('labs.pushNotSupportedWeb'));
       return;
     }
     try {
@@ -68,47 +70,47 @@ export default function LabsRoute() {
       if (settings.status !== 'granted') {
         const req = await Notifications.requestPermissionsAsync();
         if (req.status !== 'granted') {
-          showMessage('알림 권한이 필요해요');
+          showMessage(t('labs.notificationPermissionNeeded'));
           return;
         }
       }
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '제빵기능사 접수 15분 전 (2026년 1회)',
-          body: '접수 시작이 임박했어요. 미리 큐넷에 로그인해 두세요.',
+          title: t('labs.registrationBannerTitle'),
+          body: t('labs.registrationBannerBody'),
           data: {kind: 'debug_test', subkind: 'registration_15min'},
         },
         trigger: {seconds: 5},
       });
-      showMessage('5초 후 “15분 전” 배너가 도착합니다');
+      showMessage(t('labs.registrationBannerScheduled'));
     } catch (err) {
       console.error('reg banner test failed', err);
-      showMessage('배너 테스트 실패');
+      showMessage(t('labs.bannerTestFailed'));
     }
-  }, [showMessage]);
+  }, [showMessage, t]);
 
   const handleListScheduled = useCallback(async () => {
     if (Platform.OS === 'web') {
-      showMessage('웹에서는 지원되지 않아요');
+      showMessage(t('labs.notSupportedWeb'));
       return;
     }
     try {
       const Notifications = require('expo-notifications');
       const list = await Notifications.getAllScheduledNotificationsAsync();
       console.log('[LabsScreen] scheduled notifications:', JSON.stringify(list, null, 2));
-      showMessage(`예약된 알림 ${list.length}개 (콘솔 확인)`);
+      showMessage(t('labs.scheduledCount', {count: list.length}));
     } catch (err) {
       console.error('list scheduled failed', err);
-      showMessage('목록 조회 실패');
+      showMessage(t('labs.listFailed'));
     }
-  }, [showMessage]);
+  }, [showMessage, t]);
 
   if (!isAdmin) {
     return (
       <View style={styles.container}>
         <SafeAreaView style={styles.safeArea}>
           <ContentContainer style={{paddingTop: 120}}>
-            <SectionHeader title="접근 권한이 없습니다" />
+            <SectionHeader title={t('labs.accessDenied')} />
           </ContentContainer>
         </SafeAreaView>
         <FloatingNavBar
@@ -132,22 +134,22 @@ export default function LabsRoute() {
           <View style={{height: 80}} />
 
           <ContentContainer>
-            <SectionHeader title="푸시 알림" />
+            <SectionHeader title={t('labs.pushNotifications')} />
             <Card>
               <ListItem
-                title="푸시 테스트 (3초 후)"
+                title={t('labs.pushTestItem')}
                 leading={{type: 'icon', icon: IconBellFilled}}
                 showDivider={true}
                 onPress={handleTestPush}
               />
               <ListItem
-                title="접수 15분 전 배너 테스트 (5초 후)"
+                title={t('labs.registrationBannerItem')}
                 leading={{type: 'icon', icon: IconBellFilled}}
                 showDivider={true}
                 onPress={handleTestRegistrationBanner}
               />
               <ListItem
-                title="예약된 알림 목록 출력"
+                title={t('labs.listScheduledItem')}
                 leading={{type: 'icon', icon: IconBellFilled}}
                 showDivider={false}
                 onPress={handleListScheduled}
@@ -176,7 +178,7 @@ export default function LabsRoute() {
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) =>
+const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
     container: {
       flex: 1,

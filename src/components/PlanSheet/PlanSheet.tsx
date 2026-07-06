@@ -6,11 +6,12 @@ import {BottomSheet} from '@components/BottomSheet';
 import {Button} from '@components/Button';
 import {IconButton} from '@components/IconButton';
 import {IconClose} from '@components/Icon/IconIndex';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
-import type {SemanticColorsV2} from '@constants/tokens';
+import {useTranslation} from '@contexts/LanguageContext';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Radius} from '@constants/tokens';
 import {Typography} from '@constants/typography';
@@ -59,36 +60,37 @@ function PlanFeature({text, styles, dotColor}: {
 
 function PlanContent({styles, colors, isPro, onSubscribePress}: {
   styles: ReturnType<typeof createStyles>;
-  colors: ReturnType<typeof useColorsV2>;
+  colors: ReturnType<typeof useColors>;
   isPro: boolean;
   onSubscribePress: () => void;
 }) {
+  const {t} = useTranslation();
   return (
     <View style={styles.planSheetContent}>
       <View style={styles.planHeader}>
         <Text style={styles.planHeadline}>
-          {'레시피에만\n집중할 수 있게'}
+          {t('plan.headline')}
         </Text>
       </View>
 
       <BlurView intensity={12} style={styles.planCardBlur}>
         <View style={styles.planCardInner}>
           <View style={styles.planCardInfoRow}>
-            <Text style={styles.planCardTitle}>프로</Text>
+            <Text style={styles.planCardTitle}>{t('plan.proTitle')}</Text>
             <View style={styles.planPriceRow}>
               <Text style={styles.planPrice}>USD 18</Text>
-              <Text style={styles.planPriceSuffixText}>/ 년 단위</Text>
+              <Text style={styles.planPriceSuffixText}>{t('plan.perYear')}</Text>
             </View>
           </View>
           {isPro ? (
-            <Button label="현재 플랜" variant="soft" disabled />
+            <Button label={t('plan.currentPlan')} variant="soft" disabled />
           ) : (
-            <Button label="구독하기" onPress={onSubscribePress} />
+            <Button label={t('plan.subscribe')} onPress={onSubscribePress} />
           )}
           <View style={styles.planFeatureList}>
-            <PlanFeature text="내 레시피 클라우드 동기화" styles={styles} dotColor={colors['custom/light-blue']} />
-            <PlanFeature text="모든 둘러보기 레시피 무제한 열람" styles={styles} dotColor={colors['custom/light-blue']} />
-            <PlanFeature text="광고 없는 쾌적한 사용" styles={styles} dotColor={colors['custom/light-blue']} />
+            <PlanFeature text={t('plan.featureCloudSync')} styles={styles} dotColor={colors['custom/light-blue']} />
+            <PlanFeature text={t('plan.featureUnlimitedExplore')} styles={styles} dotColor={colors['custom/light-blue']} />
+            <PlanFeature text={t('plan.featureAdFree')} styles={styles} dotColor={colors['custom/light-blue']} />
           </View>
         </View>
       </BlurView>
@@ -96,18 +98,18 @@ function PlanContent({styles, colors, isPro, onSubscribePress}: {
       <BlurView intensity={12} style={styles.planCardBlur}>
         <View style={styles.planCardInner}>
           <View style={styles.planCardInfoRow}>
-            <Text style={styles.planCardTitle}>무료</Text>
+            <Text style={styles.planCardTitle}>{t('plan.freeTitle')}</Text>
             <Text style={styles.planPrice}>Free</Text>
           </View>
           {isPro ? (
-            <Button label="무료로 다운그레이드" variant="soft" />
+            <Button label={t('plan.downgradeFree')} variant="soft" />
           ) : (
-            <Button label="현재 플랜" variant="soft" disabled />
+            <Button label={t('plan.currentPlan')} variant="soft" disabled />
           )}
           <View style={styles.planFeatureList}>
-            <PlanFeature text="내 레시피 로컬 저장" styles={styles} />
-            <PlanFeature text="둘러보기 레시피 미리보기" styles={styles} />
-            <PlanFeature text="레시피 내보내기 / 가져오기" styles={styles} />
+            <PlanFeature text={t('plan.featureLocalSave')} styles={styles} />
+            <PlanFeature text={t('plan.featureExplorePreview')} styles={styles} />
+            <PlanFeature text={t('plan.featureImportExport')} styles={styles} />
           </View>
         </View>
       </BlurView>
@@ -118,8 +120,8 @@ function PlanContent({styles, colors, isPro, onSubscribePress}: {
 export function PlanSheet({visible, onClose, isPro = false, onSubscribePress}: PlanSheetProps) {
   const noopSubscribe = React.useCallback(() => {}, []);
   const subscribeHandler = onSubscribePress ?? noopSubscribe;
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
 
   return (
     <BottomSheet
@@ -169,7 +171,7 @@ const overlayStyles = StyleSheet.create({
   },
 });
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   planSheetContent: {
     paddingVertical: 24,
     gap: Spacing.md,

@@ -2,8 +2,8 @@ import React from 'react';
 import {Animated, Pressable, StyleSheet, Text, View} from 'react-native';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
-import type {SemanticColorsV2} from '@constants/tokens';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import type {SemanticColors} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
 import {triggerHaptic} from '@utils/haptics';
 
 interface SwitchProps {
@@ -13,7 +13,7 @@ interface SwitchProps {
 }
 
 export function Switch({label, value, onValueChange}: SwitchProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
 
   return (
     <Pressable
@@ -27,7 +27,7 @@ export function Switch({label, value, onValueChange}: SwitchProps) {
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) =>
+const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
     container: {
       flexDirection: 'row',

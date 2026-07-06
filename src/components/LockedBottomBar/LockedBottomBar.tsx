@@ -1,5 +1,6 @@
 import React from 'react';
 import {StyleSheet, View} from 'react-native';
+import {useTranslation} from '@contexts/LanguageContext';
 import {ContentMask} from '@components/Container';
 import {Button} from '@components/Button/Button';
 import {IconUnlockFilled} from '@components/Icon/IconIndex';
@@ -12,12 +13,13 @@ interface LockedBottomBarProps {
 
 /** 잠금 해제 하단 바: 블러 배경 + 해제 버튼 세트 */
 export function LockedBottomBar({onUnlock, disabled, bottomOffset = 134}: LockedBottomBarProps) {
+  const {t} = useTranslation();
   return (
     <>
       <ContentMask topHeight={0} bottomHeight={450} />
       <View style={[styles.buttonContainer, {bottom: bottomOffset}]}>
         <Button
-          label="레시피 해제하기"
+          label={t('lockedBottomBar.unlockRecipe')}
           icon={IconUnlockFilled}
           gradientShadow
           disabled={disabled}

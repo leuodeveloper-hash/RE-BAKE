@@ -3,8 +3,8 @@ import {Image, ImageSourcePropType, StyleSheet, Text, View} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {Button} from '@components/Button';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import type {SemanticColorsV2} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 const emptyRecipeImage = require('../../../assets/images/empty_recipe.png');
@@ -40,7 +40,7 @@ function categoryImage(category: EmptyStateCategory): ImageSourcePropType | null
 }
 
 export function EmptyState({category, image, icon, title, subtitle, actionLabel, onAction, variant = 'fullscreen'}: EmptyStateProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
 
   if (variant === 'simple') {
     // 심플: 작은 일러스트(카테고리/이미지 있을 때만) + 텍스트. 이미지는 경우에 따라 있거나 없음.
@@ -74,7 +74,7 @@ export function EmptyState({category, image, icon, title, subtitle, actionLabel,
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',

@@ -2,13 +2,14 @@ import React, {useEffect, useState} from 'react';
 import {StyleSheet, Text, TextInput as RNTextInput, View} from 'react-native';
 import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
-import type {SemanticColorsV2} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
+import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {IconChatStarFilled} from '@components/Icon/IconIndex';
+import {useTranslation} from '@contexts/LanguageContext';
 
 export interface ReviewData {
   evaluation: string;
@@ -25,8 +26,9 @@ export interface ReviewDialogProps {
 }
 
 export function ReviewDialog({visible, onClose, value, onConfirm}: ReviewDialogProps) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
+  const {t} = useTranslation();
   const [evaluation, setEvaluation] = useState('');
   const [improvement, setImprovement] = useState('');
 
@@ -48,21 +50,21 @@ export function ReviewDialog({visible, onClose, value, onConfirm}: ReviewDialogP
       onClose={onClose}
       icon={IconChatStarFilled}
       avatarColor="green"
-      title="회고"
+      title={t('review.title')}
       actions={<>
-        <Button label="취소" variant="soft" onPress={onClose} />
-        <Button label="저장" variant="filled" onPress={handleConfirm} />
+        <Button label={t('review.cancel')} variant="soft" onPress={onClose} />
+        <Button label={t('review.save')} variant="filled" onPress={handleConfirm} />
       </>}
     >
       <View style={styles.content}>
         <View style={styles.field}>
-          <Text style={styles.label}>평가</Text>
+          <Text style={styles.label}>{t('review.evaluationLabel')}</Text>
           <View style={styles.inputContainer}>
             <RNTextInput
               style={[styles.input, {color: colors['foreground/on-surface']}]}
               value={evaluation}
               onChangeText={setEvaluation}
-              placeholder="이번 결과에 대한 평가를 입력하세요."
+              placeholder={t('review.evaluationPlaceholder')}
               placeholderTextColor={colors['foreground/on-surface-muted']}
               multiline
               textAlignVertical="top"
@@ -70,13 +72,13 @@ export function ReviewDialog({visible, onClose, value, onConfirm}: ReviewDialogP
           </View>
         </View>
         <View style={styles.field}>
-          <Text style={styles.label}>다음 개선 점</Text>
+          <Text style={styles.label}>{t('review.improvementLabel')}</Text>
           <View style={styles.inputContainer}>
             <RNTextInput
               style={[styles.input, {color: colors['foreground/on-surface']}]}
               value={improvement}
               onChangeText={setImprovement}
-              placeholder="다음에 개선할 점을 입력하세요."
+              placeholder={t('review.improvementPlaceholder')}
               placeholderTextColor={colors['foreground/on-surface-muted']}
               multiline
               textAlignVertical="top"
@@ -88,7 +90,7 @@ export function ReviewDialog({visible, onClose, value, onConfirm}: ReviewDialogP
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   content: {
     gap: Spacing.md,
   },

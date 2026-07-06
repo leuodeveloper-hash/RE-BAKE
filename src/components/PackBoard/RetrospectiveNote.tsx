@@ -1,12 +1,13 @@
 import React, {useRef, useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2, useTheme} from '@contexts/ThemeContext';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors, useTheme} from '@contexts/ThemeContext';
+import {useTranslation} from '@contexts/LanguageContext';
 import {IconButton} from '@components/IconButton';
 import {EmptyState} from '@components/EmptyState';
-import {EMPTY_RETROSPECTIVE_MESSAGE} from '@components/RecipeGroups/groupAxis';
+import {emptyRetrospectiveMessage} from '@components/RecipeGroups/groupAxis';
 import {IconChevronLeft, IconChevronRight} from '@components/Icon/IconIndex';
-import {type SemanticColorsV2, PrimitiveColorsV2} from '@constants/tokens';
+import {type SemanticColors, PrimitiveColors} from '@constants/tokens';
 import {getElevation} from '@constants/elevation';
 import {triggerHaptic} from '@utils/haptics';
 import {PACK_WIDTH, type PackCardData, type PackOriginRect} from './RecipePack';
@@ -14,12 +15,12 @@ import {PACK_WIDTH, type PackCardData, type PackOriginRect} from './RecipePack';
 /**
  * 회고 노트 팩 — 노란 정사각 노트 카드 (레시피 북과 동일 사이즈).
  * 레이아웃: [위] 흰 종이 박스(회고 내용) → [아래] 통합 푸터: 라벨 + ‹ › 페이징(항상 표시, 없으면 disable).
- * 회고는 색 구분이 없어 표지는 낮은 옐로(yellow/96)로 고정.
+ * 회고는 색 구분이 없어 표지는 낮은 크림(cream/96)으로 고정.
  */
 
 /** 회고 노트 폭 — 레시피 북과 동일 (BOOK_PACK_WIDTH) */
-export const NOTE_WIDTH = Math.round(PACK_WIDTH * 1.2); // 264
-const NOTE_SIZE = Math.round(188 * 1.2); // 226 (책 표지와 동일, 정사각)
+export const NOTE_WIDTH = Math.round(PACK_WIDTH * 1.44); // 317
+const NOTE_SIZE = Math.round(188 * 1.44); // 271 (책 표지와 동일, 정사각)
 
 export interface RetrospectiveNoteProps {
   /** 미리볼 회고들 — 각 항목의 title/paperPreview를 종이 박스에 표시, ‹ ›로 페이징 */
@@ -42,8 +43,9 @@ export function RetrospectiveNote({
   rotate = 0,
   emptyCover,
 }: RetrospectiveNoteProps) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
+  const {t} = useTranslation();
   const {isDark} = useTheme();
   const ref = useRef<View>(null);
   const [index, setIndex] = useState(0);
@@ -77,7 +79,7 @@ export function RetrospectiveNote({
         {/* 위: 흰 종이 박스 (회고 내용) */}
         <View style={[styles.paper, isEmpty && styles.paperEmpty]}>
           {isEmpty ? (
-            <EmptyState variant="simple" title={EMPTY_RETROSPECTIVE_MESSAGE} />
+            <EmptyState variant="simple" title={emptyRetrospectiveMessage(t)} />
           ) : (
             <>
               <Text style={styles.contentTitle} numberOfLines={2}>{current?.title}</Text>
@@ -94,7 +96,7 @@ export function RetrospectiveNote({
         {/* 아래: 통합 푸터 — 라벨 + ‹ › (항상 표시, 없으면 disable) */}
         <View style={styles.footer}>
           <Text style={styles.meta} numberOfLines={1}>
-            {metaText ?? (total > 0 ? `${total}개의 회고` : '회고 없음')}
+            {metaText ?? (total > 0 ? t('retrospectiveNote.noteCount', {count: total}) : t('retrospectiveNote.emptyNote'))}
           </Text>
           <View style={styles.pager}>
             <IconButton
@@ -118,31 +120,31 @@ export function RetrospectiveNote({
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   container: {
     width: PACK_WIDTH,
     alignItems: 'center',
   },
   noteCard: {
-    backgroundColor: PrimitiveColorsV2['yellow/96'],
-    borderRadius: 20,
+    backgroundColor: PrimitiveColors['cream/96'],
+    borderRadius: 24,
     borderWidth: 1,
     borderColor: colors['border/muted'],
-    padding: 8,
+    padding: 10,
   },
   // 흰 종이 박스
   paper: {
     flex: 1,
     backgroundColor: colors['surface/bright'],
-    borderRadius: 14,
-    padding: 14,
-    gap: 6,
+    borderRadius: 17,
+    padding: 17,
+    gap: 7,
     boxShadow: '0px 4px 12px -2px rgba(14, 14, 13, 0.12)',
   },
   contentTitle: {
     fontFamily: 'Pretendard-Bold',
-    fontSize: 15,
-    lineHeight: 21,
+    fontSize: 18,
+    lineHeight: 25,
     letterSpacing: -0.3,
     color: colors['foreground/on-surface'],
     marginBottom: 2,
@@ -161,8 +163,8 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   previewText: {
     flex: 1,
     fontFamily: 'Pretendard-Medium',
-    fontSize: 12,
-    lineHeight: 17,
+    fontSize: 14,
+    lineHeight: 20,
     letterSpacing: -0.1,
     color: colors['foreground/on-surface-muted'],
   },
@@ -175,14 +177,14 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12,
+    marginTop: 14,
   },
   meta: {
     flex: 1,
-    paddingLeft: 8,
+    paddingLeft: 10,
     fontFamily: 'Pretendard-Medium',
-    fontSize: 12,
-    lineHeight: 16,
+    fontSize: 14,
+    lineHeight: 19,
     letterSpacing: -0.1,
     color: colors['foreground/on-surface'],
   },

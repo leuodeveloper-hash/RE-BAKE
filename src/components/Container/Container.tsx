@@ -2,8 +2,8 @@ import React from 'react';
 import {StyleProp, StyleSheet, View, ViewStyle} from 'react-native';
 import {BlurView} from 'expo-blur';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokens';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import type {SemanticColors} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTheme} from '@contexts/ThemeContext';
 
 /**
@@ -43,7 +43,7 @@ export function Container({
   contentStyle,
   style,
 }: ContainerProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
   const {isDark} = useTheme();
   const radius = borderRadius ?? Radius['radius-lg'];
 
@@ -76,7 +76,7 @@ export function Container({
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) =>
+const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
     base: {
       overflow: 'hidden',

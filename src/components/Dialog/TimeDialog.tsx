@@ -3,11 +3,12 @@ import {StyleSheet, Text, View} from 'react-native';
 import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
 import {TextInput} from '@components/TextInput';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import type {SemanticColorsV2} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {IconClockTwotone} from '@components/Icon/IconIndex';
+import {useTranslation} from '@contexts/LanguageContext';
 
 export interface TimeDialogProps {
   visible: boolean;
@@ -37,7 +38,8 @@ function formatTime(hours: string, minutes: string): string {
 }
 
 export function TimeDialog({visible, onClose, value, onConfirm}: TimeDialogProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
+  const {t} = useTranslation();
   const [hours, setHours] = useState('');
   const [minutes, setMinutes] = useState('');
 
@@ -61,16 +63,16 @@ export function TimeDialog({visible, onClose, value, onConfirm}: TimeDialogProps
       onClose={onClose}
       icon={IconClockTwotone}
       avatarColor="lime"
-      title="조리 시간 설정"
+      title={t('time.dialogTitle')}
       actions={<>
-        <Button label="취소" variant="soft" onPress={onClose} />
-        <Button label="확인" variant="filled" onPress={handleConfirm} />
+        <Button label={t('time.cancel')} variant="soft" onPress={onClose} />
+        <Button label={t('time.confirm')} variant="filled" onPress={handleConfirm} />
       </>}
     >
       <View style={styles.row}>
         <View style={styles.inputWrap}>
           <TextInput
-            label="시간"
+            label={t('time.hoursLabel')}
             value={hours}
             onChangeText={setHours}
             keyboardType="number-pad"
@@ -82,7 +84,7 @@ export function TimeDialog({visible, onClose, value, onConfirm}: TimeDialogProps
         <Text style={styles.colon}>:</Text>
         <View style={styles.inputWrap}>
           <TextInput
-            label="분"
+            label={t('time.minutesLabel')}
             value={minutes}
             onChangeText={setMinutes}
             keyboardType="number-pad"
@@ -96,7 +98,7 @@ export function TimeDialog({visible, onClose, value, onConfirm}: TimeDialogProps
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'flex-end',

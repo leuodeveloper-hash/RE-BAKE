@@ -1,13 +1,13 @@
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {SvgProps} from 'react-native-svg';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {IconClose} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
 import {Avatar, AvatarColor} from '@components/Avatar/Avatar';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useThemedStyles} from '@hooks/useThemedStyles';
 
 export interface SheetHeaderProps {
   title: string;
@@ -25,7 +25,7 @@ export interface SheetHeaderProps {
 }
 
 export function SheetHeader({title, description, onClose, icon, avatarColor, headerGraphic, headerType = 'default'}: SheetHeaderProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
 
   const hasGraphic = headerGraphic || icon;
 
@@ -109,7 +109,7 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   graphicRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',

@@ -1,5 +1,9 @@
 import {Platform, Share} from 'react-native';
 import {getRecipeShareUrl} from '@config/share';
+import {translate, deviceLanguage} from '../i18n';
+
+const t = (key: string, params?: Record<string, string | number>) =>
+  translate(deviceLanguage(), key, params);
 
 export interface ShareRecipeArgs {
   id: string;
@@ -10,7 +14,7 @@ export interface ShareRecipeArgs {
 
 export async function shareRecipe({id, title, onCopied, onError}: ShareRecipeArgs): Promise<void> {
   const url = getRecipeShareUrl(id);
-  const subject = title ? `'${title}' 레시피` : '레시피';
+  const subject = title ? t('shareRecipe.recipeWithTitle', {title}) : t('shareRecipe.recipe');
   const message = `${subject}\n${url}`;
 
   if (Platform.OS === 'web') {
@@ -30,7 +34,7 @@ export async function shareRecipe({id, title, onCopied, onError}: ShareRecipeArg
         return;
       }
     } catch {/* fall through */}
-    onError?.('공유에 실패했습니다');
+    onError?.(t('shareRecipe.shareFailed'));
     return;
   }
 
@@ -41,6 +45,6 @@ export async function shareRecipe({id, title, onCopied, onError}: ShareRecipeArg
       url: Platform.OS === 'ios' ? url : undefined,
     });
   } catch {
-    onError?.('공유에 실패했습니다');
+    onError?.(t('shareRecipe.shareFailed'));
   }
 }

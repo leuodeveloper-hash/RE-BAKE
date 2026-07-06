@@ -7,7 +7,6 @@ import {
   Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
-  Keyboard,
   Platform,
   Pressable,
   ScrollView,
@@ -18,6 +17,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {recognizeImageText} from '@utils/recipeOcr';
+import {dismissKeyboardAndWait} from '@utils/keyboard';
 import Svg, {Rect} from 'react-native-svg';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import {getPersistentUri} from '@utils/imageUpload';
@@ -62,14 +62,16 @@ import {
 import {KeyboardToolbar} from '@components/KeyboardToolbar';
 import {EditorToolbar} from '@components/EditorToolbar';
 import {YouTubePlayerModal} from '@components/YouTubePlayer';
+import {useYouTubePlayer} from '@contexts/YouTubePlayerContext';
 import {parseYouTubeVideoId} from '@utils/youtube';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useKeyboardHeight} from '@hooks/useKeyboardHeight';
 import {useEscapeKey} from '@hooks/useEscapeKey';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {useAuthSheet} from '@contexts/AuthSheetContext';
+import {useTranslation} from '@contexts/LanguageContext';
 import {useResponsiveTypography} from '@hooks/useResponsiveTypography';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 
@@ -236,9 +238,10 @@ export function CookingMode({
   advicePhotos,
   referenceUrl,
 }: CookingModeProps) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const insets = useSafeAreaInsets();
+  const {t} = useTranslation();
 
   // 로컬 스낵바 (Modal 위에 표시)
   const [localSnackbar, setLocalSnackbar] = useState<string | null>(null);
@@ -276,7 +279,14 @@ export function CookingMode({
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showScanMenu, setShowScanMenu] = useState(false);
   const [ocrBusy, setOcrBusy] = useState(false);
-  const [youtubeOpen, setYoutubeOpen] = useState(false);
+  // 유튜브 PiP는 상세와 동일한 전역 인스턴스 사용. 요리모드는 네이티브 Modal이라
+  // 앱 루트 PiP를 덮으므로, 열려 있는 동안 hostInModal=true로 루트 PiP를 숨기고
+  // 여기(Modal 안)에서 같은 videoId로 직접 렌더 → PiP가 요리모드 위에 뜬다.
+  const {videoId: ytVideoId, open: openYouTube, close: closeYouTube, setHostInModal} = useYouTubePlayer();
+  useEffect(() => {
+    setHostInModal(true);
+    return () => setHostInModal(false);
+  }, [setHostInModal]);
 
   const referenceYouTubeId = useMemo(() => parseYouTubeVideoId(referenceUrl), [referenceUrl]);
   const [showPhotoSubmenu, setShowPhotoSubmenu] = useState(false);
@@ -466,8 +476,8 @@ export function CookingMode({
   // Group menu items
   const groupMenuItems = useMemo(() => [
     ...groupNames.map((name, i) => ({id: String(i), label: name})),
-    ...(hasAdvice ? [{id: 'advice', label: '베이키의 조언', icon: IconLogoSymbol}] : []),
-  ], [groupNames, hasAdvice]);
+    ...(hasAdvice ? [{id: 'advice', label: t('cookingMode.bakeyAdvice'), icon: IconLogoSymbol}] : []),
+  ], [groupNames, hasAdvice, t]);
 
   // Navigate to first card of a group (fade transition)
   const goToGroup = useCallback((id: string) => {
@@ -622,8 +632,8 @@ export function CookingMode({
     }
     savedSnapshotRef.current = snapshotEditCards(cards);
     setLastSavedAt(new Date());
-    showSnackbar(silent ? '자동저장 되었습니다' : '변경사항이 저장되었습니다');
-  }, [onUpdate, computeIsDirty, stepGroups, ingredientGroups, showSnackbar, snapshotEditCards, editAdvice, advice, editAdvicePhotos, advicePhotos]);
+    showSnackbar(silent ? t('cookingMode.autoSaved') : t('cookingMode.changesSaved'));
+  }, [onUpdate, computeIsDirty, stepGroups, ingredientGroups, showSnackbar, snapshotEditCards, editAdvice, advice, editAdvicePhotos, advicePhotos, t]);
 
   const exitEditing = useCallback(() => {
     if (computeIsDirty()) saveEdits(true);
@@ -834,17 +844,14 @@ export function CookingMode({
     const card = editCards[currentIndex];
     if (!card) return;
     setOcrBusy(true);
-    // iOS: 메뉴/키보드 전환과 겹치면 피커 present가 무시됨 → 정리 후 present
-    Keyboard.dismiss();
+    // iOS: 메뉴/키보드 전환과 겹치면 피커 present가 무시됨 → 실제로 키보드 내려간 뒤 present
     try {
-      if (Platform.OS === 'ios') {
-        await new Promise<void>(resolve => setTimeout(resolve, 350));
-      }
+      await dismissKeyboardAndWait();
       const perm = source === 'camera'
         ? await ImagePicker.requestCameraPermissionsAsync()
         : await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        showSnackbar(source === 'camera' ? '카메라 권한이 필요해요 — 설정에서 허용해주세요' : '사진 권한이 필요해요 — 설정에서 허용해주세요');
+        showSnackbar(source === 'camera' ? t('cookingMode.cameraPermissionSettings') : t('cookingMode.photoPermissionSettings'));
         return;
       }
       const result = source === 'camera'
@@ -853,7 +860,7 @@ export function CookingMode({
       if (result.canceled || !result.assets[0]) return;
       const text = (await recognizeImageText(result.assets[0].uri)).trim();
       if (!text) {
-        showSnackbar('이미지에서 글씨를 찾지 못했어요');
+        showSnackbar(t('cookingMode.noTextFound'));
         return;
       }
       updateEditCards(prev => prev.map(c =>
@@ -861,24 +868,24 @@ export function CookingMode({
           ? {...c, description: c.description?.trim() ? `${c.description.trim()}\n${text}` : text}
           : c,
       ));
-      showSnackbar('텍스트를 인식했어요');
+      showSnackbar(t('cookingMode.textRecognized'));
     } catch (e) {
       // eslint-disable-next-line no-console
       console.warn('CookingMode OCR failed', e);
-      showSnackbar('이미지 분석 실패. 다시 시도해주세요');
+      showSnackbar(t('cookingMode.imageAnalysisFailed'));
     } finally {
       setOcrBusy(false);
     }
-  }, [ocrBusy, editCards, currentIndex, updateEditCards, showSnackbar]);
+  }, [ocrBusy, editCards, currentIndex, updateEditCards, showSnackbar, t]);
 
   const pickPhoto = useCallback(async (source: 'camera' | 'gallery', globalIndex: number, currentPhotos?: string[]) => {
     if ((currentPhotos?.length ?? 0) >= MAX_PHOTOS) return;
     if (source === 'camera') {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) { showSnackbar('카메라 권한이 필요해요'); return; }
+      if (!perm.granted) { showSnackbar(t('cookingMode.cameraPermission')); return; }
     } else {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) { showSnackbar('사진 권한이 필요해요'); return; }
+      if (!perm.granted) { showSnackbar(t('cookingMode.photoPermission')); return; }
     }
     const options: ImagePicker.ImagePickerOptions = {
       mediaTypes: ['images'],
@@ -894,7 +901,7 @@ export function CookingMode({
       const newPhotos = [...(currentPhotos ?? []), ...uris].slice(0, MAX_PHOTOS);
       updateCardPhotos(globalIndex, newPhotos);
     }
-  }, [updateCardPhotos, showSnackbar]);
+  }, [updateCardPhotos, showSnackbar, t]);
 
   // 사진 삭제
   const removePhoto = useCallback((globalIndex: number, photoIndex: number, currentPhotos?: string[]) => {
@@ -907,7 +914,7 @@ export function CookingMode({
   const replacePhoto = useCallback(async (globalIndex: number, photoIndex: number, currentPhotos?: string[]) => {
     if (!currentPhotos) return;
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) { showSnackbar('사진 권한이 필요해요'); return; }
+    if (!perm.granted) { showSnackbar(t('cookingMode.photoPermission')); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.8,
@@ -919,17 +926,17 @@ export function CookingMode({
       newPhotos[photoIndex] = uri;
       updateCardPhotos(globalIndex, newPhotos);
     }
-  }, [updateCardPhotos, showSnackbar]);
+  }, [updateCardPhotos, showSnackbar, t]);
 
   // 조언 사진 추가
   const pickAdvicePhoto = useCallback(async (source: 'camera' | 'gallery') => {
     if (editAdvicePhotos.length >= MAX_PHOTOS) return;
     if (source === 'camera') {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) { showSnackbar('카메라 권한이 필요해요'); return; }
+      if (!perm.granted) { showSnackbar(t('cookingMode.cameraPermission')); return; }
     } else {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) { showSnackbar('사진 권한이 필요해요'); return; }
+      if (!perm.granted) { showSnackbar(t('cookingMode.photoPermission')); return; }
     }
     const options: ImagePicker.ImagePickerOptions = {
       mediaTypes: ['images'],
@@ -943,7 +950,7 @@ export function CookingMode({
       const uris = await Promise.all(result.assets.map(a => getPersistentUri(a.uri, a.base64)));
       setEditAdvicePhotos(prev => [...prev, ...uris].slice(0, MAX_PHOTOS));
     }
-  }, [editAdvicePhotos, showSnackbar]);
+  }, [editAdvicePhotos, showSnackbar, t]);
 
   const removeAdvicePhoto = useCallback((photoIndex: number) => {
     setEditAdvicePhotos(prev => prev.filter((_, i) => i !== photoIndex));
@@ -953,16 +960,16 @@ export function CookingMode({
   const addMenuItems = useMemo((): MenuItemData[] => {
     const card = editCards[currentIndex];
     return [
-      {id: 'tip', label: '팁', icon: IconAstriks, disabled: card?.tip != null},
-      {id: 'caution', label: '주의사항', icon: IconCircleAlertFilled, disabled: card?.caution != null},
-      {id: 'photo', label: '사진', icon: IconPhoto, hasChildren: true, disabled: (card?.photos?.length ?? 0) >= MAX_PHOTOS},
+      {id: 'tip', label: t('cookingMode.tip'), icon: IconAstriks, disabled: card?.tip != null},
+      {id: 'caution', label: t('cookingMode.caution'), icon: IconCircleAlertFilled, disabled: card?.caution != null},
+      {id: 'photo', label: t('cookingMode.photo'), icon: IconPhoto, hasChildren: true, disabled: (card?.photos?.length ?? 0) >= MAX_PHOTOS},
     ];
-  }, [editCards, currentIndex]);
+  }, [editCards, currentIndex, t]);
 
   const photoSubmenuItems = useMemo((): MenuItemData[] => [
-    {id: 'camera', label: '사진찍기', icon: IconCameraFilled},
-    {id: 'gallery', label: '앨범에서 선택', icon: IconPhoto},
-  ], []);
+    {id: 'camera', label: t('cookingMode.takePhoto'), icon: IconCameraFilled},
+    {id: 'gallery', label: t('cookingMode.chooseFromAlbum'), icon: IconPhoto},
+  ], [t]);
 
   // 메뉴 선택 핸들러
   const handleAddMenuSelect = useCallback((menuId: string) => {
@@ -990,15 +997,15 @@ export function CookingMode({
   const formatSavedTime = useCallback((date: Date) => {
     const h = date.getHours();
     const m = date.getMinutes();
-    const period = h < 12 ? '오전' : '오후';
+    const period = h < 12 ? t('cookingMode.am') : t('cookingMode.pm');
     const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    return `마지막 저장 ${period} ${h12}:${String(m).padStart(2, '0')}`;
-  }, []);
+    return t('cookingMode.lastSavedAt', {period, time: `${h12}:${String(m).padStart(2, '0')}`});
+  }, [t]);
 
   // 카드 오버플로우 메뉴
   const cardOverflowItems = useMemo((): MenuItemData[] => [
-    {id: 'delete', label: '과정 삭제', icon: IconTrash, destructive: true},
-  ], []);
+    {id: 'delete', label: t('cookingMode.deleteStep'), icon: IconTrash, destructive: true},
+  ], [t]);
 
   const handleCardOverflowSelect = useCallback((menuId: string) => {
     setShowCardOverflow(false);
@@ -1038,15 +1045,15 @@ export function CookingMode({
         setCurrentIndex(newIdx);
         scrollToIndex(newIdx);
       }
-      showSnackbar('과정이 삭제되었습니다');
+      showSnackbar(t('cookingMode.stepDeleted'));
     }
-  }, [displayCards, currentIndex, isEditing, updateEditCards, onUpdate, stepGroups, steps, scrollToIndex, showSnackbar]);
+  }, [displayCards, currentIndex, isEditing, updateEditCards, onUpdate, stepGroups, steps, scrollToIndex, showSnackbar, t]);
 
   // 최상단 오버플로우 메뉴 (편집 / 과정 삭제)
   const topOverflowItems = useMemo((): MenuItemData[] => [
-    {id: 'edit', label: '편집', icon: IconEdit},
-    {id: 'delete', label: '과정 삭제', icon: IconTrash, destructive: true},
-  ], []);
+    {id: 'edit', label: t('cookingMode.edit'), icon: IconEdit},
+    {id: 'delete', label: t('cookingMode.deleteStep'), icon: IconTrash, destructive: true},
+  ], [t]);
 
   const handleTopOverflowSelect = useCallback((menuId: string) => {
     setShowTopOverflow(false);
@@ -1078,7 +1085,7 @@ export function CookingMode({
   // 보기 모드에서 사진 바로 등록 (편집 진입 없이 원본 데이터 갱신)
   const addStepPhoto = useCallback(async (card: CookingCard) => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) { showSnackbar('사진 권한이 필요해요'); return; }
+    if (!perm.granted) { showSnackbar(t('cookingMode.photoPermission')); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images', 'videos'],
       quality: 0.8,
@@ -1090,27 +1097,27 @@ export function CookingMode({
     let srcUri = asset.uri;
     let srcBase64 = asset.base64;
     if (asset.type === 'video') {
-      if (Platform.OS === 'web') { showSnackbar('영상 프레임 추출은 앱에서 가능해요'); return; }
+      if (Platform.OS === 'web') { showSnackbar(t('cookingMode.videoFrameAppOnly')); return; }
       try {
         const {uri: frameUri} = await VideoThumbnails.getThumbnailAsync(asset.uri, {time: 0, quality: 0.9});
         srcUri = frameUri;
         srcBase64 = undefined;
       } catch (e) {
         console.warn('영상 프레임 추출 실패:', e);
-        showSnackbar('영상에서 이미지를 가져오지 못했어요');
+        showSnackbar(t('cookingMode.videoFrameFailed'));
         return;
       }
     }
     const uri = await getPersistentUri(srcUri, srcBase64);
     const newPhotos = [...(card.photos ?? []), uri].slice(0, MAX_PHOTOS);
     const ok = commitStepPhotos(card, newPhotos);
-    showSnackbar(ok ? '사진이 추가되었습니다' : '사진을 추가하지 못했어요');
-  }, [commitStepPhotos, showSnackbar]);
+    showSnackbar(ok ? t('cookingMode.photoAdded') : t('cookingMode.photoAddFailed'));
+  }, [commitStepPhotos, showSnackbar, t]);
 
   // 보기 모드에서 기존 사진 탭 → 교체 (onUpdate 경로로 실제 반영/저장)
   const replaceStepPhotoView = useCallback(async (card: CookingCard, photoIndex: number) => {
     const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) { showSnackbar('사진 권한이 필요해요'); return; }
+    if (!perm.granted) { showSnackbar(t('cookingMode.photoPermission')); return; }
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.8,
@@ -1121,8 +1128,8 @@ export function CookingMode({
     const newPhotos = [...(card.photos ?? [])];
     newPhotos[photoIndex] = uri;
     const ok = commitStepPhotos(card, newPhotos);
-    showSnackbar(ok ? '사진이 교체되었습니다' : '사진을 교체하지 못했어요');
-  }, [commitStepPhotos, showSnackbar]);
+    showSnackbar(ok ? t('cookingMode.photoReplaced') : t('cookingMode.photoReplaceFailed'));
+  }, [commitStepPhotos, showSnackbar, t]);
 
   // 스텝 사진 스택 — 뷰·편집 공통 렌더러(동일 경험). 큰 이미지 겹침 + 추가(+) 카드.
   // 탭=전체보기, 롱프레스=관리모드(X 삭제 노출)·관리모드 탭=교체.
@@ -1149,7 +1156,7 @@ export function CookingMode({
       } else {
         const np = (item.photos ?? []).filter((_, k) => k !== i);
         const ok = commitStepPhotos(item, np);
-        showSnackbar(ok ? '사진이 삭제되었습니다' : '삭제하지 못했어요');
+        showSnackbar(ok ? t('cookingMode.photoDeleted') : t('cookingMode.photoDeleteFailed'));
       }
     };
     return (
@@ -1201,7 +1208,7 @@ export function CookingMode({
         ) : null}
       </View>
     );
-  }, [isNarrow, canEdit, photoManage, openAuthSheet, pickPhoto, addStepPhoto, replacePhoto, replaceStepPhotoView, removePhoto, commitStepPhotos, showSnackbar, styles, colors]);
+  }, [isNarrow, canEdit, photoManage, openAuthSheet, pickPhoto, addStepPhoto, replacePhoto, replaceStepPhotoView, removePhoto, commitStepPhotos, showSnackbar, styles, colors, t]);
 
   // 보기(요리) 스텝 — [텍스트 칼럼(좌)][사진 최대 3장 일렬·기울임 + 추가카드(우)].
   // 사진은 고정 크기, 좁으면 잘리고 슬라이드로 노출.
@@ -1268,7 +1275,7 @@ export function CookingMode({
             {isCurrentEditing ? (
               <View style={styles.cardHeaderActions}>
                 <Tooltip
-                  message={lastSavedAt ? formatSavedTime(lastSavedAt) : '아직 저장된 내역이 없습니다'}
+                  message={lastSavedAt ? formatSavedTime(lastSavedAt) : t('cookingMode.noSaveHistory')}
                   visible={showInfoTooltip && isActive}
                   onClose={() => setShowInfoTooltip(false)}
                   position="bottom"
@@ -1310,7 +1317,7 @@ export function CookingMode({
                 onChangeText={text => updateCardField(item.globalIndex, 'description', text)}
                 multiline
                 textAlignVertical="top"
-                placeholder="과정 설명"
+                placeholder={t('cookingMode.stepDescriptionPlaceholder')}
                 placeholderTextColor={colors['foreground/on-surface-muted']}
                 selectionColor={colors['custom/yellow']}
               />
@@ -1329,7 +1336,7 @@ export function CookingMode({
                   size="large"
                   onChangeText={text => updateCardField(item.globalIndex, 'tip', text)}
                   onRemove={() => removeCardField(item.globalIndex, 'tip')}
-                  placeholder="팁을 입력하세요"
+                  placeholder={t('cookingMode.tipPlaceholder')}
                 />
               ) : item.tip ? (
                 <EditableChip label={item.tip} variant="tip" size="large" />
@@ -1345,7 +1352,7 @@ export function CookingMode({
                   size="large"
                   onChangeText={text => updateCardField(item.globalIndex, 'caution', text)}
                   onRemove={() => removeCardField(item.globalIndex, 'caution')}
-                  placeholder="주의사항을 입력하세요"
+                  placeholder={t('cookingMode.cautionPlaceholder')}
                 />
               ) : item.caution ? (
                 <EditableChip label={item.caution} variant="yellow" size="large" />
@@ -1363,7 +1370,7 @@ export function CookingMode({
                   {(item.editIngredients ?? []).map(ing => `${ing.name} ${ing.amount}`).join(', ')}
                 </Text>
               ) : (
-                <Text style={styles.ingredientEmpty}>과정에 필요한 재료를 선택하세요.</Text>
+                <Text style={styles.ingredientEmpty}>{t('cookingMode.selectStepIngredients')}</Text>
               )}
             </Pressable>
           ) : item.matchedIngredients.length > 0 ? (
@@ -1398,7 +1405,7 @@ export function CookingMode({
         </Card>
       </View>
     );
-  }, [isEditing, renderViewStep, renderPhotoStack, styles, colors, updateCardField, totalCards, photoExpanded, checkedIngredients, toggleIngredient, undo, redo, canUndo, canRedo, showAddMenu, showPhotoSubmenu, addMenuItems, photoSubmenuItems, handleAddMenuSelect, removeCardField, canEdit, handleDoubleTap, lastSavedAt, formatSavedTime, showInfoTooltip, showCardOverflow, cardOverflowItems, handleCardOverflowSelect]);
+  }, [isEditing, renderViewStep, renderPhotoStack, styles, colors, updateCardField, totalCards, photoExpanded, checkedIngredients, toggleIngredient, undo, redo, canUndo, canRedo, showAddMenu, showPhotoSubmenu, addMenuItems, photoSubmenuItems, handleAddMenuSelect, removeCardField, canEdit, handleDoubleTap, lastSavedAt, formatSavedTime, showInfoTooltip, showCardOverflow, cardOverflowItems, handleCardOverflowSelect, t]);
 
   return (
     <BottomSheet
@@ -1459,7 +1466,7 @@ export function CookingMode({
                         </View>
                       )}
                       <Selector
-                        label="베이키의 조언"
+                        label={t('cookingMode.bakeyAdvice')}
                         variant="ghost"
                         onPress={() => setShowGroupMenu(prev => !prev)}
                       />
@@ -1495,11 +1502,13 @@ export function CookingMode({
                       icon={IconArrowTopRight}
                       onPress={() => {
                         if (referenceYouTubeId) {
-                          setYoutubeOpen(true);
+                          openYouTube(referenceYouTubeId);
                         } else {
                           Linking.openURL(referenceUrl);
                         }
                       }}
+                      // 이미 같은 영상이 재생 중이면 링크 버튼 비활성 (중복 열기 방지)
+                      disabled={!!referenceYouTubeId && ytVideoId === referenceYouTubeId}
                       variant="ghost-secondary"
                       size="medium"
                     />
@@ -1574,7 +1583,7 @@ export function CookingMode({
                       <View style={styles.cardHeader}>
                         <View style={[styles.adviceTitleRow, {flex: 1}]}>
                           <AppIcon icon={IconLogoSymbol} size="sm" color={colors['custom/yellow-var']} />
-                          <Text style={styles.adviceTitle}>베이키의 조언</Text>
+                          <Text style={styles.adviceTitle}>{t('cookingMode.bakeyAdvice')}</Text>
                         </View>
                         {isEditing && isOnAdviceCard && (
                           <View style={styles.cardHeaderActions}>
@@ -1599,7 +1608,7 @@ export function CookingMode({
                             onChangeText={setEditAdvice}
                             multiline
                             textAlignVertical="top"
-                            placeholder="베이키의 조언을 입력하세요"
+                            placeholder={t('cookingMode.bakeyAdvicePlaceholder')}
                             placeholderTextColor={colors['custom/yellow-var'] + '80'}
                             selectionColor={colors['custom/yellow']}
                           />
@@ -1628,7 +1637,7 @@ export function CookingMode({
                       {isEditing && isOnAdviceCard && (
                         <Menu
                           key={showPhotoSubmenu ? 'adv-sub' : 'adv-main'}
-                          items={showPhotoSubmenu ? photoSubmenuItems : [{id: 'photo', label: '사진', icon: IconPhoto, hasChildren: true, disabled: editAdvicePhotos.length >= MAX_PHOTOS}]}
+                          items={showPhotoSubmenu ? photoSubmenuItems : [{id: 'photo', label: t('cookingMode.photo'), icon: IconPhoto, hasChildren: true, disabled: editAdvicePhotos.length >= MAX_PHOTOS}]}
                           visible={showAddMenu}
                           onSelect={(id) => {
                             if (id === 'photo') {
@@ -1678,8 +1687,8 @@ export function CookingMode({
               showScanMenu ? (
                 <Menu
                   items={[
-                    {id: 'camera', label: '촬영해서 스캔', icon: IconCameraFilled},
-                    {id: 'gallery', label: '갤러리에서 스캔', icon: IconPhoto},
+                    {id: 'camera', label: t('cookingMode.scanByCamera'), icon: IconCameraFilled},
+                    {id: 'gallery', label: t('cookingMode.scanFromGallery'), icon: IconPhoto},
                   ]}
                   visible={showScanMenu}
                   onSelect={(id) => { setShowScanMenu(false); cookingScan(id === 'camera' ? 'camera' : 'gallery'); }}
@@ -1710,12 +1719,12 @@ export function CookingMode({
         <BottomSheet
           visible={showIngredientPicker}
           onClose={() => setShowIngredientPicker(false)}
-          title="재료"
+          title={t('cookingMode.ingredients')}
           headerType="center"
         >
           <MenuItem
             id="none"
-            label="재료없음"
+            label={t('cookingMode.noIngredients')}
             checked={!(editCards[currentIndex]?.editIngredients?.length)}
             onPress={() => {
               const card = editCards[currentIndex];
@@ -1744,13 +1753,13 @@ export function CookingMode({
         <BottomSheet
           visible={showIngredientList}
           onClose={() => { setShowIngredientList(false); setIsInitialIngredientSheet(false); }}
-          title={isInitialIngredientSheet ? '재료 준비' : '재료'}
+          title={isInitialIngredientSheet ? t('cookingMode.prepareIngredients') : t('cookingMode.ingredients')}
           headerType="center"
           bottomAction={
             <>
-              <Button label={allIngredientsChecked ? '전체 해제' : '전체선택'} variant="soft" onPress={toggleAllIngredients} style={{flex: 1}} />
+              <Button label={allIngredientsChecked ? t('cookingMode.deselectAll') : t('cookingMode.selectAll')} variant="soft" onPress={toggleAllIngredients} style={{flex: 1}} />
               {allIngredientsChecked && (
-                <Button label="준비 완료" onPress={() => { setShowIngredientList(false); setIsInitialIngredientSheet(false); }} style={{flex: 1}} />
+                <Button label={t('cookingMode.prepDone')} onPress={() => { setShowIngredientList(false); setIsInitialIngredientSheet(false); }} style={{flex: 1}} />
               )}
             </>
           }
@@ -1805,9 +1814,9 @@ export function CookingMode({
         </View>
 
         <YouTubePlayerModal
-          visible={youtubeOpen}
-          onClose={() => setYoutubeOpen(false)}
-          videoId={referenceYouTubeId}
+          visible={ytVideoId !== null}
+          onClose={closeYouTube}
+          videoId={ytVideoId}
         />
 
         {/* 사진 전체보기 뷰어 — 탭하면 큰 이미지 풀스크린. 편집 가능하면 교체/삭제 */}
@@ -1823,7 +1832,7 @@ export function CookingMode({
                   <View style={styles.viewerActionsWrap}>
                     <BottomActionBar background="#000000">
                       <Button
-                        label="교체"
+                        label={t('cookingMode.replace')}
                         variant="soft"
                         onPress={() => {
                           const {card, index, editing} = viewerPhoto;
@@ -1834,7 +1843,7 @@ export function CookingMode({
                         }}
                       />
                       <Button
-                        label="삭제"
+                        label={t('cookingMode.delete')}
                         variant="soft"
                         destructive
                         onPress={() => {
@@ -1845,7 +1854,7 @@ export function CookingMode({
                           } else {
                             const np = (card.photos ?? []).filter((_, k) => k !== index);
                             const ok = commitStepPhotos(card, np);
-                            showSnackbar(ok ? '사진이 삭제되었습니다' : '삭제하지 못했어요');
+                            showSnackbar(ok ? t('cookingMode.photoDeleted') : t('cookingMode.photoDeleteFailed'));
                           }
                         }}
                       />
@@ -1860,7 +1869,7 @@ export function CookingMode({
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) =>
+const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
     topNav: {
       position: 'absolute',

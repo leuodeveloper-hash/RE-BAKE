@@ -19,14 +19,15 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import {LinearGradient} from 'expo-linear-gradient';
 import {Image as ExpoImage} from 'expo-image';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useThemedStyles} from '@hooks/useThemedStyles';
 import {triggerHaptic} from '@utils/haptics';
-import {useColorsV2, useTheme} from '@contexts/ThemeContext';
+import {useColors, useTheme} from '@contexts/ThemeContext';
+import {useTranslation} from '@contexts/LanguageContext';
 import {SvgProps} from 'react-native-svg';
-import {IconChartNoAxesGantt, IconEllipsisVertical, IconLockFilled, IconPhoto} from '@components/Icon/IconIndex';
+import {IconArrowTopRight, IconChartNoAxesGantt, IconEllipsisVertical, IconLockFilled, IconEyeClosed, IconPhoto} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
 import {Thumbnail} from '@components/Thumbnail';
 
@@ -199,7 +200,7 @@ export function StackedThumbnail({
 }: {
   size: number;
   imageUrl?: string | number;
-  colors: ReturnType<typeof useColorsV2>;
+  colors: ReturnType<typeof useColors>;
   paperTitle?: string;
   paperPreview?: string[];
   /** 이미지 뒤 종이 표시 여부 (이미지 없으면 항상 표시) */
@@ -357,7 +358,7 @@ function GridThumbnail({
 }: {
   styles: ReturnType<typeof createStyles>;
   imageUrl?: string;
-  colors: ReturnType<typeof useColorsV2>;
+  colors: ReturnType<typeof useColors>;
   paperTitle?: string;
   paperPreview?: string[];
 }) {
@@ -415,6 +416,8 @@ export interface RecipeCardProps {
   trailingIconColor?: string;
   /** 잠금 상태 (paywall용): BlurView 오버레이 + 잠금 아이콘 표시 */
   locked?: boolean;
+  /** 비공개(숨김) — 제목 뒤에 자물쇠 표시 (어드민 전용 공식 콘텐츠 표시) */
+  hidden?: boolean;
   /** list 레이아웃 크기 (기본: 'default', 'small': 44px 썸네일) */
   size?: 'default' | 'small';
   /** list 레이아웃 썸네일 앞 번호 */
@@ -431,6 +434,14 @@ export interface RecipeCardProps {
   recipePdfData?: import('@utils/generateRecipeHtml').RecipePdfData;
   /** list 레이아웃 하단 디바이더 숨김 (마지막 아이템/단독 아이템) */
   hideDivider?: boolean;
+  /** 참고 링크(referenceUrl) 보유 여부 — 메타데이터 줄 맨 뒤에 링크 아이콘 표시 */
+  hasReference?: boolean;
+}
+
+// 메타데이터 줄 링크 표시 아이콘 — list/grid/photoList 공통. (참고 링크 보유 표시)
+function MetaLinkIcon({show, size, color}: {show: boolean; size: number; color: string}) {
+  if (!show) return null;
+  return <IconArrowTopRight width={size} height={size} color={color} />;
 }
 
 export function RecipeCard({
@@ -449,6 +460,7 @@ export function RecipeCard({
   trailingIcon,
   trailingIconColor,
   locked = false,
+  hidden = false,
   size = 'default',
   leadingNumber,
   customSubtitle,
@@ -457,13 +469,15 @@ export function RecipeCard({
   paperTitle,
   recipePdfData,
   hideDivider = false,
+  hasReference = false,
 }: RecipeCardProps) {
-  const colors = useColorsV2();
-  const styles = useThemedStylesV2(createStyles);
+  const colors = useColors();
+  const styles = useThemedStyles(createStyles);
+  const {t} = useTranslation();
   const menuButtonRef = useRef<View>(null);
   const hasImage = !!imageUrl;
   const parts = [cookbook, method].filter(Boolean);
-  if (specificGravity) parts.push(`비중 ${specificGravity}`);
+  if (specificGravity) parts.push(t('recipeCard.specificGravity', {value: specificGravity}));
   const subtitle = parts.join(' · ');
 
   const handlePress = useCallback(() => {
@@ -547,6 +561,9 @@ export function RecipeCard({
                 <Text style={isSmall ? styles.listTitleSmall : styles.listTitle} numberOfLines={1}>
                   {title}
                 </Text>
+                {hidden && (
+                  <IconEyeClosed width={14} height={14} color={colors['foreground/on-surface-muted']} />
+                )}
               </View>
             )}
             {customSubtitle ? (
@@ -558,12 +575,15 @@ export function RecipeCard({
                   {customSubtitle}
                 </Text>
               </View>
-            ) : (subtitle || reviewCount > 0) && (
+            ) : (subtitle || reviewCount > 0 || hasReference) && (
               <View style={styles.listSubtitleRow}>
-                <Text style={styles.listSubtitle} numberOfLines={1}>
-                  {subtitle}
-                </Text>
-                {reviewCount > 0 && subtitle && (
+                {!!subtitle && (
+                  <Text style={styles.listSubtitle} numberOfLines={1}>
+                    {subtitle}
+                  </Text>
+                )}
+                <MetaLinkIcon show={hasReference} size={12} color={colors['foreground/on-surface-muted']} />
+                {reviewCount > 0 && (subtitle || hasReference) && (
                   <Text style={styles.listSubtitle}>·</Text>
                 )}
                 {reviewCount > 0 && (
@@ -642,10 +662,14 @@ export function RecipeCard({
               <IconLockFilled width={16} height={16} color="rgba(255,255,255,0.9)" />
             )}
             <Text style={styles.photoListTitle} numberOfLines={1}>{title}</Text>
+            {hidden && (
+              <IconEyeClosed width={14} height={14} color="rgba(255,255,255,0.9)" />
+            )}
           </View>
           <View style={styles.gridSubtitleRow}>
-            <Text style={styles.photoListSubtitle} numberOfLines={1}>{subtitle}</Text>
-            {reviewCount > 0 && subtitle && <Text style={styles.photoListSubtitle}>·</Text>}
+            {!!subtitle && <Text style={styles.photoListSubtitle} numberOfLines={1}>{subtitle}</Text>}
+            <MetaLinkIcon show={hasReference} size={10} color="rgba(255,255,255,0.7)" />
+            {reviewCount > 0 && (subtitle || hasReference) && <Text style={styles.photoListSubtitle}>·</Text>}
             {reviewCount > 0 && (
               <View style={styles.gridReviewBadge}>
                 <IconChartNoAxesGantt width={10} height={10} color="rgba(255,255,255,0.7)" />
@@ -680,14 +704,18 @@ export function RecipeCard({
                 <IconLockFilled width={16} height={16} color={colors['foreground/on-surface-muted']} />
               )}
               <Text style={styles.gridTitle} numberOfLines={1}>{title}</Text>
+              {hidden && (
+                <IconEyeClosed width={14} height={14} color={colors['foreground/on-surface-muted']} />
+              )}
             </View>
           )}
-          {(subtitle || reviewCount > 0) && (
+          {(subtitle || reviewCount > 0 || hasReference) && (
             <View style={styles.gridSubtitleRow}>
               {!!subtitle && (
                 <Text style={styles.gridSubtitle} numberOfLines={1}>{subtitle}</Text>
               )}
-              {reviewCount > 0 && !!subtitle && (
+              <MetaLinkIcon show={hasReference} size={12} color={colors['foreground/on-surface-muted']} />
+              {reviewCount > 0 && (!!subtitle || hasReference) && (
                 <Text style={styles.gridSubtitle}>·</Text>
               )}
               {reviewCount > 0 && (
@@ -715,7 +743,7 @@ export function RecipeCard({
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // Grid 레이아웃 (새 디자인: 썸네일 + 하단 콘텐츠)
   gridCard: {
     width: '100%',

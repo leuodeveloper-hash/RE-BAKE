@@ -13,9 +13,9 @@ import {
   TextStyle,
 } from 'react-native';
 import {IconCloseCircleFilled} from '@components/Icon/IconIndex';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
-import type {SemanticColorsV2} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
+import type {SemanticColors} from '@constants/tokens';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
@@ -58,8 +58,8 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
   onContentSizeChange,
   ...props
 }, ref) => {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const isGhost = style === 'ghost';
   const isSmall = size === 'small';
   const isYellow = variant === 'yellow';
@@ -173,7 +173,7 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
   );
 });
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   container: {
     width: '100%',
   },

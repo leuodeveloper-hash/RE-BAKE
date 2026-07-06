@@ -1,8 +1,9 @@
 import React from 'react';
 import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
-import {useColorsV2} from '@contexts/ThemeContext';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import type {SemanticColorsV2} from '@constants/tokens';
+import {useColors} from '@contexts/ThemeContext';
+import {useTranslation} from '@contexts/LanguageContext';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 
@@ -15,7 +16,8 @@ export interface MethodFilterChipsProps {
 }
 
 export function MethodFilterChips({methods, selectedMethod, onSelect}: MethodFilterChipsProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
+  const {t} = useTranslation();
 
   return (
     <ScrollView
@@ -23,7 +25,7 @@ export function MethodFilterChips({methods, selectedMethod, onSelect}: MethodFil
       showsHorizontalScrollIndicator={false}
       contentContainerStyle={styles.container}>
       <Chip
-        label="전체"
+        label={t('methodFilterChips.all')}
         active={selectedMethod === null}
         onPress={() => onSelect(null)}
         styles={styles}
@@ -67,7 +69,7 @@ function Chip({
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   container: {
     paddingHorizontal: Spacing.md,
     gap: Spacing.xs,

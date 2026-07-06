@@ -6,9 +6,10 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {RecipeEditScreen} from '@screens/RecipeEditScreen';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
+import {useTranslation} from '@contexts/LanguageContext';
 import {db} from '@config/firebase';
 import {uploadRecipeImage, deleteRecipeImage, isLocalUri} from '@utils/imageUpload';
 import type {AvatarColor} from '@components/Avatar/Avatar';
@@ -31,7 +32,8 @@ function stripUndefined(obj: any): any {
 export default function RecipeEditRoute() {
   const {id, section, target} = useLocalSearchParams<{id: string; section?: string; target?: string}>();
   const router = useRouter();
-  const colors = useColorsV2();
+  const {t} = useTranslation();
+  const colors = useColors();
   const {findRecipeById, recipes, setRecipes, availableCookbooks, cookbookColors, setCookbookColor} = useRecipes();
   const {showSnackbar} = useSnackbar();
   const {user, isAdmin} = useAuth();
@@ -48,6 +50,20 @@ export default function RecipeEditRoute() {
     });
     return merged;
   }, [isExploreTarget, cookbookColors, exploreCookbooks]);
+
+  // 공식(둘러보기) 레시피 편집 중 인라인 쿡북 추가 → 개인 색맵이 아니라 explore_cookbooks(Firestore)로.
+  const handleSetCookbookColor = useCallback(async (name: string, color: AvatarColor) => {
+    if (isExploreTarget) {
+      try {
+        await setDoc(doc(db, 'explore_cookbooks', name), {name, color, createdAt: new Date().toISOString()});
+        await reloadExplore();
+      } catch (e) {
+        console.warn('공식 레시피 북 추가 실패:', e);
+      }
+    } else {
+      setCookbookColor(name, color);
+    }
+  }, [isExploreTarget, setCookbookColor, reloadExplore]);
 
   // 레시피 찾기: 로컬 → explore 구독
   const recipe = findRecipeById(id)
@@ -91,7 +107,7 @@ export default function RecipeEditRoute() {
         await reloadExplore();
       } catch (e: any) {
         console.error('Explore recipe save failed:', e);
-        showSnackbar(`저장 실패: ${e?.message ?? e}`);
+        showSnackbar(t('id.saveFailed', {message: e?.message ?? e}));
         return;
       }
     } else if (isMyRecipe) {
@@ -99,9 +115,9 @@ export default function RecipeEditRoute() {
         r.id === id ? {...r, ...data, reviewCount: data.reviews?.length ?? 0} : r,
       ));
     }
-    showSnackbar('레시피가 수정되었습니다');
+    showSnackbar(t('id.recipeUpdated'));
     navigateBack();
-  }, [id, isMyRecipe, isExploreTarget, isAdmin, recipe, setRecipes, showSnackbar, navigateBack]);
+  }, [id, isMyRecipe, isExploreTarget, isAdmin, recipe, setRecipes, showSnackbar, navigateBack, t]);
 
   if (!recipe) return null;
 
@@ -117,7 +133,7 @@ export default function RecipeEditRoute() {
           initialSection={section}
           onClose={handleClose}
           onSave={handleSave}
-          onSetCookbookColor={setCookbookColor}
+          onSetCookbookColor={handleSetCookbookColor}
           isExplore={isExploreTarget}
         />
       </View>

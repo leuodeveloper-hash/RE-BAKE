@@ -1,7 +1,7 @@
 {
   "expo": {
     "newArchEnabled": true,
-    "name": "Bakecycle",
+    "name": "베이클",
     "slug": "rebake",
     "locales": {
       "ko": "./languages/ko.json"
@@ -11,14 +11,14 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "splash": {
-      "backgroundColor": "#FCEEE3"
+      "backgroundColor": "#F8F5ED"
     },
     "assetBundlePatterns": [
       "**/*"
     ],
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.bakecycle.app",
+      "bundleIdentifier": "com.bakle.app",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false,
@@ -37,14 +37,14 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#FCEEE3"
       },
-      "package": "com.bakecycle.app",
+      "package": "com.bakle.app",
       "googleServicesFile": "./google-services.json"
     },
     "web": {
       "favicon": "./assets/favicon.png",
       "bundler": "metro"
     },
-    "scheme": "bakecycle",
+    "scheme": "bakle",
     "runtimeVersion": {
       "policy": "appVersion"
     },
@@ -71,7 +71,10 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#FCEEE3"
+          "image": "./assets/splash.png",
+          "imageWidth": 200,
+          "resizeMode": "contain",
+          "backgroundColor": "#F8F5ED"
         }
       ],
       [
@@ -88,7 +91,7 @@
       [
         "@react-native-google-signin/google-signin",
         {
-          "iosUrlScheme": "com.googleusercontent.apps.420587944388-03rb31splmt5jrme91ntt4k5a1cn7dk7"
+          "iosUrlScheme": "com.googleusercontent.apps.420587944388-q35p6cgif79uebn275run2nftrq926st"
         }
       ],
       [
@@ -105,7 +108,8 @@
             "deploymentTarget": "15.5"
           }
         }
-      ]
+      ],
+      "expo-localization"
     ],
     "extra": {
       "eas": {

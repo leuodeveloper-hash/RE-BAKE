@@ -5,11 +5,6 @@ import {
   SemanticColorsDark,
   type SemanticColors,
 } from '@constants/tokens';
-import {
-  SemanticColorsV2Light,
-  SemanticColorsV2Dark,
-  type SemanticColorsV2,
-} from '@constants/tokens';
 import {ElevationLight, ElevationDark} from '@constants/elevation';
 
 export type AppearanceMode = 'light' | 'auto' | 'dark';
@@ -17,7 +12,6 @@ type Elevation = typeof ElevationLight;
 
 interface ThemeContextValue {
   colors: SemanticColors;
-  colorsV2: SemanticColorsV2;
   elevation: Elevation;
   isDark: boolean;
   appearanceMode: AppearanceMode;
@@ -45,7 +39,6 @@ export function ThemeProvider({children}: {children: React.ReactNode}) {
   const value = useMemo<ThemeContextValue>(
     () => ({
       colors: isDark ? (SemanticColorsDark as SemanticColors) : SemanticColorsLight,
-      colorsV2: isDark ? (SemanticColorsV2Dark as SemanticColorsV2) : SemanticColorsV2Light,
       elevation: isDark ? ElevationDark : ElevationLight,
       isDark,
       appearanceMode,
@@ -67,8 +60,4 @@ export function useTheme(): ThemeContextValue {
 
 export function useColors(): SemanticColors {
   return useTheme().colors;
-}
-
-export function useColorsV2(): SemanticColorsV2 {
-  return useTheme().colorsV2;
 }

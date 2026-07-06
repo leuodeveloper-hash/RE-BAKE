@@ -4,11 +4,12 @@ import {FloatingNavBar, NAV_PILL_HEIGHT, navPillStyle} from '@components/Navigat
 import {Breadcrumb} from '@components/Navigation/Breadcrumb';
 import {GlassContainer, MAX_CONTENT_WIDTH} from '@components/Container';
 import {IconButton} from '@components/IconButton';
-import {IconChevronLeft} from '@components/Icon/IconIndex';
+import {IconAdd, IconEllipsisVertical} from '@components/Icon/IconIndex';
 import {Menu} from '@components/Menu';
 import {EmptyState} from '@components/EmptyState';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import type {SemanticColorsV2} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useTranslation} from '@contexts/LanguageContext';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {parseSession} from '@utils/session';
@@ -35,14 +36,28 @@ export interface GroupExpandOverlayProps {
   origin: PackOriginRect;
   onClose: () => void;
   onRecipePress?: (recipeId: string) => void;
+  /** 어드민 여부 — 둘러보기(공식) 레시피 북 편집/삭제 노출 게이트 */
+  isAdmin?: boolean;
+  /** 해당 그룹명이 둘러보기(공식) 레시피 북인지 판별 (편집/삭제 라우팅용) */
+  isExploreName?: (name: string) => boolean;
+  /** 현재 레시피 북에 레시피 추가 (없으면 + 버튼 숨김) — 리스트뷰 앱바와 공통 */
+  onAddRecipe?: (cookbookName: string) => void;
+  /** 레시피 북 편집 (없으면 메뉴 항목 숨김) */
+  onEditCookbook?: (name: string, isExplore: boolean) => void;
+  /** 레시피 북 삭제 */
+  onDeleteCookbook?: (name: string, isExplore: boolean) => void;
+  /** PDF 다운로드 */
+  onDownloadPdf?: () => void;
 }
 
-export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, origin, onClose, onRecipePress}: GroupExpandOverlayProps) {
-  const styles = useThemedStylesV2(createStyles);
+export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, origin, onClose, onRecipePress, isAdmin, isExploreName, onAddRecipe, onEditCookbook, onDeleteCookbook, onDownloadPdf}: GroupExpandOverlayProps) {
+  const styles = useThemedStyles(createStyles);
+  const {t} = useTranslation();
   const progress = useRef(new Animated.Value(0)).current;
   const [closing, setClosing] = useState(false);
   const [active, setActive] = useState(activeLabel);
   const [showMethodMenu, setShowMethodMenu] = useState(false);
+  const [showMoreMenu, setShowMoreMenu] = useState(false);
   // 회차 플로우 펼침 상태 (멀티 회차 팩을 탭하면 보드 안에서 회차 카드들로 펼침)
   const [flow, setFlow] = useState<{
     packId: string;
@@ -55,6 +70,16 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
   const methodMenuItems = groups.map(g => ({id: g.label, label: g.label}));
   const showSelector = groups.length > 1;
 
+  // 리스트뷰 앱바와 동일한 더보기 액션: 레시피 북 편집/삭제(+공식은 어드민 전용) · PDF 다운로드
+  const activeIsExplore = isExploreName?.(active) ?? false;
+  const canEditDelete = !activeIsExplore || !!isAdmin; // 일반 북은 모두, 공식 북은 어드민만
+  const moreItems = [
+    ...(canEditDelete && onEditCookbook ? [{id: 'edit', label: t('groupExpandOverlay.editCookbook')}] : []),
+    ...(canEditDelete && onDeleteCookbook ? [{id: 'delete', label: t('groupExpandOverlay.deleteCookbook')}] : []),
+    ...(onDownloadPdf ? [{id: 'pdf', label: t('groupExpandOverlay.downloadPdf')}] : []),
+  ];
+  const hasRight = !!onAddRecipe || moreItems.length > 0;
+
   const {width: W, height: H} = Dimensions.get('window');
   const originCx = origin.x + origin.width / 2;
   const originCy = origin.y + origin.height / 2;
@@ -65,7 +90,7 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
   const items: PackBoardItem[] = recipes.map(r => {
     const total = parseSession(r.session).total;
     const multi = total > 1;
-    const subtitle = [r.cookbook || '', multi ? `${total}개의 회차` : ''].filter(Boolean).join(' · ');
+    const subtitle = [r.cookbook || '', multi ? t('groupExpandOverlay.sessionCount', {count: total}) : ''].filter(Boolean).join(' · ');
     const key = r.remakeGroupId ?? r.id;
     const lineage = multi
       ? allRecipes
@@ -77,7 +102,7 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
       title: x.title,
       imageUrl: x.imageUri,
       paperPreview: buildPaperPreview(x),
-      sessionLabel: `${parseSession(x.session).current}회차`,
+      sessionLabel: t('groupExpandOverlay.sessionLabel', {current: parseSession(x.session).current}),
     }));
     // 원본 팩: 멀티면 회차 종이들(뒤) + 썸네일(앞), 단일이면 이미지 카드.
     // 이미지 없으면 undefined → paperPreview로 종이 렌더 (랜덤 샘플 매핑 안 함)
@@ -162,14 +187,48 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
               </View>
             </View>
           }
+          right={hasRight ? (
+            <GlassContainer contentStyle={navPillStyle}>
+              {onAddRecipe && (
+                <IconButton
+                  icon={IconAdd}
+                  onPress={() => onAddRecipe(active)}
+                  variant="ghost-primary"
+                  size="medium"
+                />
+              )}
+              {moreItems.length > 0 && (
+                <IconButton
+                  icon={IconEllipsisVertical}
+                  onPress={() => setShowMoreMenu(prev => !prev)}
+                  variant="ghost-primary"
+                  size="medium"
+                  forcePressed={showMoreMenu}
+                />
+              )}
+            </GlassContainer>
+          ) : undefined}
+          rightMenu={moreItems.length > 0 ? (
+            <Menu
+              items={moreItems}
+              visible={showMoreMenu}
+              onSelect={id => {
+                setShowMoreMenu(false);
+                if (id === 'edit') onEditCookbook?.(active, activeIsExplore);
+                else if (id === 'delete') onDeleteCookbook?.(active, activeIsExplore);
+                else if (id === 'pdf') onDownloadPdf?.();
+              }}
+              style={styles.moreMenu}
+            />
+          ) : undefined}
         />
         {/* 보드: 팬/핀치로 로밍. 플로우가 떠 있는 동안엔 다른 팩들 흐리게 */}
         {recipes.length === 0 ? (
           <View style={styles.emptyWrap}>
             <EmptyState
               category="no-recipe"
-              title="레시피 북에 레시피가 없습니다."
-              subtitle="레시피를 추가하면 여기에 표시돼요."
+              title={t('groupExpandOverlay.emptyTitle')}
+              subtitle={t('groupExpandOverlay.emptySubtitle')}
             />
           </View>
         ) : (
@@ -191,7 +250,7 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   root: {
     zIndex: 100,
     elevation: 100,
@@ -209,6 +268,12 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
     position: 'absolute',
     top: NAV_PILL_HEIGHT + Spacing.xs,
     left: 0,
+    zIndex: 20,
+  },
+  moreMenu: {
+    position: 'absolute',
+    top: NAV_PILL_HEIGHT + Spacing.xs,
+    right: 0,
     zIndex: 20,
   },
   scrollContent: {

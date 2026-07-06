@@ -1,6 +1,6 @@
 import React, {useEffect, useRef} from 'react';
 import {Animated, Easing, StyleProp, StyleSheet, View, ViewStyle} from 'react-native';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {Radius} from '@constants/tokens';
 
 export interface SkeletonLineProps {
@@ -23,7 +23,7 @@ export function SkeletonLine({
   lastLineRatio = 0.6,
   style,
 }: SkeletonLineProps) {
-  const colors = useColorsV2();
+  const colors = useColors();
   const pulse = useRef(new Animated.Value(0.4)).current;
 
   useEffect(() => {

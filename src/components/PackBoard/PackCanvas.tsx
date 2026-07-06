@@ -1,9 +1,9 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
-import {LayoutChangeEvent, StyleSheet, View, type ViewStyle} from 'react-native';
+import {LayoutChangeEvent, Platform, StyleSheet, View, type ViewStyle} from 'react-native';
 import {Gesture, GestureDetector} from 'react-native-gesture-handler';
 import Animated, {runOnJS, useAnimatedStyle, useSharedValue, withDecay, withSpring} from 'react-native-reanimated';
 import Svg, {Defs, Pattern, Circle, Rect} from 'react-native-svg';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {PackBoard, type PackBoardItem} from './PackBoard';
 import type {PackOriginRect} from './RecipePack';
 
@@ -38,7 +38,7 @@ export interface PackCanvasProps {
  * 로밍하는 래퍼. 진입 시 전체가 보이도록 fit-to-view 후 중앙 정렬.
  */
 export function PackCanvas({items, entrance, dimExceptId}: PackCanvasProps) {
-  const colors = useColorsV2();
+  const colors = useColors();
   const [viewport, setViewport] = useState({w: 0, h: 0});
   const [content, setContent] = useState({w: 0, h: 0});
 
@@ -194,7 +194,15 @@ export function PackCanvas({items, entrance, dimExceptId}: PackCanvasProps) {
         </Svg>
       </View>
       <GestureDetector gesture={gesture}>
-        <Animated.View style={[styles.canvas, canvasStyle]} pointerEvents="box-none">
+        {/* 웹: 캔버스 transform 재-fit(전체→레시피북 전환 등) 시 하위 box-shadow 잔상이
+            상단에 남는 문제 → GPU 레이어로 승격해 깨끗이 리페인트. (PackBoard 개별 팩과 동일 처리) */}
+        <Animated.View
+          style={[
+            styles.canvas,
+            Platform.OS === 'web' && ({willChange: 'transform', backfaceVisibility: 'hidden'} as any),
+            canvasStyle,
+          ]}
+          pointerEvents="box-none">
           <View onLayout={handleContentLayout}>
             {boardHeight > 0 && <PackBoard items={guardedItems} height={boardHeight} entrance={entrance} dimExceptId={dimExceptId} />}
           </View>

@@ -2,12 +2,12 @@ import {useCallback, useEffect, useState} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {fetchExamSchedules} from '@utils/examSchedules';
 import {cancelAllExamNotifications, scheduleExamNotifications} from '@utils/examNotifications';
-import {EXAM_TYPES, type ExamType} from '@constants/examTypes';
+import {getExamTypes, type ExamType} from '@constants/examTypes';
 
-export {EXAM_TYPES};
+export {getExamTypes};
 export type {ExamType};
 
-const STORAGE_KEY = '@bakecycle_exam_notif_prefs';
+const STORAGE_KEY = '@bakle_exam_notif_prefs';
 
 interface ExamNotificationPrefs {
   enabled: boolean;

@@ -5,7 +5,7 @@ import MaskedView from '@react-native-masked-view/masked-view';
 import {BlurView} from 'expo-blur';
 import {LinearGradient} from 'expo-linear-gradient';
 import {Spacing} from '@constants/spacing';
-import {useColorsV2, useTheme} from '@contexts/ThemeContext';
+import {useColors, useTheme} from '@contexts/ThemeContext';
 import {ContentContainer} from '@components/Container';
 import {TABBAR_BOTTOM_SPACE} from '@components/Container/ContentContainer';
 
@@ -68,7 +68,7 @@ export const APPBAR_CONTENT_BOTTOM = Spacing.smd + NAV_PILL_HEIGHT; // 10 + 44 =
 const GRADIENT_EXTENSION = Spacing.lg; // 24
 
 export function FloatingNavBar({left, right, leftMenu, rightMenu, leftFull, tintColor, style}: FloatingNavBarProps) {
-  const colors = useColorsV2();
+  const colors = useColors();
   const {isDark} = useTheme();
   const surfaceDim = colors['surface/normal'] as string;
   // 그라디언트 베이스: tintColor 지정 시 그 색(반투명 알파 반영), 아니면 surface/normal(불투명 흰색 페이드).

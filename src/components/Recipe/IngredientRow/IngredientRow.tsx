@@ -1,10 +1,10 @@
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useThemedStyles} from '@hooks/useThemedStyles';
 
 export interface Ingredient {
   percentage: string;
@@ -23,7 +23,7 @@ export interface IngredientRowProps {
  * - 베이커스 퍼센트, 재료명, 수량 표시
  */
 export function IngredientRow({ingredient, isLast = false}: IngredientRowProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
 
   return (
     <View style={[styles.container, !isLast && styles.withBorder]}>
@@ -44,7 +44,7 @@ export interface IngredientListProps {
  * - 카드 형태의 재료 목록
  */
 export function IngredientList({ingredients}: IngredientListProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
 
   return (
     <View style={styles.list}>
@@ -59,7 +59,7 @@ export function IngredientList({ingredients}: IngredientListProps) {
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   list: {
     backgroundColor: colors['surface/bright'],
     borderRadius: Radius['radius-lg'],

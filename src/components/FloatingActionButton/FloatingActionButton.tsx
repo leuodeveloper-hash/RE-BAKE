@@ -1,7 +1,7 @@
 import React from 'react';
 import {Pressable, StyleSheet, View, type ViewStyle} from 'react-native';
 import type {SvgProps} from 'react-native-svg';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {Spacing} from '@constants/spacing';
 
 export interface FloatingActionButtonProps {
@@ -20,7 +20,7 @@ const TABBAR_ALIGN = 6;
  * 우측 하단 플로팅 액션 버튼. 하단 탭바(가운데 펠릿)와 겹치지 않는 우측 영역에 위치.
  */
 export function FloatingActionButton({icon: Icon, onPress, accessibilityLabel, style}: FloatingActionButtonProps) {
-  const colors = useColorsV2();
+  const colors = useColors();
   return (
     <View style={[styles.wrap, style]} pointerEvents="box-none">
       <Pressable

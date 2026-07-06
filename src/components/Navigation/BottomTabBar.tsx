@@ -10,7 +10,7 @@ import {
   View,
 } from 'react-native';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Typography} from '@constants/typography';
 import {Spacing} from '@constants/spacing';
 import {SvgProps} from 'react-native-svg';
@@ -20,8 +20,9 @@ import {AppIcon} from '@components/Icon/AppIcon';
 import {IconNoteFilled, IconBookFilled} from '@components/Icon/IconIndex';
 import {SheetHeader} from '@components/BottomSheet/SheetHeader';
 import {Thumbnail} from '@components/Thumbnail';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
+import {useTranslation} from '@contexts/LanguageContext';
 import * as Haptics from 'expo-haptics';
 
 export interface TabItem {
@@ -65,8 +66,9 @@ export function BottomTabBar({
   addMenuItems,
   onAddItemPress,
 }: BottomTabBarProps) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
+  const {t} = useTranslation();
   const tabOpacity = useRef(new Animated.Value(1)).current;
   const menuOpacity = useRef(new Animated.Value(0)).current;
   // expanded와 분리된 내부 상태: 닫을 때 애니메이션 완료 후 전환
@@ -99,9 +101,9 @@ export function BottomTabBar({
   }, [tabs.length]);
 
   const resolvedAddItems = useMemo<AddMenuItem[]>(() => addMenuItems ?? [
-    {id: 'recipe', label: '레시피', icon: IconNoteFilled, iconColor: colors['custom/green-var']},
-    {id: 'cookbook', label: '레시피 북', icon: IconBookFilled, iconColor: colors['custom/brown-var']},
-  ], [addMenuItems, colors]);
+    {id: 'recipe', label: t('bottomTabBar.recipe'), icon: IconNoteFilled, iconColor: colors['custom/green-var']},
+    {id: 'cookbook', label: t('bottomTabBar.cookbook'), icon: IconBookFilled, iconColor: colors['custom/brown-var']},
+  ], [addMenuItems, colors, t]);
 
   useEffect(() => {
     // 진행 중인 애니메이션 중단
@@ -169,7 +171,7 @@ export function BottomTabBar({
         contentStyle={showMenu ? styles.expandedContainer : styles.container}>
         {showMenu ? (
           <Animated.View style={{opacity: menuOpacity}}>
-            <SheetHeader title="추가하기" headerType="center" onClose={onClose} />
+            <SheetHeader title={t('bottomTabBar.addTitle')} headerType="center" onClose={onClose} />
             <View style={styles.menuItemsContainer}>
               {resolvedAddItems.map(item => {
                 const IconComponent = item.icon;
@@ -270,7 +272,7 @@ export function BottomTabBar({
 // 공통 너비
 const BOTTOM_MENU_WIDTH = 328;
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 탭바 컨테이너 (축소 상태)
   container: {
     width: BOTTOM_MENU_WIDTH,

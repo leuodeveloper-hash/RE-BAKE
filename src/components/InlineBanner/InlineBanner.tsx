@@ -3,7 +3,7 @@ import {Pressable, StyleSheet, Text, View, StyleProp, ViewStyle} from 'react-nat
 import {SvgProps} from 'react-native-svg';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {IconClose} from '@components/Icon/IconIndex';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
@@ -30,12 +30,12 @@ export interface InlineBannerProps {
 }
 
 interface ColorScheme {
-  bg: keyof ReturnType<typeof useColorsV2>;
-  border: keyof ReturnType<typeof useColorsV2>;
-  text: keyof ReturnType<typeof useColorsV2>;
-  iconColor: keyof ReturnType<typeof useColorsV2>;
-  actionBg: keyof ReturnType<typeof useColorsV2>;
-  actionText: keyof ReturnType<typeof useColorsV2>;
+  bg: keyof ReturnType<typeof useColors>;
+  border: keyof ReturnType<typeof useColors>;
+  text: keyof ReturnType<typeof useColors>;
+  iconColor: keyof ReturnType<typeof useColors>;
+  actionBg: keyof ReturnType<typeof useColors>;
+  actionText: keyof ReturnType<typeof useColors>;
 }
 
 const COLOR_SCHEMES: Record<InlineBannerColor, ColorScheme> = {
@@ -82,7 +82,7 @@ export function InlineBanner({
   onClose,
   style,
 }: InlineBannerProps) {
-  const colors = useColorsV2();
+  const colors = useColors();
   const scheme = COLOR_SCHEMES[color];
 
   const isMedium = size === 'medium';

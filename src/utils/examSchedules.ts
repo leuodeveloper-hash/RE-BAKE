@@ -1,6 +1,6 @@
 import {collection, getDocs, query, where} from 'firebase/firestore';
 import {db} from '@config/firebase';
-import {EXAM_TYPES, type ExamType} from '@constants/examTypes';
+import {EXAM_TYPE_IDS, type ExamType} from '@constants/examTypes';
 
 /**
  * Firestore exam_schedules 컬렉션 스키마:
@@ -50,12 +50,12 @@ export async function fetchExamSchedules(
 
 /** 전체 시험 유형의 다가오는 일정을 시험일 오름차순으로 반환 (알림 설정 여부와 무관, 안내용) */
 export async function fetchAllUpcomingSchedules(): Promise<ExamSchedule[]> {
-  const all = await fetchExamSchedules(EXAM_TYPES.map(t => t.id));
+  const all = await fetchExamSchedules(EXAM_TYPE_IDS);
   return all.sort((a, b) => a.examDate.localeCompare(b.examDate));
 }
 
 /** 전체 시험 유형의 지난 일정 포함 전체를 시험일 오름차순으로 반환 (시험일정 화면용) */
 export async function fetchAllSchedules(): Promise<ExamSchedule[]> {
-  const all = await fetchExamSchedules(EXAM_TYPES.map(t => t.id), true);
+  const all = await fetchExamSchedules(EXAM_TYPE_IDS, true);
   return all.sort((a, b) => a.examDate.localeCompare(b.examDate));
 }

@@ -5,11 +5,12 @@ import {Button} from '@components/Button';
 import {Selector} from '@components/Selector';
 import {Menu} from '@components/Menu';
 import {TextInput} from '@components/TextInput';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import type {SemanticColorsV2} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {IconScaleTwotone} from '@components/Icon/IconIndex';
+import {useTranslation} from '@contexts/LanguageContext';
 
 export interface IngredientAmountDialogProps {
   visible: boolean;
@@ -47,7 +48,8 @@ function findUnitDef(unitId: string): UnitDef | undefined {
 }
 
 export function IngredientAmountDialog({visible, onClose, amount, unit, onConfirm}: IngredientAmountDialogProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
+  const {t} = useTranslation();
   const [selectedUnit, setSelectedUnit] = useState('g');
   const [inputAmount, setInputAmount] = useState('');
   const [showUnitMenu, setShowUnitMenu] = useState(false);
@@ -79,10 +81,10 @@ export function IngredientAmountDialog({visible, onClose, amount, unit, onConfir
       onClose={onClose}
       icon={IconScaleTwotone}
       avatarColor="green"
-      title="용량 설정"
+      title={t('ingredientAmount.title')}
       actions={<>
-        <Button label="취소" variant="soft" onPress={onClose} />
-        <Button label="확인" variant="filled" onPress={handleConfirm} />
+        <Button label={t('ingredientAmount.cancel')} variant="soft" onPress={onClose} />
+        <Button label={t('ingredientAmount.confirm')} variant="filled" onPress={handleConfirm} />
       </>}
     >
       <View style={styles.content}>
@@ -90,7 +92,7 @@ export function IngredientAmountDialog({visible, onClose, amount, unit, onConfir
           <View style={styles.row}>
             <View style={styles.inputWrap}>
               <TextInput
-                label="양"
+                label={t('ingredientAmount.amountLabel')}
                 value={inputAmount}
                 onChangeText={setInputAmount}
                 keyboardType="decimal-pad"
@@ -100,7 +102,7 @@ export function IngredientAmountDialog({visible, onClose, amount, unit, onConfir
               />
             </View>
             <View style={styles.unitWrap}>
-              <Text style={styles.unitLabel}>단위</Text>
+              <Text style={styles.unitLabel}>{t('ingredientAmount.unitLabel')}</Text>
               <Selector
                 label={currentUnitDef?.label ?? selectedUnit}
                 showDropdown
@@ -122,7 +124,7 @@ export function IngredientAmountDialog({visible, onClose, amount, unit, onConfir
         ) : (
           <View style={styles.row}>
             <View style={styles.unitWrapFull}>
-              <Text style={styles.unitLabel}>단위</Text>
+              <Text style={styles.unitLabel}>{t('ingredientAmount.unitLabel')}</Text>
               <Selector
                 label={currentUnitDef?.label ?? selectedUnit}
                 showDropdown
@@ -147,7 +149,7 @@ export function IngredientAmountDialog({visible, onClose, amount, unit, onConfir
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   content: {
     gap: Spacing.md,
   },

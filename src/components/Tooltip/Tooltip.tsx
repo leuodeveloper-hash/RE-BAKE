@@ -1,8 +1,8 @@
 import React, {useCallback, useEffect, useRef} from 'react';
 import {Animated, Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTheme} from '@contexts/ThemeContext';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
@@ -26,7 +26,7 @@ export interface TooltipProps {
 }
 
 export function Tooltip({message, visible, onClose, children, position = 'bottom', style}: TooltipProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
   const {elevation} = useTheme();
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(position === 'top' ? 4 : -4)).current;
@@ -85,7 +85,7 @@ export function Tooltip({message, visible, onClose, children, position = 'bottom
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   wrapper: {
     position: 'relative',
   },

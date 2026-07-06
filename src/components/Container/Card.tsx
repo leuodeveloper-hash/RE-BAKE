@@ -1,8 +1,8 @@
 import React, {createContext, useContext} from 'react';
 import {StyleSheet, View, ViewStyle} from 'react-native';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokens';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import type {SemanticColors} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
 
 export type CardVariant = 'default' | 'yellow';
 
@@ -24,7 +24,7 @@ export interface CardProps {
  * - borderlight 테두리
  */
 export function Card({children, style, variant = 'default'}: CardProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
   return (
     <CardVariantContext.Provider value={variant}>
       <View style={[styles.card, style]}>
@@ -35,7 +35,7 @@ export function Card({children, style, variant = 'default'}: CardProps) {
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   card: {
     backgroundColor: colors['surface/bright'],
     borderRadius: Radius['radius-lg'],

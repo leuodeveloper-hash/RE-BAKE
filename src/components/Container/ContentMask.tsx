@@ -3,7 +3,7 @@ import {Platform, StyleSheet, View} from 'react-native';
 import MaskedView from '@react-native-masked-view/masked-view';
 import {BlurView} from 'expo-blur';
 import {LinearGradient} from 'expo-linear-gradient';
-import {useColorsV2, useTheme} from '@contexts/ThemeContext';
+import {useColors, useTheme} from '@contexts/ThemeContext';
 import {withOpacity} from '@constants/tokens';
 import {APPBAR_HEIGHT, TABBAR_BOTTOM_SPACE} from './ContentContainer';
 
@@ -16,7 +16,7 @@ export interface ContentMaskProps {
 
 /** 블러 + 그라디언트 마스크 페이드 */
 function FadeMask({position, height}: {position: 'top' | 'bottom'; height: number}) {
-  const colors = useColorsV2();
+  const colors = useColors();
   const {isDark} = useTheme();
   const surfaceDim = colors['surface/normal'] as string;
 

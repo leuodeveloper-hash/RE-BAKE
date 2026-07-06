@@ -1,10 +1,10 @@
 import React from 'react';
 import {View, StyleSheet} from 'react-native';
 import {HomeScreen} from '@screens/HomeScreen';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 
 export default function HomeRoute() {
-  const colors = useColorsV2();
+  const colors = useColors();
   return (
     <View style={[styles.container, {backgroundColor: colors['surface/dim']}]}>
       <HomeScreen />

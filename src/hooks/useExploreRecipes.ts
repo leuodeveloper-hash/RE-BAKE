@@ -1,7 +1,8 @@
-import {useCallback, useEffect, useState} from 'react';
-import {collection, getDocs} from 'firebase/firestore';
+import {useCallback, useEffect, useMemo, useState} from 'react';
+import {collection, deleteField, getDocs, query, updateDoc, where} from 'firebase/firestore';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {db} from '@config/firebase';
+import {useTranslation} from '@contexts/LanguageContext';
 import type {Recipe} from '../types/recipe';
 
 const CACHE_KEY = 'explore_recipes_cache';
@@ -19,6 +20,42 @@ const CACHE_TTL = 12 * 60 * 60 * 1000; // 12h
  */
 function filterVisible(allRecipes: Recipe[]): Recipe[] {
   return allRecipes.filter(r => !r.deletedAt);
+}
+
+/**
+ * 기존 데이터 마이그레이션(1회, 어드민):
+ *  1) explore_recipes의 레거시 `category` → `cookbook`으로 이동 + `category` 제거
+ *     (migrateRecipe는 읽을 때만 변환 → 문서엔 category가 남아 rename 쿼리가 놓치던 문제 해소)
+ *  2) 모든 explore_recipes / explore_cookbooks에 `hidden` 필드 백필(없으면 false)
+ *     → 보안 규칙(비어드민은 where hidden==false 제약 쿼리)이 모든 문서를 매칭하도록.
+ * 멱등: 바꿀 게 있는 문서만 갱신. 성공 시 플래그로 재실행 스킵.
+ */
+const EXPLORE_MIGRATION_FLAG = 'explore_migrated_v2';
+export async function migrateExploreCategoryToCookbook(): Promise<number> {
+  const done = await AsyncStorage.getItem(EXPLORE_MIGRATION_FLAG).catch(() => null);
+  if (done) return 0;
+  let count = 0;
+  // 1) recipes: category→cookbook + hidden 백필
+  const recSnap = await getDocs(collection(db, 'explore_recipes'));
+  await Promise.all(recSnap.docs.map(d => {
+    const data = d.data() as any;
+    const patch: any = {};
+    if (data.category != null && data.cookbook == null) {
+      patch.cookbook = data.category;
+      patch.category = deleteField();
+    }
+    if (data.hidden == null) patch.hidden = false;
+    if (Object.keys(patch).length > 0) { count++; return updateDoc(d.ref, patch); }
+    return Promise.resolve();
+  }));
+  // 2) cookbooks: hidden 백필
+  const cbSnap = await getDocs(collection(db, 'explore_cookbooks'));
+  await Promise.all(cbSnap.docs.map(d => {
+    if ((d.data() as any).hidden == null) { count++; return updateDoc(d.ref, {hidden: false}); }
+    return Promise.resolve();
+  }));
+  await AsyncStorage.setItem(EXPLORE_MIGRATION_FLAG, '1').catch(() => {});
+  return count;
 }
 
 /** 기존 category 필드를 cookbook으로 마이그레이션 + 레거시 필드 제거 */
@@ -59,18 +96,28 @@ function migrateRecipe(recipe: any): Recipe {
 export interface ExploreCookbook {
   name: string;
   color: string;
+  /** 숨김 — 어드민만 보임, 다른 유저 둘러보기에서 이 쿡북과 소속 레시피 전부 미노출 */
+  hidden?: boolean;
 }
 
-export function useExploreRecipes(onError?: (msg: string) => void) {
+/**
+ * @param isAdmin 어드민(개발자)이면 숨김 콘텐츠도 전부 노출(작업용). 아니면 숨김 필터링.
+ */
+export function useExploreRecipes(onError?: (msg: string) => void, isAdmin = false) {
+  const {t} = useTranslation();
   const [recipes, setRecipes] = useState<Recipe[]>([]);
   const [exploreCookbooks, setExploreCookbooks] = useState<ExploreCookbook[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   /** Firestore에서 recipes + cookbooks를 1회 읽고 상태·캐시 갱신 */
   const fetchFromFirestore = useCallback(async () => {
+    // 보안 규칙과 짝: 비어드민은 hidden==false만 쿼리(제약 없으면 규칙이 전체 거부).
+    // 어드민은 전체(숨김 포함) 로드해 작업 가능. (모든 문서에 hidden 필드 백필 전제)
+    const recRef = collection(db, 'explore_recipes');
+    const cbRef = collection(db, 'explore_cookbooks');
     const [recSnap, cbSnap] = await Promise.all([
-      getDocs(collection(db, 'explore_recipes')),
-      getDocs(collection(db, 'explore_cookbooks')),
+      getDocs(isAdmin ? recRef : query(recRef, where('hidden', '==', false))),
+      getDocs(isAdmin ? cbRef : query(cbRef, where('hidden', '==', false))),
     ]);
     const allRecipes: Recipe[] = recSnap.docs.map(d => migrateRecipe({id: d.id, ...d.data()}));
     const visible = filterVisible(allRecipes);
@@ -82,7 +129,7 @@ export function useExploreRecipes(onError?: (msg: string) => void) {
       [COOKBOOKS_CACHE_KEY, JSON.stringify(cookbooks)],
       [CACHE_TS_KEY, String(Date.now())],
     ]).catch(() => {});
-  }, []);
+  }, [isAdmin]);
 
   useEffect(() => {
     let cancelled = false;
@@ -108,8 +155,10 @@ export function useExploreRecipes(onError?: (msg: string) => void) {
 
       if (cancelled) return;
 
-      // 2) 캐시가 신선하면 Firestore 호출 생략 (읽기 0)
-      if (cacheFresh) {
+      // 2) 캐시가 신선하면 Firestore 호출 생략 (읽기 0).
+      //    단 어드민은 항상 재조회 — 첫 로드(auth 미확정) 때 비어드민 쿼리로 캐시된
+      //    '숨김 제외' 데이터를 그대로 쓰면 어드민이 숨김 콘텐츠를 못 보기 때문.
+      if (cacheFresh && !isAdmin) {
         setIsLoading(false);
         return;
       }
@@ -118,7 +167,7 @@ export function useExploreRecipes(onError?: (msg: string) => void) {
       try {
         await fetchFromFirestore();
       } catch {
-        onError?.('레시피를 불러오지 못했어요');
+        onError?.(t('useExploreRecipes.loadFailed'));
       } finally {
         if (!cancelled) setIsLoading(false);
       }
@@ -137,10 +186,25 @@ export function useExploreRecipes(onError?: (msg: string) => void) {
     try {
       await fetchFromFirestore();
     } catch {
-      onError?.('새로고침에 실패했어요');
+      onError?.(t('useExploreRecipes.reloadFailed'));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchFromFirestore]);
 
-  return {recipes, exploreCookbooks, isLoading, reload};
+  // 숨김 필터: 비어드민은 숨김 쿡북 + 그 소속 레시피 + 개별 숨김 레시피를 제외.
+  // (원본은 상태/캐시에 그대로 두고 노출 시점에만 필터 → 어드민 토글이 즉시 반영)
+  const hiddenCookbookNames = useMemo(
+    () => new Set(exploreCookbooks.filter(c => c.hidden).map(c => c.name)),
+    [exploreCookbooks],
+  );
+  const visibleRecipes = useMemo(
+    () => (isAdmin ? recipes : recipes.filter(r => !r.hidden && !hiddenCookbookNames.has(r.cookbook ?? ''))),
+    [recipes, isAdmin, hiddenCookbookNames],
+  );
+  const visibleCookbooks = useMemo(
+    () => (isAdmin ? exploreCookbooks : exploreCookbooks.filter(c => !c.hidden)),
+    [exploreCookbooks, isAdmin],
+  );
+
+  return {recipes: visibleRecipes, exploreCookbooks: visibleCookbooks, isLoading, reload};
 }

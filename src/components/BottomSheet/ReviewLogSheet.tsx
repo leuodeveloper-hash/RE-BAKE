@@ -4,11 +4,12 @@ import {BottomSheet} from './BottomSheet';
 import {TextInput as StyledTextInput} from '@components/TextInput';
 import {RecipeCard} from '@components/Recipe/RecipeCard';
 import {EmptyState} from '@components/EmptyState';
-import {EMPTY_RETROSPECTIVE_MESSAGE} from '@components/RecipeGroups/groupAxis';
+import {emptyRetrospectiveMessage} from '@components/RecipeGroups/groupAxis';
 import {AppIcon} from '@components/Icon/AppIcon';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
-import type {SemanticColorsV2} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
+import {useTranslation} from '@contexts/LanguageContext';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import type {Recipe} from '../../types/recipe';
@@ -44,8 +45,9 @@ export function ReviewLogSheet({
   sessionReviews: sessionReviewsProp,
   onRecipePress,
 }: ReviewLogSheetProps) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
+  const {t} = useTranslation();
 
   // 모드: selectedRecipeProp 있으면 detail로 시작
   const [mode, setMode] = useState<'list' | 'detail'>(selectedRecipeProp ? 'detail' : 'list');
@@ -93,7 +95,7 @@ export function ReviewLogSheet({
       if (group.length >= 2) {
         return group.map(r => ({
           id: r.id,
-          label: `${parseSession(r.session).current}회차`,
+          label: t('reviewLog.sessionLabel', {count: parseSession(r.session).current}),
           reviews: r.reviews ?? [],
         }));
       }
@@ -103,7 +105,7 @@ export function ReviewLogSheet({
       label: selectedRetro.title,
       reviews: selectedRetro.reviews ?? [],
     }];
-  }, [selectedRetro, allRecipes]);
+  }, [selectedRetro, allRecipes, t]);
 
   // 최종 sessionReviews: prop 우선, 아니면 계산값
   const sessionReviews = sessionReviewsProp ?? computedSessionReviews;
@@ -176,7 +178,7 @@ export function ReviewLogSheet({
           <View style={styles.searchBar}>
             <StyledTextInput
               ref={searchInputRef}
-              placeholder={mode === 'list' ? '레시피 검색' : '회고 검색'}
+              placeholder={mode === 'list' ? t('reviewLog.searchRecipePlaceholder') : t('reviewLog.searchReviewPlaceholder')}
               value={searchQuery}
               onChangeText={setSearchQuery}
               style="ghost"
@@ -185,7 +187,7 @@ export function ReviewLogSheet({
               leadingIcon={<AppIcon icon={IconSearch} size="xs" color={colors['foreground/on-surface-muted']} />}
             />
             <Pressable onPress={handleCancelSearch} hitSlop={8}>
-              <Text style={styles.cancelText}>취소</Text>
+              <Text style={styles.cancelText}>{t('reviewLog.cancel')}</Text>
             </Pressable>
           </View>
         ) : (
@@ -196,7 +198,7 @@ export function ReviewLogSheet({
                 <>
                   {canGoBack ? (
                     <Pressable onPress={handleBackToList}>
-                      <Text style={styles.titleMuted}>회고 노트</Text>
+                      <Text style={styles.titleMuted}>{t('reviewLog.title')}</Text>
                     </Pressable>
                   ) : (
                     <Text style={styles.titleMuted}>회고 노트</Text>
@@ -205,7 +207,7 @@ export function ReviewLogSheet({
                   <Text style={styles.title} numberOfLines={1}>{currentTitle}</Text>
                 </>
               ) : (
-                <Text style={styles.title}>회고 노트</Text>
+                <Text style={styles.title}>{t('reviewLog.title')}</Text>
               )}
             </View>
             <Pressable onPress={handleToggleSearch} hitSlop={8}>
@@ -227,7 +229,7 @@ export function ReviewLogSheet({
                   key={recipe.id}
                   title={recipe.title}
                   cookbook={recipe.cookbook}
-                  method={`${stats.totalReviews}/${stats.totalSessions}회차`}
+                  method={t('reviewLog.reviewSessionRatio', {reviews: stats.totalReviews, sessions: stats.totalSessions})}
                   imageUrl={recipe.imageUri}
                   layout="list"
                   size="small"
@@ -242,10 +244,10 @@ export function ReviewLogSheet({
               {searchQuery.trim() ? (
                 <EmptyState
                   variant="simple"
-                  title={`'${searchQuery.trim()}'에 해당하는 레시피를 찾지 못했어요`}
+                  title={t('reviewLog.noRecipeSearchResult', {query: searchQuery.trim()})}
                 />
               ) : (
-                <EmptyState variant="simple" title={EMPTY_RETROSPECTIVE_MESSAGE} />
+                <EmptyState variant="simple" title={emptyRetrospectiveMessage(t)} />
               )}
             </View>
           )}
@@ -273,7 +275,7 @@ export function ReviewLogSheet({
               <View style={styles.empty}>
                 <EmptyState
                   variant="simple"
-                  title={`'${searchQuery.trim()}'에 해당하는 회고를 찾지 못했어요`}
+                  title={t('reviewLog.noReviewSearchResult', {query: searchQuery.trim()})}
                 />
               </View>
             )
@@ -302,7 +304,7 @@ export function ReviewLogSheet({
                   ) : (
                     <RecipeCard
                       title=""
-                      customSubtitle="작성한 회고가 없습니다"
+                      customSubtitle={t('reviewLog.noReviewWritten')}
                       imageUrl={currentImageUri}
                       layout="list"
                       size="small"
@@ -317,7 +319,7 @@ export function ReviewLogSheet({
             })
           ) : (
             <View style={styles.empty}>
-              <EmptyState variant="simple" title="아직 작성된 회고가 없습니다" />
+              <EmptyState variant="simple" title={t('reviewLog.emptyReviews')} />
             </View>
           )}
         </View>
@@ -326,7 +328,7 @@ export function ReviewLogSheet({
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 헤더
   header: {
     flexDirection: 'row',

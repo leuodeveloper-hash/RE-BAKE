@@ -2,7 +2,7 @@ import React, {useCallback, useRef, useState} from 'react';
 import {Animated, Easing, NativeScrollEvent, NativeSyntheticEvent, StyleSheet, View} from 'react-native';
 import Svg, {Path} from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {APPBAR_CONTENT_BOTTOM} from '@components/Navigation';
 
 const REFRESH_THRESHOLD = 120;
@@ -155,7 +155,7 @@ export interface PullIndicatorProps {
 }
 
 export function PullIndicator({progress, isRefreshing = false, refreshStripProgress = 0, refreshOpacity = 1}: PullIndicatorProps) {
-  const colors = useColorsV2();
+  const colors = useColors();
 
   // 당기는 중이거나 리프레시 중이면 표시
   const visible = progress > 0 || isRefreshing;

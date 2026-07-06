@@ -1,15 +1,15 @@
 import React from 'react';
 import {Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {SvgProps} from 'react-native-svg';
 import {IconButton} from '@components/IconButton';
 import {Checkbox} from '@components/Checkbox/Checkbox';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useThemedStyles} from '@hooks/useThemedStyles';
 import {triggerHaptic} from '@utils/haptics';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {useCardVariant} from '@components/Container/Card';
 
 // ---- Leading/Trailing 슬롯 타입 ----
@@ -50,7 +50,7 @@ export interface ListItemProps {
 
 function renderSlotElement(
   element: ListItemElementType,
-  colors: SemanticColorsV2,
+  colors: SemanticColors,
   styles: ReturnType<typeof createStyles>,
   variant: ListItemVariant = 'default',
 ) {
@@ -114,8 +114,8 @@ export function ListItem({
   onPress,
   style,
 }: ListItemProps) {
-  const colors = useColorsV2();
-  const styles = useThemedStylesV2(createStyles);
+  const colors = useColors();
+  const styles = useThemedStyles(createStyles);
   const cardVariant = useCardVariant();
   const resolvedVariant = variant ?? cardVariant;
   const multiline = titleNumberOfLines === 0;
@@ -158,7 +158,7 @@ export function ListItem({
 
 // ---- Styles ----
 
-const createStyles = (colors: SemanticColorsV2) =>
+const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
     stateLayer: {
       flexDirection: 'row',

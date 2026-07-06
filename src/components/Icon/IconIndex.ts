@@ -50,6 +50,7 @@ export {default as IconTrashFilled} from '../../../assets/icons/trash_filled.svg
 export {default as IconShare} from '../../../assets/icons/share.svg';
 export {default as IconLock} from '../../../assets/icons/lock.svg';
 export {default as IconLockFilled} from '../../../assets/icons/lock_filled.svg';
+export {default as IconEyeClosed} from '../../../assets/icons/eye-closed.svg';
 export {default as IconUnlock} from '../../../assets/icons/unlock.svg';
 export {default as IconUnlockFilled} from '../../../assets/icons/unlock_filled.svg';
 export {default as IconPlay} from '../../../assets/icons/play.svg';

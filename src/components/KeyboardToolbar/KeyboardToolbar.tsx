@@ -21,6 +21,10 @@ export interface KeyboardToolbarProps {
  * 키보드 위에 떠 있는 입력 툴바 — 풀폭 플로팅 글래스 바.
  * 좌측 버튼 그룹(넘치면 가로 스크롤) + 우측 끝 고정 액션.
  * 네이티브는 키보드 높이를 추적해 키보드 위에, 웹은 하단 안전영역 위에 위치.
+ *
+ * 주의: 이 바는 포커스 중엔 항상 표시 + 항상 터치 가능해야 한다.
+ * (opacity/pointerEvents로 조건부 숨기면 아이패드 하드웨어 키보드에서 안 뜨거나
+ *  갤러리/메뉴 탭이 먹히지 않는 회귀가 발생 → 절대 조건부 숨김 금지)
  */
 export function KeyboardToolbar({left, right, above, style}: KeyboardToolbarProps) {
   const insets = useSafeAreaInsets();

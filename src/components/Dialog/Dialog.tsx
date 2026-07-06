@@ -13,7 +13,7 @@ import {
 } from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import type {AvatarColor} from '@components/Avatar/Avatar';
@@ -21,8 +21,8 @@ import {IconClose} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
 import {SheetHeader} from '@components/BottomSheet/SheetHeader';
 import {BlurView} from 'expo-blur';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
 
 export interface DialogProps {
   visible: boolean;
@@ -77,8 +77,8 @@ export function Dialog({
   blurBackdrop = false,
   headerType,
 }: DialogProps) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const {height: windowHeight} = useWindowDimensions();
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.95)).current;
@@ -224,7 +224,7 @@ export function Dialog({
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) =>
+const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
     overlay: {
       ...StyleSheet.absoluteFillObject,

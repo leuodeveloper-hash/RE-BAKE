@@ -13,12 +13,13 @@ import {Button} from '@components/Button';
 import {ReviewLogSheet} from '@components/BottomSheet';
 import {getColorVarKey} from '@components/ColorPicker';
 import {PullIndicator, RefreshGap, usePullProgress} from '@components/PullIndicator';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useTranslation} from '@contexts/LanguageContext';
+import {useColors} from '@contexts/ThemeContext';
 import {useAddSheet} from '@contexts/AddSheetContext';
 import {DEFAULT_COOKBOOK_COLOR} from '@contexts/RecipeContext';
 import type {AvatarColor} from '@components/Avatar/Avatar';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import type {Recipe} from '../types/recipe';
@@ -70,21 +71,25 @@ export interface GroupScreenProps {
   bookCarousel?: boolean;
   /** 상단 + 로 레시피 북 추가 시 '공식 레시피 북' 토글 기본 ON (둘러보기 전용) */
   addAsOfficial?: boolean;
+  /** 주 레시피 북 목록이 공식(explore) 북인지 (둘러보기 전용). true면 편집/삭제는 어드민만 + explore 경로로 처리 */
+  cookbooksAreOfficial?: boolean;
   /** PDF 다운로드(현재 리스트 익스포트) 콜백. 주어지면 오버플로우 메뉴에 'PDF 다운로드' 노출 (둘러보기 전용) */
   onDownloadPdf?: () => void;
+  /** 팩뷰 확대 오버레이 헤더의 +추가 — 해당 레시피 북으로 레시피 추가 (리스트뷰 앱바와 공통) */
+  onAddRecipeToCookbook?: (cookbook: string) => void;
 }
 
-const COOKBOOK_MENU_ITEMS = [
-  {id: 'rename', label: '편집', icon: IconEdit},
-  {id: 'delete', label: '삭제', icon: IconTrash, destructive: true},
-];
-
-const VIEW_MODE_STORAGE_KEY = '@bakecycle_group_view_mode';
+const VIEW_MODE_STORAGE_KEY = '@bakle_group_view_mode';
 type ViewMode = 'list' | 'pack';
 
-export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComingSoon, onDeleteCookbook, onCookbookPress, onMethodPress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress, availableAxes = DEFAULT_AXES, axisOverrides, showAddButton = true, bookCarousel = false, addAsOfficial = false, onDownloadPdf}: GroupScreenProps) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComingSoon, onDeleteCookbook, onCookbookPress, onMethodPress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress, availableAxes = DEFAULT_AXES, axisOverrides, showAddButton = true, bookCarousel = false, addAsOfficial = false, cookbooksAreOfficial = false, onDownloadPdf, onAddRecipeToCookbook}: GroupScreenProps) {
+  const styles = useThemedStyles(createStyles);
+  const {t} = useTranslation();
+  const colors = useColors();
+  const COOKBOOK_MENU_ITEMS = useMemo(() => [
+    {id: 'rename', label: t('group.edit'), icon: IconEdit},
+    {id: 'delete', label: t('group.delete'), icon: IconTrash, destructive: true},
+  ], [t]);
   const {setShowCookbookDialog, setCookbookEditTarget, setCookbookInitialOfficial} = useAddSheet();
   const {pullProgress, isRefreshing, refreshStripProgress, refreshOpacity, refreshGapHeight, handleScroll} = usePullProgress(onRefresh);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -133,24 +138,24 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
   const moreMenuItems = useMemo(() => {
     const items: MenuItemData[] = [];
     if (emptyCookbookNames.length > 0) {
-      items.push({id: 'cleanup', label: `빈 레시피 북 없애기 (${emptyCookbookNames.length})`, icon: IconSparkle});
+      items.push({id: 'cleanup', label: t('group.cleanupEmptyCookbooks', {count: emptyCookbookNames.length}), icon: IconSparkle});
     }
     // PDF 다운로드(현재 리스트 익스포트) — 콜백이 주어질 때만 (둘러보기 전용)
     if (onDownloadPdf) {
-      items.push({id: 'downloadPdf', label: 'PDF 다운로드', icon: IconArrowDownToLine});
+      items.push({id: 'downloadPdf', label: t('group.downloadPdf'), icon: IconArrowDownToLine});
     }
     // 전체 삭제는 어드민 전용 (게스트/일반 사용자에겐 노출하지 않음)
     if (isAdmin) {
-      items.push({id: 'deleteAll', label: '전체 삭제', icon: IconTrash, destructive: true});
+      items.push({id: 'deleteAll', label: t('group.deleteAll'), icon: IconTrash, destructive: true});
     }
     return items;
-  }, [emptyCookbookNames, isAdmin, onDownloadPdf]);
+  }, [emptyCookbookNames, isAdmin, onDownloadPdf, t]);
 
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
   const layoutMenuItems = useMemo(() => [
-    {id: 'list', label: '리스트 뷰', icon: IconList},
-    {id: 'pack', label: '팩뷰', icon: IconCards},
-  ], []);
+    {id: 'list', label: t('group.listView'), icon: IconList},
+    {id: 'pack', label: t('group.packView'), icon: IconCards},
+  ], [t]);
 
   const groupFilterMenuItems = useAxisMenuItems(availableAxes, axisOverrides);
 
@@ -213,12 +218,12 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
     return Array.from(map.entries()).map(([method, items]) => {
       // 서브타이틀: 모두 같은 레시피 북이면 그 이름, 섞여 있으면 '모든 요리책'
       const cookbookSet = new Set(items.map(r => r.cookbook || '레시피 북 없음'));
-      const cookbookLabel = cookbookSet.size === 1 ? [...cookbookSet][0] : '모든 요리책';
+      const cookbookLabel = cookbookSet.size === 1 ? [...cookbookSet][0] : t('group.allCookbooks');
       // 대표 카드 최대 3장 (공통 헬퍼: 이미지 우선 + 종이 미리보기)
       const cards = recipeCoverCards(items);
-      return {method, items, subtitle: `${cookbookLabel} · ${items.length}개`, cards};
+      return {method, items, subtitle: `${cookbookLabel} · ${t('group.itemCount', {count: items.length})}`, cards};
     });
-  }, [recipes, exploreRecipes, isAdmin]);
+  }, [recipes, exploreRecipes, isAdmin, t]);
 
   const methodPacks = useMemo<PackBoardItem[]>(() => methodGroups.map(g => ({
     id: g.method,
@@ -233,6 +238,13 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
     },
   })), [methodGroups, colors]);
 
+  // 공식 북 숨김 여부 맵 (비공개 표시용) — cookbookPacks/리스트 행에서 참조
+  const exploreCookbookHiddenMap = useMemo(() => {
+    const map = new Map<string, boolean>();
+    exploreCookbooks?.forEach(c => map.set(c.name, !!c.hidden));
+    return map;
+  }, [exploreCookbooks]);
+
   // 레시피 북 팩: 책마다 1팩, 탭하면 펼침 오버레이
   const cookbookPacks = useMemo<PackBoardItem[]>(() => {
     // 정렬은 공용 cookbooks에서 이미 처리됨 ('없음' 맨 뒤 → 개수순 → 최신순)
@@ -244,10 +256,10 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
       return {
         id: `cb_${cb.name}`,
         title: cb.name,
-        subtitle: `${cb.items.length}개`,
+        subtitle: t('group.itemCount', {count: cb.items.length}),
         count: cb.items.length,
-        footerLeft: `${cb.items.length}개의\n레시피`,
-        footerRight: `${reviewTotal}개의\n회고`,
+        footerLeft: t('group.recipeCountMultiline', {count: cb.items.length}),
+        footerRight: t('group.reviewCountMultiline', {count: reviewTotal}),
         icon: IconBookFilled,
         // 책 표지 글씨용: var(0.64 반투명) 대신 솔리드 커스텀 색 (반투명이면 글씨가 비쳐 보임)
         // 미분류는 고정 옐로 표지 위에서 라이트/다크 대비가 뜨지 않도록 fixed 색 사용
@@ -257,10 +269,11 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
         cards,
         variant: 'book' as const,
         emptyCover: cb.items.length === 0, // 빈 북 → 일러스트 투명 렌더
+        hidden: cookbooksAreOfficial ? exploreCookbookHiddenMap.get(cb.name) : undefined,
         onPress: (rect: PackOriginRect) => { setExpandedOrigin(rect); setExpandedMethod(cb.name); },
       };
     });
-  }, [cookbooks, cookbookColors, colors]);
+  }, [cookbooks, cookbookColors, colors, cookbooksAreOfficial, exploreCookbookHiddenMap, t]);
 
   // 회고 노트 기준: 실제 작성된 회고가 있는 레시피만 (같은 remakeGroup은 회고 유무 합산 후 최신 회차 하나로 대표)
   const retrospectives = useMemo(() => {
@@ -290,7 +303,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
     if (retrospectives.length === 0) {
       return [{
         id: '__retro_note__',
-        title: '회고 노트',
+        title: t('group.retroNote'),
         subtitle: '',
         variant: 'note' as const,
         emptyCover: true,
@@ -304,14 +317,14 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
     }));
     return [{
       id: '__retro_note__',
-      title: '회고 노트',
+      title: t('group.retroNote'),
       subtitle: '',
       variant: 'note' as const,
       count: retrospectives.length,
       cards,
       onPress: () => setShowReviewSheet(true),
     }];
-  }, [retrospectives]);
+  }, [retrospectives, t]);
 
   // 활성 축에 따른 팩 목록
   const activePacks = axis === 'cookbook' ? cookbookPacks : axis === 'method' ? methodPacks : retrospectivePacks;
@@ -342,9 +355,10 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
     return map;
   }, [exploreCookbooks]);
 
-  // 둘러보기 레시피 북 (어드민 전용): 레시피 그룹 + explore_cookbooks의 빈 레시피 북 포함
+  // 둘러보기 레시피 북 (홈 어드민 전용 섹션): 레시피 그룹 + explore_cookbooks의 빈 레시피 북 포함.
+  // 둘러보기 화면(cookbooksAreOfficial)은 주 목록이 이미 공식이라 이 섹션은 숨김(중복 방지).
   const exploreGroups = useMemo(() => {
-    if (!isAdmin) return [];
+    if (!isAdmin || cookbooksAreOfficial) return [];
     const map = new Map<string, Recipe[]>();
     // explore_cookbooks에 등록된 빈 레시피 북도 포함
     for (const cb of exploreCookbooks ?? []) {
@@ -357,7 +371,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
       map.set(key, list);
     }
     return Array.from(map.entries()).map(([name, items]) => ({name, items}));
-  }, [isAdmin, exploreRecipes, exploreCookbooks]);
+  }, [isAdmin, cookbooksAreOfficial, exploreRecipes, exploreCookbooks]);
 
   const handleTitlePress = () => {
     setShowMoreMenu(false);
@@ -415,11 +429,16 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
     const target = cookbookMenuTarget;
     setCookbookMenuTarget(null);
     if (id === 'rename' && target) {
-      setCookbookEditTarget({name: target, color: cookbookColors[target] || DEFAULT_COOKBOOK_COLOR});
+      // 둘러보기(공식 북)면 explore 경로로: isExplore 표시 → 확인 시 Firestore 반영
+      setCookbookEditTarget(
+        cookbooksAreOfficial
+          ? {name: target, color: (cookbookColors[target] || 'orange') as AvatarColor, isExplore: true, hidden: exploreCookbookHiddenMap.get(target)}
+          : {name: target, color: cookbookColors[target] || DEFAULT_COOKBOOK_COLOR},
+      );
       setShowCookbookDialog(true);
     } else if (id === 'delete' && target) {
       setDeleteTarget(target);
-      setDeleteTargetIsExplore(false);
+      setDeleteTargetIsExplore(cookbooksAreOfficial);
       setShowDeleteDialog(true);
     } else {
       onComingSoon();
@@ -431,13 +450,37 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
     setExploreCookbookMenuTarget(null);
     if (id === 'rename' && target) {
       const ecColor = exploreCookbookColorMap.get(target) ?? 'orange';
-      setCookbookEditTarget({name: target, color: ecColor as AvatarColor, isExplore: true});
+      setCookbookEditTarget({name: target, color: ecColor as AvatarColor, isExplore: true, hidden: exploreCookbookHiddenMap.get(target)});
       setShowCookbookDialog(true);
     } else if (id === 'delete' && target) {
       setDeleteTarget(target);
       setDeleteTargetIsExplore(true);
       setShowDeleteDialog(true);
     }
+  };
+
+  // ── 팩뷰 확대 오버레이 헤더용: 리스트뷰 앱바와 동일한 편집/삭제 ──
+  // 다이얼로그가 오버레이(zIndex 100) 아래로 가려지지 않게 오버레이를 먼저 닫고 띄운다.
+  // 둘러보기(주 목록이 공식)면 모든 북이 공식 → 어드민 게이트 + explore 라우팅. 홈이면 exploreGroups(어드민 병합분)만 공식.
+  const isExploreCookbookName = (name: string) => cookbooksAreOfficial || exploreGroups.some(g => g.name === name);
+  const editCookbookFromOverlay = (name: string, isExplore: boolean) => {
+    setExpandedMethod(null);
+    setExpandedOrigin(null);
+    if (isExplore) {
+      // 홈-어드민 경로는 exploreCookbookColorMap, 둘러보기 경로는 cookbookColors(=explore 색맵)에 색이 있다.
+      const ecColor = (exploreCookbookColorMap.get(name) ?? cookbookColors[name] ?? 'orange') as AvatarColor;
+      setCookbookEditTarget({name, color: ecColor, isExplore: true, hidden: exploreCookbookHiddenMap.get(name)});
+    } else {
+      setCookbookEditTarget({name, color: cookbookColors[name] || DEFAULT_COOKBOOK_COLOR});
+    }
+    setShowCookbookDialog(true);
+  };
+  const deleteCookbookFromOverlay = (name: string, isExplore: boolean) => {
+    setExpandedMethod(null);
+    setExpandedOrigin(null);
+    setDeleteTarget(name);
+    setDeleteTargetIsExplore(isExplore);
+    setShowDeleteDialog(true);
   };
 
   const showCookbookSection = axis === 'cookbook';
@@ -448,13 +491,13 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
   return (
     <View style={styles.container}>
       <AppBar
-        title={axisLabel(axis, axisOverrides)}
+        title={axisLabel(t, axis, axisOverrides)}
         titleIcon={groupFilterMenuItems.find(i => i.id === axis)?.icon}
         titleIconColor={groupFilterMenuItems.find(i => i.id === axis)?.iconColor}
         showDropdown
         showAddButton={showAddButton}
         onTitlePress={handleTitlePress}
-        onAddPress={() => { setCookbookInitialOfficial(addAsOfficial); setShowCookbookDialog(true); }}
+        onAddPress={() => { setCookbookEditTarget(null); setCookbookInitialOfficial(addAsOfficial); setShowCookbookDialog(true); }}
         onFilterPress={() => { setShowMoreMenu(false); setShowLayoutMenu(prev => !prev); }}
         filterIcon={viewMode === 'pack' ? IconCards : IconList}
         filterMenuOpen={showLayoutMenu}
@@ -520,7 +563,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
             {/* 레시피 북 섹션 */}
             {viewMode === 'list' && showCookbookSection && (
               <View style={styles.section}>
-                <SectionHeader title={axisLabel('cookbook', axisOverrides)} style={styles.sectionHeader} />
+                <SectionHeader title={axisLabel(t, 'cookbook', axisOverrides)} style={styles.sectionHeader} />
                 <View>
                   {(() => {
                       const totalLen = cookbooks.length + exploreGroups.length;
@@ -533,13 +576,15 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
                               <View key={cookbook.name}>
                                 <RecipeCard
                                   title={cookbook.name}
-                                  cookbook={`${cookbook.items.length}개의 레시피`}
+                                  cookbook={t('group.recipeCount', {count: cookbook.items.length})}
                                   reviewCount={cookbook.items.reduce((sum, r) => sum + (r.reviews?.length ?? 0), 0)}
                                   layout="list"
                                   placeholderIcon={axisOverrides?.cookbook?.icon ?? IconBookFilled}
                                   placeholderIconColor={isUngrouped ? colors['foreground/on-surface-muted'] : colors[getColorVarKey(cookbookColors[cookbook.name] || DEFAULT_COOKBOOK_COLOR)]}
                                   onPress={() => onCookbookPress?.(cookbook.name)}
-                                  onMenuPress={isUngrouped ? undefined : (pos) => handleCookbookMenuPress(cookbook.name, pos)}
+                                  hidden={cookbooksAreOfficial ? exploreCookbookHiddenMap.get(cookbook.name) : undefined}
+                                  // 공식 북(둘러보기)은 어드민만 편집·삭제. 개인 북(홈)은 소유자 항상 가능
+                                  onMenuPress={isUngrouped || (cookbooksAreOfficial && !isAdmin) ? undefined : (pos) => handleCookbookMenuPress(cookbook.name, pos)}
                                   hideDivider={isLast}
                                 />
                               </View>
@@ -554,12 +599,13 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
                               <View key={`explore-${cookbook.name}`}>
                                 <RecipeCard
                                   title={cookbook.name}
-                                  cookbook={`${cookbook.items.length}개의 레시피`}
+                                  cookbook={t('group.recipeCount', {count: cookbook.items.length})}
                                   reviewCount={cookbook.items.reduce((sum: number, r) => sum + (r.reviews?.length ?? 0), 0)}
                                   layout="list"
                                   placeholderIcon={IconExprolerBookFilled}
                                   placeholderIconColor={isExploreUngrouped ? colors['foreground/on-surface-muted'] : colors[getColorVarKey(ecColor)]}
                                   onPress={() => onExploreCookbookPress?.(cookbook.name)}
+                                  hidden={exploreCookbookHiddenMap.get(cookbook.name)}
                                   onMenuPress={isAdmin ? (pos) => handleExploreCookbookMenuPress(cookbook.name, pos) : undefined}
                                   hideDivider={isLast}
                                 />
@@ -576,13 +622,13 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
             {/* 공법 섹션 */}
             {viewMode === 'list' && showMethodSection && (
               <View style={styles.section}>
-                <SectionHeader title="공법" style={styles.sectionHeader} />
+                <SectionHeader title={t('group.methodSection')} style={styles.sectionHeader} />
                 <View>
                   {methodGroups.length > 0 ? methodGroups.map((g, idx) => (
                     <RecipeCard
                       key={g.method}
                       title={g.method}
-                      cookbook={`${g.items.length}개의 레시피`}
+                      cookbook={t('group.recipeCount', {count: g.items.length})}
                       layout="list"
                       placeholderIcon={IconProcess}
                       placeholderIconColor={colors['custom/lime-var']}
@@ -592,7 +638,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
                   )) : (
                     <RecipeCard
                       title=""
-                      cookbook="공법이 지정된 레시피가 없습니다."
+                      cookbook={t('group.emptyMethods')}
                       layout="list"
                       placeholderIcon={IconProcess}
                       placeholderIconColor={colors['custom/lime-var']}
@@ -607,7 +653,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
             {viewMode === 'list' && showRetrospectiveSection && (
               <View style={styles.section}>
                 <Pressable style={[styles.sectionHeader, styles.retroHeader]} onPress={() => setShowReviewSheet(true)}>
-                  <Text style={styles.retroHeaderTitle}>회고 노트</Text>
+                  <Text style={styles.retroHeaderTitle}>{t('group.retroNote')}</Text>
                   <IconChevronRight width={14} height={14} color={colors['foreground/on-surface-muted']} />
                 </Pressable>
                 {retrospectives.length > 0 ? (
@@ -620,7 +666,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
                           key={recipe.id}
                           title={recipe.title}
                           cookbook={recipe.cookbook}
-                          method={`${stats.totalSessions}회차`}
+                          method={t('group.sessionCount', {count: stats.totalSessions})}
                           imageUrl={recipe.imageUri}
                           layout="list"
                           placeholderIcon={IconChartNoAxesGantt}
@@ -641,7 +687,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
                 ) : (
                   <RecipeCard
                     title=""
-                    cookbook="아직 작성된 회고 노트가 없습니다."
+                    cookbook={t('group.emptyRetro')}
                     layout="list"
                     placeholderIcon={IconChartNoAxesGantt}
                     placeholderIconColor={colors['custom/light-blue-var']}
@@ -699,13 +745,13 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
         onClose={() => setShowDeleteDialog(false)}
         icon={IconTrashTwotone}
         avatarColor="red"
-        title="삭제하기"
+        title={t('group.deleteTitle')}
         description={deleteTargetIsExplore
-          ? `공식 레시피 북 '${deleteTarget}'을(를) 삭제하시겠습니까?`
-          : `'${deleteTarget}' 레시피 북을 삭제하시겠습니까?\n레시피는 레시피 북 없음으로 이동됩니다.`}
+          ? t('group.deleteOfficialConfirm', {name: deleteTarget})
+          : t('group.deleteConfirm', {name: deleteTarget})}
         actions={<>
-          <Button label="취소" variant="soft" onPress={() => setShowDeleteDialog(false)} />
-          <Button label="삭제" variant="soft" destructive onPress={() => {
+          <Button label={t('group.cancel')} variant="soft" onPress={() => setShowDeleteDialog(false)} />
+          <Button label={t('group.delete')} variant="soft" destructive onPress={() => {
             if (deleteTargetIsExplore) {
               onDeleteExploreCookbook?.(deleteTarget);
             } else {
@@ -729,12 +775,18 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
       {expandedMethod && expandedOrigin && axis !== 'retrospective' && (
         <GroupExpandOverlay
           activeLabel={expandedMethod}
-          axisLabel={axisLabel(axis, axisOverrides)}
+          axisLabel={axisLabel(t, axis, axisOverrides)}
           groups={activeGroups}
           allRecipes={axis === 'method' && isAdmin ? [...recipes, ...(exploreRecipes ?? [])] : recipes}
           origin={expandedOrigin}
           onClose={() => { setExpandedMethod(null); setExpandedOrigin(null); }}
           onRecipePress={onRecipePress}
+          isAdmin={isAdmin}
+          isExploreName={isExploreCookbookName}
+          onAddRecipe={axis === 'cookbook' ? onAddRecipeToCookbook : undefined}
+          onEditCookbook={axis === 'cookbook' ? editCookbookFromOverlay : undefined}
+          onDeleteCookbook={axis === 'cookbook' ? deleteCookbookFromOverlay : undefined}
+          onDownloadPdf={onDownloadPdf}
         />
       )}
 
@@ -752,7 +804,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: colors['surface/dim'],

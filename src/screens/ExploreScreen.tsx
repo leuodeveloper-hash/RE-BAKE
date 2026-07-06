@@ -7,7 +7,8 @@ import {Dialog, PdfPreviewDialog} from '@components/Dialog';
 import {Button} from '@components/Button';
 import {SearchCommandBar} from '@components/SearchCommandBar';
 import {RecipeListTemplate} from '@components/Recipe/RecipeListTemplate';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
+import {useTranslation} from '@contexts/LanguageContext';
 import {useRecipes} from '@contexts/RecipeContext';
 import type {Recipe} from '../types/recipe';
 import {getRecipeMenuItems} from '@utils/recipeMenuItems';
@@ -26,14 +27,16 @@ import type {AvatarColor} from '@components/Avatar/Avatar';
 // 둘러보기 노출 축: 회고 제외 (둘러보기 레시피엔 회고가 없음)
 const EXPLORE_AXES: GroupAxis[] = ['all', 'cookbook', 'method'];
 // 둘러보기에선 '레시피 북' → '공식 레시피북' + 로고(네모) 아이콘
-const EXPLORE_AXIS_OVERRIDES: AxisOverrides = {
-  cookbook: {label: '공식 레시피북', icon: IconExprolerBookFilled},
-};
+const makeExploreAxisOverrides = (t: (key: string) => string): AxisOverrides => ({
+  cookbook: {label: t('explore.officialCookbook'), icon: IconExprolerBookFilled},
+});
 
 const FREE_RECIPE_COUNT = 3;
 
-const BASE_CARD_MENU_ITEMS = getRecipeMenuItems({showImport: true});
-const ADMIN_CARD_MENU_ITEMS = getRecipeMenuItems({showImport: true, showEdit: true, showDelete: true});
+const makeBaseCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string) =>
+  getRecipeMenuItems({t, showImport: true});
+const makeAdminCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string) =>
+  getRecipeMenuItems({t, showImport: true, showEdit: true, showDelete: true});
 
 export interface ExploreScreenProps {
   data: Recipe[];
@@ -54,6 +57,8 @@ export interface ExploreScreenProps {
   isFreeUser?: boolean;
   /** PDF 다운로드(둘러보기 리스트 익스포트) — 게스트면 로그인 유도 처리는 상위에서 */
   onDownloadPdf?: () => void;
+  /** 공식 레시피 북 삭제 (어드민 전용) — Firestore explore_cookbooks 삭제 */
+  onDeleteExploreCookbook?: (name: string) => void;
 }
 
 export function ExploreScreen({
@@ -71,8 +76,11 @@ export function ExploreScreen({
   exploreCookbooks,
   isFreeUser = false,
   onDownloadPdf,
+  onDeleteExploreCookbook,
 }: ExploreScreenProps) {
-  const colors = useColorsV2();
+  const colors = useColors();
+  const {t} = useTranslation();
+  const EXPLORE_AXIS_OVERRIDES = useMemo(() => makeExploreAxisOverrides(t), [t]);
   const {selectedExploreCookbook, setSelectedExploreCookbook} = useRecipes();
   // 홈과 동일한 그룹화 축 (전체/레시피북/공법). 'all'=평면 리스트, 그 외=GroupScreen.
   const [exploreAxis, setExploreAxis] = useState<GroupAxis>('all');
@@ -97,8 +105,8 @@ export function ExploreScreen({
   const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
 
   const cardMenuItems = useMemo(
-    () => isAdmin ? ADMIN_CARD_MENU_ITEMS : BASE_CARD_MENU_ITEMS,
-    [isAdmin],
+    () => isAdmin ? makeAdminCardMenuItems(t) : makeBaseCardMenuItems(t),
+    [isAdmin, t],
   );
 
   const exploreCookbookMap = useMemo(() => {
@@ -193,15 +201,15 @@ export function ExploreScreen({
       const names = new Set<string>();
       for (const r of data) names.add(r.cookbook || '공식 레시피 북 없음');
       exploreCookbooks?.forEach(c => names.add(c.name));
-      return [{id: CRUMB_ALL, label: '전체'}, ...[...names].map(n => ({id: n, label: n}))];
+      return [{id: CRUMB_ALL, label: t('explore.all')}, ...[...names].map(n => ({id: n, label: n}))];
     }
     if (crumbAxis === 'method') {
       const names = new Set<string>();
       for (const r of data) names.add(r.method?.trim() || '공법 없음');
-      return [{id: CRUMB_ALL, label: '전체'}, ...[...names].map(n => ({id: n, label: n}))];
+      return [{id: CRUMB_ALL, label: t('explore.all')}, ...[...names].map(n => ({id: n, label: n}))];
     }
     return [];
-  }, [crumbAxis, data, exploreCookbooks]);
+  }, [crumbAxis, data, exploreCookbooks, t]);
 
   const handleCrumbItemSelect = useCallback((id: string) => {
     setShowItemMenu(false);
@@ -235,6 +243,9 @@ export function ExploreScreen({
         showAddButton={!!onAddRecipe}
         bookCarousel
         addAsOfficial
+        cookbooksAreOfficial
+        exploreCookbooks={exploreCookbooks}
+        onDeleteExploreCookbook={onDeleteExploreCookbook}
         onDownloadPdf={onDownloadPdf}
       />
     );
@@ -260,22 +271,22 @@ export function ExploreScreen({
         !isOnline && data.length === 0 ? (
           <EmptyState
             category="network-error"
-            title="네트워크에 연결할 수 없어요."
-            subtitle="인터넷 연결을 확인하고 다시 시도해 주세요."
+            title={t('explore.networkErrorTitle')}
+            subtitle={t('explore.networkErrorSubtitle')}
           />
         ) : selectedCategory && selectedCategory !== '__all__' ? (
           <EmptyState
             category="no-recipe"
-            title="레시피 북이 비어 있어요."
-            subtitle="첫 레시피를 추가해보세요."
-            actionLabel={onAddRecipe ? '레시피 추가하기' : undefined}
+            title={t('explore.emptyCookbookTitle')}
+            subtitle={t('explore.emptyCookbookSubtitle')}
+            actionLabel={onAddRecipe ? t('explore.addRecipeAction') : undefined}
             onAction={onAddRecipe ? () => onAddRecipe(selectedCategory) : undefined}
           />
         ) : data.length === 0 ? (
           <EmptyState
             category="no-recipe"
-            title="둘러보기 레시피가 아직 없네요."
-            subtitle="잠시 후 다시 확인해 보세요."
+            title={t('explore.noExploreRecipesTitle')}
+            subtitle={t('explore.noExploreRecipesSubtitle')}
           />
         ) : undefined
       }
@@ -283,7 +294,7 @@ export function ExploreScreen({
         <AppBar
           titleNode={
             <Breadcrumb
-              axisLabel={axisLabel(crumbAxis, EXPLORE_AXIS_OVERRIDES)}
+              axisLabel={axisLabel(t, crumbAxis, EXPLORE_AXIS_OVERRIDES)}
               axisIcon={axisMenuItems.find(i => i.id === crumbAxis)?.icon}
               axisIconColor={axisMenuItems.find(i => i.id === crumbAxis)?.iconColor}
               itemLabel={flatFilterLabel}
@@ -348,7 +359,7 @@ export function ExploreScreen({
               {layoutMenu}
               {onDownloadPdf ? (
                 <Menu
-                  items={[{id: 'downloadPdf', label: 'PDF 다운로드', icon: IconArrowDownToLine}]}
+                  items={[{id: 'downloadPdf', label: t('explore.downloadPdf'), icon: IconArrowDownToLine}]}
                   visible={showFlatMoreMenu}
                   onSelect={(id) => {
                     setShowFlatMoreMenu(false);
@@ -398,13 +409,13 @@ export function ExploreScreen({
       onClose={() => setDeleteTarget(null)}
       icon={IconTrashTwotone}
       avatarColor="red"
-      title="레시피를 삭제할까요?"
-      description="24시간 이내에 되돌릴 수 있습니다."
+      title={t('explore.deleteRecipeTitle')}
+      description={t('explore.deleteRecipeDescription')}
       actions={
         <>
-          <Button label="취소" variant="soft" onPress={() => setDeleteTarget(null)} />
+          <Button label={t('explore.cancel')} variant="soft" onPress={() => setDeleteTarget(null)} />
           <Button
-            label="삭제"
+            label={t('explore.delete')}
             variant="soft"
             destructive
             onPress={() => {

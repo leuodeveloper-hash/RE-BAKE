@@ -8,9 +8,10 @@ import {Menu, MenuItemData} from '@components/Menu';
 import {Tabs, type TabItem} from '@components/Tabs';
 import {PullIndicator, RefreshGap, usePullProgress} from '@components/PullIndicator';
 import {RecipePackView} from '@components/RecipeGroups/RecipePackView';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
-import type {SemanticColorsV2} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
+import {useTranslation} from '@contexts/LanguageContext';
+import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import type {Recipe} from '../../../types/recipe';
@@ -23,19 +24,21 @@ import {
   IconCards,
 } from '@components/Icon/IconIndex';
 
-const LAYOUT_MENU_ITEMS: MenuItemData[] = [
-  {id: 'grid', label: '그리드', icon: IconLayoutGrid},
-  {id: 'photoList', label: '사진 목록', icon: IconLayoutPanelTop},
-  {id: 'list', label: '목록', icon: IconList},
-  {id: 'pack', label: '팩뷰', icon: IconCards},
+type TFn = (key: string, options?: Record<string, unknown>) => string;
+
+const makeLayoutMenuItems = (t: TFn): MenuItemData[] => [
+  {id: 'grid', label: t('recipeList.layoutGrid'), icon: IconLayoutGrid},
+  {id: 'photoList', label: t('recipeList.layoutPhotoList'), icon: IconLayoutPanelTop},
+  {id: 'list', label: t('recipeList.layoutList'), icon: IconList},
+  {id: 'pack', label: t('recipeList.layoutPack'), icon: IconCards},
 ];
 
 // 레이아웃 선택: 메뉴 박스 안 아이콘 탭(세그먼트)으로 표시 — 레이블 없이 아이콘만
-const LAYOUT_TABS: TabItem[] = LAYOUT_MENU_ITEMS.map(i => ({id: i.id, label: '', icon: i.icon}));
+const makeLayoutTabs = (items: MenuItemData[]): TabItem[] => items.map(i => ({id: i.id, label: '', icon: i.icon}));
 
-const SORT_MENU_ITEMS: MenuItemData[] = [
-  {id: 'default', label: '최신순'},
-  {id: 'title-asc', label: '이름순'},
+const makeSortMenuItems = (t: TFn): MenuItemData[] => [
+  {id: 'default', label: t('recipeList.sortLatest')},
+  {id: 'title-asc', label: t('recipeList.sortName')},
 ];
 
 const PAGE_SIZE = 10;
@@ -55,7 +58,7 @@ const SKELETON_DATA: Recipe[] = Array.from({length: SKELETON_COUNT}, (_, i) => (
 // ---- Skeleton Card ----
 
 function SkeletonCard({layout}: {layout: RecipeCardLayout}) {
-  const colors = useColorsV2();
+  const colors = useColors();
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -304,7 +307,11 @@ export function RecipeListTemplate({
   listHeaderExtra,
   children,
 }: RecipeListTemplateProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
+  const {t} = useTranslation();
+  const layoutMenuItems = useMemo(() => makeLayoutMenuItems(t), [t]);
+  const layoutTabs = useMemo(() => makeLayoutTabs(layoutMenuItems), [layoutMenuItems]);
+  const sortMenuItems = useMemo(() => makeSortMenuItems(t), [t]);
   const [layout, setLayoutState] = useState<RecipeCardLayout>('grid');
   const [sortId, setSortIdState] = useState('default');
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
@@ -460,21 +467,21 @@ export function RecipeListTemplate({
     <Menu
       sections={[
         {
-          title: '레이아웃',
+          title: t('recipeList.sectionLayout'),
           content: (
             <View style={styles.layoutTabsWrap}>
               <Tabs
                 variant="icon"
                 size="large"
                 fullWidth
-                tabs={LAYOUT_TABS}
+                tabs={layoutTabs}
                 selectedId={layout}
                 onSelect={handleMenuSelect}
               />
             </View>
           ),
         },
-        {title: '정렬', items: SORT_MENU_ITEMS, selectedId: sortId},
+        {title: t('recipeList.sectionSort'), items: sortMenuItems, selectedId: sortId},
       ]}
       onSelect={handleMenuSelect}
       visible={showLayoutMenu}
@@ -488,7 +495,7 @@ export function RecipeListTemplate({
     closeMenus,
     layoutMenu: layoutMenuNode,
     // 현재 레이아웃의 아이콘 → AppBar 필터 버튼에 노출 (뷰 바꾸면 아이콘도 바뀜)
-    filterIcon: LAYOUT_MENU_ITEMS.find(i => i.id === activeLayout)?.icon ?? IconLayoutGrid,
+    filterIcon: layoutMenuItems.find(i => i.id === activeLayout)?.icon ?? IconLayoutGrid,
   };
 
   const renderItem = useCallback(({item, index}: {item: Recipe; index: number}) => {
@@ -544,6 +551,8 @@ export function RecipeListTemplate({
         imageUrl={item.imageUri}
         layout={activeLayout}
         locked={isLocked}
+        hidden={item.hidden}
+        hasReference={!!item.referenceUrl}
         paperPreview={paperPreview}
         paperTitle={(activeLayout === 'grid' || activeLayout === 'list') ? item.title : undefined}
         recipePdfData={activeLayout === 'grid' ? recipeToPdfData(item) : undefined}
@@ -644,7 +653,7 @@ export function RecipeListTemplate({
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   safeArea: {
     flex: 1,
     alignItems: 'center',

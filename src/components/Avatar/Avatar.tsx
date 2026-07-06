@@ -3,7 +3,7 @@ import {Animated, Easing, Image, StyleSheet, Text, View, ViewStyle} from 'react-
 import {Radius, BaseColors, withOpacity} from '@constants/tokens';
 import {getRandomAvatar, getGradientAvatar} from './avatars';
 import {SvgProps} from 'react-native-svg';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 
 export type AvatarSize = 'xsmall' | 'small' | 'medium' | 'large' | 'xlarge';
 export type AvatarShape = 'default' | 'rounded' | 'circle';
@@ -76,7 +76,7 @@ export function Avatar({
   seed,
   style,
 }: AvatarProps) {
-  const colors = useColorsV2();
+  const colors = useColors();
 
   // 색상별 배경색 (베이스 컬러의 16% opacity → 라이트/다크 모두 자연스럽게 동작)
   const BACKGROUND_COLORS: Record<AvatarColor, string> = {

@@ -10,12 +10,12 @@ import {
   View,
 } from 'react-native';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {BlurView} from 'expo-blur';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {BottomActionBar} from '@components/BottomActionBar';
 import {SheetHeader} from './SheetHeader';
 
@@ -85,8 +85,8 @@ export function BottomSheet({
   hideHandle = false,
   bottomAction,
 }: BottomSheetProps) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const {height: windowHeight} = useWindowDimensions();
   const {top: safeTop, bottom: safeBottom} = useSafeAreaInsets();
   const translateY = useRef(new Animated.Value(windowHeight)).current;
@@ -329,7 +329,7 @@ export function BottomSheet({
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) =>
+const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
     container: {
       flex: 1,

@@ -5,7 +5,7 @@ import {GlassContainer} from '@components/Container';
 import {Selector} from '@components/Selector';
 import {IconButton} from '@components/IconButton';
 import {IconChevronRight, IconChevronLeft} from '@components/Icon/IconIndex';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {navPillStyle} from './FloatingNavBar';
 
 export interface BreadcrumbProps {
@@ -32,7 +32,7 @@ export interface BreadcrumbProps {
  * onBack이 주어지고 항목(2뎁스)이 있으면: `[‹ 뒤로가기] [항목 ⌄]` 형태로 축 텍스트를 버튼으로 대체.
  */
 export function Breadcrumb({axisLabel, axisIcon, axisIconColor, itemLabel, onAxisPress, onItemPress, onBack}: BreadcrumbProps) {
-  const colors = useColorsV2();
+  const colors = useColors();
   const hasItem = itemLabel != null && itemLabel !== '';
 
   // 뎁스 진입 + onBack 제공 → 축을 뒤로가기 버튼으로 대체 (텍스트 길이 축소)

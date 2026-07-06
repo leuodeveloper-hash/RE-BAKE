@@ -1,7 +1,7 @@
 import React, {useCallback, useState} from 'react';
 import {Platform, Pressable, StyleSheet, View, ViewStyle} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {Radius} from '@constants/tokens';
 import {IconCameraFilled} from '@components/Icon/IconIndex';
 import {recognizeImageText, parseRecognizedText, type RecipeOcrField} from '@utils/recipeOcr';
@@ -24,7 +24,7 @@ export interface RecipeOcrButtonProps {
  * 활성 필드 옆에 플로팅 버튼으로 사용.
  */
 export function RecipeOcrButton({field, onStart, onRecognized, onEnd, style}: RecipeOcrButtonProps) {
-  const colors = useColorsV2();
+  const colors = useColors();
   const [busy, setBusy] = useState(false);
 
   const handlePress = useCallback(async () => {

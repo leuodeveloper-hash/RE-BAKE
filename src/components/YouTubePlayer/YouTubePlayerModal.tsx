@@ -7,6 +7,7 @@ import {IconButton} from '@components/IconButton';
 import {APPBAR_CONTENT_BOTTOM} from '@components/Navigation';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
+import {useTranslation} from '@contexts/LanguageContext';
 
 export interface YouTubePlayerModalProps {
   visible: boolean;
@@ -32,6 +33,7 @@ const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min)
  *   Android는 setSupportMultipleWindows=false로 새창 팝업 차단
  */
 export function YouTubePlayerModal({visible, onClose, videoId}: YouTubePlayerModalProps) {
+  const {t} = useTranslation();
   const insets = useSafeAreaInsets();
   const {width, height} = useWindowDimensions();
   // 풀 와이드: 좌우 16 여백 확보, 최대 480 캡. 세로는 16:9.
@@ -190,9 +192,9 @@ export function YouTubePlayerModal({visible, onClose, videoId}: YouTubePlayerMod
           {loadFailed ? (
             // 하드 로드 실패 → 검은 박스 대신 외부 열기 안내 카드
             <View style={styles.fallback}>
-              <Text style={styles.fallbackText}>여기서 재생할 수 없는 영상이에요</Text>
+              <Text style={styles.fallbackText}>{t('youTubePlayer.cannotPlayHere')}</Text>
               <Pressable style={styles.fallbackBtn} onPress={openInYouTube}>
-                <Text style={styles.fallbackBtnText}>유튜브에서 열기</Text>
+                <Text style={styles.fallbackBtnText}>{t('youTubePlayer.openInYouTube')}</Text>
               </Pressable>
             </View>
           ) : (

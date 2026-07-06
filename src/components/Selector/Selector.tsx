@@ -6,15 +6,18 @@ import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {SvgProps} from 'react-native-svg';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {IconChevronUpDown} from '@components/Icon/IconIndex';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 
 export type SelectorVariant = 'ghost' | 'filled' | 'outlined' | 'tonal' | 'circle';
+export type SelectorSize = 'medium' | 'small';
 
 export interface SelectorProps {
   label: string;
   showDropdown?: boolean;
   onPress?: () => void;
   variant?: SelectorVariant;
+  /** 크기 (기본: medium). small = 보조 컨트롤용 축소 */
+  size?: SelectorSize;
   disabled?: boolean;
   forcePressed?: boolean;
   /** 텍스트 색상 muted 적용 (disabled와 독립) */
@@ -33,6 +36,7 @@ export function Selector({
   showDropdown = false,
   onPress,
   variant = 'ghost',
+  size = 'medium',
   disabled = false,
   forcePressed = false,
   muted = false,
@@ -41,7 +45,8 @@ export function Selector({
   leadingIconColor,
   style,
 }: SelectorProps) {
-  const colors = useColorsV2();
+  const colors = useColors();
+  const isSmall = size === 'small';
 
   const getContainerStyle = (pressed: boolean): ViewStyle => {
     const baseStyle: ViewStyle = {
@@ -86,8 +91,8 @@ export function Selector({
       case 'ghost':
       default:
         baseStyle.backgroundColor = 'transparent';
-        baseStyle.height = 40;
-        baseStyle.paddingHorizontal = Spacing.smd; // 12px
+        baseStyle.height = isSmall ? 32 : 40;
+        baseStyle.paddingHorizontal = isSmall ? Spacing.sm : Spacing.smd; // 8 : 12px
         break;
     }
 
@@ -144,7 +149,7 @@ export function Selector({
               color={leadingIconColor ?? getIconColor()}
             />
           )}
-          <Text style={[styles.label, {color: getTextColor()}]} numberOfLines={1}>{label}</Text>
+          <Text style={[styles.label, isSmall && styles.labelSmall, {color: getTextColor()}]} numberOfLines={1}>{label}</Text>
           {showDropdown && (
             <AppIcon
               icon={dropdownIcon ?? IconChevronUpDown}
@@ -165,5 +170,12 @@ const styles = StyleSheet.create({
     fontWeight: Typography.title.medium.fontWeight as '700',
     lineHeight: Typography.title.medium.lineHeight,
     marginTop: FONT_BASELINE_OFFSET,
+  },
+  labelSmall: {
+    fontFamily: Typography.body.medium.fontFamily,
+    fontSize: Typography.body.medium.fontSize,
+    fontWeight: Typography.body.medium.fontWeight as '400',
+    lineHeight: Typography.body.medium.lineHeight,
+    marginTop: 0,
   },
 });

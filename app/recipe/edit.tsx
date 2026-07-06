@@ -7,9 +7,10 @@ import {db} from '@config/firebase';
 import {RecipeEditScreen} from '@screens/RecipeEditScreen';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
+import {useTranslation} from '@contexts/LanguageContext';
 import {uploadRecipeImage, isLocalUri} from '@utils/imageUpload';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 
@@ -30,13 +31,29 @@ function stripUndefined(obj: any): any {
 
 export default function RecipeNewRoute() {
   const router = useRouter();
-  const colors = useColorsV2();
+  const colors = useColors();
   const {target, cookbook} = useLocalSearchParams<{target?: string; cookbook?: string}>();
   const isExploreTarget = target === 'explore';
   const {user} = useAuth();
   const {setRecipes, availableCookbooks, cookbookColors, setCookbookColor} = useRecipes();
   const {showSnackbar} = useSnackbar();
-  const {exploreCookbooks} = useExploreRecipeContext();
+  const {exploreCookbooks, reload: exploreReload} = useExploreRecipeContext();
+  const {t} = useTranslation();
+
+  // 공식(둘러보기) 레시피를 만들 때 인라인으로 쿡북을 추가하면 개인 색맵이 아니라
+  // explore_cookbooks(Firestore)에 만들어야 한다. (개인 데이터로 새던 누수 수정)
+  const handleSetCookbookColor = useCallback(async (name: string, color: AvatarColor) => {
+    if (isExploreTarget) {
+      try {
+        await setDoc(doc(db, 'explore_cookbooks', name), {name, color, createdAt: new Date().toISOString()});
+        await exploreReload();
+      } catch (e) {
+        console.warn('공식 레시피 북 추가 실패:', e);
+      }
+    } else {
+      setCookbookColor(name, color);
+    }
+  }, [isExploreTarget, setCookbookColor, exploreReload]);
 
   const mergedCookbookColors = useMemo(() => {
     if (!isExploreTarget) return cookbookColors;
@@ -79,16 +96,16 @@ export default function RecipeNewRoute() {
         const {imageSource, ...rest} = newRecipe;
         const serializable = stripUndefined(rest);
         await setDoc(doc(db, 'explore_recipes', id), serializable);
-        showSnackbar('둘러보기에 레시피가 추가되었습니다');
+        showSnackbar(t('edit.recipeAddedToExplore'));
       } catch {
-        showSnackbar('저장에 실패했습니다');
+        showSnackbar(t('edit.saveFailed'));
       }
     } else {
       setRecipes(prev => [...prev, newRecipe]);
-      showSnackbar('레시피가 저장되었습니다');
+      showSnackbar(t('edit.recipeSaved'));
     }
     router.back();
-  }, [isExploreTarget, setRecipes, showSnackbar, router]);
+  }, [isExploreTarget, setRecipes, showSnackbar, router, t]);
 
   return (
     <SafeAreaProvider>
@@ -100,7 +117,7 @@ export default function RecipeNewRoute() {
           cookbookColors={mergedCookbookColors}
           onClose={handleClose}
           onSave={handleSave}
-          onSetCookbookColor={setCookbookColor}
+          onSetCookbookColor={handleSetCookbookColor}
           initialCookbook={cookbook}
           isExplore={isExploreTarget}
         />

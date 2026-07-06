@@ -11,10 +11,13 @@ import {
   IconShare,
 } from '@components/Icon/IconIndex';
 import type {AvatarColor} from '@components/Avatar/Avatar';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {getColorVarKey} from '@components/ColorPicker';
 
+type TFunction = (key: string, params?: Record<string, unknown>) => string;
+
 interface RecipeMenuOptions {
+  t: TFunction;
   session?: string;
   showImport?: boolean;
   showRemake?: boolean;
@@ -32,39 +35,41 @@ interface RecipeMenuOptions {
 }
 
 export function getRecipeMenuItems(options: RecipeMenuOptions): MenuItemData[] {
+  const {t} = options;
   const items: MenuItemData[] = [];
-  if (options.showImport) items.push({id: 'save', label: '내 레시피로 복사', icon: IconFilesFilled});
+  if (options.showImport) items.push({id: 'save', label: t('recipeMenuItems.copyToMyRecipes'), icon: IconFilesFilled});
   if (options.showRemake) {
     const {total} = parseSession(options.session);
-    items.push({id: 'remake', label: `다시 만들기: ${total + 1}회차`, icon: IconHash});
+    items.push({id: 'remake', label: t('recipeMenuItems.remakeCount', {count: total + 1}), icon: IconHash});
   }
-  if (options.showEdit) items.push({id: 'edit', label: '편집', icon: IconEdit});
-  if (options.showCookbook) items.push({id: 'cookbook', label: '레시피 북', icon: IconBookFilled});
-  if (options.showCopyToExplore) items.push({id: 'copyToExplore', label: '둘러보기에 복사', icon: IconExprolerBookFilled});
-  if (options.showShare) items.push({id: 'share', label: '공유', icon: IconShare});
-  if (options.showDownloadAll) items.push({id: 'downloadAll', label: 'PDF 다운로드', icon: IconArrowDownToLine});
+  if (options.showEdit) items.push({id: 'edit', label: t('recipeMenuItems.edit'), icon: IconEdit});
+  if (options.showCookbook) items.push({id: 'cookbook', label: t('recipeMenuItems.recipeBook'), icon: IconBookFilled});
+  if (options.showCopyToExplore) items.push({id: 'copyToExplore', label: t('recipeMenuItems.copyToExplore'), icon: IconExprolerBookFilled});
+  if (options.showShare) items.push({id: 'share', label: t('recipeMenuItems.share'), icon: IconShare});
+  if (options.showDownloadAll) items.push({id: 'downloadAll', label: t('recipeMenuItems.downloadPdf'), icon: IconArrowDownToLine});
   if (options.showDownload !== false && !options.showDownloadAll) {
-    items.push({id: 'download', label: 'PDF 다운로드', icon: IconArrowDownToLine});
+    items.push({id: 'download', label: t('recipeMenuItems.downloadPdf'), icon: IconArrowDownToLine});
   }
-  if (options.showDelete) items.push({id: 'delete', label: '삭제', icon: IconTrash, destructive: true});
-  if (options.showDeleteAll) items.push({id: 'deleteAll', label: '전체 삭제', icon: IconTrash, destructive: true});
+  if (options.showDelete) items.push({id: 'delete', label: t('recipeMenuItems.delete'), icon: IconTrash, destructive: true});
+  if (options.showDeleteAll) items.push({id: 'deleteAll', label: t('recipeMenuItems.deleteAll'), icon: IconTrash, destructive: true});
   return items;
 }
 
 interface CookbookSubmenuOptions {
+  t: TFunction;
   availableCookbooks: string[];
   cookbookColors: Record<string, AvatarColor>;
   currentCookbook: string;
-  colors: SemanticColorsV2;
+  colors: SemanticColors;
 }
 
 export function getCookbookSubmenuItems(options: CookbookSubmenuOptions): {
   items: MenuItemData[];
   selectedId: string;
 } {
-  const {availableCookbooks, cookbookColors, currentCookbook, colors} = options;
+  const {t, availableCookbooks, cookbookColors, currentCookbook, colors} = options;
   const items: MenuItemData[] = [
-    {id: 'cookbook:__none__', label: '레시피 북 없음', icon: IconBookFilled},
+    {id: 'cookbook:__none__', label: t('recipeMenuItems.noRecipeBook'), icon: IconBookFilled},
   ];
   for (const name of availableCookbooks) {
     const avatarColor = cookbookColors[name];

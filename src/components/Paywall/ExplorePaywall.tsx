@@ -2,10 +2,11 @@ import React from 'react';
 import {StyleSheet, View} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import {Button} from '@components/Button';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {Spacing} from '@constants/spacing';
 import {IconVideoPlay} from '@components/Icon/IconIndex';
 import {SUBSCRIPTION_ENABLED} from '@contexts/SubscriptionContext';
+import {useTranslation} from '@contexts/LanguageContext';
 
 interface ExplorePaywallProps {
   onWatchAd: () => void;
@@ -20,7 +21,8 @@ interface ExplorePaywallProps {
  * SUBSCRIPTION_ENABLED일 때 "Pro 구독" 버튼도 표시.
  */
 export function ExplorePaywall({onWatchAd, adLoading, onSubscribe}: ExplorePaywallProps) {
-  const colors = useColorsV2();
+  const colors = useColors();
+  const {t} = useTranslation();
   const bgColor = colors['surface/dim'];
 
   return (
@@ -34,14 +36,14 @@ export function ExplorePaywall({onWatchAd, adLoading, onSubscribe}: ExplorePaywa
       <View style={styles.buttonArea}>
         {SUBSCRIPTION_ENABLED && onSubscribe && (
           <Button
-            label="Pro 구독으로 모든 레시피 보기"
+            label={t('explorePaywall.subscribeToViewAll')}
             onPress={onSubscribe}
             variant="filled"
             size="medium"
           />
         )}
         <Button
-          label={adLoading ? '광고 준비 중...' : '광고 보고 레시피 열기'}
+          label={adLoading ? t('explorePaywall.adLoading') : t('explorePaywall.watchAdToOpen')}
           icon={IconVideoPlay}
           onPress={onWatchAd}
           disabled={adLoading}

@@ -3,7 +3,7 @@ import {ActivityIndicator, Pressable, View, ViewStyle} from 'react-native';
 import {Radius} from '@constants/tokens';
 import {SvgProps} from 'react-native-svg';
 import {AppIcon, AppIconSize} from '@components/Icon/AppIcon';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {triggerHaptic} from '@utils/haptics';
 
 export type IconButtonStyle =
@@ -52,7 +52,7 @@ export function IconButton({
   iconColor,
   style,
 }: IconButtonProps) {
-  const colors = useColorsV2();
+  const colors = useColors();
   const sizeConfig = SIZE_CONFIG[size];
 
   const getIconSize = (): AppIconSize => {

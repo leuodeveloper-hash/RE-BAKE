@@ -89,7 +89,7 @@ android {
 
     namespace 'com.bakecycle.app'
     defaultConfig {
-        applicationId 'com.bakecycle.app'
+        applicationId 'com.bakle.app'
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1

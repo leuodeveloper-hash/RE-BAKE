@@ -1,7 +1,7 @@
 import React from 'react';
 import {View} from 'react-native';
 import {IconDragger} from '@components/Icon/IconIndex';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {dragStyles} from '@hooks/useDragReorder';
 
 export interface DragHandleProps {
@@ -16,7 +16,7 @@ export interface DragHandleProps {
 }
 
 export function DragHandle({responder, enabled = true, size = 20, color}: DragHandleProps) {
-  const colors = useColorsV2();
+  const colors = useColors();
   // IconButton ghost-secondary 변형과 동일한 색 토큰 사용 (활성: on-surface-muted, 비활성: on-surface-disabled)
   const iconColor = color
     ?? (enabled

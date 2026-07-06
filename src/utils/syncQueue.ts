@@ -6,7 +6,7 @@ import {
 } from 'firebase/firestore';
 import {db} from '@config/firebase';
 
-const QUEUE_KEY = 'bakecycle_sync_queue';
+const QUEUE_KEY = 'bakle_sync_queue';
 
 interface SyncOperation {
   type: 'sync' | 'delete';

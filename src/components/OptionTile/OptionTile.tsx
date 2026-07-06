@@ -1,13 +1,13 @@
 import React from 'react';
 import {Pressable, StyleSheet, Text, ViewStyle} from 'react-native';
 import {SvgProps} from 'react-native-svg';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {Card} from '@components/Container/Card';
 import {AppIcon, AppIconSize} from '@components/Icon/AppIcon';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
 
 export interface OptionTileProps {
   icon: React.FC<SvgProps>;
@@ -18,8 +18,8 @@ export interface OptionTileProps {
 }
 
 export function OptionTile({icon, iconSize = 'sm', label, style, onPress}: OptionTileProps) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const content = (
     <Card style={[styles.card, style]}>
       <AppIcon
@@ -36,7 +36,7 @@ export function OptionTile({icon, iconSize = 'sm', label, style, onPress}: Optio
   return content;
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   pressable: {
     flex: 1,
   },

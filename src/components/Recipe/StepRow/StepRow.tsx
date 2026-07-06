@@ -1,10 +1,10 @@
 import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useThemedStyles} from '@hooks/useThemedStyles';
 
 export interface ProcessStep {
   step: number;
@@ -22,7 +22,7 @@ export interface StepRowProps {
  * - 단계 번호와 설명 표시
  */
 export function StepRow({step, isLast = false}: StepRowProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
 
   return (
     <View style={[styles.container, !isLast && styles.withBorder]}>
@@ -43,7 +43,7 @@ export interface StepListProps {
  * - 카드 형태의 과정 목록
  */
 export function StepList({steps}: StepListProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
 
   return (
     <View style={styles.list}>
@@ -58,7 +58,7 @@ export function StepList({steps}: StepListProps) {
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   list: {
     backgroundColor: colors['surface/bright'],
     borderRadius: Radius['radius-lg'],

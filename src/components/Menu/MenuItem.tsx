@@ -1,14 +1,14 @@
 import React from 'react';
 import {Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {SvgProps} from 'react-native-svg';
 import {IconCaretRight} from '@components/Icon/IconIndex';
 import {Checkbox} from '@components/Checkbox/Checkbox';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
 import {triggerHaptic} from '@utils/haptics';
 
 export interface MenuItemProps {
@@ -48,8 +48,8 @@ export function MenuItem({
   onPress,
   style,
 }: MenuItemProps) {
-  const colors = useColorsV2();
-  const styles = useThemedStylesV2(createStyles);
+  const colors = useColors();
+  const styles = useThemedStyles(createStyles);
 
   const iconColor = iconColorProp ?? (destructive
     ? colors['foreground/negative']
@@ -103,7 +103,7 @@ export function MenuItem({
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) =>
+const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
     menuItem: {
       flexDirection: 'row',

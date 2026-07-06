@@ -3,7 +3,7 @@
  *
  * 이 파일 하나에 V1/V2 토큰이 모두 들어있습니다. (구 tokensV2.ts 통합됨)
  * - V1: BaseColors / PrimitiveColors / SemanticColorsLight·Dark / Radius / withOpacity
- * - V2: PrimitiveColorsV2 / SemanticColorsV2Light·Dark / RadiusV2 / OpacityV2 / EffectV2 / OSV2
+ * - V2: PrimitiveColors / SemanticColorsLight·Dark / RadiusV2 / OpacityV2 / EffectV2 / OSV2
  *   (V2 심볼은 전부 `V2` 접미사 — V1과 이름 충돌 없음)
  *
  * Figma 변수 이름을 최대한 유지해서, 디자인과 코드가 1:1로 매칭되도록 구성했습니다.
@@ -251,402 +251,18 @@ export type BaseColorKey = keyof typeof BaseColors;
 
 // ---- Derived primitive scales (primary / neutral / accent / error) ----
 
-export const PrimitiveColors = {
-  // Primary (mapped from warm grey)
-  'color-primary-5': BaseColors['color-base-warmgrey-5'],
-  'color-primary-10': BaseColors['color-base-warmgrey-10'],
-  'color-primary-20': BaseColors['color-base-warmgrey-20'],
-  'color-primary-30': BaseColors['color-base-warmgrey-30'],
-  'color-primary-40': BaseColors['color-base-warmgrey-40'],
-  'color-primary-50': BaseColors['color-base-warmgrey-50'],
-  'color-primary-60': BaseColors['color-base-warmgrey-60'],
-  'color-primary-70': BaseColors['color-base-warmgrey-70'],
-  'color-primary-80': BaseColors['color-base-warmgrey-80'],
-  'color-primary-90': BaseColors['color-base-warmgrey-90'],
-  'color-primary-95': BaseColors['color-base-warmgrey-95'],
-  'color-primary-98': BaseColors['color-base-warmgrey-98'],
-  'color-primary-99': BaseColors['color-base-warmgrey-99'],
-
-  // Neutral (based on warm grey)
-  'color-neutral-2': BaseColors['color-base-warmgrey-2'],
-  'color-neutral-5': BaseColors['color-base-warmgrey-5'],
-  'color-neutral-8': BaseColors['color-base-warmgrey-8'],
-  'color-neutral-10': BaseColors['color-base-warmgrey-10'],
-  'color-neutral-20': BaseColors['color-base-warmgrey-20'],
-  'color-neutral-30': BaseColors['color-base-warmgrey-30'],
-  'color-neutral-40': BaseColors['color-base-warmgrey-40'],
-  'color-neutral-50': BaseColors['color-base-warmgrey-50'],
-  'color-neutral-60': BaseColors['color-base-warmgrey-60'],
-  'color-neutral-70': BaseColors['color-base-warmgrey-70'],
-  'color-neutral-80': BaseColors['color-base-warmgrey-80'],
-  'color-neutral-90': BaseColors['color-base-warmgrey-90'],
-  'color-neutral-95': BaseColors['color-base-warmgrey-95'],
-  'color-neutral-96': BaseColors['color-base-warmgrey-96'],
-  'color-neutral-98': BaseColors['color-base-warmgrey-98'],
-  'color-neutral-99': BaseColors['color-base-warmgrey-99'],
-
-  // Accent (based on blue)
-  'color-accent-5': BaseColors['color-base-blue-5'],
-  'color-accent-10': BaseColors['color-base-blue-10'],
-  'color-accent-20': BaseColors['color-base-blue-20'],
-  'color-accent-30': BaseColors['color-base-blue-30'],
-  'color-accent-40': BaseColors['color-base-blue-40'],
-  'color-accent-50': BaseColors['color-base-blue-50'],
-  'color-accent-60': BaseColors['color-base-blue-60'],
-  'color-accent-70': BaseColors['color-base-blue-70'],
-  'color-accent-80': BaseColors['color-base-blue-80'],
-  'color-accent-90': BaseColors['color-base-blue-90'],
-  'color-accent-95': BaseColors['color-base-blue-95'],
-  'color-accent-99': BaseColors['color-base-blue-99'],
-
-  // Error (based on red)
-  'color-error-5': BaseColors['color-base-red-5'],
-  'color-error-10': BaseColors['color-base-red-10'],
-  'color-error-20': BaseColors['color-base-red-20'],
-  'color-error-30': BaseColors['color-base-red-30'],
-  'color-error-40': BaseColors['color-base-red-40'],
-  'color-error-50': BaseColors['color-base-red-50'],
-  'color-error-60': BaseColors['color-base-red-60'],
-  'color-error-70': BaseColors['color-base-red-70'],
-  'color-error-80': BaseColors['color-base-red-80'],
-  'color-error-90': BaseColors['color-base-red-90'],
-  'color-error-95': BaseColors['color-base-red-95'],
-  'color-error-99': BaseColors['color-base-red-99'],
-
-  // State layers — primary (warm grey base)
-  'color-primary-statelayers-10-08': withOpacity(BaseColors['color-base-warmgrey-99'], 0.08),
-  'color-primary-statelayers-10-10': withOpacity(BaseColors['color-base-warmgrey-99'], 0.10),
-  'color-primary-statelayers-10-16': withOpacity(BaseColors['color-base-warmgrey-99'], 0.16),
-  'color-primary-statelayers-20-08': withOpacity(BaseColors['color-base-warmgrey-96'], 0.08),
-  'color-primary-statelayers-20-10': withOpacity(BaseColors['color-base-warmgrey-96'], 0.10),
-  'color-primary-statelayers-20-16': withOpacity(BaseColors['color-base-warmgrey-96'], 0.16),
-  'color-primary-statelayers-40-08': withOpacity(BaseColors['color-base-warmgrey-80'], 0.08),
-  'color-primary-statelayers-40-10': withOpacity(BaseColors['color-base-warmgrey-80'], 0.10),
-  'color-primary-statelayers-40-16': withOpacity(BaseColors['color-base-warmgrey-80'], 0.16),
-  'color-primary-statelayers-80-08': withOpacity(BaseColors['color-base-warmgrey-30'], 0.08),
-  'color-primary-statelayers-80-10': withOpacity(BaseColors['color-base-warmgrey-30'], 0.10),
-  'color-primary-statelayers-80-16': withOpacity(BaseColors['color-base-warmgrey-30'], 0.16),
-  'color-primary-statelayers-90-08': withOpacity(BaseColors['color-base-warmgrey-20'], 0.08),
-  'color-primary-statelayers-90-10': withOpacity(BaseColors['color-base-warmgrey-20'], 0.10),
-  'color-primary-statelayers-90-16': withOpacity(BaseColors['color-base-warmgrey-20'], 0.16),
-
-  // State layers — neutral (warm grey base)
-  'color-neutral-statelayers-10-08': withOpacity(BaseColors['color-base-warmgrey-99'], 0.08),
-  'color-neutral-statelayers-10-10': withOpacity(BaseColors['color-base-warmgrey-99'], 0.10),
-  'color-neutral-statelayers-10-16': withOpacity(BaseColors['color-base-warmgrey-99'], 0.16),
-  'color-neutral-statelayers-20-08': withOpacity(BaseColors['color-base-warmgrey-96'], 0.08),
-  'color-neutral-statelayers-20-10': withOpacity(BaseColors['color-base-warmgrey-96'], 0.10),
-  'color-neutral-statelayers-20-16': withOpacity(BaseColors['color-base-warmgrey-96'], 0.16),
-  'color-neutral-statelayers-40-08': withOpacity(BaseColors['color-base-warmgrey-80'], 0.08),
-  'color-neutral-statelayers-40-10': withOpacity(BaseColors['color-base-warmgrey-80'], 0.10),
-  'color-neutral-statelayers-40-16': withOpacity(BaseColors['color-base-warmgrey-80'], 0.16),
-  'color-neutral-statelayers-80-08': withOpacity(BaseColors['color-base-warmgrey-30'], 0.08),
-  'color-neutral-statelayers-80-10': withOpacity(BaseColors['color-base-warmgrey-30'], 0.10),
-  'color-neutral-statelayers-80-16': withOpacity(BaseColors['color-base-warmgrey-30'], 0.16),
-  'color-neutral-statelayers-90-08': withOpacity(BaseColors['color-base-warmgrey-20'], 0.08),
-  'color-neutral-statelayers-90-10': withOpacity(BaseColors['color-base-warmgrey-20'], 0.10),
-  'color-neutral-statelayers-90-16': withOpacity(BaseColors['color-base-warmgrey-20'], 0.16),
-
-  // State layers — accent (blue base)
-  'color-accent-statelayers-10-08': withOpacity(BaseColors['color-base-blue-90'], 0.08),
-  'color-accent-statelayers-10-10': withOpacity(BaseColors['color-base-blue-90'], 0.10),
-  'color-accent-statelayers-10-16': withOpacity(BaseColors['color-base-blue-90'], 0.16),
-  'color-accent-statelayers-20-08': withOpacity(BaseColors['color-base-blue-80'], 0.08),
-  'color-accent-statelayers-20-10': withOpacity(BaseColors['color-base-blue-80'], 0.10),
-  'color-accent-statelayers-20-16': withOpacity(BaseColors['color-base-blue-80'], 0.16),
-  'color-accent-statelayers-40-08': withOpacity(BaseColors['color-base-blue-60'], 0.08),
-  'color-accent-statelayers-40-10': withOpacity(BaseColors['color-base-blue-60'], 0.10),
-  'color-accent-statelayers-40-16': withOpacity(BaseColors['color-base-blue-60'], 0.16),
-  'color-accent-statelayers-80-08': withOpacity('#DCC843', 0.08),
-  'color-accent-statelayers-80-10': withOpacity('#DCC843', 0.10),
-  'color-accent-statelayers-80-16': withOpacity('#DCC843', 0.16),
-  'color-accent-statelayers-90-08': withOpacity('#F7ECAB', 0.08),
-  'color-accent-statelayers-90-10': withOpacity('#F7ECAB', 0.10),
-  'color-accent-statelayers-90-16': withOpacity('#F7ECAB', 0.16),
-
-  // State layers — error
-  'color-error-statelayers-40-08': withOpacity('#B3261E', 0.08),
-  'color-error-statelayers-40-10': withOpacity('#B3261E', 0.10),
-  'color-error-statelayers-80-08': withOpacity('#F2B8B5', 0.08),
-  'color-error-statelayers-80-10': withOpacity('#F2B8B5', 0.10),
-} as const;
 
 export type PrimitiveColorKey = keyof typeof PrimitiveColors;
 
 // ---- Semantic tokens: Light mode ----
 
-export const SemanticColorsLight = {
-  // Backgrounds & primary
-  'background-primary': PrimitiveColors['color-primary-98'],
-  'foreground-primary': PrimitiveColors['color-primary-98'],
-  'foreground-onprimary': PrimitiveColors['color-primary-5'],
-  'background-primarycontainer': PrimitiveColors['color-primary-90'],
-  'foreground-onprimarycontainer': PrimitiveColors['color-primary-98'],
-
-  // Accent
-  'foreground-accent': PrimitiveColors['color-accent-60'],
-  'background-accent': PrimitiveColors['color-accent-70'],
-  'background-accentcontainer': PrimitiveColors['color-accent-20'],
-  'foreground-onaccent': PrimitiveColors['color-accent-5'],
-  'foreground-onaccentcontainer': PrimitiveColors['color-accent-80'],
-
-  // Surfaces
-  'surface-surface': PrimitiveColors['color-neutral-2'],
-  'surface-surfacedim': PrimitiveColors['color-neutral-10'],
-  'surface-surfacebright': BaseColors['color-base-white'],
-  'surface-surfacecontainerlowest': PrimitiveColors['color-neutral-5'],
-  'surface-surfacecontainerlow': PrimitiveColors['color-neutral-8'],
-  'surface-surfacecontainer': PrimitiveColors['color-neutral-10'],
-  'surface-surfacecontainerhigh': PrimitiveColors['color-neutral-20'],
-  'surface-surfacecontainerhighest': PrimitiveColors['color-neutral-30'],
-  'surface-surfacecontainertransparent': withOpacity(BaseColors['color-base-warmgrey-70'], 0.12),
-  'surface-surfacecontainertransparent-onimage': withOpacity(PrimitiveColors['color-neutral-5'], 0.16),
-  'surface-surfaceinverse': PrimitiveColors['color-neutral-96'],
-
-  // Error
-  'background-error': PrimitiveColors['color-error-80'],
-  'background-errorcontainer': withOpacity(BaseColors['color-base-red-80'], 0.12),
-  'foreground-error': PrimitiveColors['color-error-80'],
-  'foreground-onerror': PrimitiveColors['color-error-5'],
-  'foreground-onerrorcontainer': PrimitiveColors['color-error-80'],
-
-  // On surface
-  'foreground-onsurface': PrimitiveColors['color-neutral-98'],
-  'foreground-onsurfacevar': withOpacity(PrimitiveColors['color-neutral-98'], 0.64),
-  'foreground-onsurfacemuted': withOpacity(PrimitiveColors['color-neutral-98'], 0.36),
-  'foreground-onsurfacedisabled': withOpacity(PrimitiveColors['color-neutral-98'], 0.24),
-  'foreground-onsurfaceinverse': PrimitiveColors['color-neutral-5'],
-  'foreground-onsurfaceinversevar': withOpacity(PrimitiveColors['color-neutral-5'], 0.64),
-  'foreground-onimage': PrimitiveColors['color-neutral-5'],
-  'foreground-onimagevar': withOpacity(PrimitiveColors['color-neutral-5'], 0.64),
-
-  // Border
-  'border-borderlight': withOpacity(PrimitiveColors['color-neutral-98'], 0.08),
-  'border-border': withOpacity(PrimitiveColors['color-neutral-98'], 0.16),
-  'border-borderbold': PrimitiveColors['color-primary-50'],
-
-  // Misc
-  scrim: BaseColors['color-base-black'],
-  shadow: BaseColors['color-base-black'],
-
-  // Custom hues
-  'custom-grey': BaseColors['color-base-warmgrey-80'],
-  'custom-greyvar': withOpacity(BaseColors['color-base-warmgrey-80'], 0.64),
-  'custom-ongreycontainer': BaseColors['color-base-warmgrey-80'],
-  'custom-greycontainer': withOpacity(BaseColors['color-base-warmgrey-80'], 0.16),
-  'custom-greybrown': BaseColors['color-base-greybrown-80'],
-  'custom-greybrownvar': withOpacity(BaseColors['color-base-greybrown-80'], 0.64),
-  'custom-brown': BaseColors['color-base-brown-50'],
-  'custom-brownvar': withOpacity(BaseColors['color-base-brown-40'], 0.64),
-  'custom-onbrowncontainer': BaseColors['color-base-brown-60'],
-  'custom-darkred': BaseColors['color-base-darkred-80'],
-  'custom-darkredvar': withOpacity(BaseColors['color-base-darkred-80'], 0.64),
-  'custom-red': BaseColors['color-base-red-80'],
-  'custom-redvar': withOpacity(BaseColors['color-base-red-80'], 0.64),
-  'custom-orange': BaseColors['color-base-orange-80'],
-  'custom-orangevar': withOpacity(BaseColors['color-base-orange-80'], 0.64),
-  'custom-yellow': BaseColors['color-base-yellow-80'],
-  'custom-yellowvar': withOpacity(BaseColors['color-base-yellow-80'], 0.64),
-  'custom-onyellowcontainer': BaseColors['color-base-yellow-80'],
-  'custom-yellowcontainer': withOpacity(BaseColors['color-base-yellow-80'], 0.16),
-  'custom-lime': BaseColors['color-base-lime-80'],
-  'custom-limevar': withOpacity(BaseColors['color-base-lime-80'], 0.64),
-  'custom-onlimecontainer': BaseColors['color-base-lime-80'],
-  'custom-limecontainer': withOpacity(BaseColors['color-base-lime-80'], 0.16),
-  'custom-green': BaseColors['color-base-green-80'],
-  'custom-greenvar': withOpacity(BaseColors['color-base-green-80'], 0.64),
-  'custom-teal': BaseColors['color-base-teal-80'],
-  'custom-tealvar': withOpacity(BaseColors['color-base-teal-80'], 0.64),
-  'custom-lightblue': BaseColors['color-base-lightblue-80'],
-  'custom-lightbluevar': withOpacity(BaseColors['color-base-lightblue-50'], 0.64),
-  'custom-onlightbluecontainer': BaseColors['color-base-lightblue-80'],
-  'custom-lightbluecontainer': withOpacity(BaseColors['color-base-lightblue-80'], 0.16),
-  'custom-blue': BaseColors['color-base-blue-80'],
-  'custom-bluevar': withOpacity(BaseColors['color-base-blue-80'], 0.64),
-  'custom-purple': BaseColors['color-base-purple-80'],
-  'custom-purplevar': withOpacity(BaseColors['color-base-purple-80'], 0.64),
-  'custom-lavendar': BaseColors['color-base-lavender-80'],
-  'custom-lavendarvar': withOpacity(BaseColors['color-base-lavender-80'], 0.64),
-
-  // State layers
-  'background-statelayers-primaryhover':
-    PrimitiveColors['color-primary-statelayers-40-08'],
-  'background-statelayers-primaryfocus_press':
-    PrimitiveColors['color-primary-statelayers-40-10'],
-  'background-statelayers-primarycontainerhover':
-    PrimitiveColors['color-primary-statelayers-10-08'],
-  'background-statelayers-primarycontainerfocus_press':
-    PrimitiveColors['color-primary-statelayers-10-10'],
-
-  'background-statelayers-accenthover':
-    PrimitiveColors['color-accent-statelayers-40-08'],
-  'background-statelayers-accentfocus_press':
-    PrimitiveColors['color-accent-statelayers-40-10'],
-  'background-statelayers-accentcontainerhover':
-    PrimitiveColors['color-accent-statelayers-10-08'],
-  'background-statelayers-accentcontainerfocus_press2':
-    PrimitiveColors['color-accent-statelayers-10-10'],
-
-  'background-statelayers-surfacehover':
-    PrimitiveColors['color-neutral-statelayers-40-08'], // Figma: Surface/StateLayers/SurfaceHover (#5E5E5E14)
-  'background-statelayers-surfacefocus_press':
-    PrimitiveColors['color-neutral-statelayers-40-08'], // Figma: Surface/StateLayers/SurfaceFocus_Press (#5E5E5E14)
-  'background-statelayers-surfacedrag':
-    PrimitiveColors['color-neutral-statelayers-10-16'],
-  'background-statelayers-inversesurfacehover':
-    PrimitiveColors['color-neutral-statelayers-90-08'],
-  'background-statelayers-inversesurfacefocus_press':
-    PrimitiveColors['color-neutral-statelayers-90-08'],
-  'background-statelayers-disabled':
-    PrimitiveColors['color-neutral-statelayers-10-10'],
-
-  'background-statelayers-errorhover':
-    PrimitiveColors['color-error-statelayers-40-08'],
-  'background-statelayers-errorfocused_pressed':
-    PrimitiveColors['color-error-statelayers-40-10'],
-
-  'background-transparent': withOpacity(BaseColors['color-base-warmgrey-2'], 0.88),
-} as const;
 
 export type SemanticLightKey = keyof typeof SemanticColorsLight;
 
 // ---- Semantic tokens: Dark mode ----
 
-export const SemanticColorsDark = {
-  // Backgrounds & primary
-  'background-primary': PrimitiveColors['color-primary-5'],
-  'foreground-primary': PrimitiveColors['color-primary-5'],
-  'foreground-onprimary': PrimitiveColors['color-primary-98'],
-  'background-primarycontainer': PrimitiveColors['color-primary-20'],
-  'foreground-onprimarycontainer': PrimitiveColors['color-primary-5'],
-
-  // Accent
-  'foreground-accent': PrimitiveColors['color-accent-60'],
-  'background-accent': PrimitiveColors['color-accent-70'],
-  'background-accentcontainer': PrimitiveColors['color-accent-90'],
-  'foreground-onaccent': PrimitiveColors['color-accent-5'],
-  'foreground-onaccentcontainer': PrimitiveColors['color-accent-30'],
-
-  // Surfaces
-  'surface-surface': PrimitiveColors['color-neutral-98'],
-  'surface-surfacedim': PrimitiveColors['color-neutral-99'],
-  'surface-surfacebright': PrimitiveColors['color-neutral-98'],
-  'surface-surfacecontainerlowest': PrimitiveColors['color-neutral-98'],
-  'surface-surfacecontainerlow': PrimitiveColors['color-neutral-96'],
-  'surface-surfacecontainer': PrimitiveColors['color-neutral-95'],
-  'surface-surfacecontainerhigh': PrimitiveColors['color-neutral-90'],
-  'surface-surfacecontainerhighest': PrimitiveColors['color-neutral-80'],
-  'surface-surfacecontainertransparent': withOpacity(BaseColors['color-base-warmgrey-50'], 0.12),
-  'surface-surfacecontainertransparent-onimage': withOpacity(PrimitiveColors['color-neutral-5'], 0.16),
-  'surface-surfaceinverse': PrimitiveColors['color-neutral-10'],
-
-  // Error
-  'background-error': PrimitiveColors['color-error-60'],
-  'background-errorcontainer': withOpacity(BaseColors['color-base-red-80'], 0.12),
-  'foreground-error': PrimitiveColors['color-error-80'],
-  'foreground-onerror': PrimitiveColors['color-error-5'],
-  'foreground-onerrorcontainer': PrimitiveColors['color-error-10'],
-
-  // On surface
-  'foreground-onsurface': PrimitiveColors['color-neutral-5'],
-  'foreground-onsurfacevar': withOpacity(PrimitiveColors['color-neutral-5'], 0.64),
-  'foreground-onsurfacemuted': withOpacity(PrimitiveColors['color-neutral-5'], 0.38),
-  'foreground-onsurfacedisabled': withOpacity(PrimitiveColors['color-neutral-5'], 0.24),
-  'foreground-onsurfaceinverse': PrimitiveColors['color-neutral-98'],
-  'foreground-onsurfaceinversevar': withOpacity(PrimitiveColors['color-neutral-98'], 0.64),
-  'foreground-onimage': PrimitiveColors['color-neutral-5'],
-  'foreground-onimagevar': withOpacity(PrimitiveColors['color-neutral-5'], 0.64),
-
-  // Border
-  'border-borderlight': withOpacity(PrimitiveColors['color-neutral-5'], 0.08),
-  'border-border': withOpacity(PrimitiveColors['color-neutral-5'], 0.16),
-  'border-borderbold': PrimitiveColors['color-primary-70'],
-
-  // Misc
-  scrim: BaseColors['color-base-black'],
-  shadow: BaseColors['color-base-black'],
-
-  // Custom hues
-  'custom-grey': BaseColors['color-base-warmgrey-70'],
-  'custom-greyvar': withOpacity(BaseColors['color-base-warmgrey-70'], 0.64),
-  'custom-ongreycontainer': BaseColors['color-base-warmgrey-60'],
-  'custom-greycontainer': withOpacity(BaseColors['color-base-warmgrey-70'], 0.16),
-  'custom-greybrown': BaseColors['color-base-greybrown-80'],
-  'custom-greybrownvar': withOpacity(BaseColors['color-base-greybrown-80'], 0.64),
-  'custom-brown': BaseColors['color-base-brown-50'],
-  'custom-brownvar': withOpacity(BaseColors['color-base-brown-40'], 0.64),
-  'custom-onbrowncontainer': BaseColors['color-base-brown-40'],
-  'custom-darkred': BaseColors['color-base-darkred-80'],
-  'custom-darkredvar': withOpacity(BaseColors['color-base-darkred-80'], 0.64),
-  'custom-red': BaseColors['color-base-red-80'],
-  'custom-redvar': withOpacity(BaseColors['color-base-red-80'], 0.64),
-  'custom-orange': BaseColors['color-base-orange-80'],
-  'custom-orangevar': withOpacity(BaseColors['color-base-orange-80'], 0.64),
-  'custom-yellow': BaseColors['color-base-yellow-80'],
-  'custom-yellowvar': withOpacity(BaseColors['color-base-yellow-60'], 0.64),
-  'custom-onyellowcontainer': BaseColors['color-base-yellow-60'],
-  'custom-yellowcontainer': withOpacity(BaseColors['color-base-yellow-80'], 0.16),
-  'custom-lime': BaseColors['color-base-lime-80'],
-  'custom-limevar': withOpacity(BaseColors['color-base-lime-80'], 0.64),
-  'custom-onlimecontainer': BaseColors['color-base-lime-60'],
-  'custom-limecontainer': withOpacity(BaseColors['color-base-lime-80'], 0.16),
-  'custom-green': BaseColors['color-base-green-80'],
-  'custom-greenvar': withOpacity(BaseColors['color-base-green-80'], 0.64),
-  'custom-teal': BaseColors['color-base-teal-80'],
-  'custom-tealvar': withOpacity(BaseColors['color-base-teal-80'], 0.64),
-  'custom-lightblue': BaseColors['color-base-lightblue-80'],
-  'custom-lightbluevar': withOpacity(BaseColors['color-base-lightblue-50'], 0.64),
-  'custom-onlightbluecontainer': BaseColors['color-base-lightblue-60'],
-  'custom-lightbluecontainer': withOpacity(BaseColors['color-base-lightblue-80'], 0.16),
-  'custom-blue': BaseColors['color-base-blue-80'],
-  'custom-bluevar': withOpacity(BaseColors['color-base-blue-80'], 0.64),
-  'custom-purple': BaseColors['color-base-purple-80'],
-  'custom-purplevar': withOpacity(BaseColors['color-base-purple-80'], 0.64),
-  'custom-lavendar': BaseColors['color-base-lavender-80'],
-  'custom-lavendarvar': withOpacity(BaseColors['color-base-lavender-80'], 0.64),
-
-  // State layers
-  'background-statelayers-primaryhover':
-    PrimitiveColors['color-primary-statelayers-80-08'],
-  'background-statelayers-primaryfocus_press':
-    PrimitiveColors['color-primary-statelayers-80-10'],
-  'background-statelayers-primarycontainerhover':
-    PrimitiveColors['color-primary-statelayers-80-08'],
-  'background-statelayers-primarycontainerfocus_press':
-    PrimitiveColors['color-primary-statelayers-80-08'],
-
-  'background-statelayers-accenthover':
-    PrimitiveColors['color-accent-statelayers-80-08'],
-  'background-statelayers-accentfocus_press':
-    PrimitiveColors['color-accent-statelayers-80-10'],
-  'background-statelayers-accentcontainerhover':
-    PrimitiveColors['color-accent-statelayers-80-08'],
-  'background-statelayers-accentcontainerfocus_press2':
-    PrimitiveColors['color-accent-statelayers-80-08'],
-
-  'background-statelayers-surfacehover':
-    PrimitiveColors['color-neutral-statelayers-90-08'],
-  'background-statelayers-surfacefocus_press':
-    PrimitiveColors['color-neutral-statelayers-90-10'],
-  'background-statelayers-surfacedrag':
-    PrimitiveColors['color-neutral-statelayers-90-16'],
-  'background-statelayers-inversesurfacehover':
-    PrimitiveColors['color-neutral-statelayers-20-08'],
-  'background-statelayers-inversesurfacefocus_press':
-    PrimitiveColors['color-neutral-statelayers-20-08'],
-  'background-statelayers-disabled':
-    PrimitiveColors['color-neutral-statelayers-90-10'],
-
-  'background-statelayers-errorhover':
-    PrimitiveColors['color-error-statelayers-80-08'],
-  'background-statelayers-errorfocused_pressed':
-    PrimitiveColors['color-error-statelayers-80-10'],
-
-  'background-transparent': withOpacity(BaseColors['color-base-warmgrey-96'], 0.80),
-} as const;
 
 export type SemanticDarkKey = keyof typeof SemanticColorsDark;
-export type SemanticColors = typeof SemanticColorsLight;
 
 // ---- Measurements: radius ----
 
@@ -679,7 +295,7 @@ export function withOpacityV2(hex: string, opacity: number): string {
 
 // ---- Primitive colors (Figma `primitive` collection, single mode) ----
 
-export const PrimitiveColorsV2 = {
+export const PrimitiveColors = {
   // Mono
   'mono/0': '#000000',
   'mono/100': '#FFFFFF',
@@ -703,21 +319,22 @@ export const PrimitiveColorsV2 = {
   'neutral/98': '#FAF9F7',
 
   // Grey-brown (warm grey)
-  'burgundy/4': '#5B1A2B',
-  'burgundy/8': '#742539',
-  'burgundy/12': '#862D43',
-  'burgundy/16': '#97354E',
-  'burgundy/20': '#A43D56',
-  'burgundy/30': '#C05D76',
-  'burgundy/40': '#CD8496',
-  'burgundy/50': '#D79DAC',
-  'burgundy/60': '#E1B7C1',
-  'burgundy/70': '#EACCD4',
-  'burgundy/80': '#F0DBE0',
-  'burgundy/90': '#F6EAED',
-  'burgundy/94': '#F9F1F3',
-  'burgundy/96': '#FAF5F6',
-  'burgundy/98': '#FCF8F9',
+  // 웜톤 조정: 전체 램프 hue +10° (와인색 유지하며 더 따뜻하게)
+  'burgundy/4': '#5B1A20',
+  'burgundy/8': '#74252C',
+  'burgundy/12': '#862D34',
+  'burgundy/16': '#97353E',
+  'burgundy/20': '#A43D45',
+  'burgundy/30': '#C05D65',
+  'burgundy/40': '#CD848A',
+  'burgundy/50': '#D79DA2',
+  'burgundy/60': '#E1B7BA',
+  'burgundy/70': '#EACCCF',
+  'burgundy/80': '#F0DBDC',
+  'burgundy/90': '#F6EAEB',
+  'burgundy/94': '#F9F1F2',
+  'burgundy/96': '#FAF5F5',
+  'burgundy/98': '#FCF8F8',
 
   // Brown
   'brown/4': '#120E07',
@@ -735,6 +352,23 @@ export const PrimitiveColorsV2 = {
   'brown/94': '#F4EEE3',
   'brown/96': '#F7F3EA',
   'brown/98': '#FCF9F3',
+
+  // Cream (Claude 미색 — 따뜻한 아이보리/미색, 저채도 warm hue)
+  'cream/4': '#14110A',
+  'cream/8': '#211C11',
+  'cream/12': '#2C2617',
+  'cream/16': '#37301D',
+  'cream/20': '#423A24',
+  'cream/30': '#625636',
+  'cream/40': '#83744B',
+  'cream/50': '#A49166',
+  'cream/60': '#BFAE88',
+  'cream/70': '#D3C6A9',
+  'cream/80': '#E3DAC5',
+  'cream/90': '#EFE9DB',
+  'cream/94': '#F5F1E7',
+  'cream/96': '#F8F5ED',
+  'cream/98': '#FBF9F3', // = Claude 메인 배경 미색
 
   // Red
   'red/4': '#15090A',
@@ -770,22 +404,22 @@ export const PrimitiveColorsV2 = {
   'orange/96': '#FFF1E8',
   'orange/98': '#FFF8F3',
 
-  // Yellow
-  'yellow/4': '#3E2200',
-  'yellow/8': '#502E00',
-  'yellow/12': '#5E3700',
-  'yellow/16': '#6A4100',
-  'yellow/20': '#754900',
-  'yellow/30': '#986200',
-  'yellow/40': '#B87A00',
-  'yellow/50': '#DD9600',
-  'yellow/60': '#F2B115',
-  'yellow/70': '#FFC93D',
-  'yellow/80': '#FFDC76',
-  'yellow/90': '#FFEAA8',
-  'yellow/94': '#FFF1C3',
-  'yellow/96': '#FFF7D7',
-  'yellow/98': '#FFFBEA',
+  // Yellow — 채도 아주 약간 낮춤 (전체 램프 ×0.95)
+  'yellow/4': '#3C2202',
+  'yellow/8': '#4E2E02',
+  'yellow/12': '#5C3702',
+  'yellow/16': '#674003',
+  'yellow/20': '#724803',
+  'yellow/30': '#946104',
+  'yellow/40': '#B37905',
+  'yellow/50': '#D79406',
+  'yellow/60': '#ECAF1B',
+  'yellow/70': '#FAC742',
+  'yellow/80': '#FCDA79',
+  'yellow/90': '#FDE9AA',
+  'yellow/94': '#FEF0C4',
+  'yellow/96': '#FEF6D8',
+  'yellow/98': '#FEFBEB',
 
   // Lime (브랜드 액센트 컬러)
   'lime/4': '#0B1400',
@@ -873,13 +507,13 @@ export const PrimitiveColorsV2 = {
   'purple/98': '#FEF7FD',
 } as const;
 
-export type PrimitiveColorV2Key = keyof typeof PrimitiveColorsV2;
+export type PrimitiveColorV2Key = keyof typeof PrimitiveColors;
 
 // ---- Semantic colors: Light mode ----
 
-const P = PrimitiveColorsV2;
+const P = PrimitiveColors;
 
-export const SemanticColorsV2Light = {
+export const SemanticColorsLight = {
   // Background
   'background/primary': P['neutral/4'],
   'background/primary-container': withOpacityV2(P['neutral/4'], 0.16),
@@ -998,17 +632,21 @@ export const SemanticColorsV2Light = {
   'custom/grey-var': withOpacityV2(P['neutral/40'], 0.64),
   'custom/grey-subtle': withOpacityV2(P['neutral/40'], 0.16),
   'custom/grey-border': withOpacityV2(P['neutral/40'], 0.12),
+  'custom/cream': P['cream/50'],
+  'custom/cream-var': withOpacityV2(P['cream/50'], 0.64),
+  'custom/cream-subtle': withOpacityV2(P['cream/50'], 0.16),
+  'custom/cream-border': withOpacityV2(P['cream/50'], 0.12),
 
   // Overlay
   'overlay/subtle': withOpacityV2(P['neutral/4'], 0.16),
   'overlay/strong': withOpacityV2(P['neutral/4'], 0.32),
 } as const;
 
-export type SemanticV2LightKey = keyof typeof SemanticColorsV2Light;
+export type SemanticV2LightKey = keyof typeof SemanticColorsLight;
 
 // ---- Semantic colors: Dark mode ----
 
-export const SemanticColorsV2Dark = {
+export const SemanticColorsDark = {
   // Background
   'background/primary': P['neutral/98'],
   'background/primary-container': withOpacityV2(P['neutral/98'], 0.16),
@@ -1127,14 +765,18 @@ export const SemanticColorsV2Dark = {
   'custom/grey-var': withOpacityV2(P['neutral/60'], 0.64),
   'custom/grey-subtle': withOpacityV2(P['neutral/60'], 0.20),
   'custom/grey-border': withOpacityV2(P['neutral/60'], 0.12),
+  'custom/cream': P['cream/60'],
+  'custom/cream-var': withOpacityV2(P['cream/60'], 0.64),
+  'custom/cream-subtle': withOpacityV2(P['cream/60'], 0.20),
+  'custom/cream-border': withOpacityV2(P['cream/60'], 0.12),
 
   // Overlay (둘 다 light/dark에서 동일하게 dark scrim)
   'overlay/subtle': withOpacityV2(P['neutral/4'], 0.16),
   'overlay/strong': withOpacityV2(P['neutral/4'], 0.16),
 } as const;
 
-export type SemanticV2DarkKey = keyof typeof SemanticColorsV2Dark;
-export type SemanticColorsV2 = typeof SemanticColorsV2Light;
+export type SemanticV2DarkKey = keyof typeof SemanticColorsDark;
+export type SemanticColors = typeof SemanticColorsLight;
 
 // ---- Radius ----
 

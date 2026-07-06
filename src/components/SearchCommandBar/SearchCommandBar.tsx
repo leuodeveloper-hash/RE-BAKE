@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, Easing, Modal, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput as RNTextInput, TextInputKeyPressEventData, View} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import type {SvgProps} from 'react-native-svg';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {GlassContainer} from '@components/Container';
@@ -12,8 +12,9 @@ import {AppIcon} from '@components/Icon/AppIcon';
 import {MenuItem} from '@components/Menu/MenuItem';
 import {RecipeCard} from '@components/Recipe/RecipeCard';
 import {EmptyState} from '@components/EmptyState';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
+import {useTranslation} from '@contexts/LanguageContext';
 
 // 검색 빈 상태: 꽃 일러스트 사용 (기존 노트+돋보기 대신)
 
@@ -52,14 +53,15 @@ export function SearchCommandBar({
   items,
   selectedId,
   onSelect,
-  placeholder = '검색',
+  placeholder,
   icon,
   iconColor,
   initialQuery,
   useRecipeCards,
 }: SearchCommandBarProps) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const {t} = useTranslation();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const insets = useSafeAreaInsets();
   const scale = useRef(new Animated.Value(0.95)).current;
   const opacity = useRef(new Animated.Value(0)).current;
@@ -184,7 +186,7 @@ export function SearchCommandBar({
                 <View style={styles.searchBar}>
                   <TextInput
                     ref={inputRef}
-                    placeholder={placeholder}
+                    placeholder={placeholder ?? t('searchCommandBar.searchPlaceholder')}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     style="ghost"
@@ -238,7 +240,7 @@ export function SearchCommandBar({
                   <View style={styles.emptyContainer}>
                     <EmptyState
                       variant="simple"
-                      title={`'${searchQuery.trim()}'에 해당하는 레시피를 찾지 못했어요`}
+                      title={t('searchCommandBar.emptyRecipes', {query: searchQuery.trim()})}
                     />
                   </View>
                 )}
@@ -251,7 +253,7 @@ export function SearchCommandBar({
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) =>
+const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
     root: {
       flex: 1,

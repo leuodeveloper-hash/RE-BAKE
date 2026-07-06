@@ -18,6 +18,8 @@ import {KeyboardToolbar} from '@components/KeyboardToolbar';
 import {EditorToolbar} from '@components/EditorToolbar';
 import {useSTT} from '@hooks/useSTT';
 import {recognizeImageText, parseRecognizedText, type RecipeOcrField} from '@utils/recipeOcr';
+import {dismissKeyboardAndWait} from '@utils/keyboard';
+import {useTranslation} from '@contexts/LanguageContext';
 import {OcrCropModal} from './OcrCropModal';
 
 export interface RecipeInputFloatingBarProps {
@@ -80,6 +82,7 @@ export function RecipeInputFloatingBar({
   style,
 }: RecipeInputFloatingBarProps) {
   const {showSnackbar} = useSnackbar();
+  const {t} = useTranslation();
   const stt = useSTT();
   const [busy, setBusy] = useState(false);
   const [showScanMenu, setShowScanMenu] = useState(false);
@@ -97,7 +100,7 @@ export function RecipeInputFloatingBar({
       return;
     }
     if (!stt.supported) {
-      showSnackbar('음성 입력 — 준비 중 (모바일 빌드에서 지원 예정)');
+      showSnackbar(t('recipeInputFloatingBar.voiceComingSoon'));
       return;
     }
     if (stt.recording) {
@@ -109,30 +112,30 @@ export function RecipeInputFloatingBar({
         onRecognized(parsed, capturedField);
       });
     }
-  }, [onVoicePress, stt, showSnackbar, field, onRecognized]);
+  }, [onVoicePress, stt, showSnackbar, field, onRecognized, t]);
 
   const runOcrPipeline = useCallback(async (uri: string, capturedField: RecipeOcrField) => {
     onOcrStart?.();
     try {
       const text = await recognizeImageText(uri);
       if (!text || !text.trim()) {
-        showSnackbar('이미지에서 글씨를 찾지 못했어요');
+        showSnackbar(t('recipeInputFloatingBar.noTextFound'));
         return;
       }
       const parsed = parseRecognizedText(text, capturedField);
       if (typeof parsed === 'string' ? !parsed.trim() : parsed.length === 0) {
-        showSnackbar('이미지에서 글씨를 찾지 못했어요');
+        showSnackbar(t('recipeInputFloatingBar.noTextFound'));
         return;
       }
       onRecognized(parsed, capturedField);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.warn('OCR failed', err);
-      showSnackbar('이미지 분석 실패. 다시 시도해주세요');
+      showSnackbar(t('recipeInputFloatingBar.ocrFailed'));
     } finally {
       onOcrEnd?.();
     }
-  }, [onRecognized, onOcrStart, onOcrEnd, showSnackbar]);
+  }, [onRecognized, onOcrStart, onOcrEnd, showSnackbar, t]);
 
   const pickImage = useCallback(async (source: 'camera' | 'library') => {
     if (busy) return;
@@ -140,25 +143,21 @@ export function RecipeInputFloatingBar({
     setBusy(true);
     // 픽 시작 → 부모가 바를 유지하도록 (사진 고를 때 blur로 언마운트되어 크롭 모달이 닫히는 것 방지)
     onPickActiveChange?.(true);
-    // iOS: 스캔 메뉴 닫힘 + 키보드가 떠 있는 상태에서 이미지 피커를 present하면
-    // "다른 화면 전환 중"이라 iOS가 present를 조용히 무시함(안드는 정상).
-    // → 키보드 내리고 한 틱 기다렸다가 피커를 띄운다. (키보드 툴바→메뉴 회귀 수정)
-    Keyboard.dismiss();
+    // iOS: 키보드가 떠 있는 상태에서 이미지 피커를 present하면 "전환 중"이라 조용히 무시됨.
+    // → 키보드를 내리고 실제로 내려간 뒤(keyboardDidHide) present. (갤러리 안열림 회귀 근본 대응)
     let cropStarted = false;
     try {
-      if (Platform.OS === 'ios') {
-        await new Promise<void>(resolve => setTimeout(resolve, 350));
-      }
+      await dismissKeyboardAndWait();
       if (source === 'camera') {
         const perm = await ImagePicker.requestCameraPermissionsAsync();
         if (!perm.granted) {
-          showSnackbar('카메라 권한이 필요해요 — 설정에서 허용해주세요');
+          showSnackbar(t('recipeInputFloatingBar.cameraPermissionNeeded'));
           return;
         }
       } else {
         const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
         if (!perm.granted) {
-          showSnackbar('사진 권한이 필요해요 — 설정에서 허용해주세요');
+          showSnackbar(t('recipeInputFloatingBar.photoPermissionNeeded'));
           return;
         }
       }
@@ -182,23 +181,23 @@ export function RecipeInputFloatingBar({
     } catch (err) {
       // eslint-disable-next-line no-console
       console.warn('Image pick failed', err);
-      showSnackbar('이미지를 불러오지 못했어요');
+      showSnackbar(t('recipeInputFloatingBar.imageLoadFailed'));
     } finally {
       setBusy(false);
       // 크롭이 뜨지 않았으면(취소/직접 인식/에러) 여기서 유지 해제
       if (!cropStarted) onPickActiveChange?.(false);
     }
-  }, [busy, field, runOcrPipeline, showSnackbar, onPickActiveChange]);
+  }, [busy, field, runOcrPipeline, showSnackbar, onPickActiveChange, t]);
 
   const handleCameraTap = useCallback(() => {
     if (busy) return;
     if (Platform.OS === 'web') {
       // 웹 이미지 인식(OCR)은 정확도·안정성이 낮아 막고 앱으로 안내
-      showSnackbar('이미지 인식(OCR)은 앱에서 사용할 수 있어요');
+      showSnackbar(t('recipeInputFloatingBar.ocrAppOnly'));
       return;
     }
     pickImage('camera');
-  }, [busy, pickImage, showSnackbar]);
+  }, [busy, pickImage, showSnackbar, t]);
 
   const handleGalleryTap = useCallback(() => {
     if (busy) return;
@@ -209,7 +208,7 @@ export function RecipeInputFloatingBar({
   const handleScanTap = useCallback(() => {
     if (busy) return;
     if (Platform.OS === 'web') {
-      showSnackbar('이미지 인식(OCR)은 앱에서 사용할 수 있어요');
+      showSnackbar(t('recipeInputFloatingBar.ocrAppOnly'));
       return;
     }
     if (showScanMenu) {
@@ -221,7 +220,7 @@ export function RecipeInputFloatingBar({
       onPickActiveChange?.(true);
       setShowScanMenu(true);
     }
-  }, [busy, showScanMenu, showSnackbar, onPickActiveChange]);
+  }, [busy, showScanMenu, showSnackbar, onPickActiveChange, t]);
 
   const handleDone = useCallback(() => {
     Keyboard.dismiss();
@@ -252,8 +251,8 @@ export function RecipeInputFloatingBar({
         above={showScanMenu ? (
           <Menu
             items={[
-              {id: 'camera', label: '촬영해서 스캔', icon: IconCameraFilled},
-              {id: 'gallery', label: '갤러리에서 스캔', icon: IconPhoto},
+              {id: 'camera', label: t('recipeInputFloatingBar.scanByCamera'), icon: IconCameraFilled},
+              {id: 'gallery', label: t('recipeInputFloatingBar.scanFromGallery'), icon: IconPhoto},
             ]}
             visible={showScanMenu}
             onSelect={(id) => {

@@ -1,8 +1,8 @@
 import React from 'react';
 import {Pressable, StyleSheet, View} from 'react-native';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
-import type {SemanticColorsV2} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
+import type {SemanticColors} from '@constants/tokens';
 import {
   IconCheckSquareFilled,
   IconSquare,
@@ -31,8 +31,8 @@ export function Checkbox({
   color = 'default',
   onPress,
 }: CheckboxProps) {
-  const colors = useColorsV2();
-  const styles = useThemedStylesV2(createStyles);
+  const colors = useColors();
+  const styles = useThemedStyles(createStyles);
 
   const isSelected = checked || indeterminate;
 
@@ -88,7 +88,7 @@ export function Checkbox({
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) =>
+const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
     container: {
       width: 40,

@@ -6,9 +6,9 @@ import {AppIcon} from '@components/Icon/AppIcon';
 import {Button} from '@components/Button/Button';
 import {IconButton} from '@components/IconButton';
 import {IconClose, IconCircleInfoFilled1} from '@components/Icon/IconIndex';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2, useTheme} from '@contexts/ThemeContext';
-import type {SemanticColorsV2} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors, useTheme} from '@contexts/ThemeContext';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 
@@ -25,8 +25,8 @@ export interface SnackbarProps {
 }
 
 export function Snackbar({message, icon = IconCircleInfoFilled1, action, onClose, visible = false, style}: SnackbarProps) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const {elevation} = useTheme();
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(8)).current;
@@ -92,7 +92,7 @@ export function Snackbar({message, icon = IconCircleInfoFilled1, action, onClose
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   container: {
     flexDirection: 'row',
     flexWrap: 'nowrap',

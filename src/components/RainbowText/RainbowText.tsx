@@ -1,6 +1,6 @@
 import React, {useEffect, useMemo, useRef} from 'react';
 import {Animated, Easing, StyleProp, Text, TextStyle} from 'react-native';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 
 const AnimatedText = Animated.createAnimatedComponent(Text);
 
@@ -27,7 +27,7 @@ export interface RainbowTextProps {
  *   스트리밍처럼 매끄럽게 완성된다. 파도 앞 8글자는 무지개색으로 스쳐 지나감.
  */
 export function RainbowText({children, style, animated = true, onDone}: RainbowTextProps) {
-  const colors = useColorsV2();
+  const colors = useColors();
   const muted = colors['foreground/on-surface-muted'] as string;
   const onSurface = colors['foreground/on-surface'] as string;
 

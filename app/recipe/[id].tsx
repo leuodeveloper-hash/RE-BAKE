@@ -6,7 +6,7 @@ import {RecipeDetailScreen} from '@screens/RecipeDetailScreen';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useAddSheet} from '@contexts/AddSheetContext';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {useRewardedAd} from '@hooks/useRewardedAd';
@@ -21,13 +21,14 @@ import {CookbookSelectSheet} from '@components/BottomSheet';
 import {SUBSCRIPTION_ENABLED} from '@contexts/SubscriptionContext';
 import {usePlanSheet} from '@contexts/PlanSheetContext';
 import {useAuthSheet} from '@contexts/AuthSheetContext';
+import {useTranslation} from '@contexts/LanguageContext';
 
 export default function RecipeDetailRoute() {
   const {id: routeId, from, locked: lockedParam} = useLocalSearchParams<{id: string; from?: string; locked?: string}>();
   // 회차 전환은 화면 이동 없이 제자리(setId)로 → RulerSlider 리마운트 없이 플립 유지
   const [id, setId] = useState(routeId);
   const router = useRouter();
-  const colors = useColorsV2();
+  const colors = useColors();
   const {findRecipeById, recipes, setRecipes, availableCookbooks, cookbookColors} = useRecipes();
   const {showSnackbar} = useSnackbar();
   const {isAdmin, user} = useAuth();
@@ -39,6 +40,7 @@ export default function RecipeDetailRoute() {
   const [unlocked, setUnlocked] = useState(false);
   const [showExploreCookbookSheet, setShowExploreCookbookSheet] = useState(false);
   const {open: openPlanSheet} = usePlanSheet();
+  const {t} = useTranslation();
   const isLocked = lockedParam === '1' && !unlocked;
 
   // 라우트가 바뀌면(다른 레시피로 진입) active id 동기화
@@ -143,29 +145,29 @@ const handleDelete = useCallback(async () => {
         });
       });
       const {current, total} = parseSession(recipe.session);
-      const sessionLabel = total > 1 ? ` ${current}회차` : '';
-      showSnackbar(`'${recipe.title}'${sessionLabel} 삭제됨`, {icon: IconTrashFilled});
+      const sessionLabel = total > 1 ? ` ${t('id.sessionLabel', {current})}` : '';
+      showSnackbar(t('id.recipeDeleted', {title: recipe.title, sessionLabel}), {icon: IconTrashFilled});
     } else if (isExploreRecipe && isAdmin) {
       try {
         await updateDoc(doc(db, 'explore_recipes', id!), {
           deletedAt: new Date().toISOString(),
         });
-        showSnackbar(`'${recipe.title}' 삭제됨`, {
+        showSnackbar(t('id.exploreRecipeDeleted', {title: recipe.title}), {
           action: {
-            label: '되돌리기',
+            label: t('id.undo'),
             onPress: async () => {
               try {
                 await updateDoc(doc(db, 'explore_recipes', id!), {
                   deletedAt: deleteField(),
                 });
               } catch {
-                showSnackbar('복원에 실패했습니다');
+                showSnackbar(t('id.restoreFailed'));
               }
             },
           },
         });
       } catch {
-        showSnackbar('삭제에 실패했습니다');
+        showSnackbar(t('id.deleteFailed'));
       }
     }
     if (router.canGoBack()) {
@@ -173,11 +175,11 @@ const handleDelete = useCallback(async () => {
     } else {
       router.replace('/');
     }
-  }, [recipe, isMyRecipe, isExploreRecipe, isAdmin, id, setRecipes, showSnackbar, router]);
+  }, [recipe, isMyRecipe, isExploreRecipe, isAdmin, id, setRecipes, showSnackbar, router, t]);
 
   const handleComingSoon = useCallback(() => {
-    showSnackbar('기능 추가 예정입니다');
-  }, [showSnackbar]);
+    showSnackbar(t('id.comingSoon'));
+  }, [showSnackbar, t]);
 
   const handleImport = useCallback(() => {
     if (!recipe) return;
@@ -188,11 +190,11 @@ const handleDelete = useCallback(async () => {
       createdAt: new Date().toISOString(),
     };
     setRecipes(prev => [...prev, copied]);
-    showSnackbar('내 레시피에 저장했습니다', {
-      label: '이동',
+    showSnackbar(t('id.savedToMyRecipes'), {
+      label: t('id.goTo'),
       onPress: () => router.navigate('/'),
     });
-  }, [recipe, setRecipes, showSnackbar, router]);
+  }, [recipe, setRecipes, showSnackbar, router, t]);
 
   const handleRemake = useCallback(() => {
     if (!recipe) return;
@@ -227,9 +229,9 @@ const handleDelete = useCallback(async () => {
       newRecipe,
     ]);
 
-    showSnackbar('새 회차가 추가되었습니다');
+    showSnackbar(t('id.sessionAdded'));
     router.push(`/recipe/${newId}` as any);
-  }, [recipe, setRecipes, showSnackbar, router]);
+  }, [recipe, setRecipes, showSnackbar, router, t]);
 
   const sessionItems = useMemo(() => {
     if (!recipe?.remakeGroupId) return [];
@@ -237,8 +239,8 @@ const handleDelete = useCallback(async () => {
       .filter(r => r.remakeGroupId === recipe.remakeGroupId || r.id === recipe.remakeGroupId)
       .sort((a, b) => parseSession(a.session).current - parseSession(b.session).current);
     if (group.length < 2) return [];
-    return group.map(r => ({id: r.id, label: `${parseSession(r.session).current}회차`}));
-  }, [recipe, recipes]);
+    return group.map(r => ({id: r.id, label: t('id.sessionLabel', {current: parseSession(r.session).current})}));
+  }, [recipe, recipes, t]);
 
   const sessionReviews = useMemo(() => {
     if (!recipe?.remakeGroupId) return undefined;
@@ -250,11 +252,11 @@ const handleDelete = useCallback(async () => {
       .filter(r => r.reviews?.some(rv => rv.evaluation || rv.improvement))
       .map(r => ({
         id: r.id,
-        label: `${parseSession(r.session).current}회차`,
+        label: t('id.sessionLabel', {current: parseSession(r.session).current}),
         reviews: r.reviews!,
       }));
     return items.length > 0 ? items : undefined;
-  }, [recipe, recipes]);
+  }, [recipe, recipes, t]);
 
   // 2회차+ 이면 1회차 원본 데이터를 비교 기준으로 전달 (1회차 자신을 볼 땐 null)
   const compareBaseline = useMemo(() => {
@@ -284,32 +286,32 @@ const handleDelete = useCallback(async () => {
     setRecipes(prev => prev.map(r =>
       r.id === id ? {...r, cookbook: newCookbook} : r
     ));
-    showSnackbar(`레시피 북을 '${newCookbook || '레시피 북 없음'}'으로 변경했습니다`);
-  }, [id, isMyRecipe, setRecipes, showSnackbar]);
+    showSnackbar(t('id.cookbookChanged', {cookbook: newCookbook || t('id.noCookbook')}));
+  }, [id, isMyRecipe, setRecipes, showSnackbar, t]);
 
   const handleShare = useCallback(() => {
     if (!recipe) return;
     shareRecipe({
       id,
       title: recipe.title,
-      onCopied: () => showSnackbar('링크를 복사했습니다'),
+      onCopied: () => showSnackbar(t('id.linkCopied')),
       onError: msg => showSnackbar(msg),
     });
-  }, [recipe, id, showSnackbar]);
+  }, [recipe, id, showSnackbar, t]);
 
   const handleUnlock = useCallback(() => {
     if (Platform.OS === 'web') {
-      showSnackbar('광고 보기는 모바일 앱에서만 지원돼요');
+      showSnackbar(t('id.adMobileOnly'));
       return;
     }
     if (!adLoaded) {
-      showSnackbar('광고를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.');
+      showSnackbar(t('id.adLoading'));
       return;
     }
     showAd(() => {
       setUnlocked(true);
     });
-  }, [adLoaded, showAd, showSnackbar]);
+  }, [adLoaded, showAd, showSnackbar, t]);
 
   const handleExploreCookbookSelect = useCallback(async (cookbookName: string) => {
     if (!recipe) return;
@@ -339,11 +341,11 @@ const handleDelete = useCallback(async () => {
     };
     try {
       await setDoc(doc(db, 'explore_recipes', exploreId), strip(exploreRecipe));
-      showSnackbar('둘러보기에 복사되었습니다');
+      showSnackbar(t('id.copiedToExplore'));
     } catch {
-      showSnackbar('복사에 실패했습니다');
+      showSnackbar(t('id.copyFailed'));
     }
-  }, [recipe, showSnackbar]);
+  }, [recipe, showSnackbar, t]);
 
   if (!recipe) return null;
 
@@ -355,6 +357,7 @@ const handleDelete = useCallback(async () => {
       <RecipeDetailScreen
         id={id}
         title={recipe.title}
+        hidden={recipe.hidden}
         cookbook={recipe.cookbook}
         method={recipe.method}
         ratio={recipe.specificGravity}
@@ -421,7 +424,7 @@ const handleDelete = useCallback(async () => {
                 }
                 await updateDoc(doc(db, 'explore_recipes', id!), uploaded);
               } catch {
-                showSnackbar('수정에 실패했습니다');
+                showSnackbar(t('id.updateFailed'));
               }
             })();
           }
@@ -461,7 +464,7 @@ const handleDelete = useCallback(async () => {
           )}
           onSelect={handleExploreCookbookSelect}
           bookIcon={IconExprolerBookFilled}
-          ungroupedLabel="공식 레시피 북 없음"
+          ungroupedLabel={t('id.noOfficialCookbook')}
         />
       )}
     </View>

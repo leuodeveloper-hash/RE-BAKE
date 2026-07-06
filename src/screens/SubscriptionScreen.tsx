@@ -2,12 +2,13 @@ import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {Button} from '@components/Button';
 import {BottomSheet} from '@components/BottomSheet';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
+import {useTranslation} from '@contexts/LanguageContext';
 
 import {Typography} from '@constants/typography';
 import {Spacing} from '@constants/spacing';
-import type {SemanticColorsV2} from '@constants/tokens';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import type {SemanticColors} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
 import {IconSparkleFilled} from '@components/Icon/IconIndex';
 import type {SvgProps} from 'react-native-svg';
 
@@ -19,36 +20,37 @@ interface SubscriptionScreenProps {
 }
 
 export function SubscriptionScreen({visible, onClose}: SubscriptionScreenProps) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
+  const {t} = useTranslation();
 
   return (
     <BottomSheet visible={visible} onClose={onClose}>
       {/* 타이틀 */}
       <View style={styles.titleSection}>
         <SparkleIcon width={32} height={32} color={colors['foreground/accent']} />
-        <Text style={styles.title}>Bakecycle Pro</Text>
+        <Text style={styles.title}>{t('subscription.proTitle')}</Text>
         <Text style={styles.subtitle}>
-          모든 공식 레시피를 무제한으로 열어보세요
+          {t('subscription.proSubtitle')}
         </Text>
       </View>
 
       {/* 혜택 */}
       <View style={styles.benefitSection}>
-        <BenefitRow text="모든 둘러보기 레시피 무제한 열람" styles={styles} />
-        <BenefitRow text="내 레시피 클라우드 동기화 (최대 30개)" styles={styles} />
-        <BenefitRow text="광고 없는 쾌적한 사용" styles={styles} />
+        <BenefitRow text={t('subscription.benefitUnlimitedExplore')} styles={styles} />
+        <BenefitRow text={t('subscription.benefitCloudSync')} styles={styles} />
+        <BenefitRow text={t('subscription.benefitNoAds')} styles={styles} />
       </View>
 
       {/* 예정 안내 */}
       <View style={styles.comingSoonSection}>
-        <Text style={styles.comingSoonText}>구독 기능 준비 중이에요</Text>
+        <Text style={styles.comingSoonText}>{t('subscription.comingSoon')}</Text>
       </View>
 
       {/* 버튼 */}
       <View style={styles.actionSection}>
         <Button
-          label="알겠어요"
+          label={t('subscription.okButton')}
           onPress={onClose}
           variant="soft"
           size="medium"
@@ -67,7 +69,7 @@ function BenefitRow({text, styles}: {text: string; styles: ReturnType<typeof cre
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   titleSection: {
     alignItems: 'center',
     gap: Spacing.sm,

@@ -13,9 +13,9 @@ import {IconButton} from '@components/IconButton';
 import {IconChevronLeft, IconChevronRight} from '@components/Icon/IconIndex';
 import {Typography} from '@constants/typography';
 import {Spacing} from '@constants/spacing';
-import type {SemanticColorsV2} from '@constants/tokens';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
+import type {SemanticColors} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
 import * as Haptics from 'expo-haptics';
 
 export interface RulerSliderItem {
@@ -63,8 +63,8 @@ export function RulerSlider({
   onSelect,
   onLabelPress,
 }: RulerSliderProps) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
 
   const count = items.length;
   const selectedIndex = Math.max(
@@ -260,7 +260,7 @@ export function RulerSlider({
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) =>
+const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
     pill: {
       flexDirection: 'row',

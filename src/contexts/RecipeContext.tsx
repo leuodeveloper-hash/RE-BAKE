@@ -4,7 +4,7 @@ import {useRecipeStorage} from '@hooks/useRecipeStorage';
 import type {Recipe} from '../types/recipe';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 
-const COOKBOOK_COLORS_KEY = 'bakecycle_cookbook_colors_v1';
+const COOKBOOK_COLORS_KEY = 'bakle_cookbook_colors_v1';
 export const DEFAULT_COOKBOOK_COLOR: AvatarColor = 'brown';
 
 interface RecipeContextValue {

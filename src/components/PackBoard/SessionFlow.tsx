@@ -12,10 +12,10 @@ import Animated, {
   withTiming,
   type SharedValue,
 } from 'react-native-reanimated';
-import {useColorsV2} from '@contexts/ThemeContext';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
+import {useThemedStyles} from '@hooks/useThemedStyles';
 import {triggerHaptic} from '@utils/haptics';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {RecipePack, PACK_WIDTH} from './RecipePack';
 import type {PackOriginRect} from './RecipePack';
 
@@ -224,8 +224,8 @@ export function SessionFlow({
   onSelect: (id: string) => void;
   onClose: () => void;
 }) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const shown = sessions.slice(0, MAX_SHOWN); // 최대 3장만 펼침
   const {origin: originPt, nodes} = layout(shown, origin);
 
@@ -315,7 +315,7 @@ export function SessionFlow({
   );
 }
 
-const createStyles = (_colors: SemanticColorsV2) =>
+const createStyles = (_colors: SemanticColors) =>
   StyleSheet.create({
     node: {
       position: 'absolute',

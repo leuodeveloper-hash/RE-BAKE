@@ -4,11 +4,12 @@ import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
 import {Tabs} from '@components/Tabs';
 import {TextInput} from '@components/TextInput';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import type {SemanticColorsV2} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {IconUsersRoundTwotone} from '@components/Icon/IconIndex';
+import {useTranslation} from '@contexts/LanguageContext';
 
 export interface ServingsDialogProps {
   visible: boolean;
@@ -16,16 +17,6 @@ export interface ServingsDialogProps {
   value?: string;
   onConfirm: (formatted: string) => void;
 }
-
-const UNIT_OPTIONS = [
-  {id: 'serving', label: '인분'},
-  {id: 'piece', label: '개'},
-];
-
-const UNIT_SUFFIX: Record<string, string> = {
-  serving: '인분',
-  piece: '개',
-};
 
 /** "3호 4개" → {spec: "3호", amount: "4", unit: "piece"} */
 function parseServings(value?: string): {spec: string; amount: string; unit: string} {
@@ -51,7 +42,16 @@ function parseServings(value?: string): {spec: string; amount: string; unit: str
 }
 
 export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDialogProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
+  const {t} = useTranslation();
+  const UNIT_OPTIONS = [
+    {id: 'serving', label: t('servings.unitServing')},
+    {id: 'piece', label: t('servings.unitPiece')},
+  ];
+  const UNIT_SUFFIX: Record<string, string> = {
+    serving: t('servings.unitServing'),
+    piece: t('servings.unitPiece'),
+  };
   const [spec, setSpec] = useState('');
   const [amount, setAmount] = useState('');
   const [unit, setUnit] = useState('piece');
@@ -86,10 +86,10 @@ export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDia
       onClose={onClose}
       icon={IconUsersRoundTwotone}
       avatarColor="orange"
-      title="분량 설정"
+      title={t('servings.dialogTitle')}
       actions={<>
-        <Button label="취소" variant="soft" onPress={onClose} />
-        <Button label="확인" variant="filled" onPress={handleConfirm} />
+        <Button label={t('servings.cancel')} variant="soft" onPress={onClose} />
+        <Button label={t('servings.confirm')} variant="filled" onPress={handleConfirm} />
       </>}
     >
       <View style={styles.content}>
@@ -103,10 +103,10 @@ export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDia
           <View style={styles.row}>
             <View style={styles.inputWrap}>
               <TextInput
-                label="규격"
+                label={t('servings.specLabel')}
                 value={spec}
                 onChangeText={setSpec}
-                placeholder="예: 3호"
+                placeholder={t('servings.specPlaceholder')}
                 maxLength={10}
                 selectTextOnFocus
                 clearable
@@ -115,7 +115,7 @@ export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDia
             <Text style={styles.separator}>/</Text>
             <View style={styles.inputWrap}>
               <TextInput
-                label="수량"
+                label={t('servings.amountLabel')}
                 value={amount}
                 onChangeText={setAmount}
                 keyboardType="number-pad"
@@ -129,7 +129,7 @@ export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDia
         ) : (
           <View style={styles.inputWrap}>
             <TextInput
-              label="수량"
+              label={t('servings.amountLabel')}
               value={amount}
               onChangeText={setAmount}
               keyboardType="number-pad"
@@ -145,7 +145,7 @@ export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDia
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   content: {
     gap: Spacing.md,
   },

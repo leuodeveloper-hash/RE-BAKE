@@ -10,10 +10,11 @@ import {
 import {IconButton} from '@components/IconButton';
 import {Selector} from '@components/Selector';
 import {GlassContainer} from '@components/Container';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useTranslation} from '@contexts/LanguageContext';
 import {FloatingNavBar, navPillStyle} from './FloatingNavBar';
 
 export interface AppBarProps {
@@ -52,7 +53,7 @@ export interface AppBarProps {
 }
 
 export function AppBar({
-  title = '모든 레시피 북',
+  title,
   centered = false,
   leftIcon,
   onLeftPress,
@@ -77,7 +78,9 @@ export function AppBar({
   rightMenu,
   titleNode,
 }: AppBarProps) {
-  const themedStyles = useThemedStylesV2(createThemedStyles);
+  const themedStyles = useThemedStyles(createThemedStyles);
+  const {t} = useTranslation();
+  const resolvedTitle = title ?? t('appBar.allRecipeBooks');
 
   if (centered) {
     return (
@@ -92,7 +95,7 @@ export function AppBar({
             />
           )}
         </View>
-        <Text style={themedStyles.centeredTitle}>{title}</Text>
+        <Text style={themedStyles.centeredTitle}>{resolvedTitle}</Text>
         <View style={themedStyles.centeredSide}>
           {rightIcon && (
             <IconButton
@@ -115,7 +118,7 @@ export function AppBar({
         titleNode ?? (
           <GlassContainer contentStyle={styles.titlePill}>
             <Selector
-              label={title}
+              label={resolvedTitle}
               showDropdown={showDropdown}
               onPress={onTitlePress}
               variant="ghost"
@@ -177,7 +180,7 @@ const styles = StyleSheet.create({
   },
 });
 
-const createThemedStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createThemedStyles = (colors: SemanticColors) => StyleSheet.create({
   centeredContainer: {
     flexDirection: 'row',
     alignItems: 'center',

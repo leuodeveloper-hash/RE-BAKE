@@ -2,9 +2,9 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Animated, Easing, LayoutChangeEvent, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {Radius} from '@constants/tokens';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2, useTheme} from '@contexts/ThemeContext';
-import type {SemanticColorsV2} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors, useTheme} from '@contexts/ThemeContext';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {triggerHaptic} from '@utils/haptics';
@@ -55,8 +55,8 @@ export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'f
   const iconSize = isLarge ? ICON_SIZE_LARGE : ICON_SIZE;
   // large: 둥근 사각(스퀘어, 메뉴 선택과 동일 radius-md), 기본: 알약(full)
   const filledRadius = isLarge ? Radius['radius-md'] : Radius['radius-full'];
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const {isDark} = useTheme();
   // filled 활성 인디케이터를 트랙보다 확실히 밝게.
   // 라이트: 트랙(container=#F4F3F1) 위에 순백(surface/bright)으로 또렷한 알약. (기존 surface/normal은
@@ -209,7 +209,7 @@ export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'f
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // ---- Filled variant ----
   container: {
     backgroundColor: colors['surface/container'],

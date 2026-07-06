@@ -58,6 +58,8 @@ export interface Recipe {
   createdAt?: string;
   /** 소프트 삭제 시각 (ISO 문자열). 24시간 후 영구 삭제 */
   deletedAt?: string;
+  /** 공식(둘러보기) 전용: 숨김 — 어드민(개발자)만 보이고 다른 유저에겐 노출 안 됨. 개발 중 콘텐츠 가림용. */
+  hidden?: boolean;
 }
 
 /** JSON 내보내기 파일 형식 */

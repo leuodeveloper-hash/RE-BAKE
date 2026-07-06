@@ -2,7 +2,7 @@ import {useEffect, useState} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {RANDOM_AVATARS} from '@components/Avatar/avatars';
 
-const STORAGE_KEY = '@bakecycle_avatar_seed';
+const STORAGE_KEY = '@bakle_avatar_seed';
 
 /**
  * 랜덤 아바타 시드를 AsyncStorage에 한 번 저장 후 고정.

@@ -8,6 +8,7 @@ import {ImageManipulator, SaveFormat} from 'expo-image-manipulator';
 import {Button} from '@components/Button';
 import {BottomActionBar} from '@components/BottomActionBar';
 import {Spacing} from '@constants/spacing';
+import {useTranslation} from '@contexts/LanguageContext';
 
 export interface OcrCropModalProps {
   visible: boolean;
@@ -60,6 +61,7 @@ export function OcrCropModal({
   onCancel,
   onConfirm,
 }: OcrCropModalProps) {
+  const {t} = useTranslation();
   const [container, setContainer] = useState({w: 0, h: 0});
   const [processing, setProcessing] = useState(false);
 
@@ -243,11 +245,11 @@ export function OcrCropModal({
           </View>
           <BottomActionBar background="#000000">
             <View style={styles.barBtn}>
-              <Button label="취소" variant="ghost" onPress={onCancel} disabled={processing} />
+              <Button label={t('ocrCrop.cancel')} variant="ghost" onPress={onCancel} disabled={processing} />
             </View>
             <View style={styles.barBtn}>
               <Button
-                label="이 영역 인식"
+                label={t('ocrCrop.recognizeArea')}
                 variant="filled"
                 onPress={handleConfirm}
                 loading={processing}

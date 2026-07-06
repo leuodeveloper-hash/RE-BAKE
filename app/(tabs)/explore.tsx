@@ -1,25 +1,26 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {View, StyleSheet} from 'react-native';
 import {useRouter} from 'expo-router';
-import {doc, updateDoc, deleteField} from 'firebase/firestore';
+import {doc, updateDoc, deleteField, deleteDoc} from 'firebase/firestore';
 import {ExploreScreen} from '@screens/ExploreScreen';
 import {PlanSheet} from '@components/PlanSheet';
 import {PdfPreviewDialog} from '@components/Dialog';
 import {generateRecipeListHtml} from '@utils/generateRecipeHtml';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
 import {useAuthSheet} from '@contexts/AuthSheetContext';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {useOnlineStatus} from '@hooks/useOnlineStatus';
 import {useSubscription} from '@contexts/SubscriptionContext';
+import {useTranslation} from '@contexts/LanguageContext';
 import {db} from '@config/firebase';
 import type {Recipe} from '../../src/types/recipe';
 
 export default function ExploreRoute() {
   const router = useRouter();
-  const colors = useColorsV2();
+  const colors = useColors();
   const {recipes, setRecipes} = useRecipes();
   const {showSnackbar} = useSnackbar();
   const {isAdmin, user} = useAuth();
@@ -27,6 +28,7 @@ export default function ExploreRoute() {
   const {recipes: exploreRecipes, exploreCookbooks, isLoading: exploreLoading, reload: exploreReload} = useExploreRecipeContext();
   const {isPro} = useSubscription();
   const {open: openAuthSheet} = useAuthSheet();
+  const {t} = useTranslation();
   const isFreeUser = !isAdmin && !isPro;
   const [showPlanSheet, setShowPlanSheet] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
@@ -35,10 +37,10 @@ export default function ExploreRoute() {
   const prevOnlineRef = useRef(isOnline);
   useEffect(() => {
     if (prevOnlineRef.current && !isOnline) {
-      showSnackbar('네트워크 연결이 끊어졌어요');
+      showSnackbar(t('explore.networkDisconnected'));
     }
     prevOnlineRef.current = isOnline;
-  }, [isOnline, showSnackbar]);
+  }, [isOnline, showSnackbar, t]);
 
   const myRecipeSourceIds = useMemo(() => recipes.map(r => r.sourceId ?? r.id), [recipes]);
 
@@ -54,11 +56,11 @@ export default function ExploreRoute() {
       createdAt: new Date().toISOString(),
     };
     setRecipes(prev => [...prev, copied]);
-    showSnackbar('내 레시피에 저장했습니다', {
-      label: '이동',
+    showSnackbar(t('explore.savedToMyRecipes'), {
+      label: t('explore.goTo'),
       onPress: () => router.navigate('/'),
     });
-  }, [user, setRecipes, showSnackbar, router]);
+  }, [user, setRecipes, showSnackbar, router, t]);
 
   const handleRecipePress = useCallback((recipe: Recipe, locked?: boolean) => {
     const params = locked ? 'from=explore&locked=1' : 'from=explore';
@@ -81,33 +83,44 @@ export default function ExploreRoute() {
       await updateDoc(doc(db, 'explore_recipes', recipe.id), {
         deletedAt: new Date().toISOString(),
       });
-      showSnackbar(`'${recipe.title}' 삭제됨`, {
+      showSnackbar(t('explore.recipeDeleted', {title: recipe.title}), {
         action: {
-          label: '되돌리기',
+          label: t('explore.undo'),
           onPress: async () => {
             try {
               await updateDoc(doc(db, 'explore_recipes', recipe.id), {
                 deletedAt: deleteField(),
               });
             } catch {
-              showSnackbar('복원에 실패했습니다');
+              showSnackbar(t('explore.restoreFailed'));
             }
           },
         },
       });
     } catch {
-      showSnackbar('삭제에 실패했습니다');
+      showSnackbar(t('explore.deleteFailed'));
     }
-  }, [showSnackbar]);
+  }, [showSnackbar, t]);
 
   const handleComingSoon = useCallback(() => {
-    showSnackbar('기능 추가 예정입니다');
-  }, [showSnackbar]);
+    showSnackbar(t('explore.comingSoon'));
+  }, [showSnackbar, t]);
+
+  // 공식 레시피 북 삭제 (어드민 전용): Firestore 문서 삭제 후 목록 재조회
+  const handleDeleteExploreCookbook = useCallback(async (name: string) => {
+    try {
+      await deleteDoc(doc(db, 'explore_cookbooks', name));
+      showSnackbar(t('explore.officialCookbookDeleted', {name}));
+      await exploreReload();
+    } catch {
+      showSnackbar(t('explore.deleteFailed'));
+    }
+  }, [showSnackbar, exploreReload, t]);
 
   // 둘러보기 리스트 PDF 익스포트 (기존 리스트 HTML + PdfPreviewDialog 재사용)
   const runListPdf = useCallback(() => {
     if (exploreRecipes.length === 0) {
-      showSnackbar('내보낼 레시피가 없어요');
+      showSnackbar(t('explore.noRecipesToExport'));
       return;
     }
     const pdfData = exploreRecipes.map(r => ({
@@ -125,7 +138,7 @@ export default function ExploreRoute() {
     }));
     setPdfHtml(generateRecipeListHtml(pdfData));
     setShowPdfPreview(true);
-  }, [exploreRecipes, showSnackbar]);
+  }, [exploreRecipes, showSnackbar, t]);
 
   // 게스트면 로그인 유도 → 성공 시 PDF, 로그인 상태면 바로 PDF
   const handleDownloadPdf = useCallback(() => {
@@ -154,6 +167,7 @@ export default function ExploreRoute() {
         exploreCookbooks={exploreCookbooks}
         isFreeUser={isFreeUser}
         onDownloadPdf={handleDownloadPdf}
+        onDeleteExploreCookbook={isAdmin ? handleDeleteExploreCookbook : undefined}
       />
       <PlanSheet
         visible={showPlanSheet}
@@ -164,7 +178,7 @@ export default function ExploreRoute() {
         visible={showPdfPreview}
         onClose={() => setShowPdfPreview(false)}
         html={pdfHtml}
-        filename="공식 레시피 북"
+        filename={t('explore.officialCookbook')}
       />
     </View>
   );

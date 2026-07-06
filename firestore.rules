@@ -3,6 +3,15 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    // 어드민 판별 (클라이언트 AuthContext와 동일 기준):
+    // admin/{uid} 문서 존재 또는 어드민 이메일 허용목록.
+    function isAdmin() {
+      return request.auth != null && (
+        exists(/databases/$(database)/documents/admin/$(request.auth.uid)) ||
+        request.auth.token.email in ['leuo.developer@gmail.com']
+      );
+    }
+
     // users: 본인 문서만 읽기/쓰기
     match /users/{uid} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
@@ -19,28 +28,30 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
-    // explore_recipes: 누구나 읽기, 쓰기는 어드민만
+    // explore_recipes: 숨김(hidden==true)은 어드민만. 그 외 공개.
+    // ⚠️ 목록(list) 쿼리 규칙: 비어드민 클라이언트는 반드시 where('hidden','==',false)로 제약해야 함
+    //    (제약 없는 컬렉션 쿼리는 숨김 문서를 반환할 수 있어 전체 거부됨).
     match /explore_recipes/{recipeId} {
-      allow read: if true;
-      allow write: if exists(/databases/$(database)/documents/admin/$(request.auth.uid));
+      allow read: if isAdmin() || resource.data.hidden == false;
+      allow write: if isAdmin();
     }
 
     // explore_meta: 누구나 읽기, 쓰기는 어드민만
     match /explore_meta/{docId} {
       allow read: if true;
-      allow write: if exists(/databases/$(database)/documents/admin/$(request.auth.uid));
+      allow write: if isAdmin();
     }
 
-    // explore_cookbooks: 누구나 읽기, 쓰기는 어드민만
+    // explore_cookbooks: 숨김(hidden==true)은 어드민만. 그 외 공개. (list는 where hidden==false 필요)
     match /explore_cookbooks/{docId} {
-      allow read: if true;
-      allow write: if exists(/databases/$(database)/documents/admin/$(request.auth.uid));
+      allow read: if isAdmin() || resource.data.hidden == false;
+      allow write: if isAdmin();
     }
 
     // exam_schedules: 누구나 읽기(공개 시험일정), 쓰기는 어드민만
     match /exam_schedules/{docId} {
       allow read: if true;
-      allow write: if exists(/databases/$(database)/documents/admin/$(request.auth.uid));
+      allow write: if isAdmin();
     }
 
   }

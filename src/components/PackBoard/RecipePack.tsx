@@ -2,19 +2,20 @@ import React, {useRef} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import Animated, {useAnimatedStyle, type SharedValue} from 'react-native-reanimated';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2, useTheme} from '@contexts/ThemeContext';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors, useTheme} from '@contexts/ThemeContext';
 import {StackedThumbnail} from '@components/Recipe/RecipeCard';
-import {IconLockFilled} from '@components/Icon/IconIndex';
-import {type SemanticColorsV2, PrimitiveColorsV2} from '@constants/tokens';
+import {IconLockFilled, IconEyeClosed} from '@components/Icon/IconIndex';
+import {type SemanticColors, PrimitiveColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {getElevation} from '@constants/elevation';
 import {triggerHaptic} from '@utils/haptics';
+import {useTranslation} from '@contexts/LanguageContext';
 
 export const PACK_WIDTH = 220;
-/** 레시피 북(책) 팩 폭 — 책만 1.2배 (표지/썸넬/폰트도 동일 비율) */
-export const BOOK_PACK_WIDTH = Math.round(PACK_WIDTH * 1.2); // 264
+/** 레시피 북(책) 팩 폭 — 책만 1.44배 (표지/썸넬/폰트도 동일 비율) */
+export const BOOK_PACK_WIDTH = Math.round(PACK_WIDTH * 1.44); // 317
 const STACK_HEIGHT = 188; // 카드 키운 만큼 스택 높이도 키움
 const THUMB_SIZE = 214; // 팩 카드 크기
 
@@ -86,12 +87,15 @@ export interface RecipePackProps {
   footerRight?: string;
   /** 빈 레시피 북(투명 일러스트 표지) — 표지 배경/테두리/그림자 제거하고 일러스트만 띄움 */
   emptyCover?: boolean;
+  /** 비공개(숨김) — 책 표지에 자물쇠 뱃지 (어드민 전용 공식 북 표시) */
+  hidden?: boolean;
 }
 
-export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom, pillCorner, pillProgress, icon: PillIcon, iconColor, locked, variant = 'default', footerLeft, footerRight, emptyCover}: RecipePackProps) {
-  const styles = useThemedStylesV2(createStyles);
+export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom, pillCorner, pillProgress, icon: PillIcon, iconColor, locked, variant = 'default', footerLeft, footerRight, emptyCover, hidden}: RecipePackProps) {
+  const styles = useThemedStyles(createStyles);
+  const {t} = useTranslation();
   const pillAnim = useAnimatedStyle(() => ({opacity: pillProgress ? pillProgress.value : 1}));
-  const colors = useColorsV2();
+  const colors = useColors();
   const {isDark} = useTheme();
   // 뱃지(pill) 그림자: 경계가 보이되 부드럽게 (너무 진하면 지저분해 보임)
   const pillShadow = {
@@ -130,12 +134,12 @@ export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom
 
   // 레시피 북 전용: 정사각 그레이 표지에 제목(쿡북 색 글자)을 얹은 포스터 형태 + 중앙 썸넬. 뱃지 없음.
   if (variant === 'book') {
-    const BOOK_W = Math.round(188 * 1.2); // 226 (책만 1.2배)
+    const BOOK_W = Math.round(188 * 1.44); // 271 (책만 1.44배)
     const BOOK_H = BOOK_W; // 정사각
-    const BOOK_IMG = Math.round(85 * 1.2); // 102 (표지 안 정사각 썸넬)
+    const BOOK_IMG = Math.round(85 * 1.44); // 122 (표지 안 정사각 썸넬)
     const titleColor = iconColor ?? colors['foreground/on-surface'];
-    // 표지 배경: 색상별 틴트 없이 모든 책을 옅은 옐로(yellow/96)로 통일. (글자색만 레시피북 색 유지)
-    const coverBg = PrimitiveColorsV2['yellow/96'];
+    // 표지 배경: 색상별 틴트 없이 모든 책을 옅은 크림(cream/96)으로 통일. (글자색만 레시피북 색 유지)
+    const coverBg = PrimitiveColors['cream/96'];
     // 그림자 토큰 두 번째 (normal)
     const bookShadow = getElevation('normal', isDark ? 'dark' : 'light');
     return (
@@ -161,10 +165,16 @@ export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom
           <Text style={[styles.bookTitle, {color: titleColor}]} numberOfLines={2}>{title}</Text>
           {/* 부가정보 — 하단 좌·중·우 (레퍼런스 풋터): 레시피 수 · 브랜드 · 회고 수 */}
           <View style={styles.bookFooter} pointerEvents="none">
-            <Text style={[styles.bookMeta, {flex: 1, textAlign: 'left', color: titleColor}]} numberOfLines={2}>{footerLeft ?? `${count ?? shown.length}개의\n레시피`}</Text>
-            <Text style={[styles.bookMeta, {flex: 1, textAlign: 'center', color: titleColor}]} numberOfLines={2}>베이크싸이클</Text>
+            <Text style={[styles.bookMeta, {flex: 1, textAlign: 'left', color: titleColor}]} numberOfLines={2}>{footerLeft ?? t('recipePack.recipeCount', {count: count ?? shown.length})}</Text>
+            <Text style={[styles.bookMeta, {flex: 1, textAlign: 'center', color: titleColor}]} numberOfLines={2}>{t('recipePack.brandName')}</Text>
             <Text style={[styles.bookMeta, {flex: 1, textAlign: 'right', color: titleColor}]} numberOfLines={2}>{footerRight ?? ''}</Text>
           </View>
+          {/* 비공개(숨김) 표시 — 표지 우상단 자물쇠 */}
+          {hidden && (
+            <View style={styles.bookHiddenBadge} pointerEvents="none">
+              <IconEyeClosed width={16} height={16} color={titleColor} />
+            </View>
+          )}
         </View>
       </Pressable>
     );
@@ -222,7 +232,7 @@ export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   container: {
     width: PACK_WIDTH,
     alignItems: 'center',
@@ -272,33 +282,38 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
   bookCover: {
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: PrimitiveColorsV2['yellow/96'], // 옐로우 계열 표지 배경(밝게)
+    backgroundColor: PrimitiveColors['cream/96'], // 크림 계열 표지 배경(밝게)
     borderWidth: 1,
     borderColor: colors['border/muted'],
   },
+  bookHiddenBadge: {
+    position: 'absolute',
+    top: 12,
+    right: 12,
+  },
   bookTitle: {
     position: 'absolute',
-    top: 36,
-    left: 16,
-    right: 16,
+    top: 43,
+    left: 19,
+    right: 19,
     fontFamily: 'Pretendard-Bold',
-    fontSize: 23,
-    lineHeight: 28,
+    fontSize: 28,
+    lineHeight: 34,
     letterSpacing: -0.24,
     textAlign: 'center',
   },
   bookFooter: {
     position: 'absolute',
-    bottom: 12,
-    left: 16,
-    right: 16,
+    bottom: 14,
+    left: 19,
+    right: 19,
     flexDirection: 'row',
     alignItems: 'center',
   },
   bookMeta: {
     fontFamily: 'Pretendard-Bold',
-    fontSize: 6,
-    lineHeight: 8.2,
+    fontSize: 7,
+    lineHeight: 9.8,
     letterSpacing: 0.3,
   },
   pill: {

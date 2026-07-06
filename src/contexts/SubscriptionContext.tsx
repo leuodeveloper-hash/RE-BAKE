@@ -19,7 +19,7 @@ const REVENUECAT_API_KEY_ANDROID = 'appl_test_ZmSXPUTutGSzSNLHEhtPDKRNNqf';
 // RevenueCat Entitlement ID (대시보드에서 설정)
 const PRO_ENTITLEMENT_ID = 'pro';
 
-const PHOTO_BACKUP_KEY = '@bakecycle_photo_cloud_backup';
+const PHOTO_BACKUP_KEY = '@bakle_photo_cloud_backup';
 
 interface SubscriptionContextValue {
   isPro: boolean;

@@ -1,0 +1,46 @@
+{
+  "project_info": {
+    "project_number": "420587944388",
+    "project_id": "bakecycle-b82b5",
+    "storage_bucket": "bakecycle-b82b5.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:420587944388:android:5c5db98d1e3fcdca9fcc91",
+        "android_client_info": {
+          "package_name": "com.bakecycle.app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "420587944388-nh09tqe1o1gmsreuf55qesjjmalgtmg0.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyABotVuulOboo9nh55KTW_TXGgTv5k4G3M"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "420587944388-nh09tqe1o1gmsreuf55qesjjmalgtmg0.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "420587944388-03rb31splmt5jrme91ntt4k5a1cn7dk7.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.bakecycle.app"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

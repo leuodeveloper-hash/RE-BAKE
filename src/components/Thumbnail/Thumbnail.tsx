@@ -2,9 +2,9 @@ import React, {useEffect, useRef} from 'react';
 import {Animated, Easing, StyleSheet, View, ViewStyle} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokens';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
+import type {SemanticColors} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
 
 export interface ThumbnailProps {
   /** 썸네일 크기 (정사각형, 기본: 62) */
@@ -24,7 +24,7 @@ export interface ThumbnailProps {
 }
 
 function SkeletonPulse() {
-  const colors = useColorsV2();
+  const colors = useColors();
   const opacity = useRef(new Animated.Value(0.3)).current;
 
   useEffect(() => {
@@ -52,7 +52,7 @@ export function Thumbnail({
   children,
   loading = false,
 }: ThumbnailProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
 
   return (
     <View style={[styles.container, {width: size, height: size}, style]}>
@@ -69,7 +69,7 @@ export function Thumbnail({
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   container: {
     borderRadius: Radius['radius-sm'],
     overflow: 'hidden',

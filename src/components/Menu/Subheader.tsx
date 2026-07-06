@@ -1,9 +1,9 @@
 import React from 'react';
 import {StyleSheet, Text, View, ViewStyle} from 'react-native';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useThemedStyles} from '@hooks/useThemedStyles';
 
 export interface SubheaderProps {
   title: string;
@@ -11,7 +11,7 @@ export interface SubheaderProps {
 }
 
 export function Subheader({title, style}: SubheaderProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
   return (
     <View style={[styles.header, style]}>
       <Text style={styles.headerText}>{title}</Text>
@@ -19,7 +19,7 @@ export function Subheader({title, style}: SubheaderProps) {
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   header: {
     height: 40,
     paddingHorizontal: Spacing.sm,

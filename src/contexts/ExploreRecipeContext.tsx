@@ -1,6 +1,7 @@
 import React, {createContext, useContext, useMemo} from 'react';
 import {useExploreRecipes} from '@hooks/useExploreRecipes';
 import {useSnackbar} from './SnackbarContext';
+import {useAuth} from './AuthContext';
 import type {Recipe} from '../types/recipe';
 import type {ExploreCookbook} from '@hooks/useExploreRecipes';
 
@@ -15,7 +16,8 @@ const ExploreRecipeContext = createContext<ExploreRecipeContextValue | null>(nul
 
 export function ExploreRecipeProvider({children}: {children: React.ReactNode}) {
   const {showSnackbar} = useSnackbar();
-  const {recipes, exploreCookbooks, isLoading, reload} = useExploreRecipes(showSnackbar);
+  const {isAdmin} = useAuth();
+  const {recipes, exploreCookbooks, isLoading, reload} = useExploreRecipes(showSnackbar, isAdmin);
 
   const value = useMemo<ExploreRecipeContextValue>(() => ({
     recipes, exploreCookbooks, isLoading, reload,

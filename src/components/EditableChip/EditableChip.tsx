@@ -4,9 +4,10 @@ import {SvgProps} from 'react-native-svg';
 import {IconAstriks, IconCircleAlertFilled, IconClose} from '@components/Icon/IconIndex';
 import {TextInput} from '@components/TextInput';
 import {Radius} from '@constants/tokens';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
+import {useTranslation} from '@contexts/LanguageContext';
 
 export type EditableChipVariant = 'tip' | 'yellow';
 export type EditableChipSize = 'small' | 'medium' | 'large';
@@ -60,12 +61,14 @@ export function EditableChip({
   variant = 'tip',
   size = 'small',
   icon,
-  placeholder = '팁을 입력하세요',
+  placeholder,
   style,
   onRemove,
   onChangeText,
 }: EditableChipProps) {
-  const colors = useColorsV2();
+  const {t} = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t('editableChip.tipPlaceholder');
+  const colors = useColors();
   const sizeConfig = SIZE_CONFIG[size];
 
   const variantConfig = useMemo((): Record<
@@ -74,6 +77,8 @@ export function EditableChip({
       backgroundColor: string;
       iconColor: string;
       textColor: string;
+      // 좌측 바 색 — 텍스트보다 한 톤 더 뮤티드(덜 튀게)
+      barColor: string;
       placeholderColor: string;
       Icon: React.FC<SvgProps>;
     }
@@ -82,6 +87,7 @@ export function EditableChip({
       backgroundColor: colors['surface/container-high'],
       iconColor: colors['foreground/on-surface-var'],
       textColor: colors['custom/grey-var'],
+      barColor: colors['foreground/on-surface-muted'],
       placeholderColor: colors['foreground/on-surface-muted'],
       Icon: IconAstriks,
     },
@@ -89,6 +95,7 @@ export function EditableChip({
       backgroundColor: colors['custom/yellow-subtle'],
       iconColor: colors['custom/yellow'],
       textColor: colors['custom/yellow-var'],
+      barColor: colors['custom/yellow-var'],
       placeholderColor: colors['custom/yellow-var'],
       Icon: IconCircleAlertFilled,
     },
@@ -108,7 +115,9 @@ export function EditableChip({
   };
 
   return (
-    <View style={[styles.container, {borderLeftWidth: 3, borderLeftColor: config.textColor, borderRadius: 0, paddingVertical: 0, paddingLeft: 12, paddingRight: 4, gap: sizeConfig.gap}, onChangeText && styles.containerEditing, style]}>
+    <View style={[styles.container, {paddingVertical: 0, paddingLeft: 8, paddingRight: 4, gap: sizeConfig.gap}, onChangeText && styles.containerEditing, style]}>
+      {/* 좌측 바 — border 대신 상하 inset된 라인으로 글자 높이에 맞춰(line-height leading만큼 튀어나오지 않게) */}
+      <View pointerEvents="none" style={[styles.bar, {backgroundColor: config.barColor}]} />
       {onChangeText ? (
         // 편집 모드: 아이콘 없이 풀폭 입력(좌측 끝부터). 공용 TextInput 멀티라인 변형 사용
         // → flex:1+minWidth:0 로 줄바꿈, 자동 높이 증가 내장
@@ -117,7 +126,7 @@ export function EditableChip({
           multiline
           value={label}
           onChangeText={onChangeText}
-          placeholder={placeholder}
+          placeholder={resolvedPlaceholder}
           placeholderTextColor={config.placeholderColor}
           selectionColor={config.textColor}
           inputStyle={[styles.inputReset, textStyle]}
@@ -137,6 +146,7 @@ export function EditableChip({
 
 const styles = StyleSheet.create({
   container: {
+    position: 'relative',
     flexDirection: 'row',
     alignItems: 'flex-start',
     alignSelf: 'flex-start',
@@ -144,6 +154,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     paddingVertical: Spacing.sm,
     gap: Spacing.xs,
+  },
+  // 좌측 세로 바 — 상하 inset으로 글자에 붙임(line-height 여백만큼 안 튀게)
+  bar: {
+    position: 'absolute',
+    left: 0,
+    top: 3,
+    bottom: 3,
+    width: 2,
+    borderRadius: 1,
   },
   iconWrap: {
     height: Typography.body.small.lineHeight + FONT_BASELINE_OFFSET,

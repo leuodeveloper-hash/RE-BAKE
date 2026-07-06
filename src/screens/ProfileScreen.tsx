@@ -12,17 +12,20 @@ import {ListItem} from '@components/ListItem';
 import {Switch} from '@components/Switch';
 import {Avatar} from '@components/Avatar/Avatar';
 import {Tabs} from '@components/Tabs';
+import {Selector} from '@components/Selector';
 import {TextInput} from '@components/TextInput';
 import {Button} from '@components/Button';
 import {Snackbar} from '@components/Snackbar';
 import {BottomSheet} from '@components/BottomSheet';
 import {useExamNotificationPrefs} from '@hooks/useExamNotificationPrefs';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2, useTheme} from '@contexts/ThemeContext';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors, useTheme} from '@contexts/ThemeContext';
+import {useTranslation} from '@contexts/LanguageContext';
 import {useSubscription} from '@contexts/SubscriptionContext';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
+import {Radius} from '@constants/tokens';
 import {
   IconArrowLeft,
   IconImport,
@@ -38,6 +41,8 @@ import {
   IconMailFilled,
   IconCloudFilled,
   IconTicketFilled,
+  IconGlobeFilled,
+  IconCircleCheckFilled,
 } from '@components/Icon/IconIndex';
 
 import Constants from 'expo-constants';
@@ -119,14 +124,14 @@ function PlanFeature({text, styles, dotColor}: {
 
 // ---- ProfileScreen ----
 
-function formatSyncTime(date: Date): string {
+function formatSyncTime(date: Date, t: (key: string, params?: Record<string, unknown>) => string): string {
   const now = new Date();
   const diffMs = now.getTime() - date.getTime();
   const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return '방금 전';
-  if (diffMin < 60) return `${diffMin}분 전`;
+  if (diffMin < 1) return t('profile.syncJustNow');
+  if (diffMin < 60) return t('profile.syncMinutesAgo', {count: diffMin});
   const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return `${diffHour}시간 전`;
+  if (diffHour < 24) return t('profile.syncHoursAgo', {count: diffHour});
   const month = date.getMonth() + 1;
   const day = date.getDate();
   const hours = date.getHours().toString().padStart(2, '0');
@@ -158,9 +163,16 @@ export function ProfileScreen({
   avatarSeed,
   openPlanSheetSignal = 0,
 }: ProfileScreenProps) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const {appearanceMode, setAppearanceMode} = useTheme();
+  const {language, setLanguage, t} = useTranslation();
+  const [showLanguageMenu, setShowLanguageMenu] = useState(false);
+  // 언어 옵션 라벨은 각 언어의 네이티브 표기로 고정 (번역하지 않음)
+  const LANGUAGE_OPTIONS = useMemo(() => [
+    {id: 'ko', label: '한국어'},
+    {id: 'en', label: 'English'},
+  ], []);
   const {prefs: examPrefs, reload: reloadExamPrefs} = useExamNotificationPrefs();
 
   // 알림 설정 화면에서 돌아오면 요약 표시 갱신
@@ -172,15 +184,15 @@ export function ProfileScreen({
 
   const syncLabel = lastSyncedAt
     ? (lastSyncedDevice
-        ? `${lastSyncedDevice}, ${formatSyncTime(lastSyncedAt)}`
-        : formatSyncTime(lastSyncedAt))
+        ? `${lastSyncedDevice}, ${formatSyncTime(lastSyncedAt, t)}`
+        : formatSyncTime(lastSyncedAt, t))
     : null;
 
   const APPEARANCE_TABS = useMemo(() => [
-    {id: 'light' as AppearanceMode, label: '라이트', icon: IconSunDimFilled, activeIconColor: colors['custom/orange']},
-    {id: 'auto' as AppearanceMode, label: '자동', icon: IconCircleHalf, activeIconColor: colors['foreground/on-surface-muted']},
-    {id: 'dark' as AppearanceMode, label: '다크', icon: IconMoonFilled, activeIconColor: colors['custom/yellow']},
-  ], [colors]);
+    {id: 'light' as AppearanceMode, label: t('profile.appearanceLight'), icon: IconSunDimFilled, activeIconColor: colors['custom/orange']},
+    {id: 'auto' as AppearanceMode, label: t('profile.appearanceAuto'), icon: IconCircleHalf, activeIconColor: colors['foreground/on-surface-muted']},
+    {id: 'dark' as AppearanceMode, label: t('profile.appearanceDark'), icon: IconMoonFilled, activeIconColor: colors['custom/yellow']},
+  ], [colors, t]);
 
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [showSnackbar, setShowSnackbar] = useState(false);
@@ -208,7 +220,7 @@ export function ProfileScreen({
 
   const handleTestPush = useCallback(async () => {
     if (Platform.OS === 'web') {
-      showMessage('웹에서는 푸시 테스트가 지원되지 않아요');
+      showMessage(t('profile.pushTestWebUnsupported'));
       return;
     }
     try {
@@ -217,28 +229,28 @@ export function ProfileScreen({
       if (settings.status !== 'granted') {
         const req = await Notifications.requestPermissionsAsync();
         if (req.status !== 'granted') {
-          showMessage('알림 권한이 필요해요');
+          showMessage(t('profile.notificationPermissionNeeded'));
           return;
         }
       }
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '🧪 푸시 테스트',
-          body: '3초 후 알림이에요. 플로팅 배너로 보이는지 확인하세요.',
+          title: t('profile.pushTestTitle'),
+          body: t('profile.pushTestBody'),
           data: {kind: 'debug_test'},
         },
         trigger: {seconds: 3},
       });
-      showMessage('3초 후 알림이 도착합니다');
+      showMessage(t('profile.pushTestScheduled'));
     } catch (err) {
       console.error('push test failed', err);
-      showMessage('푸시 테스트 실패');
+      showMessage(t('profile.pushTestFailed'));
     }
-  }, [showMessage]);
+  }, [showMessage, t]);
 
   const handleTestRegistrationBanner = useCallback(async () => {
     if (Platform.OS === 'web') {
-      showMessage('웹에서는 푸시 테스트가 지원되지 않아요');
+      showMessage(t('profile.pushTestWebUnsupported'));
       return;
     }
     try {
@@ -247,40 +259,40 @@ export function ProfileScreen({
       if (settings.status !== 'granted') {
         const req = await Notifications.requestPermissionsAsync();
         if (req.status !== 'granted') {
-          showMessage('알림 권한이 필요해요');
+          showMessage(t('profile.notificationPermissionNeeded'));
           return;
         }
       }
       await Notifications.scheduleNotificationAsync({
         content: {
-          title: '제빵기능사 접수 15분 전 (2026년 1회)',
-          body: '접수 시작이 임박했어요. 미리 큐넷에 로그인해 두세요.',
+          title: t('profile.regBannerTestTitle'),
+          body: t('profile.regBannerTestBody'),
           data: {kind: 'debug_test', subkind: 'registration_15min'},
         },
         trigger: {seconds: 5},
       });
-      showMessage('5초 후 “15분 전” 배너가 도착합니다');
+      showMessage(t('profile.regBannerTestScheduled'));
     } catch (err) {
       console.error('reg banner test failed', err);
-      showMessage('배너 테스트 실패');
+      showMessage(t('profile.regBannerTestFailed'));
     }
-  }, [showMessage]);
+  }, [showMessage, t]);
 
   const handleListScheduled = useCallback(async () => {
     if (Platform.OS === 'web') {
-      showMessage('웹에서는 지원되지 않아요');
+      showMessage(t('profile.webUnsupported'));
       return;
     }
     try {
       const Notifications = require('expo-notifications');
       const list = await Notifications.getAllScheduledNotificationsAsync();
       console.log('[ProfileScreen] scheduled notifications:', JSON.stringify(list, null, 2));
-      showMessage(`예약된 알림 ${list.length}개 (콘솔 확인)`);
+      showMessage(t('profile.scheduledCount', {count: list.length}));
     } catch (err) {
       console.error('list scheduled failed', err);
-      showMessage('목록 조회 실패');
+      showMessage(t('profile.listFailed'));
     }
-  }, [showMessage]);
+  }, [showMessage, t]);
 
   const handleOpenHandleEdit = useCallback(() => {
     setHandleInput(handle?.replace(/^@/, '') ?? '');
@@ -290,21 +302,21 @@ export function ProfileScreen({
   const handleSaveHandle = useCallback(async () => {
     const cleaned = handleInput.trim().toLowerCase().replace(/[^a-z0-9_]/g, '');
     if (!cleaned) {
-      showMessage('핸들을 입력해주세요');
+      showMessage(t('profile.handleRequired'));
       return;
     }
     try {
       await onUpdateHandle(cleaned);
       setShowHandleSheet(false);
-      showMessage('핸들이 변경되었습니다');
+      showMessage(t('profile.handleChanged'));
     } catch {
-      showMessage('핸들 변경에 실패했습니다');
+      showMessage(t('profile.handleChangeFailed'));
     }
-  }, [handleInput, onUpdateHandle, showMessage]);
+  }, [handleInput, onUpdateHandle, showMessage, t]);
 
   const handleAuth = useCallback(async () => {
     if (!email.trim() || !password.trim()) {
-      showMessage('이메일과 비밀번호를 입력해주세요');
+      showMessage(t('profile.emailPasswordRequired'));
       return;
     }
     setAuthLoading(true);
@@ -317,57 +329,57 @@ export function ProfileScreen({
       setEmail('');
       setPassword('');
       setShowAuthSheet(false);
-      showMessage(isLoginMode ? '로그인 성공' : '회원가입 성공');
+      showMessage(isLoginMode ? t('profile.loginSuccess') : t('profile.signUpSuccess'));
     } catch (err: any) {
       const code = err?.code;
       console.error('[handleAuth]', isLoginMode ? 'signIn' : 'signUp', 'failed', {code, message: err?.message, err});
       if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
-        showMessage('이메일 또는 비밀번호가 올바르지 않습니다');
+        showMessage(t('profile.invalidCredentials'));
       } else if (code === 'auth/email-already-in-use') {
-        showMessage('이미 사용 중인 이메일입니다');
+        showMessage(t('profile.emailInUse'));
       } else if (code === 'auth/weak-password') {
-        showMessage('비밀번호가 너무 짧습니다 (6자 이상)');
+        showMessage(t('profile.weakPassword'));
       } else if (code === 'auth/invalid-email') {
-        showMessage('올바른 이메일 형식이 아닙니다');
+        showMessage(t('profile.invalidEmail'));
       } else if (err?.message?.includes('가입 한도')) {
         showMessage(err.message);
       } else {
-        showMessage((isLoginMode ? '로그인에 실패했습니다: ' : '회원가입에 실패했습니다: ') + (err?.message ?? code ?? '알 수 없는 오류'));
+        showMessage((isLoginMode ? t('profile.loginFailedPrefix') : t('profile.signUpFailedPrefix')) + (err?.message ?? code ?? t('profile.unknownError')));
       }
     } finally {
       setAuthLoading(false);
     }
-  }, [email, password, isLoginMode, onLogin, onSignUp, showMessage]);
+  }, [email, password, isLoginMode, onLogin, onSignUp, showMessage, t]);
 
   const handleExport = useCallback(async () => {
     try {
       await onExport();
-      showMessage('데이터를 내보냈습니다');
+      showMessage(t('profile.exportSuccess'));
     } catch {
-      showMessage('내보내기에 실패했습니다');
+      showMessage(t('profile.exportFailed'));
     }
-  }, [onExport, showMessage]);
+  }, [onExport, showMessage, t]);
 
   const handleImport = useCallback(async () => {
     const confirmOverwrite = (count: number): Promise<boolean> => {
-      const msg = `겹치는 레시피 ${count}개가 있습니다. 덮어쓸까요?`;
+      const msg = t('profile.importOverwriteMessage', {count});
       if (Platform.OS === 'web') {
         return Promise.resolve(window.confirm(msg));
       }
       return new Promise(res => {
-        Alert.alert('가져오기', msg, [
-          {text: '건너뛰기', style: 'cancel', onPress: () => res(false)},
-          {text: '덮어쓰기', style: 'destructive', onPress: () => res(true)},
+        Alert.alert(t('profile.importTitle'), msg, [
+          {text: t('profile.importSkip'), style: 'cancel', onPress: () => res(false)},
+          {text: t('profile.importOverwrite'), style: 'destructive', onPress: () => res(true)},
         ]);
       });
     };
     const success = await onImport(confirmOverwrite);
     if (success) {
-      showMessage('데이터를 가져왔습니다');
+      showMessage(t('profile.importSuccess'));
     } else {
-      showMessage('가져오기에 실패했습니다');
+      showMessage(t('profile.importFailed'));
     }
-  }, [onImport, showMessage]);
+  }, [onImport, showMessage, t]);
 
   return (
     <View style={styles.container}>
@@ -398,13 +410,13 @@ export function ProfileScreen({
                 <Pressable onPress={handleOpenHandleEdit}>
                   <Text style={styles.profileName}>@{handle || 'handle'}</Text>
                 </Pressable>
-                <Text style={styles.profileSub}>레시피 {recipeCount}개 · 회고 노트 {reviewCount}개</Text>
+                <Text style={styles.profileSub}>{t('profile.profileSub', {recipeCount, reviewCount})}</Text>
               </>
             ) : (
               <>
                 <Text style={styles.profileName}>@guest</Text>
                 <Button
-                  label="로그인 또는 계정 만들기"
+                  label={t('profile.loginOrCreateAccount')}
                   size="small"
                   onPress={() => setShowAuthSheet(true)}
                   style={styles.profileLoginButton}
@@ -415,17 +427,17 @@ export function ProfileScreen({
 
           {/* 데이터 관리 섹션 */}
           <ContentContainer style={styles.section}>
-            <SectionHeader title="데이터 관리" />
+            <SectionHeader title={t('profile.dataManagement')} />
             <Card>
               <ListItem
-                title="내보내기"
+                title={t('profile.export')}
                 leading={{type: 'icon', icon: IconExport}}
                 trailing={{type: 'icon', icon: IconChevronRight}}
                 disabled={recipeCount === 0}
                 onPress={handleExport}
               />
               <ListItem
-                title="가져오기"
+                title={t('profile.import')}
                 leading={{type: 'icon', icon: IconImport}}
                 trailing={{type: 'icon', icon: IconChevronRight}}
                 showDivider={!!(userEmail && lastSyncedAt)}
@@ -433,7 +445,7 @@ export function ProfileScreen({
               />
               {userEmail && lastSyncedAt && (
                 <ListItem
-                  title="마지막 동기화"
+                  title={t('profile.lastSync')}
                   leading={{type: 'icon', icon: IconCloudFilled}}
                   trailing={{type: 'custom', element: (
                     <Text style={styles.syncTime}>{syncLabel}</Text>
@@ -447,10 +459,10 @@ export function ProfileScreen({
           {/* 플랜 섹션 (로그인 시만) */}
           {userEmail && (
             <ContentContainer style={styles.section}>
-              <SectionHeader title="플랜" />
+              <SectionHeader title={t('profile.plan')} />
               <Card>
                 <ListItem
-                  title={isPro ? '프로 플랜' : '무료 플랜'}
+                  title={isPro ? t('profile.proPlan') : t('profile.freePlan')}
                   leading={{type: 'icon', icon: IconTicketFilled}}
                   trailing={{type: 'icon', icon: IconChevronRight}}
                   showDivider={false}
@@ -462,10 +474,10 @@ export function ProfileScreen({
 
           {/* 환경설정 섹션 */}
           <ContentContainer style={styles.section}>
-            <SectionHeader title="환경설정" />
+            <SectionHeader title={t('profile.preferences')} />
             <Card>
               <ListItem
-                title="외관"
+                title={t('profile.appearance')}
                 leading={{type: 'icon', icon: IconPaletteFilled}}
                 trailing={{
                   type: 'custom',
@@ -480,7 +492,25 @@ export function ProfileScreen({
                 showDivider
               />
               <ListItem
-                title={photoCloudBackup ? '사진 클라우드 백업 (켜짐)' : '사진 클라우드 백업 (이 기기에만)'}
+                title={t('settings.language')}
+                leading={{type: 'icon', icon: IconGlobeFilled}}
+                trailing={{
+                  type: 'custom',
+                  element: (
+                    <Selector
+                      variant="ghost"
+                      size="small"
+                      muted
+                      label={LANGUAGE_OPTIONS.find(o => o.id === language)?.label ?? '한국어'}
+                      showDropdown
+                      onPress={() => setShowLanguageMenu(true)}
+                    />
+                  ),
+                }}
+                showDivider
+              />
+              <ListItem
+                title={photoCloudBackup ? t('profile.photoCloudBackupOn') : t('profile.photoCloudBackupLocal')}
                 leading={{type: 'icon', icon: IconCloudFilled}}
                 trailing={{
                   type: 'custom',
@@ -505,10 +535,10 @@ export function ProfileScreen({
 
           {/* 시험 알림 섹션 */}
           <ContentContainer style={styles.section}>
-            <SectionHeader title="알림" />
+            <SectionHeader title={t('profile.notifications')} />
             <Card>
               <ListItem
-                title="시험 일정 알림"
+                title={t('profile.examScheduleNotif')}
                 leading={{type: 'icon', icon: IconBellFilled}}
                 trailing={{
                   type: 'custom',
@@ -516,8 +546,8 @@ export function ProfileScreen({
                     <View style={styles.examNotifTrailing}>
                       <Text style={styles.examNotifStatus}>
                         {examPrefs.enabled && examPrefs.targets.length > 0
-                          ? `${examPrefs.targets.length}개 켜짐`
-                          : '꺼짐'}
+                          ? t('profile.examNotifOnCount', {count: examPrefs.targets.length})
+                          : t('profile.examNotifOff')}
                       </Text>
                       <IconChevronRight
                         width={20}
@@ -538,7 +568,7 @@ export function ProfileScreen({
             <ContentContainer style={styles.section}>
               <Card>
                 <ListItem
-                  title="로그아웃"
+                  title={t('profile.logout')}
                   leading={{type: 'icon', icon: IconLogout}}
                   showDivider={false}
                   onPress={onLogout}
@@ -551,11 +581,11 @@ export function ProfileScreen({
           <View style={styles.footer}>
             <LogoText width={89} height={20} color={colors['foreground/on-surface-muted']} />
             <View style={styles.footerTextGroup}>
-              <Text style={styles.footerText}>버전 {APP_VERSION}</Text>
+              <Text style={styles.footerText}>{t('profile.version', {version: APP_VERSION})}</Text>
               <View style={styles.footerLinks}>
-                <Text style={styles.footerLink} onPress={onTermsPress}>이용약관</Text>
+                <Text style={styles.footerLink} onPress={onTermsPress}>{t('profile.termsOfService')}</Text>
                 <Text style={styles.footerDot}>·</Text>
-                <Text style={styles.footerLink} onPress={onPrivacyPress}>개인정보 처리방침</Text>
+                <Text style={styles.footerLink} onPress={onPrivacyPress}>{t('profile.privacyPolicy')}</Text>
               </View>
             </View>
           </View>
@@ -566,8 +596,8 @@ export function ProfileScreen({
       <BottomSheet
         visible={showAuthSheet}
         onClose={() => { setShowAuthSheet(false); setShowEmailForm(false); }}
-        title={showEmailForm ? (isLoginMode ? '이메일로 로그인' : '이메일로 회원가입') : '로그인'}
-        description={showEmailForm ? undefined : '로그인하면 레시피를 여러 기기에서 동기화하고\n안전하게 보관할 수 있어요.'}
+        title={showEmailForm ? (isLoginMode ? t('profile.emailLoginTitle') : t('profile.emailSignUpTitle')) : t('profile.loginTitle')}
+        description={showEmailForm ? undefined : t('profile.loginDescription')}
         headerGraphic={<LogoBakecycle width={48} height={48} />}
         maxWidth={380}
       >
@@ -577,7 +607,7 @@ export function ProfileScreen({
               <View style={styles.authFieldRow}>
                 <TextInput
                   style="ghost"
-                  placeholder="이메일"
+                  placeholder={t('profile.emailPlaceholder')}
                   value={email}
                   onChangeText={setEmail}
                   keyboardType="email-address"
@@ -588,7 +618,7 @@ export function ProfileScreen({
               <View style={styles.authFieldRow}>
                 <TextInput
                   style="ghost"
-                  placeholder="비밀번호"
+                  placeholder={t('profile.passwordPlaceholder')}
                   value={password}
                   onChangeText={setPassword}
                   secureTextEntry
@@ -597,15 +627,15 @@ export function ProfileScreen({
             </Container>
             <View style={styles.authButtons}>
               <Button
-                label={isLoginMode ? '로그인' : '회원가입'}
+                label={isLoginMode ? t('profile.login') : t('profile.signUp')}
                 onPress={handleAuth}
                 disabled={authLoading}
               />
             </View>
             <Text style={styles.termsCaption}>
-              {isLoginMode ? '계정이 없으신가요? ' : '이미 계정이 있으신가요? '}
+              {isLoginMode ? t('profile.noAccountPrompt') : t('profile.haveAccountPrompt')}
               <Text style={styles.termsLink} onPress={() => setIsLoginMode(prev => !prev)}>
-                {isLoginMode ? '회원가입' : '로그인'}
+                {isLoginMode ? t('profile.signUp') : t('profile.login')}
               </Text>
             </Text>
           </View>
@@ -613,35 +643,35 @@ export function ProfileScreen({
           <View style={styles.authForm}>
             <View style={styles.authLoginButtons}>
               <Button
-                label="Google로 계속하기"
+                label={t('profile.continueWithGoogle')}
                 variant="soft"
                 icon={IconGoogle}
                 onPress={async () => {
                   try {
                     await onGoogleSignIn();
                     setShowAuthSheet(false);
-                    showMessage('로그인 성공');
+                    showMessage(t('profile.loginSuccess'));
                   } catch (err: any) {
                     console.error('Google sign-in error:', err);
                     if (err?.code !== 'auth/popup-closed-by-user') {
-                      showMessage('Google 로그인에 실패했습니다');
+                      showMessage(t('profile.googleLoginFailed'));
                     }
                   }
                 }}
               />
               <Button
-                label="이메일로 계속하기"
+                label={t('profile.continueWithEmail')}
                 variant="soft"
                 icon={IconMailFilled}
                 onPress={() => setShowEmailForm(true)}
               />
             </View>
             <Text style={styles.termsCaption}>
-              계속하면 Bakecycle의{' '}
-              <Text style={styles.termsLink} onPress={onTermsPress}>이용약관</Text>
-              {' '}및{' '}
-              <Text style={styles.termsLink} onPress={onPrivacyPress}>개인정보 처리방침</Text>
-              에 동의하는 것으로 간주합니다.
+              {t('profile.termsAgreePrefix')}
+              <Text style={styles.termsLink} onPress={onTermsPress}>{t('profile.termsOfService')}</Text>
+              {t('profile.termsAgreeMiddle')}
+              <Text style={styles.termsLink} onPress={onPrivacyPress}>{t('profile.privacyPolicy')}</Text>
+              {t('profile.termsAgreeSuffix')}
             </Text>
           </View>
         )}
@@ -651,7 +681,7 @@ export function ProfileScreen({
       <BottomSheet
         visible={showHandleSheet}
         onClose={() => setShowHandleSheet(false)}
-        title="핸들 수정"
+        title={t('profile.editHandle')}
       >
         <View style={styles.authForm}>
           <TextInput
@@ -661,9 +691,46 @@ export function ProfileScreen({
             autoCapitalize="none"
           />
           <Button
-            label="저장"
+            label={t('profile.save')}
             onPress={handleSaveHandle}
           />
+        </View>
+      </BottomSheet>
+
+      {/* 언어 선택 바텀시트 */}
+      <BottomSheet
+        visible={showLanguageMenu}
+        onClose={() => setShowLanguageMenu(false)}
+        title={t('settings.language')}
+        headerType="center"
+      >
+        <View>
+          {LANGUAGE_OPTIONS.map(option => {
+            const selected = option.id === language;
+            return (
+              <Pressable
+                key={option.id}
+                style={({pressed}: {pressed: boolean}) => [
+                  styles.languageOption,
+                  selected && styles.languageOptionSelected,
+                  pressed && styles.languageOptionPressed,
+                ]}
+                onPress={() => {
+                  setLanguage(option.id as 'ko' | 'en');
+                  setShowLanguageMenu(false);
+                }}
+              >
+                <Text style={styles.languageOptionLabel}>{option.label}</Text>
+                {selected && (
+                  <IconCircleCheckFilled
+                    width={20}
+                    height={20}
+                    color={colors['foreground/accent']}
+                  />
+                )}
+              </Pressable>
+            );
+          })}
         </View>
       </BottomSheet>
 
@@ -679,7 +746,7 @@ export function ProfileScreen({
         <View style={styles.planSheetContent}>
           <View style={styles.planHeader}>
             <Text style={styles.planHeadline}>
-              {'레시피에만\n집중할 수 있게'}
+              {t('profile.planHeadline')}
             </Text>
           </View>
 
@@ -687,21 +754,21 @@ export function ProfileScreen({
           <BlurView intensity={12} style={styles.planCardBlur}>
             <View style={styles.planCardInner}>
               <View style={styles.planCardInfoRow}>
-                <Text style={styles.planCardTitle}>프로</Text>
+                <Text style={styles.planCardTitle}>{t('profile.planPro')}</Text>
                 <View style={styles.planPriceRow}>
                   <Text style={styles.planPrice}>USD 18</Text>
-                  <Text style={styles.planPriceSuffixText}>/ 년 단위</Text>
+                  <Text style={styles.planPriceSuffixText}>{t('profile.planPerYear')}</Text>
                 </View>
               </View>
               {isPro ? (
-                <Button label="현재 플랜" variant="soft" disabled />
+                <Button label={t('profile.currentPlan')} variant="soft" disabled />
               ) : (
-                <Button label="구독하기" disabled />
+                <Button label={t('profile.subscribe')} disabled />
               )}
               <View style={styles.planFeatureList}>
-                <PlanFeature text="내 레시피 클라우드 동기화" styles={styles} dotColor={colors['custom/light-blue']} />
-                <PlanFeature text="모든 둘러보기 레시피 무제한 열람" styles={styles} dotColor={colors['custom/light-blue']} />
-                <PlanFeature text="광고 없는 쾌적한 사용" styles={styles} dotColor={colors['custom/light-blue']} />
+                <PlanFeature text={t('profile.featureCloudSync')} styles={styles} dotColor={colors['custom/light-blue']} />
+                <PlanFeature text={t('profile.featureUnlimitedExplore')} styles={styles} dotColor={colors['custom/light-blue']} />
+                <PlanFeature text={t('profile.featureAdFree')} styles={styles} dotColor={colors['custom/light-blue']} />
               </View>
             </View>
           </BlurView>
@@ -710,18 +777,18 @@ export function ProfileScreen({
           <BlurView intensity={12} style={styles.planCardBlur}>
             <View style={styles.planCardInner}>
               <View style={styles.planCardInfoRow}>
-                <Text style={styles.planCardTitle}>무료</Text>
+                <Text style={styles.planCardTitle}>{t('profile.planFree')}</Text>
                 <Text style={styles.planPrice}>Free</Text>
               </View>
               {isPro ? (
-                <Button label="무료로 다운그레이드" variant="soft" />
+                <Button label={t('profile.downgradeToFree')} variant="soft" />
               ) : (
-                <Button label="현재 플랜" variant="soft" disabled />
+                <Button label={t('profile.currentPlan')} variant="soft" disabled />
               )}
               <View style={styles.planFeatureList}>
-                <PlanFeature text="내 레시피 로컬 저장" styles={styles} />
-                <PlanFeature text="둘러보기 레시피 미리보기" styles={styles} />
-                <PlanFeature text="레시피 내보내기 / 가져오기" styles={styles} />
+                <PlanFeature text={t('profile.featureLocalSave')} styles={styles} />
+                <PlanFeature text={t('profile.featureExplorePreview')} styles={styles} />
+                <PlanFeature text={t('profile.featureExportImport')} styles={styles} />
               </View>
             </View>
           </BlurView>
@@ -741,7 +808,30 @@ export function ProfileScreen({
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  languageOption: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.smd,
+    paddingHorizontal: Spacing.smd,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius['radius-md'],
+  },
+  languageOptionSelected: {
+    backgroundColor: colors['state/pressed'],
+  },
+  languageOptionPressed: {
+    backgroundColor: colors['state/pressed'],
+  },
+  languageOptionLabel: {
+    flex: 1,
+    fontFamily: Typography.body.large.fontFamily,
+    fontSize: Typography.body.large.fontSize,
+    fontWeight: Typography.body.large.fontWeight as '500',
+    lineHeight: Typography.body.large.lineHeight,
+    letterSpacing: -0.25,
+    color: colors['foreground/on-surface'],
+  },
   container: {
     flex: 1,
     backgroundColor: colors['surface/dim'],

@@ -1,16 +1,17 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, Easing, Pressable, ScrollView, StyleSheet, View, ViewStyle} from 'react-native';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {SvgProps} from 'react-native-svg';
 import {GlassContainer} from '@components/Container';
 import {TextInput} from '@components/TextInput';
 import {IconSearch} from '@components/Icon/IconIndex';
 import {AppIcon} from '@components/Icon/AppIcon';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {MenuItem} from './MenuItem';
 import {Subheader} from './Subheader';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useTranslation} from '@contexts/LanguageContext';
 
 export interface MenuItemData {
   id: string;
@@ -66,8 +67,9 @@ export function Menu({
   maxHeight,
   searchable = false,
 }: MenuProps) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
+  const {t} = useTranslation();
   const scale = useRef(new Animated.Value(0.95)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const [shouldRender, setShouldRender] = useState(visible);
@@ -145,7 +147,7 @@ export function Menu({
           {searchable && (
             <View style={styles.searchBar}>
               <TextInput
-                placeholder="검색"
+                placeholder={t('menu.searchPlaceholder')}
                 value={searchQuery}
                 onChangeText={setSearchQuery}
                 style="ghost"
@@ -207,7 +209,7 @@ export function Menu({
   );
 }
 
-const createStyles = (_colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (_colors: SemanticColors) => StyleSheet.create({
   backdrop: {
     position: 'absolute' as const,
     top: -9999,

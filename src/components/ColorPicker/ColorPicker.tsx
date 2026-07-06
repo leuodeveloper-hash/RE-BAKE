@@ -1,11 +1,11 @@
 import React from 'react';
 import {Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {BaseColors, withOpacity} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 
 const COLORS: AvatarColor[] = [
@@ -53,9 +53,9 @@ const SLUG_MAP: Partial<Record<AvatarColor, string>> = {
 };
 
 /** AvatarColor → 시맨틱 var 토큰 키 (예: 'custom/grey-brown-var') */
-export function getColorVarKey(color: AvatarColor): keyof SemanticColorsV2 {
+export function getColorVarKey(color: AvatarColor): keyof SemanticColors {
   const slug = SLUG_MAP[color] || color;
-  return `custom/${slug}-var` as keyof SemanticColorsV2;
+  return `custom/${slug}-var` as keyof SemanticColors;
 }
 
 export interface ColorPickerProps {
@@ -70,8 +70,8 @@ export interface ColorPickerProps {
 
 export function ColorPicker({selected, onSelect, label, colors: colorsProp, dotSize = DOT_SIZE}: ColorPickerProps) {
   const visibleColors = colorsProp ?? COLORS;
-  const themedStyles = useThemedStylesV2(createThemedStyles);
-  const colors = useColorsV2();
+  const themedStyles = useThemedStyles(createThemedStyles);
+  const colors = useColors();
   const size = dotSize;
   return (
     <View>
@@ -115,7 +115,7 @@ export function ColorPicker({selected, onSelect, label, colors: colorsProp, dotS
   );
 }
 
-const createThemedStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createThemedStyles = (colors: SemanticColors) => StyleSheet.create({
   label: {
     ...Typography.label.medium,
     color: colors['foreground/on-surface-muted'],

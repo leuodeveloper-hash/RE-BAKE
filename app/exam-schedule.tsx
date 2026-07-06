@@ -8,11 +8,12 @@ import {IconButton} from '@components/IconButton';
 import {Selector} from '@components/Selector';
 import {Menu} from '@components/Menu';
 import {Avatar} from '@components/Avatar';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
+import {useTranslation, type TranslateFn} from '@contexts/LanguageContext';
 import {type ExamType} from '@constants/examTypes';
 import {fetchAllSchedules, type ExamSchedule} from '@utils/examSchedules';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {IconClose, IconArrowTopRight, IconDotFilled, IconCircleCheckFilled, IconCircleDot} from '@components/Icon/IconIndex';
@@ -22,14 +23,14 @@ const QNET_SCHEDULE_URL = 'https://www.q-net.or.kr/crf021.do?id=crf02101&scheTyp
 
 /** 자격증 그룹 (Firestore examType의 접두사와 매칭) */
 type CertGroup = 'pastry' | 'baking';
-const CERT_BASE: {id: CertGroup; name: string}[] = [
-  {id: 'pastry', name: '제과기능사'},
-  {id: 'baking', name: '제빵기능사'},
-];
+const CERT_IDS: CertGroup[] = ['pastry', 'baking'];
+function certName(id: CertGroup, t: TranslateFn): string {
+  return id === 'pastry' ? t('examschedule.certPastry') : t('examschedule.certBaking');
+}
 
 /** examType → 실기/필기 */
-function kindLabel(examType: ExamType): string {
-  return examType.endsWith('practical') ? '실기' : '필기';
+function kindLabel(examType: ExamType, t: TranslateFn): string {
+  return examType.endsWith('practical') ? t('examschedule.kindPractical') : t('examschedule.kindWritten');
 }
 
 /** 회차 라벨에서 연도 접두사 제거 ('2026년 3회' → '3회') */
@@ -100,12 +101,13 @@ function dateTimeLabel(d: Date): string {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const hh = String(d.getHours()).padStart(2, '0');
   const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${gmtLabel(d)} · ${months[d.getMonth()]} ${d.getDate()} ${d.getFullYear()} · ${hh}:${mm}`;
+  return `${gmtLabel(d)}  ${months[d.getMonth()]} ${d.getDate()} ${d.getFullYear()}  ${hh}:${mm}`;
 }
 
 export default function ExamScheduleRoute() {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const {t} = useTranslation();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
@@ -136,7 +138,7 @@ export default function ExamScheduleRoute() {
   );
 
   const year = useMemo(() => scheduleYear(shown), [shown]);
-  const certLabel = `${CERT_BASE.find(c => c.id === cert)!.name} ${year}`;
+  const certLabel = `${certName(cert, t)} ${year}`;
 
   // 지난 / 다가오는 일정 분리
   const {past, upcoming} = useMemo(() => {
@@ -160,7 +162,7 @@ export default function ExamScheduleRoute() {
     setPastExpanded(false);
   }, []);
 
-  const certItems = CERT_BASE.map(c => ({id: c.id, label: `${c.name} ${year}`}));
+  const certItems = CERT_IDS.map(id => ({id, label: `${certName(id, t)} ${year}`}));
 
   return (
     <View style={styles.container}>
@@ -203,7 +205,7 @@ export default function ExamScheduleRoute() {
               <ActivityIndicator color={colors['foreground/on-surface-muted']} />
             </View>
           ) : display.length === 0 ? (
-            <Text style={styles.empty}>시험 일정이 없어요.</Text>
+            <Text style={styles.empty}>{t('examschedule.emptySchedules')}</Text>
           ) : (
             <View style={styles.timeline}>
               {/* 지난 일정 펼치기/접기 토글 */}
@@ -212,13 +214,15 @@ export default function ExamScheduleRoute() {
                   style={styles.toggleRow}
                   onPress={() => setPastExpanded(prev => !prev)}>
                   <View style={styles.rail}>
-                    {/* 접힌 지난 일정 표시: 점선 레일 */}
-                    <View style={[styles.railLineDashed, styles.railLineTop]} />
-                    <View style={[styles.railLineDashed, styles.railLineBottom]} />
+                    {/* 접힌 지난 일정: [점선 세그][캡슐(타원)][점선 세그] */}
+                    <View style={styles.railSegDashed} />
                     <View style={styles.toggleCapsule} />
+                    <View style={styles.railSegDashed} />
                   </View>
                   <Text style={styles.toggleText}>
-                    지난 일정 {past.length}개 {pastExpanded ? '접기' : '펼치기'}
+                    {pastExpanded
+                      ? t('examschedule.pastCollapse', {count: past.length})
+                      : t('examschedule.pastExpand', {count: past.length})}
                   </Text>
                 </Pressable>
               )}
@@ -269,7 +273,7 @@ export default function ExamScheduleRoute() {
 
       {/* 앱바 가운데 타이틀 (플로팅 핀 사이) */}
       <View pointerEvents="none" style={[styles.barTitle, {top: insets.top + Spacing.smd}]}>
-        <Text style={styles.barTitleText}>시험일정</Text>
+        <Text style={styles.barTitleText}>{t('examschedule.title')}</Text>
       </View>
     </View>
   );
@@ -282,35 +286,32 @@ interface PeriodItemProps {
   isLast: boolean;
   variant: 'past' | 'current' | 'upcoming';
   styles: ReturnType<typeof createStyles>;
-  colors: SemanticColorsV2;
+  colors: SemanticColors;
 }
 
 function PeriodItem({schedule: s, gradientIndex, isFirst, isLast, variant, styles, colors}: PeriodItemProps) {
+  const {t} = useTranslation();
   const isPast = variant === 'past';
-  const title = `${cleanRound(s.round)} ${kindLabel(s.examType)}`.trim();
+  const title = `${cleanRound(s.round)} ${kindLabel(s.examType, t)}`.trim();
 
   return (
     <View style={[styles.item, variant === 'current' && styles.itemCurrent]}>
       {/* 레일: 위/아래 라인 + 노드 아이콘 */}
       <View style={styles.rail}>
-        {!isFirst && <View style={[styles.railLine, styles.railLineTop]} />}
-        {!isLast && <View style={[styles.railLine, styles.railLineBottom]} />}
-        {variant === 'current' ? (
-          // 현재: 라디오(circle-dot) 아이콘 — 과거/예정과 동일하게 railNode(20)+아이콘(16) 구조
-          <View style={styles.railNode}>
+        {/* 상단 라인 (첫 항목이면 투명 스페이서로 노드 중앙 유지) */}
+        <View style={[styles.railSeg, !isFirst && styles.railSegLine]} />
+        {/* 노드(20 슬롯) — 지난 항목은 다른 콘텐츠(아바타)처럼 opacity로 흐리게 */}
+        <View style={[styles.railNode, isPast && styles.railNodePast]}>
+          {variant === 'current' ? (
             <IconCircleDot width={16} height={16} color={colors['foreground/on-surface']} />
-          </View>
-        ) : isPast ? (
-          // 지난: check-circle-filled (12, 흐리게)
-          <View style={styles.railNode}>
-            <IconCircleCheckFilled width={16} height={16} color={colors['foreground/on-surface-var']} />
-          </View>
-        ) : (
-          // 예정: dot-filled (12)
-          <View style={styles.railNode}>
+          ) : isPast ? (
+            <IconCircleCheckFilled width={16} height={16} color={colors['foreground/on-surface-muted']} />
+          ) : (
             <IconDotFilled width={12} height={12} color={colors['foreground/on-surface']} />
-          </View>
-        )}
+          )}
+        </View>
+        {/* 하단 라인 (마지막 항목이면 투명 스페이서) */}
+        <View style={[styles.railSeg, !isLast && styles.railSegLine]} />
       </View>
 
       {/* D-day 아바타 */}
@@ -329,9 +330,9 @@ function PeriodItem({schedule: s, gradientIndex, isFirst, isLast, variant, style
           {title}
         </Text>
         <Text style={[styles.dates, isPast && styles.datesPast]} numberOfLines={1}>
-          접수: {shortDate(s.registrationStart)}
-          {'  ·  '}시험: {shortDate(s.examDate)}
-          {'  ·  '}발표: {shortDate(s.resultDate)}
+          {t('examschedule.labelRegistration')}: {shortDate(s.registrationStart)}
+          {'  ·  '}{t('examschedule.labelExam')}: {shortDate(s.examDate)}
+          {'  ·  '}{t('examschedule.labelResult')}: {shortDate(s.resultDate)}
         </Text>
       </View>
     </View>
@@ -340,7 +341,7 @@ function PeriodItem({schedule: s, gradientIndex, isFirst, isLast, variant, style
 
 const RAIL_WIDTH = 20;
 
-const createStyles = (colors: SemanticColorsV2) =>
+const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
     container: {
       flex: 1,
@@ -384,7 +385,7 @@ const createStyles = (colors: SemanticColorsV2) =>
     menuWrap: {
       position: 'absolute',
       top: 44,
-      left: Spacing.smd,
+      left: 0, // 셀렉터 왼쪽과 정렬 (기존 Spacing.smd 들여쓰기 제거)
       zIndex: 100,
     },
     dateLabel: {
@@ -415,18 +416,18 @@ const createStyles = (colors: SemanticColorsV2) =>
       minHeight: 72,
       paddingHorizontal: Spacing.md,
     },
-    // 지난 일정 토글 마커: 접힌 스택을 나타내는 둥근 캡슐 (디자인: 10×24, surface/container-high, border/normal)
+    // 지난 일정 토글 마커: 접힌 스택을 나타내는 둥근 캡슐(타원) — 배경 bright
     toggleCapsule: {
       width: 10,
       height: 24,
       borderRadius: 999,
-      backgroundColor: colors['surface/container-high'],
+      backgroundColor: colors['surface/bright'],
       borderWidth: StyleSheet.hairlineWidth,
       borderColor: colors['border/normal'],
     },
     toggleText: {
       ...Typography.label['xlarge - semibold'],
-      color: colors['foreground/on-surface-muted'],
+      color: colors['foreground/on-surface-var'],
       flex: 1,
     },
 
@@ -447,19 +448,18 @@ const createStyles = (colors: SemanticColorsV2) =>
       justifyContent: 'center',
       marginRight: Spacing.smd,
     },
-    railLine: {
-      position: 'absolute',
+    // 레일 = flex 컬럼 스택: [상단 세그(flex)] · [노드 20] · [하단 세그(flex)]
+    // → 노드가 자연히 세로 중앙에 오고, 라인은 노드 위/아래로만 그어져 아이콘과 안 겹침(absolute 관통 제거)
+    railSeg: {
+      flex: 1,
       width: 1,
-      left: RAIL_WIDTH / 2 - 0.5,
+    },
+    railSegLine: {
       backgroundColor: colors['border/normal'],
     },
-    railLineTop: {top: 0, height: '50%'},
-    railLineBottom: {bottom: 0, height: '50%'},
-    // 접힌(지난) 구간 점선 레일 — 배경 대신 dashed border
-    railLineDashed: {
-      position: 'absolute',
+    railSegDashed: {
+      flex: 1,
       width: 0,
-      left: RAIL_WIDTH / 2 - 1,
       borderLeftWidth: 2,
       borderColor: colors['border/normal'],
       borderStyle: 'dashed',
@@ -473,6 +473,9 @@ const createStyles = (colors: SemanticColorsV2) =>
     },
     avatarPast: {
       opacity: 0.55,
+    },
+    railNodePast: {
+      opacity: 0.4,
     },
     content: {
       flex: 1,

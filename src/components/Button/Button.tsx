@@ -4,7 +4,7 @@ import {SvgProps} from 'react-native-svg';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {triggerHaptic} from '@utils/haptics';
 import {GradientGlow} from './GradientGlow';
 
@@ -48,7 +48,7 @@ export function Button({
   icon: Icon,
   trailingIcon: TrailingIcon,
 }: ButtonProps) {
-  const colors = useColorsV2();
+  const colors = useColors();
   const sizeConfig = SIZE_CONFIG[size];
 
   const getContainerStyle = (pressed: boolean): ViewStyle => {

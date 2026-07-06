@@ -34,6 +34,7 @@ import type {ReviewData} from '@components/Dialog';
 import {TextInput} from '@components/TextInput';
 import {DragHandle} from '@components/DragHandle';
 import {useSnackbar} from '@contexts/SnackbarContext';
+import {useTranslation} from '@contexts/LanguageContext';
 import {getColorVarKey} from '@components/ColorPicker';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import {RainbowText} from '@components/RainbowText';
@@ -50,11 +51,11 @@ import {
   stepsToBulkText,
 } from '@utils/recipeBulkText';
 import {Radius} from '@constants/tokens';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
-import {useColorsV2} from '@contexts/ThemeContext';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useColors} from '@contexts/ThemeContext';
 import {useAddSheet} from '@contexts/AddSheetContext';
 import {useDragReorder, ROW_HEIGHT} from '@hooks/useDragReorder';
-import type {SemanticColorsV2} from '@constants/tokens';
+import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {
@@ -151,6 +152,7 @@ export interface RecipeEditScreenProps {
     advice?: string;
     imageUri?: string;
     referenceUrl?: string;
+    hidden?: boolean;
   }) => void | Promise<void>;
   /** 편집 시 전달되는 레시피 데이터 (없으면 빈 생성 화면) */
   recipe?: {
@@ -171,6 +173,7 @@ export interface RecipeEditScreenProps {
     servings?: string;
     session?: string;
     referenceUrl?: string;
+    hidden?: boolean;
   };
   /** 선택 가능한 레시피 북 목록 */
   cookbooks?: string[];
@@ -188,15 +191,17 @@ export interface RecipeEditScreenProps {
   onDeleteCookbook?: (name: string) => void;
 }
 
+type TFn = (key: string, params?: Record<string, any>) => string;
+
 // 메뉴 아이템
-const EDIT_MENU_ITEMS = [
-  {id: 'field-manage', label: '필드관리', icon: IconSettingsFilled},
+const makeEditMenuItems = (t: TFn) => [
+  {id: 'field-manage', label: t('recipeEdit.fieldManage'), icon: IconSettingsFilled},
 ];
 
 // 레시피 북 오버플로우 메뉴 아이템
-const COOKBOOK_SHEET_MENU_ITEMS = [
-  {id: 'rename', label: '편집', icon: IconEdit},
-  {id: 'delete', label: '삭제', icon: IconTrash, destructive: true},
+const makeCookbookSheetMenuItems = (t: TFn) => [
+  {id: 'rename', label: t('recipeEdit.edit'), icon: IconEdit},
+  {id: 'delete', label: t('recipeEdit.delete'), icon: IconTrash, destructive: true},
 ];
 
 // 슬래시 메뉴 아이템
@@ -205,10 +210,10 @@ const BAKING_METHODS = [
   '제노아즈법', '머랭법', '핫프로세스법', '냉동반죽법',
 ];
 
-const SLASH_MENU_ITEMS = [
-  {id: 'photo', label: '사진', icon: IconPhoto},
-  {id: 'tip', label: '팁', icon: IconAstriks},
-  {id: 'caution', label: '주의사항', icon: IconCircleAlertFilled},
+const makeSlashMenuItems = (t: TFn) => [
+  {id: 'photo', label: t('recipeEdit.photo'), icon: IconPhoto},
+  {id: 'tip', label: t('recipeEdit.tip'), icon: IconAstriks},
+  {id: 'caution', label: t('recipeEdit.caution'), icon: IconCircleAlertFilled},
 ];
 
 // Web: textarea 포커스 아웃라인 제거
@@ -218,8 +223,12 @@ const noOutline: any = {outlineStyle: 'none'};
 // ---- Component ----
 
 export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookColors: cookbookColorsProp, onSetCookbookColor, initialSection, initialCookbook, isExplore, onDeleteCookbook}: RecipeEditScreenProps) {
-  const styles = useThemedStylesV2(createStyles);
-  const colors = useColorsV2();
+  const styles = useThemedStyles(createStyles);
+  const colors = useColors();
+  const {t} = useTranslation();
+  const EDIT_MENU_ITEMS = useMemo(() => makeEditMenuItems(t), [t]);
+  const COOKBOOK_SHEET_MENU_ITEMS = useMemo(() => makeCookbookSheetMenuItems(t), [t]);
+  const SLASH_MENU_ITEMS = useMemo(() => makeSlashMenuItems(t), [t]);
   const {setShowCookbookDialog, setCookbookEditTarget, onCookbookCreatedRef} = useAddSheet();
   const insets = useSafeAreaInsets();
   const {showSnackbar} = useSnackbar();
@@ -462,6 +471,8 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   const [reviews, setReviews] = useState<ReviewData[]>(recipe?.reviews ?? []);
   const [advice, setAdvice] = useState(recipe?.advice ?? '');
   const [referenceUrl, setSourceUrl] = useState(recipe?.referenceUrl ?? '');
+  // 공식(둘러보기) 레시피 숨김 — 어드민만 보임(다른 유저 비공개). 개발 중 콘텐츠 가림용.
+  const [hidden, setHidden] = useState(() => !!recipe?.hidden);
   // PiP는 앱 루트에서 단일 인스턴스로 관리 (화면 전환 시에도 유지)
   const {open: openYouTube} = useYouTubePlayer();
   const referenceYouTubeId = useMemo(() => parseYouTubeVideoId(referenceUrl), [referenceUrl]);
@@ -544,13 +555,13 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     if (source === 'camera') {
       const perm = await ImagePicker.requestCameraPermissionsAsync();
       if (!perm.granted) {
-        showSnackbar('카메라 권한이 필요해요 — 설정에서 허용해주세요');
+        showSnackbar(t('recipeEdit.cameraPermissionNeeded'));
         return;
       }
     } else {
       const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
       if (!perm.granted) {
-        showSnackbar('사진 권한이 필요해요 — 설정에서 허용해주세요');
+        showSnackbar(t('recipeEdit.photoPermissionNeeded'));
         return;
       }
     }
@@ -764,11 +775,15 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
 
   const removeIngredient = (groupId: string, ingredientId: string) => {
     setIngredientGroups(prev =>
-      prev.map(g =>
-        g.id === groupId
-          ? {...g, ingredients: g.ingredients.filter(i => i.id !== ingredientId)}
-          : g,
-      ),
+      prev.map(g => {
+        if (g.id !== groupId) return g;
+        const filtered = g.ingredients.filter(i => i.id !== ingredientId);
+        // 과정(steps)과 동일하게 최소 1개 유지 — 비면 빈 재료 한 줄로 대체
+        if (filtered.length === 0) {
+          return {...g, ingredients: [{id: genId(), name: '', amount: '', unit: 'g'}]};
+        }
+        return {...g, ingredients: filtered};
+      }),
     );
   };
 
@@ -886,11 +901,15 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
 
   const removeTool = (groupId: string, toolId: string) => {
     setToolGroups(prev =>
-      prev.map(g =>
-        g.id === groupId
-          ? {...g, tools: g.tools.filter(t => t.id !== toolId)}
-          : g,
-      ),
+      prev.map(g => {
+        if (g.id !== groupId) return g;
+        const filtered = g.tools.filter(t => t.id !== toolId);
+        // 과정/재료와 동일하게 최소 1개 유지 — 비면 빈 도구 한 줄로 대체
+        if (filtered.length === 0) {
+          return {...g, tools: [{id: genId(), name: ''}]};
+        }
+        return {...g, tools: filtered};
+      }),
     );
   };
 
@@ -1064,7 +1083,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
       setSlashMenu(null);
       const camPerm = await ImagePicker.requestCameraPermissionsAsync();
       if (!camPerm.granted) {
-        showSnackbar('카메라 권한이 필요해요 — 설정에서 허용해주세요');
+        showSnackbar(t('recipeEdit.cameraPermissionNeeded'));
         return;
       }
       const result = await ImagePicker.launchCameraAsync({
@@ -1186,7 +1205,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 <RNTextInput
                   ref={titleInputRef}
                   style={[styles.titleInput, noOutline, inputHeights['title'] != null && {height: inputHeights['title']}, typing && typingField === 'title' && !!title && {color: 'transparent'}]}
-                  placeholder="레시피 제목"
+                  placeholder={t('recipeEdit.titlePlaceholder')}
                   placeholderTextColor={titleError ? colors['foreground/negative'] : colors['foreground/on-surface-muted']}
                   selectionColor={colors['foreground/on-surface']}
                   value={title}
@@ -1223,7 +1242,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                           style={styles.methodField}
                           onPress={() => setShowMethodMenu(prev => !prev)}>
                           <Text style={[styles.methodFieldText, !method && {color: colors['foreground/on-surface-muted']}]} numberOfLines={1}>
-                            {method || '공법'}
+                            {method || t('recipeEdit.methodPlaceholder')}
                           </Text>
                           <IconChevronDown width={14} height={14} color={colors['foreground/on-surface-muted']} />
                         </Pressable>
@@ -1245,7 +1264,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                       <View style={styles.ratioField}>
                         <RNTextInput
                           style={[styles.methodFieldText, noOutline, {flex: 1}]}
-                          placeholder="비중"
+                          placeholder={t('recipeEdit.ratioPlaceholder')}
                           placeholderTextColor={colors['foreground/on-surface-muted']}
                           value={ratio}
                           onChangeText={setRatio}
@@ -1260,7 +1279,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
             <View style={styles.descriptionContainer}>
               <RNTextInput
                 style={[styles.descriptionInput, noOutline, inputHeights['desc'] != null && {height: inputHeights['desc']}]}
-                placeholder="설명"
+                placeholder={t('recipeEdit.descriptionPlaceholder')}
                 placeholderTextColor={colors['foreground/on-surface-muted']}
                 selectionColor={colors['foreground/on-surface']}
                 value={description}
@@ -1293,13 +1312,13 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                     )}
                   </Card>
                 ) : (
-                  <OptionTile icon={IconPhoto} label="사진" />
+                  <OptionTile icon={IconPhoto} label={t('recipeEdit.photo')} />
                 )}
               </Pressable>
               <Menu
                 items={[
-                  {id: 'camera', label: '카메라로 촬영', icon: IconCameraFilled},
-                  {id: 'gallery', label: '갤러리에서 선택', icon: IconPhoto},
+                  {id: 'camera', label: t('recipeEdit.takePhoto'), icon: IconCameraFilled},
+                  {id: 'gallery', label: t('recipeEdit.chooseFromGallery'), icon: IconPhoto},
                 ]}
                 visible={showPhotoMenu}
                 onSelect={(id) => { setShowPhotoMenu(false); pickImage(id as 'camera' | 'gallery'); }}
@@ -1307,10 +1326,10 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 style={styles.photoMenu}
               />
             </View>
-            <OptionTile icon={IconClockFilled} label={time || '시간'} onPress={() => setShowTimeDialog(true)} />
-            <OptionTile icon={IconUsersRoundFilled} label={servings || '분량'} onPress={() => setShowServingsDialog(true)} />
+            <OptionTile icon={IconClockFilled} label={time || t('recipeEdit.time')} onPress={() => setShowTimeDialog(true)} />
+            <OptionTile icon={IconUsersRoundFilled} label={servings || t('recipeEdit.servings')} onPress={() => setShowServingsDialog(true)} />
             {/* 회차는 '다시 만들기'로 자동 부여되는 값이라 생성 시엔 설정 불가 → 편집(기존 레시피) 때 표시만 */}
-            {recipe && <OptionTile icon={IconHash} label={session || '회차'} />}
+            {recipe && <OptionTile icon={IconHash} label={session || t('recipeEdit.session')} />}
           </View>
           {/* 공법/비중 칩은 제목 영역으로 이동됨 */}
         </ContentContainer>
@@ -1369,13 +1388,13 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                     : {type: 'icon', icon: IconLeafFilled}}
                   trailing={{type: 'iconButton', icon: IconPlusCircleFilled, onPress: () => addIngredient(group.id), variant: 'ghost-secondary'}}>
                   <View style={styles.breadcrumbRow}>
-                    <Text style={styles.breadcrumbPrefix}>재료</Text>
+                    <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.ingredientsLabel')}</Text>
                     <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
                     <RNTextInput
                       style={[styles.editableRowInput, noOutline, inputHeights[`igt-${group.id}`] != null && {height: inputHeights[`igt-${group.id}`]}]}
                       value={group.title}
                       onChangeText={v => { updateIngredientGroupTitle(group.id, v); resetInputHeight(`igt-${group.id}`); }}
-                      placeholder="그룹 이름"
+                      placeholder={t('recipeEdit.groupNamePlaceholder')}
                       placeholderTextColor={colors['foreground/on-surface-muted']}
                       selectionColor={colors['foreground/on-surface']}
                       multiline
@@ -1392,7 +1411,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                     <View style={styles.toolHeaderTrailing}>
                       {ingredientGroups.length === 1 && (
                         <Switch
-                          label="한번에 쓰기"
+                          label={t('recipeEdit.bulkWrite')}
                           value={ingredientsBulkMode}
                           onValueChange={(v) => {
                             if (!v) {
@@ -1416,11 +1435,13 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                           }}
                         />
                       )}
-                      <IconButton icon={IconPlusCircleFilled} onPress={() => addIngredient(group.id)} variant="ghost-secondary" size="medium" />
+                      <View style={styles.headerAddSlot}>
+                        <IconButton icon={IconPlusCircleFilled} onPress={() => addIngredient(group.id)} variant="ghost-secondary" size="medium" />
+                      </View>
                     </View>
                   )}}>
                   <View style={styles.breadcrumbRow}>
-                    <Text style={styles.breadcrumbPrefix}>재료</Text>
+                    <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.ingredientsLabel')}</Text>
                   </View>
                 </ListItem>
               )}
@@ -1431,7 +1452,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                   <RNTextInput
                     ref={(node: any) => { sectionInputRefs.current['ingredients'] = node; }}
                     style={[styles.editableRowInput, noOutline, typing && typingField === 'ingredients' && !!ingredientsBulkText && {color: 'transparent'}]}
-                    placeholder="예: 밀가루 200g, 설탕 50g, 버터 약간"
+                    placeholder={t('recipeEdit.ingredientsBulkPlaceholder')}
                     placeholderTextColor={colors['foreground/on-surface-muted']}
                     selectionColor={colors['foreground/on-surface']}
                     value={ingredientsBulkText}
@@ -1456,6 +1477,8 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
               <View style={styles.dragArea}>
                 {group.ingredients.map((ingredient, index) => {
                   const canDragIngredient = !!ingredient.name.trim();
+                  // 과정과 동일: 마지막 한 줄은(내용 없으면) 삭제 비활성 → 최소 1개 유지
+                  const canDeleteIngredient = group.ingredients.length > 1 || canDragIngredient;
                   const globalIndex = flatIngredients.findIndex(f => f.id === ingredient.id);
                   const responder = canDragIngredient
                     ? drag.createDragHandlers(
@@ -1491,7 +1514,8 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                         trailing={{
                           type: 'iconButton',
                           icon: IconMinusCircleFilled,
-                          onPress: () => removeIngredient(group.id, ingredient.id),
+                          onPress: canDeleteIngredient ? () => removeIngredient(group.id, ingredient.id) : undefined,
+                          disabled: !canDeleteIngredient,
                           variant: 'ghost-secondary',
                         }}
                         showDivider={index < group.ingredients.length - 1}>
@@ -1499,7 +1523,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                           <RNTextInput
                             ref={groupIndex === 0 && index === 0 ? (node) => { sectionInputRefs.current['ingredients'] = node; } : undefined}
                             style={[styles.editableRowInput, noOutline, inputHeights[ingredient.id] != null && {height: inputHeights[ingredient.id]}]}
-                            placeholder="예: 감자"
+                            placeholder={t('recipeEdit.ingredientNamePlaceholder')}
                             placeholderTextColor={colors['foreground/on-surface-muted']}
                             selectionColor={colors['foreground/on-surface']}
                             value={ingredient.name}
@@ -1538,11 +1562,11 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 </View>
                 <View style={styles.addButtonPair}>
                   <Pressable style={styles.addGroupButton} onPress={() => { triggerHaptic('light'); addIngredientGroup(group.id); }}>
-                  <Text style={styles.addGroupText}>묶음 추가</Text>
+                  <Text style={styles.addGroupText}>{t('recipeEdit.addGroup')}</Text>
                 </Pressable>
                 <View style={styles.addButtonVDivider} />
                 <Pressable style={styles.addGroupButton} onPress={() => { triggerHaptic('light'); addIngredient(group.id, 'bottom'); }}>
-                  <Text style={styles.addGroupText}>갈래 추가</Text>
+                  <Text style={styles.addGroupText}>{t('recipeEdit.addItem')}</Text>
                 </Pressable>
                 </View>
               </View>
@@ -1569,13 +1593,13 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                     : {type: 'icon', icon: IconToolCaseFilled}}
                   trailing={{type: 'iconButton', icon: IconPlusCircleFilled, onPress: () => addTool(group.id), variant: 'ghost-secondary'}}>
                   <View style={styles.breadcrumbRow}>
-                    <Text style={styles.breadcrumbPrefix}>도구</Text>
+                    <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.toolsLabel')}</Text>
                     <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
                     <RNTextInput
                       style={[styles.editableRowInput, noOutline, inputHeights[`tgt-${group.id}`] != null && {height: inputHeights[`tgt-${group.id}`]}]}
                       value={group.title}
                       onChangeText={v => { updateToolGroupTitle(group.id, v); resetInputHeight(`tgt-${group.id}`); }}
-                      placeholder="그룹 이름"
+                      placeholder={t('recipeEdit.groupNamePlaceholder')}
                       placeholderTextColor={colors['foreground/on-surface-muted']}
                       selectionColor={colors['foreground/on-surface']}
                       multiline
@@ -1592,7 +1616,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                     <View style={styles.toolHeaderTrailing}>
                       {toolGroups.length === 1 && (
                         <Switch
-                          label="한번에 쓰기"
+                          label={t('recipeEdit.bulkWrite')}
                           value={toolsBulkMode}
                           onValueChange={(v) => {
                             if (!v) {
@@ -1609,11 +1633,13 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                           }}
                         />
                       )}
-                      <IconButton icon={IconPlusCircleFilled} onPress={() => addTool(group.id)} variant="ghost-secondary" size="medium" />
+                      <View style={styles.headerAddSlot}>
+                        <IconButton icon={IconPlusCircleFilled} onPress={() => addTool(group.id)} variant="ghost-secondary" size="medium" />
+                      </View>
                     </View>
                   )}}>
                   <View style={styles.breadcrumbRow}>
-                    <Text style={styles.breadcrumbPrefix}>도구</Text>
+                    <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.toolsLabel')}</Text>
                   </View>
                 </ListItem>
               )}
@@ -1624,7 +1650,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                   <RNTextInput
                     ref={(node: any) => { sectionInputRefs.current['tools'] = node; }}
                     style={[styles.editableRowInput, noOutline, typing && typingField === 'tools' && !!toolsBulkText && {color: 'transparent'}]}
-                    placeholder="예: 믹싱볼, 거품기, 스크래퍼"
+                    placeholder={t('recipeEdit.toolsBulkPlaceholder')}
                     placeholderTextColor={colors['foreground/on-surface-muted']}
                     selectionColor={colors['foreground/on-surface']}
                     value={toolsBulkText}
@@ -1649,6 +1675,8 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
               <View style={styles.dragArea}>
                 {group.tools.map((tool, index) => {
                   const canDrag = !!tool.name.trim();
+                  // 과정/재료와 동일: 마지막 한 줄은(내용 없으면) 삭제 비활성 → 최소 1개 유지
+                  const canDeleteTool = group.tools.length > 1 || canDrag;
                   const globalIndex = flatTools.findIndex(f => f.id === tool.id);
                   const responder = canDrag
                     ? drag.createDragHandlers(
@@ -1684,14 +1712,15 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                         trailing={{
                           type: 'iconButton',
                           icon: IconMinusCircleFilled,
-                          onPress: () => removeTool(group.id, tool.id),
+                          onPress: canDeleteTool ? () => removeTool(group.id, tool.id) : undefined,
+                          disabled: !canDeleteTool,
                           variant: 'ghost-secondary',
                         }}
                         showDivider={index < group.tools.length - 1}>
                         <RNTextInput
                           ref={groupIndex === 0 && index === 0 ? (node: any) => { sectionInputRefs.current['tools'] = node; } : undefined}
                           style={[styles.editableRowInput, noOutline, inputHeights[tool.id] != null && {height: inputHeights[tool.id]}]}
-                          placeholder="예: 믹싱볼"
+                          placeholder={t('recipeEdit.toolNamePlaceholder')}
                           placeholderTextColor={colors['foreground/on-surface-muted']}
                           selectionColor={colors['foreground/on-surface']}
                           value={tool.name}
@@ -1715,11 +1744,11 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 </View>
                 <View style={styles.addButtonPair}>
                   <Pressable style={styles.addGroupButton} onPress={() => { triggerHaptic('light'); addToolGroup(group.id); }}>
-                    <Text style={styles.addGroupText}>묶음 추가</Text>
+                    <Text style={styles.addGroupText}>{t('recipeEdit.addGroup')}</Text>
                   </Pressable>
                   <View style={styles.addButtonVDivider} />
                   <Pressable style={styles.addGroupButton} onPress={() => { triggerHaptic('light'); addTool(group.id, 'bottom'); }}>
-                    <Text style={styles.addGroupText}>갈래 추가</Text>
+                    <Text style={styles.addGroupText}>{t('recipeEdit.addItem')}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -1752,13 +1781,13 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                       )}
                     : {type: 'iconButton', icon: IconPlusCircleFilled, onPress: () => addStep(group.id), variant: 'ghost-secondary'}}>
                   <View style={styles.breadcrumbRow}>
-                    <Text style={styles.breadcrumbPrefix}>과정</Text>
+                    <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.stepsLabel')}</Text>
                     <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
                     <RNTextInput
                       style={[styles.editableRowInput, noOutline, inputHeights[`sgt-${group.id}`] != null && {height: inputHeights[`sgt-${group.id}`]}]}
                       value={group.title}
                       onChangeText={v => { updateStepGroupTitle(group.id, v); resetInputHeight(`sgt-${group.id}`); }}
-                      placeholder="그룹 이름"
+                      placeholder={t('recipeEdit.groupNamePlaceholder')}
                       placeholderTextColor={colors['foreground/on-surface-muted']}
                       selectionColor={colors['foreground/on-surface']}
                       multiline
@@ -1775,7 +1804,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                     <View style={styles.toolHeaderTrailing}>
                       {stepGroups.length === 1 && (
                         <Switch
-                          label="한번에 쓰기"
+                          label={t('recipeEdit.bulkWrite')}
                           value={stepsBulkMode}
                           onValueChange={(v) => {
                             if (!v) {
@@ -1795,12 +1824,14 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                         />
                       )}
                       {!stepsBulkMode && (
-                        <IconButton icon={IconPlusCircleFilled} onPress={() => addStep(group.id)} variant="ghost-secondary" size="medium" />
+                        <View style={styles.headerAddSlot}>
+                          <IconButton icon={IconPlusCircleFilled} onPress={() => addStep(group.id)} variant="ghost-secondary" size="medium" />
+                        </View>
                       )}
                     </View>
                   )}}>
                   <View style={styles.breadcrumbRow}>
-                    <Text style={styles.breadcrumbPrefix}>과정</Text>
+                    <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.stepsLabel')}</Text>
                   </View>
                 </ListItem>
               )}
@@ -1811,7 +1842,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                   <RNTextInput
                     ref={(node: any) => { sectionInputRefs.current['steps'] = node; }}
                     style={[styles.editableRowInput, noOutline, typing && typingField === 'steps' && !!stepsBulkText && {color: 'transparent'}]}
-                    placeholder={'한 줄에 한 과정씩 적어주세요\n예: 물과 반죽을 거품기로 친다.\n팬에 붓고 180도 25분 굽는다.'}
+                    placeholder={t('recipeEdit.stepsBulkPlaceholder')}
                     placeholderTextColor={colors['foreground/on-surface-muted']}
                     selectionColor={colors['foreground/on-surface']}
                     value={stepsBulkText}
@@ -1885,7 +1916,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                             : undefined}
                           style="ghost"
                           multiline
-                          placeholder="예: 물과 반죽을 넣어 거품기로 친다."
+                          placeholder={t('recipeEdit.stepDescriptionPlaceholder')}
                           value={step.description}
                           onChangeText={v => {
                             updateStep(group.id, step.id, v);
@@ -1929,7 +1960,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                             <EditableChip
                               label={step.caution}
                               variant="yellow"
-                              placeholder="주의사항을 입력하세요"
+                              placeholder={t('recipeEdit.cautionPlaceholder')}
                               onChangeText={v => updateStepCaution(group.id, step.id, v)}
                               onRemove={() => removeStepCaution(group.id, step.id)}
                             />
@@ -1982,11 +2013,11 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 </View>
                 <View style={styles.addButtonPair}>
                   <Pressable style={styles.addGroupButton} onPress={() => { triggerHaptic('light'); addStepGroup(group.id); }}>
-                    <Text style={styles.addGroupText}>묶음 추가</Text>
+                    <Text style={styles.addGroupText}>{t('recipeEdit.addGroup')}</Text>
                   </Pressable>
                   <View style={styles.addButtonVDivider} />
                   <Pressable style={styles.addGroupButton} onPress={() => { triggerHaptic('light'); addStep(group.id, 'bottom'); }}>
-                    <Text style={styles.addGroupText}>갈래 추가</Text>
+                    <Text style={styles.addGroupText}>{t('recipeEdit.addItem')}</Text>
                   </Pressable>
                 </View>
               </View>
@@ -2003,7 +2034,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           <ContentContainer style={styles.section}>
             <Card>
               <ListItem
-                title="레시피 북"
+                title={t('recipeEdit.cookbook')}
                 leading={{type: 'custom', element: (
                   <View style={styles.cookbookLeadingSlot}>
                     {React.createElement(isExplore ? IconExprolerBookFilled : IconBookFilled, {
@@ -2032,7 +2063,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           <ContentContainer style={isFieldActive('cookbook') ? styles.navItemGap : styles.section}>
             <Card variant="yellow">
               <ListItem
-                title="베이키의 조언"
+                title={t('recipeEdit.bakeyAdvice')}
                 leading={{type: 'icon', icon: IconLogoSymbol}}
               />
               <ListItem showDivider={false}>
@@ -2043,19 +2074,30 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                   multiline
                   value={advice}
                   onChangeText={setAdvice}
-                  placeholder="베이키의 조언을 입력하세요."
+                  placeholder={t('recipeEdit.bakeyAdvicePlaceholder')}
                 />
               </ListItem>
             </Card>
           </ContentContainer>
           </View>
         )}
+        {isExplore && (
+          <ContentContainer style={isFieldActive('advice') ? styles.navItemGap : styles.section}>
+            <Card>
+              <ListItem
+                title={t('recipeEdit.hidden')}
+                trailing={{type: 'custom', element: <Switch value={hidden} onValueChange={setHidden} />}}
+                showDivider={false}
+              />
+            </Card>
+          </ContentContainer>
+        )}
         {isFieldActive('review') && (
           <View onLayout={e => { sectionPositions.current['review'] = e.nativeEvent.layout.y; }}>
           <ContentContainer style={(isFieldActive('cookbook') || (isExplore && isFieldActive('advice'))) ? styles.navItemGap : styles.section}>
             <Card>
               <ListItem
-                title="회고"
+                title={t('recipeEdit.review')}
                 leading={{type: 'icon', icon: IconChartNoAxesGantt}}
               />
               <ListItem showDivider>
@@ -2072,7 +2114,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                       return updated;
                     });
                   }}
-                  placeholder="어떤 점이 부족했나요?"
+                  placeholder={t('recipeEdit.reviewEvaluationPlaceholder')}
                 />
               </ListItem>
               <ListItem
@@ -2091,7 +2133,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                       return updated;
                     });
                   }}
-                  placeholder="다음 개선해야할 점을 적어보세요."
+                  placeholder={t('recipeEdit.reviewImprovementPlaceholder')}
                 />
               </ListItem>
             </Card>
@@ -2101,7 +2143,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
         <ContentContainer style={styles.navItemGap}>
           <Card>
             <ListItem
-              title="필드 관리"
+              title={t('recipeEdit.fieldManageNav')}
               leading={{type: 'icon', icon: IconSettingsFilled}}
               trailing={{type: 'icon', icon: IconChevronRight}}
               showDivider={false}
@@ -2314,6 +2356,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                     advice: advice || undefined,
                     imageUri: imageUri || undefined,
                     referenceUrl: referenceUrl || undefined,
+                    ...(isExplore ? {hidden} : {}),
                   });
                 } finally {
                   setSaving(false);
@@ -2398,7 +2441,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
 
 // ---- Styles ----
 
-const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
@@ -2708,6 +2751,13 @@ const createStyles = (colors: SemanticColorsV2) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 16,
+  },
+  // 단일 그룹 헤더 + 버튼을 하단 행의 - 버튼(ListItem iconButton 슬롯 28)과 동일 슬롯에 배치해 정렬 맞춤
+  headerAddSlot: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   toggleWrap: {
     flexDirection: 'row',

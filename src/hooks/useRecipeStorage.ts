@@ -19,7 +19,7 @@ import {getDeviceName} from '@utils/deviceInfo';
 import {uploadRecipeImage, isLocalUri} from '@utils/imageUpload';
 import {useOnlineStatus} from './useOnlineStatus';
 
-const STORAGE_KEY = 'bakecycle_recipes_v4';
+const STORAGE_KEY = 'bakle_recipes_v4';
 
 /** 로그인 유저 최대 레시피 수 (클라우드 동기화 제한) */
 export const MAX_CLOUD_RECIPES = 30;
@@ -359,7 +359,7 @@ export function useRecipeStorage() {
       recipes,
     };
     const json = JSON.stringify(exportData, null, 2);
-    const filename = `bakecycle_recipes_${new Date().toISOString().slice(0, 10)}.json`;
+    const filename = `bakle_recipes_${new Date().toISOString().slice(0, 10)}.json`;
 
     if (Platform.OS === 'web') {
       const blob = new Blob([json], {type: 'application/json'});

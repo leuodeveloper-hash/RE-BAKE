@@ -4,8 +4,9 @@ import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
 import {RecipeHtmlPreview} from '@components/Recipe/RecipeHtmlPreview';
 import {Radius} from '@constants/tokens';
-import type {SemanticColorsV2} from '@constants/tokens';
-import {useThemedStylesV2} from '@hooks/useThemedStyles';
+import type {SemanticColors} from '@constants/tokens';
+import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useTranslation} from '@contexts/LanguageContext';
 import {
   RecipePdfData,
   generateRecipeHtml,
@@ -33,7 +34,8 @@ export function PdfPreviewDialog({
   html: htmlProp,
   filename: filenameProp,
 }: PdfPreviewDialogProps) {
-  const styles = useThemedStylesV2(createStyles);
+  const styles = useThemedStyles(createStyles);
+  const {t} = useTranslation();
   const html = htmlProp ?? (data ? generateRecipeHtml(data) : '');
   const pdfFilename = filenameProp ?? data?.title ?? 'recipes';
 
@@ -96,13 +98,13 @@ export function PdfPreviewDialog({
     <Dialog
       visible={visible}
       onClose={onClose}
-      title="PDF 미리보기"
+      title={t('pdfPreview.title')}
       headerType="center"
       showCloseButton
       actions={
         <>
-          <Button label="취소" variant="soft" onPress={onClose} />
-          <Button label="다운로드" variant="filled" onPress={handleDownload} />
+          <Button label={t('pdfPreview.cancel')} variant="soft" onPress={onClose} />
+          <Button label={t('pdfPreview.download')} variant="filled" onPress={handleDownload} />
         </>
       }>
       <View style={styles.previewContainer}>
@@ -120,7 +122,7 @@ export function PdfPreviewDialog({
   );
 }
 
-const createStyles = (colors: SemanticColorsV2) =>
+const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
     previewContainer: {
       width: CONTENT_WIDTH,
