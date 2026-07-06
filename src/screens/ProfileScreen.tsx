@@ -5,7 +5,7 @@ import {LinearGradient} from 'expo-linear-gradient';
 import {BlurView} from 'expo-blur';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {FloatingNavBar, navPillStyle} from '@components/Navigation';
-import {GlassContainer, ContentContainer, Card, Container} from '@components/Container';
+import {GlassContainer, ContentContainer, Card} from '@components/Container';
 import {IconButton} from '@components/IconButton';
 import {SectionHeader} from '@components/SectionHeader';
 import {ListItem} from '@components/ListItem';
@@ -13,6 +13,7 @@ import {Switch} from '@components/Switch';
 import {Avatar} from '@components/Avatar/Avatar';
 import {Tabs} from '@components/Tabs';
 import {Selector} from '@components/Selector';
+import {MenuItem} from '@components/Menu';
 import {TextInput} from '@components/TextInput';
 import {Button} from '@components/Button';
 import {Snackbar} from '@components/Snackbar';
@@ -21,11 +22,11 @@ import {useExamNotificationPrefs} from '@hooks/useExamNotificationPrefs';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors, useTheme} from '@contexts/ThemeContext';
 import {useTranslation} from '@contexts/LanguageContext';
+import {useAuthSheet} from '@contexts/AuthSheetContext';
 import {useSubscription} from '@contexts/SubscriptionContext';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {Radius} from '@constants/tokens';
 import {
   IconArrowLeft,
   IconImport,
@@ -37,16 +38,12 @@ import {
   IconSunDimFilled,
   IconCircleHalf,
   IconMoonFilled,
-  IconGoogle,
-  IconMailFilled,
   IconCloudFilled,
   IconTicketFilled,
   IconGlobeFilled,
-  IconCircleCheckFilled,
 } from '@components/Icon/IconIndex';
 
 import Constants from 'expo-constants';
-import LogoBakecycle from '../../assets/images/logo_badge_colored.svg';
 import LogoText from '../../assets/images/logo_text.svg';
 import type {AppearanceMode} from '@contexts/ThemeContext';
 
@@ -62,9 +59,6 @@ export interface ProfileScreenProps {
   onBack: () => void;
   onExport: () => Promise<void>;
   onImport: (onConfirmOverwrite?: (count: number) => Promise<boolean>) => Promise<boolean>;
-  onLogin: (email: string, password: string) => Promise<void>;
-  onSignUp: (email: string, password: string) => Promise<void>;
-  onGoogleSignIn: () => Promise<void>;
   onLogout: () => void;
   onUpdateHandle: (newHandle: string) => Promise<void>;
   onTermsPress: () => void;
@@ -149,9 +143,6 @@ export function ProfileScreen({
   onBack,
   onExport,
   onImport,
-  onLogin,
-  onSignUp,
-  onGoogleSignIn,
   onLogout,
   onUpdateHandle,
   onTermsPress,
@@ -197,14 +188,9 @@ export function ProfileScreen({
   const [snackbarMessage, setSnackbarMessage] = useState('');
   const [showSnackbar, setShowSnackbar] = useState(false);
   const [snackbarAction, setSnackbarAction] = useState<{label: string; onPress: () => void} | undefined>(undefined);
-  const [showAuthSheet, setShowAuthSheet] = useState(false);
-  const [showEmailForm, setShowEmailForm] = useState(false);
+  const {open: openAuthSheet} = useAuthSheet();
   const [showHandleSheet, setShowHandleSheet] = useState(false);
   const [handleInput, setHandleInput] = useState('');
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const [isLoginMode, setIsLoginMode] = useState(true);
-  const [authLoading, setAuthLoading] = useState(false);
   const [showPlanSheet, setShowPlanSheet] = useState(false);
   const {photoCloudBackup, setPhotoCloudBackup} = useSubscription();
 
@@ -314,43 +300,6 @@ export function ProfileScreen({
     }
   }, [handleInput, onUpdateHandle, showMessage, t]);
 
-  const handleAuth = useCallback(async () => {
-    if (!email.trim() || !password.trim()) {
-      showMessage(t('profile.emailPasswordRequired'));
-      return;
-    }
-    setAuthLoading(true);
-    try {
-      if (isLoginMode) {
-        await onLogin(email.trim(), password);
-      } else {
-        await onSignUp(email.trim(), password);
-      }
-      setEmail('');
-      setPassword('');
-      setShowAuthSheet(false);
-      showMessage(isLoginMode ? t('profile.loginSuccess') : t('profile.signUpSuccess'));
-    } catch (err: any) {
-      const code = err?.code;
-      console.error('[handleAuth]', isLoginMode ? 'signIn' : 'signUp', 'failed', {code, message: err?.message, err});
-      if (code === 'auth/user-not-found' || code === 'auth/wrong-password' || code === 'auth/invalid-credential') {
-        showMessage(t('profile.invalidCredentials'));
-      } else if (code === 'auth/email-already-in-use') {
-        showMessage(t('profile.emailInUse'));
-      } else if (code === 'auth/weak-password') {
-        showMessage(t('profile.weakPassword'));
-      } else if (code === 'auth/invalid-email') {
-        showMessage(t('profile.invalidEmail'));
-      } else if (err?.message?.includes('가입 한도')) {
-        showMessage(err.message);
-      } else {
-        showMessage((isLoginMode ? t('profile.loginFailedPrefix') : t('profile.signUpFailedPrefix')) + (err?.message ?? code ?? t('profile.unknownError')));
-      }
-    } finally {
-      setAuthLoading(false);
-    }
-  }, [email, password, isLoginMode, onLogin, onSignUp, showMessage, t]);
-
   const handleExport = useCallback(async () => {
     try {
       await onExport();
@@ -418,7 +367,7 @@ export function ProfileScreen({
                 <Button
                   label={t('profile.loginOrCreateAccount')}
                   size="small"
-                  onPress={() => setShowAuthSheet(true)}
+                  onPress={() => openAuthSheet()}
                   style={styles.profileLoginButton}
                 />
               </>
@@ -592,90 +541,7 @@ export function ProfileScreen({
         </ScrollView>
       </SafeAreaView>
 
-      {/* 로그인 바텀시트 */}
-      <BottomSheet
-        visible={showAuthSheet}
-        onClose={() => { setShowAuthSheet(false); setShowEmailForm(false); }}
-        title={showEmailForm ? (isLoginMode ? t('profile.emailLoginTitle') : t('profile.emailSignUpTitle')) : t('profile.loginTitle')}
-        description={showEmailForm ? undefined : t('profile.loginDescription')}
-        headerGraphic={<LogoBakecycle width={48} height={48} />}
-        maxWidth={380}
-      >
-        {showEmailForm ? (
-          <View style={styles.authForm}>
-            <Container material="subtle" style={styles.authFieldGroup}>
-              <View style={styles.authFieldRow}>
-                <TextInput
-                  style="ghost"
-                  placeholder={t('profile.emailPlaceholder')}
-                  value={email}
-                  onChangeText={setEmail}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                />
-              </View>
-              <View style={styles.authFieldDivider} />
-              <View style={styles.authFieldRow}>
-                <TextInput
-                  style="ghost"
-                  placeholder={t('profile.passwordPlaceholder')}
-                  value={password}
-                  onChangeText={setPassword}
-                  secureTextEntry
-                />
-              </View>
-            </Container>
-            <View style={styles.authButtons}>
-              <Button
-                label={isLoginMode ? t('profile.login') : t('profile.signUp')}
-                onPress={handleAuth}
-                disabled={authLoading}
-              />
-            </View>
-            <Text style={styles.termsCaption}>
-              {isLoginMode ? t('profile.noAccountPrompt') : t('profile.haveAccountPrompt')}
-              <Text style={styles.termsLink} onPress={() => setIsLoginMode(prev => !prev)}>
-                {isLoginMode ? t('profile.signUp') : t('profile.login')}
-              </Text>
-            </Text>
-          </View>
-        ) : (
-          <View style={styles.authForm}>
-            <View style={styles.authLoginButtons}>
-              <Button
-                label={t('profile.continueWithGoogle')}
-                variant="soft"
-                icon={IconGoogle}
-                onPress={async () => {
-                  try {
-                    await onGoogleSignIn();
-                    setShowAuthSheet(false);
-                    showMessage(t('profile.loginSuccess'));
-                  } catch (err: any) {
-                    console.error('Google sign-in error:', err);
-                    if (err?.code !== 'auth/popup-closed-by-user') {
-                      showMessage(t('profile.googleLoginFailed'));
-                    }
-                  }
-                }}
-              />
-              <Button
-                label={t('profile.continueWithEmail')}
-                variant="soft"
-                icon={IconMailFilled}
-                onPress={() => setShowEmailForm(true)}
-              />
-            </View>
-            <Text style={styles.termsCaption}>
-              {t('profile.termsAgreePrefix')}
-              <Text style={styles.termsLink} onPress={onTermsPress}>{t('profile.termsOfService')}</Text>
-              {t('profile.termsAgreeMiddle')}
-              <Text style={styles.termsLink} onPress={onPrivacyPress}>{t('profile.privacyPolicy')}</Text>
-              {t('profile.termsAgreeSuffix')}
-            </Text>
-          </View>
-        )}
-      </BottomSheet>
+      {/* 로그인 시트는 공통 AuthSheet(useAuthSheet)로 통합 — app/_layout.tsx에서 렌더 */}
 
       {/* 핸들 수정 바텀시트 */}
       <BottomSheet
@@ -697,40 +563,24 @@ export function ProfileScreen({
         </View>
       </BottomSheet>
 
-      {/* 언어 선택 바텀시트 */}
+      {/* 언어 선택 바텀시트 (헤더 없이 옵션만) */}
       <BottomSheet
         visible={showLanguageMenu}
         onClose={() => setShowLanguageMenu(false)}
-        title={t('settings.language')}
-        headerType="center"
       >
         <View>
-          {LANGUAGE_OPTIONS.map(option => {
-            const selected = option.id === language;
-            return (
-              <Pressable
-                key={option.id}
-                style={({pressed}: {pressed: boolean}) => [
-                  styles.languageOption,
-                  selected && styles.languageOptionSelected,
-                  pressed && styles.languageOptionPressed,
-                ]}
-                onPress={() => {
-                  setLanguage(option.id as 'ko' | 'en');
-                  setShowLanguageMenu(false);
-                }}
-              >
-                <Text style={styles.languageOptionLabel}>{option.label}</Text>
-                {selected && (
-                  <IconCircleCheckFilled
-                    width={20}
-                    height={20}
-                    color={colors['foreground/accent']}
-                  />
-                )}
-              </Pressable>
-            );
-          })}
+          {LANGUAGE_OPTIONS.map(option => (
+            <MenuItem
+              key={option.id}
+              id={option.id}
+              label={option.label}
+              selected={option.id === language}
+              onPress={() => {
+                setLanguage(option.id as 'ko' | 'en');
+                setShowLanguageMenu(false);
+              }}
+            />
+          ))}
         </View>
       </BottomSheet>
 
@@ -809,29 +659,6 @@ export function ProfileScreen({
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
-  languageOption: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.smd,
-    paddingHorizontal: Spacing.smd,
-    paddingVertical: Spacing.sm,
-    borderRadius: Radius['radius-md'],
-  },
-  languageOptionSelected: {
-    backgroundColor: colors['state/pressed'],
-  },
-  languageOptionPressed: {
-    backgroundColor: colors['state/pressed'],
-  },
-  languageOptionLabel: {
-    flex: 1,
-    fontFamily: Typography.body.large.fontFamily,
-    fontSize: Typography.body.large.fontSize,
-    fontWeight: Typography.body.large.fontWeight as '500',
-    lineHeight: Typography.body.large.lineHeight,
-    letterSpacing: -0.25,
-    color: colors['foreground/on-surface'],
-  },
   container: {
     flex: 1,
     backgroundColor: colors['surface/dim'],
@@ -887,42 +714,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.md,
     gap: Spacing.md,
-  },
-  authLoginButtons: {
-    gap: Spacing.sm,
-    paddingVertical: Spacing.sm,
-  },
-  authButtons: {
-    marginTop: Spacing.xs,
-    gap: Spacing.sm,
-  },
-  authToggle: {
-    alignItems: 'center' as const,
-  },
-  authFieldGroup: {
-    marginTop: Spacing.md,
-    paddingHorizontal: Spacing.md,
-  },
-  authFieldRow: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    minHeight: 48,
-  },
-  authFieldDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors['border/muted'],
-  },
-  termsCaption: {
-    fontFamily: Typography.body.small.fontFamily,
-    fontSize: Typography.body.small.fontSize,
-    fontWeight: Typography.body.small.fontWeight as '400',
-    lineHeight: Typography.body.small.lineHeight,
-    color: colors['foreground/on-surface-muted'],
-    textAlign: 'center' as const,
-    marginTop: Spacing.sm,
-  },
-  termsLink: {
-    color: colors['foreground/on-surface-var'],
   },
   footer: {
     alignItems: 'center',

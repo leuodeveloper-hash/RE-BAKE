@@ -1,5 +1,6 @@
 import React, {useCallback, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
+import {Image} from 'expo-image';
 import {useRouter} from 'expo-router';
 import {BottomSheet} from '@components/BottomSheet';
 import {Button} from '@components/Button';
@@ -12,7 +13,7 @@ import {useThemedStyles} from '@hooks/useThemedStyles';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import LogoBakecycle from '../../../assets/images/logo_badge_colored.svg';
+const APP_LOGO = require('../../../assets/icon.png');
 
 export interface AuthSheetProps {
   visible: boolean;
@@ -80,7 +81,7 @@ export function AuthSheet({visible, onClose, onSuccess}: AuthSheetProps) {
       onClose={handleClose}
       title={showEmailForm ? (isLoginMode ? t('auth.emailLoginTitle') : t('auth.emailSignupTitle')) : t('auth.loginTitle')}
       description={showEmailForm ? undefined : t('auth.loginDescription')}
-      headerGraphic={<LogoBakecycle width={48} height={48} />}
+      headerGraphic={<Image source={APP_LOGO} style={styles.appLogo} contentFit="cover" />}
       maxWidth={380}>
       {showEmailForm ? (
         <View style={styles.authForm}>
@@ -154,6 +155,11 @@ export function AuthSheet({visible, onClose, onSuccess}: AuthSheetProps) {
 
 const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
+    appLogo: {
+      width: 48,
+      height: 48,
+      borderRadius: 24,
+    },
     authForm: {
       paddingHorizontal: Spacing.lg,
       paddingBottom: Spacing.lg,
@@ -170,12 +176,13 @@ const createStyles = (colors: SemanticColors) =>
     },
     termsCaption: {
       ...Typography.body.small,
+      fontSize: 12,
+      lineHeight: 17,
       color: colors['foreground/on-surface-muted'],
       textAlign: 'center',
       paddingHorizontal: Spacing.md,
     },
     termsLink: {
       color: colors['foreground/on-surface'],
-      textDecorationLine: 'underline',
     },
   });

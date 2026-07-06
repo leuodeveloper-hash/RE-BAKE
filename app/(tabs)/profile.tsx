@@ -16,7 +16,7 @@ export default function ProfileRoute() {
   const [planSheetTrigger, setPlanSheetTrigger] = useState(0);
   const {recipes, exportRecipes, importRecipes, lastSyncedAt, lastSyncedDevice} = useRecipes();
   const {showSnackbar} = useSnackbar();
-  const {user, handle, signIn, signUp, signInWithGoogle, signOut, updateHandle, avatarSeed, isAdmin} = useAuth();
+  const {user, handle, signOut, updateHandle, avatarSeed, isAdmin} = useAuth();
   const {isPro} = useSubscription();
   const {t} = useTranslation();
 
@@ -52,9 +52,6 @@ export default function ProfileRoute() {
         onBack={handleBack}
         onExport={exportRecipes}
         onImport={importRecipes}
-        onLogin={signIn}
-        onSignUp={signUp}
-        onGoogleSignIn={signInWithGoogle}
         onLogout={handleLogout}
         onUpdateHandle={updateHandle}
         onTermsPress={() => router.push('/terms')}
