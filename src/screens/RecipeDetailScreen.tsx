@@ -1250,7 +1250,7 @@ export function RecipeDetailScreen({
       )}
       {hasMultipleSessions && !locked && (
         <View
-          style={[styles.sessionSliderWrap, {bottom: Spacing.lg}]}
+          style={[styles.sessionSliderWrap, {bottom: (insets.bottom || Spacing.sm) + Spacing.xs}]}
           pointerEvents="box-none">
           <RulerSlider
             items={sessionItems!}

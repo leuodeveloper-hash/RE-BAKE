@@ -1791,7 +1791,9 @@ export function CookingMode({
           <View
             style={[
               styles.bottomNav,
-              {paddingBottom: insets.bottom + Spacing.md},
+              // 홈바 있는 기기는 insets.bottom만으로 충분, 없으면 최소 여백(sm).
+              // 예전 insets+md에 bottomInner marginBottom까지 겹쳐 여백이 과했음.
+              {paddingBottom: insets.bottom || Spacing.sm},
             ]}
           >
             <View style={styles.bottomInner}>
@@ -2126,8 +2128,7 @@ const createStyles = (colors: SemanticColors) =>
       width: '100%',
       maxWidth: MAX_CONTENT_WIDTH,
       alignItems: 'center',
-      // 눈금자 하단 여백: 24는 너무 높고 0은 너무 낮아 중간값(12). safe-area는 bottomNav paddingBottom이 별도 처리.
-      marginBottom: Spacing.smd,
+      // 하단 여백은 bottomNav paddingBottom(=insets.bottom)이 전담. 여기 중복 마진 두지 않음.
     },
     bottomControls: {
       flexDirection: 'row',
