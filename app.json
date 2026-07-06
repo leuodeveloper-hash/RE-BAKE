@@ -1,8 +1,8 @@
 {
   "expo": {
     "newArchEnabled": true,
-    "name": "베이클",
-    "slug": "rebake",
+    "name": "Bakle",
+    "slug": "bakle",
     "locales": {
       "ko": "./languages/ko.json"
     },
@@ -21,6 +21,7 @@
       "bundleIdentifier": "com.bakle.app",
       "googleServicesFile": "./GoogleService-Info.plist",
       "infoPlist": {
+        "CFBundleDisplayName": "Bakle",
         "ITSAppUsesNonExemptEncryption": false,
         "NSCameraUsageDescription": "레시피 사진을 촬영하고 텍스트를 자동 인식하기 위해 카메라를 사용합니다.",
         "NSPhotoLibraryUsageDescription": "레시피 이미지를 추가하기 위해 사진 라이브러리에 접근합니다.",
@@ -45,15 +46,8 @@
       "bundler": "metro"
     },
     "scheme": "bakle",
-    "runtimeVersion": {
-      "policy": "appVersion"
-    },
-    "updates": {
-      "url": "https://u.expo.dev/27699c8b-30e7-4169-baa1-f39120d4221e"
-    },
     "plugins": [
       "expo-dev-client",
-      "expo-updates",
       "expo-web-browser",
       [
         "expo-notifications",
@@ -111,11 +105,6 @@
       ],
       "expo-localization"
     ],
-    "extra": {
-      "eas": {
-        "projectId": "27699c8b-30e7-4169-baa1-f39120d4221e"
-      }
-    },
     "owner": "leuokim"
   }
 }

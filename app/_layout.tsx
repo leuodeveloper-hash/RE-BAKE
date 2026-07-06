@@ -7,7 +7,6 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {useFonts} from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
-import * as Updates from 'expo-updates';
 import * as Notifications from 'expo-notifications';
 import {BlurView} from 'expo-blur';
 import {ThemeProvider, useTheme, useColors} from '@contexts/ThemeContext';
@@ -589,21 +588,6 @@ export default function RootLayout() {
   const [keysMigrated, setKeysMigrated] = useState(false);
   useEffect(() => {
     migrateStorageKeys().finally(() => setKeysMigrated(true));
-  }, []);
-
-  useEffect(() => {
-    if (__DEV__) return;
-    (async () => {
-      try {
-        const update = await Updates.checkForUpdateAsync();
-        if (update.isAvailable) {
-          await Updates.fetchUpdateAsync();
-          await Updates.reloadAsync();
-        }
-      } catch (e) {
-        console.log('OTA update check failed:', e);
-      }
-    })();
   }, []);
 
   useEffect(() => {
