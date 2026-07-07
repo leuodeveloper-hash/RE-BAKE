@@ -4,6 +4,7 @@ import {Image} from 'expo-image';
 import {useRouter} from 'expo-router';
 import {BottomSheet} from '@components/BottomSheet';
 import {Button} from '@components/Button';
+import {Container} from '@components/Container';
 import {TextInput} from '@components/TextInput';
 import {IconGoogle, IconMailFilled} from '@components/Icon/IconIndex';
 import {useAuth} from '@contexts/AuthContext';
@@ -68,8 +69,12 @@ export function AuthSheet({visible, onClose, onSuccess}: AuthSheetProps) {
       }
       showSnackbar(isLoginMode ? t('auth.loginSuccess') : t('auth.signupSuccess'));
       handleSuccess();
-    } catch {
-      showSnackbar(isLoginMode ? t('auth.loginFailed') : t('auth.signupFailed'));
+    } catch (err: any) {
+      const code = err?.code;
+      console.error('[AuthSheet] auth failed', {mode: isLoginMode ? 'signIn' : 'signUp', code, message: err?.message, err});
+      const base = isLoginMode ? t('auth.loginFailed') : t('auth.signupFailed');
+      // 원인 파악을 위해 코드/메시지를 함께 노출 (임시 진단)
+      showSnackbar(`${base}${code ? ` (${code})` : err?.message ? ` (${err.message})` : ''}`);
     } finally {
       setAuthLoading(false);
     }
@@ -85,19 +90,28 @@ export function AuthSheet({visible, onClose, onSuccess}: AuthSheetProps) {
       maxWidth={380}>
       {showEmailForm ? (
         <View style={styles.authForm}>
-          <TextInput
-            placeholder={t('auth.emailPlaceholder')}
-            value={email}
-            onChangeText={setEmail}
-            keyboardType="email-address"
-            autoCapitalize="none"
-          />
-          <TextInput
-            placeholder={t('auth.passwordPlaceholder')}
-            value={password}
-            onChangeText={setPassword}
-            secureTextEntry
-          />
+          <Container material="subtle" style={styles.authFieldGroup}>
+            <View style={styles.authFieldRow}>
+              <TextInput
+                style="ghost"
+                placeholder={t('auth.emailPlaceholder')}
+                value={email}
+                onChangeText={setEmail}
+                keyboardType="email-address"
+                autoCapitalize="none"
+              />
+            </View>
+            <View style={styles.authFieldDivider} />
+            <View style={styles.authFieldRow}>
+              <TextInput
+                style="ghost"
+                placeholder={t('auth.passwordPlaceholder')}
+                value={password}
+                onChangeText={setPassword}
+                secureTextEntry
+              />
+            </View>
+          </Container>
           <View style={styles.authButtons}>
             <Button
               label={isLoginMode ? t('auth.loginButton') : t('auth.signupButton')}
@@ -164,6 +178,18 @@ const createStyles = (colors: SemanticColors) =>
       paddingHorizontal: Spacing.lg,
       paddingBottom: Spacing.lg,
       gap: Spacing.md,
+    },
+    authFieldGroup: {
+      paddingHorizontal: Spacing.md,
+    },
+    authFieldRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      minHeight: 48,
+    },
+    authFieldDivider: {
+      height: StyleSheet.hairlineWidth,
+      backgroundColor: colors['border/muted'],
     },
     authButtons: {
       gap: Spacing.sm,
