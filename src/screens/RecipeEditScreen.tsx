@@ -17,7 +17,7 @@ import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import {getPersistentUri} from '@utils/imageUpload';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {FloatingNavBar, navPillStyle, NAV_PILL_HEIGHT} from '@components/Navigation';
+import {FloatingNavBar, NavPillButton, navPillStyle, NAV_PILL_HEIGHT} from '@components/Navigation';
 import {RecipeInputFloatingBar} from '@components/RecipeOcrButton';
 import type {RecipeOcrField} from '@utils/recipeOcr';
 import {ContentContainer, Card, GlassContainer} from '@components/Container';
@@ -2262,14 +2262,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
       {/* Fixed Top Navigation Bar */}
       <FloatingNavBar
         left={
-          <GlassContainer contentStyle={navPillStyle}>
-            <IconButton
-              icon={IconClose}
-              onPress={onClose}
-              variant="ghost-primary"
-              size="medium"
-            />
-          </GlassContainer>
+          <NavPillButton icon={IconClose} onPress={onClose} />
         }
         rightMenu={
           <Menu

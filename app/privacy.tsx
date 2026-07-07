@@ -2,9 +2,8 @@ import React from 'react';
 import {ScrollView, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useRouter} from 'expo-router';
-import {FloatingNavBar, navPillStyle} from '@components/Navigation';
-import {ContentContainer, GlassContainer} from '@components/Container';
-import {IconButton} from '@components/IconButton';
+import {FloatingNavBar, NavPillButton} from '@components/Navigation';
+import {ContentContainer} from '@components/Container';
 import {IconArrowLeft} from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import type {SemanticColors} from '@constants/tokens';
@@ -63,16 +62,7 @@ export default function PrivacyScreen() {
       </SafeAreaView>
 
       <FloatingNavBar
-        left={
-          <GlassContainer contentStyle={navPillStyle}>
-            <IconButton
-              icon={IconArrowLeft}
-              onPress={() => router.back()}
-              variant="ghost-primary"
-              size="medium"
-            />
-          </GlassContainer>
-        }
+        left={<NavPillButton icon={IconArrowLeft} onPress={() => router.back()} />}
       />
     </View>
   );

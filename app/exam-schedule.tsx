@@ -2,9 +2,7 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useRouter} from 'expo-router';
-import {FloatingNavBar, navPillStyle} from '@components/Navigation';
-import {GlassContainer} from '@components/Container';
-import {IconButton} from '@components/IconButton';
+import {FloatingNavBar, NavPillButton} from '@components/Navigation';
 import {Selector} from '@components/Selector';
 import {Menu} from '@components/Menu';
 import {Avatar} from '@components/Avatar';
@@ -254,21 +252,8 @@ export default function ExamScheduleRoute() {
       </SafeAreaView>
 
       <FloatingNavBar
-        left={
-          <GlassContainer contentStyle={navPillStyle}>
-            <IconButton icon={IconClose} onPress={() => router.back()} variant="ghost-primary" size="medium" />
-          </GlassContainer>
-        }
-        right={
-          <GlassContainer contentStyle={navPillStyle}>
-            <IconButton
-              icon={IconArrowTopRight}
-              onPress={() => Linking.openURL(QNET_SCHEDULE_URL)}
-              variant="ghost-primary"
-              size="medium"
-            />
-          </GlassContainer>
-        }
+        left={<NavPillButton icon={IconClose} onPress={() => router.back()} />}
+        right={<NavPillButton icon={IconArrowTopRight} onPress={() => Linking.openURL(QNET_SCHEDULE_URL)} />}
       />
 
       {/* 앱바 가운데 타이틀 (플로팅 핀 사이) */}

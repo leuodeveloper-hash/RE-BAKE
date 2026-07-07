@@ -4,9 +4,8 @@ import {useFocusEffect} from 'expo-router';
 import {LinearGradient} from 'expo-linear-gradient';
 import {BlurView} from 'expo-blur';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {FloatingNavBar, navPillStyle} from '@components/Navigation';
-import {GlassContainer, ContentContainer, Card} from '@components/Container';
-import {IconButton} from '@components/IconButton';
+import {FloatingNavBar, NavPillButton} from '@components/Navigation';
+import {ContentContainer, Card} from '@components/Container';
 import {SectionHeader} from '@components/SectionHeader';
 import {ListItem} from '@components/ListItem';
 import {Switch} from '@components/Switch';
@@ -335,14 +334,7 @@ export function ProfileScreen({
       {/* 상단 네비게이션 */}
       <FloatingNavBar
         left={
-          <GlassContainer contentStyle={navPillStyle}>
-            <IconButton
-              icon={IconArrowLeft}
-              variant="ghost-primary"
-              size="medium"
-              onPress={onBack}
-            />
-          </GlassContainer>
+          <NavPillButton icon={IconArrowLeft} onPress={onBack} />
         }
       />
 

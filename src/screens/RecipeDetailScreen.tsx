@@ -17,7 +17,7 @@ import {
 import {LockedBottomBar} from '@components/LockedBottomBar';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {LinearGradient} from 'expo-linear-gradient';
-import {FloatingNavBar, navPillStyle, RulerSlider} from '@components/Navigation';
+import {FloatingNavBar, navPillStyle, NavPillButton, RulerSlider} from '@components/Navigation';
 import {GlassContainer, ContentContainer, Card, ContentMask} from '@components/Container';
 import {IconButton} from '@components/IconButton';
 import {SectionHeader} from '@components/SectionHeader';
@@ -1117,14 +1117,7 @@ export function RecipeDetailScreen({
         tintColor={imageUri ? (colors['fill/faint'] as string) : undefined}
         left={
           <View style={styles.navLeftRow}>
-            <GlassContainer contentStyle={navPillStyle}>
-              <IconButton
-                icon={IconClose}
-                onPress={onBack}
-                variant="ghost-primary"
-                size="medium"
-              />
-            </GlassContainer>
+            <NavPillButton icon={IconClose} onPress={onBack} />
             {useCompactTabs ? (
               <View>
                 <GlassContainer contentStyle={navPillStyle}>

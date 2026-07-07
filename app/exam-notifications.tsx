@@ -2,9 +2,8 @@ import React, {useCallback, useState} from 'react';
 import {Alert, Linking, Platform, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useRouter} from 'expo-router';
-import {FloatingNavBar, navPillStyle} from '@components/Navigation';
-import {ContentContainer, GlassContainer, Card} from '@components/Container';
-import {IconButton} from '@components/IconButton';
+import {FloatingNavBar, NavPillButton} from '@components/Navigation';
+import {ContentContainer, Card} from '@components/Container';
 import {ListItem} from '@components/ListItem';
 import {SectionHeader} from '@components/SectionHeader';
 import {Switch} from '@components/Switch';
@@ -161,14 +160,10 @@ export default function ExamNotificationsRoute() {
 
       <FloatingNavBar
         left={
-          <GlassContainer contentStyle={navPillStyle}>
-            <IconButton icon={IconArrowLeft} onPress={() => router.back()} variant="ghost-primary" size="medium" />
-          </GlassContainer>
+          <NavPillButton icon={IconArrowLeft} onPress={() => router.back()} />
         }
         right={
-          <GlassContainer contentStyle={navPillStyle}>
-            <IconButton icon={IconCircleInfo} onPress={() => router.push('/exam-schedule' as any)} variant="ghost-primary" size="medium" />
-          </GlassContainer>
+          <NavPillButton icon={IconCircleInfo} onPress={() => router.push('/exam-schedule' as any)} />
         }
       />
 

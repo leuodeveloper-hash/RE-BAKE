@@ -3,10 +3,9 @@ import {StyleSheet, View} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {GlassContainer} from '@components/Container';
 import {Selector} from '@components/Selector';
-import {IconButton} from '@components/IconButton';
 import {IconChevronRight, IconChevronLeft} from '@components/Icon/IconIndex';
 import {useColors} from '@contexts/ThemeContext';
-import {navPillStyle} from './FloatingNavBar';
+import {NavPillButton} from '@components/Navigation';
 
 export interface BreadcrumbProps {
   /** 1뎁스: 축 라벨 (전체/레시피 북/공법/회고 노트) */
@@ -39,14 +38,11 @@ export function Breadcrumb({axisLabel, axisIcon, axisIconColor, itemLabel, onAxi
   if (hasItem && onBack) {
     return (
       <View style={styles.row}>
-        <GlassContainer contentStyle={navPillStyle}>
-          <IconButton
-            icon={IconChevronLeft}
-            onPress={onBack}
-            variant="ghost-secondary"
-            size="medium"
-          />
-        </GlassContainer>
+        <NavPillButton
+          icon={IconChevronLeft}
+          onPress={onBack}
+          variant="ghost-secondary"
+        />
         <GlassContainer contentStyle={styles.pill}>
           <Selector
             label={itemLabel!}

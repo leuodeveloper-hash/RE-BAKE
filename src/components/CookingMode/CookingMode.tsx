@@ -28,7 +28,7 @@ import {Snackbar} from '@components/Snackbar';
 import {Tooltip} from '@components/Tooltip';
 import {IconButton} from '@components/IconButton';
 import {Selector} from '@components/Selector';
-import {navPillStyle, RulerSlider} from '@components/Navigation';
+import {navPillStyle, RulerSlider, NavPillButton} from '@components/Navigation';
 import {Menu, MenuItem, Subheader, type MenuItemData} from '@components/Menu';
 import {SearchCommandBar} from '@components/SearchCommandBar';
 import {Button} from '@components/Button';
@@ -1421,14 +1421,11 @@ export function CookingMode({
         <Pressable style={[styles.topNav, {paddingTop: Spacing.smd}]} onPress={isEditing ? exitEditing : undefined}>
           <View style={styles.navInner}>
             <View style={styles.topLeft}>
-              <GlassContainer contentStyle={navPillStyle}>
-                <IconButton
-                  icon={IconClose}
-                  onPress={handleClose}
-                  variant="ghost-secondary"
-                  size="medium"
-                />
-              </GlassContainer>
+              <NavPillButton
+                icon={IconClose}
+                onPress={handleClose}
+                variant="ghost-secondary"
+              />
 
               <View>
                 <GlassContainer contentStyle={styles.breadcrumbPill}>

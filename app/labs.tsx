@@ -2,9 +2,8 @@ import React, {useCallback, useState} from 'react';
 import {Platform, ScrollView, StyleSheet, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useRouter} from 'expo-router';
-import {FloatingNavBar, navPillStyle} from '@components/Navigation';
-import {ContentContainer, GlassContainer, Card} from '@components/Container';
-import {IconButton} from '@components/IconButton';
+import {FloatingNavBar, NavPillButton} from '@components/Navigation';
+import {ContentContainer, Card} from '@components/Container';
 import {ListItem} from '@components/ListItem';
 import {SectionHeader} from '@components/SectionHeader';
 import {Snackbar} from '@components/Snackbar';
@@ -114,11 +113,7 @@ export default function LabsRoute() {
           </ContentContainer>
         </SafeAreaView>
         <FloatingNavBar
-          left={
-            <GlassContainer contentStyle={navPillStyle}>
-              <IconButton icon={IconArrowLeft} onPress={() => router.back()} variant="ghost-primary" size="medium" />
-            </GlassContainer>
-          }
+          left={<NavPillButton icon={IconArrowLeft} onPress={() => router.back()} />}
         />
       </View>
     );
@@ -160,11 +155,7 @@ export default function LabsRoute() {
       </SafeAreaView>
 
       <FloatingNavBar
-        left={
-          <GlassContainer contentStyle={navPillStyle}>
-            <IconButton icon={IconArrowLeft} onPress={() => router.back()} variant="ghost-primary" size="medium" />
-          </GlassContainer>
-        }
+        left={<NavPillButton icon={IconArrowLeft} onPress={() => router.back()} />}
       />
 
       <View style={styles.snackbarWrapper} pointerEvents="box-none">
