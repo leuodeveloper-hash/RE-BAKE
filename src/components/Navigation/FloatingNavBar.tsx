@@ -1,17 +1,20 @@
 import React from 'react';
-import {Platform, StyleSheet, View, ViewStyle} from 'react-native';
+import {Platform, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import MaskedView from '@react-native-masked-view/masked-view';
 import {BlurView} from 'expo-blur';
 import {LinearGradient} from 'expo-linear-gradient';
 import {Spacing} from '@constants/spacing';
 import {useColors, useTheme} from '@contexts/ThemeContext';
+import {Typography} from '@constants/typography';
 import {ContentContainer} from '@components/Container';
 import {TABBAR_BOTTOM_SPACE} from '@components/Container/ContentContainer';
 
 export interface FloatingNavBarProps {
   left?: React.ReactNode;
   right?: React.ReactNode;
+  /** 중앙 타이틀 (좌우 캡슐 사이 가운데 정렬, 아이콘 위치에 영향 없음) */
+  title?: string;
   /** 좌측 캡슐 아래에 표시할 메뉴 */
   leftMenu?: React.ReactNode;
   /** 우측 캡슐 아래에 표시할 메뉴 */
@@ -67,7 +70,7 @@ export const APPBAR_CONTENT_BOTTOM = Spacing.smd + NAV_PILL_HEIGHT; // 10 + 44 =
 // pill 바로 아래에서 짧게 페이드아웃 — 콘텐츠 침범 방지 (이전 66 → 24)
 const GRADIENT_EXTENSION = Spacing.lg; // 24
 
-export function FloatingNavBar({left, right, leftMenu, rightMenu, leftFull, tintColor, style}: FloatingNavBarProps) {
+export function FloatingNavBar({left, right, title, leftMenu, rightMenu, leftFull, tintColor, style}: FloatingNavBarProps) {
   const colors = useColors();
   const {isDark} = useTheme();
   const surfaceDim = colors['surface/normal'] as string;
@@ -131,6 +134,11 @@ export function FloatingNavBar({left, right, leftMenu, rightMenu, leftFull, tint
         <ContentContainer
           style={styles.content}
           horizontalPadding={false}>
+          {title != null && (
+            <View style={styles.titleCenter} pointerEvents="none">
+              <Text style={[styles.title, {color: colors['foreground/on-surface']}]} numberOfLines={1}>{title}</Text>
+            </View>
+          )}
           {left ? (
             <View style={leftFull ? styles.leftFull : undefined}>
               {left}
@@ -183,6 +191,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.smd,
+  },
+  titleCenter: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  title: {
+    ...Typography.title.medium,
   },
   right: {
     flexDirection: 'row',

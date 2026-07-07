@@ -8,6 +8,7 @@ import {
   IconEllipsisVertical,
 } from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
+import {NavPillButton} from './NavPillButton';
 import {Selector} from '@components/Selector';
 import {GlassContainer} from '@components/Container';
 import type {SemanticColors} from '@constants/tokens';
@@ -87,23 +88,13 @@ export function AppBar({
       <View style={themedStyles.centeredContainer}>
         <View style={themedStyles.centeredSide}>
           {leftIcon && (
-            <IconButton
-              icon={leftIcon}
-              variant="ghost-primary"
-              size="medium"
-              onPress={onLeftPress}
-            />
+            <NavPillButton icon={leftIcon} onPress={onLeftPress} />
           )}
         </View>
         <Text style={themedStyles.centeredTitle}>{resolvedTitle}</Text>
         <View style={themedStyles.centeredSide}>
           {rightIcon && (
-            <IconButton
-              icon={rightIcon}
-              variant="ghost-primary"
-              size="medium"
-              onPress={onRightPress}
-            />
+            <NavPillButton icon={rightIcon} onPress={onRightPress} />
           )}
         </View>
       </View>
@@ -184,7 +175,7 @@ const createThemedStyles = (colors: SemanticColors) => StyleSheet.create({
   centeredContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: Spacing.xs,
+    paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.xs,
   },
   centeredSide: {

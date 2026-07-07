@@ -4,14 +4,15 @@ import {Image} from 'expo-image';
 import {useRouter} from 'expo-router';
 import {BottomSheet} from '@components/BottomSheet';
 import {Button} from '@components/Button';
-import {Container} from '@components/Container';
 import {TextInput} from '@components/TextInput';
-import {IconGoogle, IconMailFilled} from '@components/Icon/IconIndex';
+import {AppBar} from '@components/Navigation';
+import {IconGoogle, IconMailFilled, IconArrowLeft, IconClose} from '@components/Icon/IconIndex';
 import {useAuth} from '@contexts/AuthContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import type {SemanticColors} from '@constants/tokens';
+import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 const APP_LOGO = require('../../../assets/icon.png');
@@ -84,13 +85,22 @@ export function AuthSheet({visible, onClose, onSuccess}: AuthSheetProps) {
     <BottomSheet
       visible={visible}
       onClose={handleClose}
-      title={showEmailForm ? (isLoginMode ? t('auth.emailLoginTitle') : t('auth.emailSignupTitle')) : t('auth.loginTitle')}
+      title={showEmailForm ? undefined : t('auth.loginTitle')}
       description={showEmailForm ? undefined : t('auth.loginDescription')}
-      headerGraphic={<Image source={APP_LOGO} style={styles.appLogo} contentFit="cover" />}
+      headerGraphic={showEmailForm ? undefined : <Image source={APP_LOGO} style={styles.appLogo} contentFit="cover" />}
       maxWidth={380}>
       {showEmailForm ? (
-        <View style={styles.authForm}>
-          <Container material="subtle" style={styles.authFieldGroup}>
+        <View>
+          <AppBar
+            centered
+            title={isLoginMode ? t('auth.emailLoginTitle') : t('auth.emailSignupTitle')}
+            leftIcon={IconArrowLeft}
+            onLeftPress={() => setShowEmailForm(false)}
+            rightIcon={IconClose}
+            onRightPress={handleClose}
+          />
+          <View style={styles.authForm}>
+          <View style={styles.authFieldGroup}>
             <View style={styles.authFieldRow}>
               <TextInput
                 style="ghost"
@@ -111,7 +121,7 @@ export function AuthSheet({visible, onClose, onSuccess}: AuthSheetProps) {
                 secureTextEntry
               />
             </View>
-          </Container>
+          </View>
           <View style={styles.authButtons}>
             <Button
               label={isLoginMode ? t('auth.loginButton') : t('auth.signupButton')}
@@ -119,13 +129,10 @@ export function AuthSheet({visible, onClose, onSuccess}: AuthSheetProps) {
               disabled={authLoading}
             />
           </View>
-          <View style={styles.authToggle}>
-            <Button
-              label={isLoginMode ? t('auth.toggleToSignup') : t('auth.toggleToLogin')}
-              variant="ghost"
-              size="small"
-              onPress={() => setIsLoginMode(prev => !prev)}
-            />
+          <Text style={styles.termsCaption} onPress={() => setIsLoginMode(prev => !prev)}>
+            {isLoginMode ? t('auth.toggleToSignupPrefix') : t('auth.toggleToLoginPrefix')}
+            <Text style={styles.termsLink}>{isLoginMode ? t('auth.signupButton') : t('auth.loginButton')}</Text>
+          </Text>
           </View>
         </View>
       ) : (
@@ -175,27 +182,31 @@ const createStyles = (colors: SemanticColors) =>
       borderRadius: 24,
     },
     authForm: {
-      paddingHorizontal: Spacing.lg,
+      paddingTop: Spacing.md,
+      // BottomSheet content가 paddingHorizontal xs(4)를 이미 주므로 여기선 16 → 합쳐서 20
+      // (SheetHeader 제목의 좌우 패딩 lg=20과 정확히 일치)
+      paddingHorizontal: Spacing.md,
       paddingBottom: Spacing.lg,
       gap: Spacing.md,
     },
     authFieldGroup: {
-      paddingHorizontal: Spacing.md,
+      backgroundColor: colors['fill/subtle'],
+      borderRadius: Radius['radius-lg'],
+      overflow: 'hidden',
     },
     authFieldRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      minHeight: 48,
+      minHeight: 52,
+      paddingHorizontal: Spacing.md,
     },
     authFieldDivider: {
       height: StyleSheet.hairlineWidth,
       backgroundColor: colors['border/muted'],
+      marginHorizontal: Spacing.md,
     },
     authButtons: {
       gap: Spacing.sm,
-    },
-    authToggle: {
-      alignItems: 'center',
     },
     authLoginButtons: {
       gap: Spacing.sm,
@@ -206,7 +217,6 @@ const createStyles = (colors: SemanticColors) =>
       lineHeight: 17,
       color: colors['foreground/on-surface-muted'],
       textAlign: 'center',
-      paddingHorizontal: Spacing.md,
     },
     termsLink: {
       color: colors['foreground/on-surface'],

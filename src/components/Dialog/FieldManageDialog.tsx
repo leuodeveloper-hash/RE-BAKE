@@ -8,7 +8,8 @@ import {Button} from '@components/Button';
 import {Spacing} from '@constants/spacing';
 import {useTranslation} from '@contexts/LanguageContext';
 import {
-  IconAdd,
+  IconPlusCircleFilled,
+  IconMinusCircleFilled,
   IconBookFilled,
   IconBookTwotone,
   IconExprolerBookFilled,
@@ -16,7 +17,6 @@ import {
   IconDescription,
   IconClockFilled,
   IconLeafFilled,
-  IconMinus,
   IconOpenbookFilled,
   IconPhoto,
   IconProcess,
@@ -142,9 +142,10 @@ export function FieldManageDialog({
                   ? undefined
                   : {
                       type: 'iconButton',
-                      icon: IconMinus,
+                      icon: IconMinusCircleFilled,
                       onPress: () => handleRemove(field.id),
                       disabled: !canRemove(field.id),
+                      variant: 'ghost-secondary',
                     }
               }
               showDivider={index < activeFields.length - 1}
@@ -162,8 +163,9 @@ export function FieldManageDialog({
                 leading={{type: 'icon', icon: field.icon}}
                 trailing={{
                   type: 'iconButton',
-                  icon: IconAdd,
+                  icon: IconPlusCircleFilled,
                   onPress: () => handleAdd(field.id),
+                  variant: 'ghost-secondary',
                 }}
                 showDivider={index < inactiveOptional.length - 1}
               />
