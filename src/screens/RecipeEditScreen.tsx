@@ -35,6 +35,7 @@ import {TextInput} from '@components/TextInput';
 import {DragHandle} from '@components/DragHandle';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useTranslation} from '@contexts/LanguageContext';
+import {ensureImagePermission} from '@utils/imagePermission';
 import {getColorVarKey} from '@components/ColorPicker';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import {RainbowText} from '@components/RainbowText';
@@ -553,17 +554,25 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
 
   const pickImage = async (source: 'camera' | 'gallery') => {
     if (source === 'camera') {
-      const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) {
-        showSnackbar(t('recipeEdit.cameraPermissionNeeded'));
-        return;
-      }
+      const ok = await ensureImagePermission('camera', {
+        deniedMessage: t('recipeEdit.cameraPermissionNeeded'),
+        showSnackbar,
+        settingsTitle: t('permission.cameraTitle'),
+        settingsBody: t('permission.cameraBody'),
+        settingsConfirmLabel: t('permission.openSettings'),
+        settingsCancelLabel: t('permission.cancel'),
+      });
+      if (!ok) return;
     } else {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        showSnackbar(t('recipeEdit.photoPermissionNeeded'));
-        return;
-      }
+      const ok = await ensureImagePermission('mediaLibrary', {
+        deniedMessage: t('recipeEdit.photoPermissionNeeded'),
+        showSnackbar,
+        settingsTitle: t('permission.photoTitle'),
+        settingsBody: t('permission.photoBody'),
+        settingsConfirmLabel: t('permission.openSettings'),
+        settingsCancelLabel: t('permission.cancel'),
+      });
+      if (!ok) return;
     }
     const options: ImagePicker.ImagePickerOptions = {
       allowsEditing: true,
@@ -1081,11 +1090,15 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
         ),
       );
       setSlashMenu(null);
-      const camPerm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!camPerm.granted) {
-        showSnackbar(t('recipeEdit.cameraPermissionNeeded'));
-        return;
-      }
+      const camOk = await ensureImagePermission('camera', {
+        deniedMessage: t('recipeEdit.cameraPermissionNeeded'),
+        showSnackbar,
+        settingsTitle: t('permission.cameraTitle'),
+        settingsBody: t('permission.cameraBody'),
+        settingsConfirmLabel: t('permission.openSettings'),
+        settingsCancelLabel: t('permission.cancel'),
+      });
+      if (!camOk) return;
       const result = await ImagePicker.launchCameraAsync({
         quality: 0.8,
         base64: Platform.OS === 'web',
@@ -1982,8 +1995,15 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                               ));
                             }}
                             onReplace={async (pi) => {
-                              const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-                              if (!perm.granted) return;
+                              const ok = await ensureImagePermission('mediaLibrary', {
+                                deniedMessage: t('recipeEdit.photoPermissionNeeded'),
+                                showSnackbar,
+                                settingsTitle: t('permission.photoTitle'),
+                                settingsBody: t('permission.photoBody'),
+                                settingsConfirmLabel: t('permission.openSettings'),
+                                settingsCancelLabel: t('permission.cancel'),
+                              });
+                              if (!ok) return;
                               const result = await ImagePicker.launchImageLibraryAsync({mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web'});
                               if (result.canceled || !result.assets[0]) return;
                               const uri = await getPersistentUri(result.assets[0].uri, result.assets[0].base64);

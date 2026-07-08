@@ -2,9 +2,11 @@ import React, {useCallback, useState} from 'react';
 import {Platform, Pressable, StyleSheet, View, ViewStyle} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {useColors} from '@contexts/ThemeContext';
+import {useTranslation} from '@contexts/LanguageContext';
 import {Radius} from '@constants/tokens';
 import {IconCameraFilled} from '@components/Icon/IconIndex';
 import {recognizeImageText, parseRecognizedText, type RecipeOcrField} from '@utils/recipeOcr';
+import {ensureImagePermission} from '@utils/imagePermission';
 
 export interface RecipeOcrButtonProps {
   /** 어떤 필드 타입에 결과를 적용할지 */
@@ -25,6 +27,7 @@ export interface RecipeOcrButtonProps {
  */
 export function RecipeOcrButton({field, onStart, onRecognized, onEnd, style}: RecipeOcrButtonProps) {
   const colors = useColors();
+  const {t} = useTranslation();
   const [busy, setBusy] = useState(false);
 
   const handlePress = useCallback(async () => {
@@ -32,8 +35,15 @@ export function RecipeOcrButton({field, onStart, onRecognized, onEnd, style}: Re
     setBusy(true);
     onStart?.();
     try {
-      const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) {
+      const permOk = await ensureImagePermission('camera', {
+        deniedMessage: t('recipeEdit.cameraPermissionNeeded'),
+        showSnackbar: () => {},
+        settingsTitle: t('permission.cameraTitle'),
+        settingsBody: t('permission.cameraBody'),
+        settingsConfirmLabel: t('permission.openSettings'),
+        settingsCancelLabel: t('permission.cancel'),
+      });
+      if (!permOk) {
         onEnd?.();
         setBusy(false);
         return;
@@ -58,7 +68,7 @@ export function RecipeOcrButton({field, onStart, onRecognized, onEnd, style}: Re
       onEnd?.();
       setBusy(false);
     }
-  }, [busy, field, onStart, onRecognized, onEnd]);
+  }, [busy, field, onStart, onRecognized, onEnd, t]);
 
   return (
     <Pressable

@@ -19,6 +19,7 @@ import {EditorToolbar} from '@components/EditorToolbar';
 import {useSTT} from '@hooks/useSTT';
 import {recognizeImageText, parseRecognizedText, type RecipeOcrField} from '@utils/recipeOcr';
 import {dismissKeyboardAndWait} from '@utils/keyboard';
+import {ensureImagePermission} from '@utils/imagePermission';
 import {useTranslation} from '@contexts/LanguageContext';
 import {OcrCropModal} from './OcrCropModal';
 
@@ -148,19 +149,24 @@ export function RecipeInputFloatingBar({
     let cropStarted = false;
     try {
       await dismissKeyboardAndWait();
-      if (source === 'camera') {
-        const perm = await ImagePicker.requestCameraPermissionsAsync();
-        if (!perm.granted) {
-          showSnackbar(t('recipeInputFloatingBar.cameraPermissionNeeded'));
-          return;
-        }
-      } else {
-        const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (!perm.granted) {
-          showSnackbar(t('recipeInputFloatingBar.photoPermissionNeeded'));
-          return;
-        }
-      }
+      const permOk = source === 'camera'
+        ? await ensureImagePermission('camera', {
+            deniedMessage: t('recipeInputFloatingBar.cameraPermissionNeeded'),
+            showSnackbar,
+            settingsTitle: t('permission.cameraTitle'),
+            settingsBody: t('permission.cameraBody'),
+            settingsConfirmLabel: t('permission.openSettings'),
+            settingsCancelLabel: t('permission.cancel'),
+          })
+        : await ensureImagePermission('mediaLibrary', {
+            deniedMessage: t('recipeInputFloatingBar.photoPermissionNeeded'),
+            showSnackbar,
+            settingsTitle: t('permission.photoTitle'),
+            settingsBody: t('permission.photoBody'),
+            settingsConfirmLabel: t('permission.openSettings'),
+            settingsCancelLabel: t('permission.cancel'),
+          });
+      if (!permOk) return;
       const pickerOptions: ImagePicker.ImagePickerOptions = {
         quality: 0.85,
         base64: Platform.OS === 'web',

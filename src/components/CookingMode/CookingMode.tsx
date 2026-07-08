@@ -21,6 +21,7 @@ import {dismissKeyboardAndWait} from '@utils/keyboard';
 import Svg, {Rect} from 'react-native-svg';
 import * as VideoThumbnails from 'expo-video-thumbnails';
 import {getPersistentUri} from '@utils/imageUpload';
+import {ensureImagePermission} from '@utils/imagePermission';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {GlassContainer, Card, MAX_CONTENT_WIDTH} from '@components/Container';
 import {BottomSheet} from '@components/BottomSheet';
@@ -847,13 +848,15 @@ export function CookingMode({
     // iOS: 메뉴/키보드 전환과 겹치면 피커 present가 무시됨 → 실제로 키보드 내려간 뒤 present
     try {
       await dismissKeyboardAndWait();
-      const perm = source === 'camera'
-        ? await ImagePicker.requestCameraPermissionsAsync()
-        : await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) {
-        showSnackbar(source === 'camera' ? t('cookingMode.cameraPermissionSettings') : t('cookingMode.photoPermissionSettings'));
-        return;
-      }
+      const ok = await ensureImagePermission(source === 'camera' ? 'camera' : 'mediaLibrary', {
+        deniedMessage: source === 'camera' ? t('cookingMode.cameraPermissionSettings') : t('cookingMode.photoPermissionSettings'),
+        showSnackbar,
+        settingsTitle: source === 'camera' ? t('permission.cameraTitle') : t('permission.photoTitle'),
+        settingsBody: source === 'camera' ? t('permission.cameraBody') : t('permission.photoBody'),
+        settingsConfirmLabel: t('permission.openSettings'),
+        settingsCancelLabel: t('permission.cancel'),
+      });
+      if (!ok) return;
       const result = source === 'camera'
         ? await ImagePicker.launchCameraAsync({quality: 0.85})
         : await ImagePicker.launchImageLibraryAsync({mediaTypes: ['images'], quality: 0.85});
@@ -880,13 +883,24 @@ export function CookingMode({
 
   const pickPhoto = useCallback(async (source: 'camera' | 'gallery', globalIndex: number, currentPhotos?: string[]) => {
     if ((currentPhotos?.length ?? 0) >= MAX_PHOTOS) return;
-    if (source === 'camera') {
-      const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) { showSnackbar(t('cookingMode.cameraPermission')); return; }
-    } else {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) { showSnackbar(t('cookingMode.photoPermission')); return; }
-    }
+    const permOk = source === 'camera'
+      ? await ensureImagePermission('camera', {
+          deniedMessage: t('cookingMode.cameraPermission'),
+          showSnackbar,
+          settingsTitle: t('permission.cameraTitle'),
+          settingsBody: t('permission.cameraBody'),
+          settingsConfirmLabel: t('permission.openSettings'),
+          settingsCancelLabel: t('permission.cancel'),
+        })
+      : await ensureImagePermission('mediaLibrary', {
+          deniedMessage: t('cookingMode.photoPermission'),
+          showSnackbar,
+          settingsTitle: t('permission.photoTitle'),
+          settingsBody: t('permission.photoBody'),
+          settingsConfirmLabel: t('permission.openSettings'),
+          settingsCancelLabel: t('permission.cancel'),
+        });
+    if (!permOk) return;
     const options: ImagePicker.ImagePickerOptions = {
       mediaTypes: ['images'],
       quality: 0.8,
@@ -913,8 +927,15 @@ export function CookingMode({
   // 사진 교체
   const replacePhoto = useCallback(async (globalIndex: number, photoIndex: number, currentPhotos?: string[]) => {
     if (!currentPhotos) return;
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) { showSnackbar(t('cookingMode.photoPermission')); return; }
+    const permOk = await ensureImagePermission('mediaLibrary', {
+      deniedMessage: t('cookingMode.photoPermission'),
+      showSnackbar,
+      settingsTitle: t('permission.photoTitle'),
+      settingsBody: t('permission.photoBody'),
+      settingsConfirmLabel: t('permission.openSettings'),
+      settingsCancelLabel: t('permission.cancel'),
+    });
+    if (!permOk) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.8,
@@ -931,13 +952,24 @@ export function CookingMode({
   // 조언 사진 추가
   const pickAdvicePhoto = useCallback(async (source: 'camera' | 'gallery') => {
     if (editAdvicePhotos.length >= MAX_PHOTOS) return;
-    if (source === 'camera') {
-      const perm = await ImagePicker.requestCameraPermissionsAsync();
-      if (!perm.granted) { showSnackbar(t('cookingMode.cameraPermission')); return; }
-    } else {
-      const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-      if (!perm.granted) { showSnackbar(t('cookingMode.photoPermission')); return; }
-    }
+    const permOk = source === 'camera'
+      ? await ensureImagePermission('camera', {
+          deniedMessage: t('cookingMode.cameraPermission'),
+          showSnackbar,
+          settingsTitle: t('permission.cameraTitle'),
+          settingsBody: t('permission.cameraBody'),
+          settingsConfirmLabel: t('permission.openSettings'),
+          settingsCancelLabel: t('permission.cancel'),
+        })
+      : await ensureImagePermission('mediaLibrary', {
+          deniedMessage: t('cookingMode.photoPermission'),
+          showSnackbar,
+          settingsTitle: t('permission.photoTitle'),
+          settingsBody: t('permission.photoBody'),
+          settingsConfirmLabel: t('permission.openSettings'),
+          settingsCancelLabel: t('permission.cancel'),
+        });
+    if (!permOk) return;
     const options: ImagePicker.ImagePickerOptions = {
       mediaTypes: ['images'],
       quality: 0.8,
@@ -1084,8 +1116,15 @@ export function CookingMode({
 
   // 보기 모드에서 사진 바로 등록 (편집 진입 없이 원본 데이터 갱신)
   const addStepPhoto = useCallback(async (card: CookingCard) => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) { showSnackbar(t('cookingMode.photoPermission')); return; }
+    const permOk = await ensureImagePermission('mediaLibrary', {
+      deniedMessage: t('cookingMode.photoPermission'),
+      showSnackbar,
+      settingsTitle: t('permission.photoTitle'),
+      settingsBody: t('permission.photoBody'),
+      settingsConfirmLabel: t('permission.openSettings'),
+      settingsCancelLabel: t('permission.cancel'),
+    });
+    if (!permOk) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images', 'videos'],
       quality: 0.8,
@@ -1116,8 +1155,15 @@ export function CookingMode({
 
   // 보기 모드에서 기존 사진 탭 → 교체 (onUpdate 경로로 실제 반영/저장)
   const replaceStepPhotoView = useCallback(async (card: CookingCard, photoIndex: number) => {
-    const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
-    if (!perm.granted) { showSnackbar(t('cookingMode.photoPermission')); return; }
+    const permOk = await ensureImagePermission('mediaLibrary', {
+      deniedMessage: t('cookingMode.photoPermission'),
+      showSnackbar,
+      settingsTitle: t('permission.photoTitle'),
+      settingsBody: t('permission.photoBody'),
+      settingsConfirmLabel: t('permission.openSettings'),
+      settingsCancelLabel: t('permission.cancel'),
+    });
+    if (!permOk) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'],
       quality: 0.8,
