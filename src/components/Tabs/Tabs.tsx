@@ -212,7 +212,9 @@ export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'f
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // ---- Filled variant ----
   container: {
-    backgroundColor: colors['surface/container'],
+    // fill/subtle: 어떤 배경(surface/dim 등) 위에서도 트랙이 은은하게 보이도록.
+    // (surface/container는 surface/dim과 명도차가 거의 없어 회색 페이지에서 안 보였음)
+    backgroundColor: colors['fill/subtle'],
     borderRadius: Radius['radius-full'],
     padding: 2,
   },
