@@ -1862,6 +1862,11 @@ export function CookingMode({
           visible={ytVideoId !== null}
           onClose={closeYouTube}
           videoId={ytVideoId}
+          // 요리모드는 BottomSheet 좌표계(safe-area는 시트가 처리)라 자체 앱바(72px)
+          // 아래로만 띄우고, insets.top 중복 계산을 피한다. 안 넘기면 PiP가 상단에서
+          // 너무 내려오고 하단이 화면을 벗어남.
+          topInset={72}
+          bottomInset={insets.bottom}
         />
 
         {/* 사진 전체보기 뷰어 — 탭하면 큰 이미지 풀스크린. 편집 가능하면 교체/삭제 */}

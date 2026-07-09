@@ -36,8 +36,14 @@ export default function ProfileRoute() {
   }, [router]);
 
   const handleLogout = useCallback(async () => {
-    await signOut();
-    showSnackbar(t('profile.loggedOut'));
+    try {
+      await signOut();
+      showSnackbar(t('profile.loggedOut'));
+    } catch (e) {
+      // 이전엔 catch가 없어 signOut이 throw하면 조용히 삼켜져 "눌러도 반응 없음"으로 보였다.
+      console.error('[profile] signOut failed', e);
+      showSnackbar(t('profile.logoutFailed'));
+    }
   }, [signOut, showSnackbar, t]);
 
   return (

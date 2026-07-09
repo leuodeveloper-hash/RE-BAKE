@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from 'react';
+import React, {useCallback} from 'react';
 import {Alert, Linking, Platform, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useRouter} from 'expo-router';
@@ -7,9 +7,9 @@ import {ContentContainer, Card} from '@components/Container';
 import {ListItem} from '@components/ListItem';
 import {SectionHeader} from '@components/SectionHeader';
 import {Switch} from '@components/Switch';
-import {Snackbar} from '@components/Snackbar';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useAuth} from '@contexts/AuthContext';
+import {useSnackbar} from '@contexts/SnackbarContext';
 import {useAuthSheet} from '@contexts/AuthSheetContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {useExamNotificationPrefs, getExamTypes, type ExamType} from '@hooks/useExamNotificationPrefs';
@@ -25,15 +25,13 @@ export default function ExamNotificationsRoute() {
   const {user} = useAuth();
   const {open: openAuthSheet} = useAuthSheet();
   const {t} = useTranslation();
+  const {showSnackbar} = useSnackbar();
   const isLoggedIn = !!user && !user.isAnonymous;
 
-  const [snackbarMsg, setSnackbarMsg] = useState('');
-  const [snackbarVisible, setSnackbarVisible] = useState(false);
-
+  // 전역 스낵바(_layout.tsx 단일 렌더) 사용 — 로컬 스낵바 중복 제거
   const showMessage = useCallback((msg: string) => {
-    setSnackbarMsg(msg);
-    setSnackbarVisible(true);
-  }, []);
+    showSnackbar(msg);
+  }, [showSnackbar]);
 
   // 알림이 OS 레벨에서 꺼져 있으면 설정으로 보내는 안내
   const promptOpenSettings = useCallback(() => {
@@ -167,13 +165,7 @@ export default function ExamNotificationsRoute() {
         }
       />
 
-      <View style={styles.snackbarWrapper} pointerEvents="box-none">
-        <Snackbar
-          message={snackbarMsg}
-          visible={snackbarVisible}
-          onClose={() => setSnackbarVisible(false)}
-        />
-      </View>
+      {/* 스낵바는 전역(_layout.tsx)에서 단일 렌더 */}
     </View>
   );
 }
@@ -202,12 +194,5 @@ const createStyles = (colors: SemanticColors) =>
     },
     testSection: {
       marginTop: Spacing.xl,
-    },
-    snackbarWrapper: {
-      position: 'absolute',
-      bottom: 100, // 하단 탭바 위로 (탭바 bottom:20 + 높이/세이프에어리어를 넘김)
-      left: 0,
-      right: 0,
-      alignItems: 'center',
     },
   });

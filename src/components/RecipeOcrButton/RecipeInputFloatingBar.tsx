@@ -262,6 +262,10 @@ export function RecipeInputFloatingBar({
             ]}
             visible={showScanMenu}
             onSelect={(id) => {
+              // 툴바(이 컴포넌트)가 blur로 언마운트되면 pickImage의 async 흐름이 끊겨
+              // 피커 present가 씹힌다("한 번 눌러선 안 열림"). → 메뉴 닫기 전에 pickActive를
+              // 먼저 세워 툴바 유지를 보장하고, 그 다음 메뉴를 닫는다.
+              onPickActiveChange?.(true);
               setShowScanMenu(false);
               pickImage(id === 'camera' ? 'camera' : 'library');
             }}

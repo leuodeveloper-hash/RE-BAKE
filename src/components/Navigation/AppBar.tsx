@@ -3,6 +3,7 @@ import {StyleSheet, Text, View} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {
   IconAdd,
+  IconCircleInfo,
   IconFilter,
   IconSearch,
   IconEllipsisVertical,
@@ -38,9 +39,12 @@ export interface AppBarProps {
   filterIcon?: React.FC<SvgProps>;
   onMenuPress?: () => void;
   onSearchPress?: () => void;
+  /** ⓘ 정보 버튼 (예: 공법 설명 페이지 진입) */
+  onInfoPress?: () => void;
   showDropdown?: boolean;
   showAddButton?: boolean;
   showSearchButton?: boolean;
+  showInfoButton?: boolean;
   showFilterButton?: boolean;
   showMenuButton?: boolean;
   filterMenuOpen?: boolean;
@@ -68,9 +72,11 @@ export function AppBar({
   filterIcon = IconFilter,
   onMenuPress,
   onSearchPress,
+  onInfoPress,
   showDropdown = true,
   showAddButton = true,
   showSearchButton = false,
+  showInfoButton = false,
   showFilterButton = true,
   showMenuButton = true,
   filterMenuOpen = false,
@@ -101,7 +107,7 @@ export function AppBar({
     );
   }
 
-  const hasRightButtons = showAddButton || showSearchButton || showFilterButton || showMenuButton;
+  const hasRightButtons = showAddButton || showSearchButton || showInfoButton || showFilterButton || showMenuButton;
 
   return (
     <FloatingNavBar
@@ -132,6 +138,14 @@ export function AppBar({
               <IconButton
                 icon={IconSearch}
                 onPress={onSearchPress}
+                variant="ghost-primary"
+                size="medium"
+              />
+            )}
+            {showInfoButton && (
+              <IconButton
+                icon={IconCircleInfo}
+                onPress={onInfoPress}
                 variant="ghost-primary"
                 size="medium"
               />

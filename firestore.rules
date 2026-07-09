@@ -17,6 +17,15 @@ service cloud.firestore {
       allow read, write: if request.auth != null && request.auth.uid == uid;
     }
 
+    // signupLimits: 일일 가입 한도 카운터(signupLimits/{YYYY-MM-DD}).
+    // read는 가입 '전'(미인증) 단계에서 한도를 확인해야 하므로 공개.
+    // write는 가입 직후 인증된 사용자만(카운트 증가). 규칙이 없으면 기본 거부라
+    // checkSignupLimit()가 permission-denied로 throw돼 가입 자체가 실패했음.
+    match /signupLimits/{day} {
+      allow read: if true;
+      allow write: if request.auth != null;
+    }
+
     // admin: 로그인 사용자 본인 문서만 읽기 (쓰기는 Firebase Console에서만)
     match /admin/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;

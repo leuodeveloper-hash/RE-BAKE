@@ -13,6 +13,14 @@ export interface YouTubePlayerModalProps {
   visible: boolean;
   onClose: () => void;
   videoId: string | null;
+  /**
+   * 호스트 좌표계 기준 상/하단 여백 오프셋(px). 지정하면 safe-area insets +
+   * 앱바(APPBAR_CONTENT_BOTTOM) 계산 대신 이 값을 그대로 이동 상/하한 여백으로 쓴다.
+   * 요리모드처럼 BottomSheet 안(자체 좌표계)에서 렌더될 때, insets 이중 계산으로
+   * PiP가 너무 내려오거나 하단을 벗어나는 문제를 막기 위함.
+   */
+  topInset?: number;
+  bottomInset?: number;
 }
 
 // PLAYER_WIDTH/HEIGHT는 화면폭 기준으로 컴포넌트에서 동적 계산(풀 와이드).
@@ -32,9 +40,14 @@ const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min)
  * - iOS 새창/에러 방지: onShouldStartLoadWithRequest로 watch 링크 top-level 이동 차단,
  *   Android는 setSupportMultipleWindows=false로 새창 팝업 차단
  */
-export function YouTubePlayerModal({visible, onClose, videoId}: YouTubePlayerModalProps) {
+export function YouTubePlayerModal({visible, onClose, videoId, topInset, bottomInset}: YouTubePlayerModalProps) {
   const {t} = useTranslation();
   const insets = useSafeAreaInsets();
+  // 호스트가 오프셋을 지정하면(요리모드 등) 그 좌표계 값을 쓰고, 아니면 앱 기본
+  // (safe-area top + 앱바 높이 / safe-area bottom)을 쓴다. 이 값이 이동 상/하한의
+  // 상단·하단 여백으로 win.top/win.bottom에 저장된다.
+  const topGap = topInset !== undefined ? topInset : insets.top + APPBAR_CONTENT_BOTTOM;
+  const bottomGap = bottomInset !== undefined ? bottomInset : insets.bottom;
   const {width, height} = useWindowDimensions();
   // 풀 와이드: 좌우 16 여백 확보, 최대 480 캡. 세로는 16:9.
   const PLAYER_WIDTH = Math.min(Math.round(width - MARGIN * 2), 480);
@@ -58,7 +71,8 @@ export function YouTubePlayerModal({visible, onClose, videoId}: YouTubePlayerMod
   // 최소화 직전 전체 위치 (복원 시 사용)
   const lastFull = useRef({x: 0, y: 0});
   // 화면 치수 ref (한 번만 생성되는 PanResponder에서 최신값 참조용)
-  const win = useRef({width, height, top: insets.top, bottom: insets.bottom});
+  // top/bottom = 이동 상/하한 여백(앱바 아래·바닥 위). topGap/bottomGap로 채워진다.
+  const win = useRef({width, height, top: topGap, bottom: bottomGap});
 
   useEffect(() => {
     const id = pan.addListener((v) => {
@@ -73,7 +87,7 @@ export function YouTubePlayerModal({visible, onClose, videoId}: YouTubePlayerMod
     const h = minimizedMode ? NAIL_H : PLAYER_HEIGHT + HANDLE_H;
     const minX = MARGIN;
     // 이동 상한: 앱바(상단 nav) 바로 아래까지 (앱바와 겹치지 않게)
-    const minY = win.current.top + APPBAR_CONTENT_BOTTOM + MARGIN;
+    const minY = win.current.top + MARGIN;
     const maxX = win.current.width - w - MARGIN;
     const maxY = win.current.height - h - win.current.bottom - BOTTOM_RESERVE;
     return {x: clamp(x, minX, maxX), y: clamp(y, minY, maxY)};
@@ -83,7 +97,7 @@ export function YouTubePlayerModal({visible, onClose, videoId}: YouTubePlayerMod
   const snapToCorner = (x: number, y: number) => {
     const w = PLAYER_WIDTH, h = PLAYER_HEIGHT + HANDLE_H;
     const minX = MARGIN;
-    const minY = win.current.top + APPBAR_CONTENT_BOTTOM + MARGIN;
+    const minY = win.current.top + MARGIN;
     const maxX = win.current.width - w - MARGIN;
     const maxY = win.current.height - h - win.current.bottom - BOTTOM_RESERVE;
     const cx = x + w / 2, cy = y + h / 2;
@@ -99,7 +113,7 @@ export function YouTubePlayerModal({visible, onClose, videoId}: YouTubePlayerMod
   const cornerDock = (isRight: boolean, isBottom: boolean) => {
     const minX = MARGIN;
     const maxX = win.current.width - MARGIN;
-    const minY = win.current.top + APPBAR_CONTENT_BOTTOM + MARGIN;
+    const minY = win.current.top + MARGIN;
     const maxY = win.current.height - win.current.bottom - BOTTOM_RESERVE - MARGIN;
     return {
       x: (isRight ? maxX - NAIL_W / 2 : minX + NAIL_W / 2) - PLAYER_WIDTH / 2,
@@ -129,7 +143,7 @@ export function YouTubePlayerModal({visible, onClose, videoId}: YouTubePlayerMod
 
   // 보이게 될 때(또는 새 영상) 상단 중앙 전체 크기로 초기 배치 + 치수 갱신
   useEffect(() => {
-    win.current = {width, height, top: insets.top, bottom: insets.bottom};
+    win.current = {width, height, top: topGap, bottom: bottomGap};
     if (visible && videoId) {
       minimizedRef.current = false;
       setMinimized(false);
@@ -140,7 +154,7 @@ export function YouTubePlayerModal({visible, onClose, videoId}: YouTubePlayerMod
       pan.setValue(pos);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, videoId, width, height, insets.top, insets.bottom]);
+  }, [visible, videoId, width, height, topGap, bottomGap]);
 
   const panResponder = useRef(
     PanResponder.create({
@@ -162,7 +176,7 @@ export function YouTubePlayerModal({visible, onClose, videoId}: YouTubePlayerMod
         const projY = value.current.y + g.vy * PROJECT;
         const cx = projX + PLAYER_WIDTH / 2;
         const cy = projY + (PLAYER_HEIGHT + HANDLE_H) / 2;
-        const minY = win.current.top + APPBAR_CONTENT_BOTTOM + MARGIN;
+        const minY = win.current.top + MARGIN;
         const maxY = win.current.height - win.current.bottom - BOTTOM_RESERVE - MARGIN;
         const isRight = cx >= win.current.width / 2;
         const isBottom = cy >= (minY + maxY) / 2;
@@ -248,6 +262,11 @@ const styles = StyleSheet.create({
     left: 0,
     overflow: 'visible', // 핸들 바가 영상 위(바깥)에 보이도록
     zIndex: 1000,
+    // Android: expo-router 네이티브 Stack 화면(recipe/[id] 등)은 자체 elevation을
+    // 가진 native view라, elevation 없는 형제 오버레이는 zIndex와 무관하게 그 아래로
+    // 깔린다. PiP가 상세 화면 위에 뜨도록 스택 화면보다 높은 elevation을 준다.
+    // (상세를 닫아야 PiP가 보이던 증상 해결)
+    elevation: 1000,
   },
   videoCard: {
     flex: 1,

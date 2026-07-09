@@ -369,6 +369,7 @@ export function HomeScreen() {
         onDeleteCookbook={handleGroupDeleteCookbook}
         onCookbookPress={handleGroupCookbookPress}
         onMethodPress={handleGroupMethodPress}
+        onMethodGuidePress={() => router.push('/method-guide' as any)}
         isAdmin={isAdmin}
         onRefresh={handleGroupRefresh}
         onRecipePress={handleGroupRecipePress}

@@ -15,7 +15,7 @@ import {Selector} from '@components/Selector';
 import {MenuItem} from '@components/Menu';
 import {TextInput} from '@components/TextInput';
 import {Button} from '@components/Button';
-import {Snackbar} from '@components/Snackbar';
+import {useSnackbar} from '@contexts/SnackbarContext';
 import {BottomSheet} from '@components/BottomSheet';
 import {useExamNotificationPrefs} from '@hooks/useExamNotificationPrefs';
 import {useThemedStyles} from '@hooks/useThemedStyles';
@@ -184,10 +184,8 @@ export function ProfileScreen({
     {id: 'dark' as AppearanceMode, label: t('profile.appearanceDark'), icon: IconMoonFilled, activeIconColor: colors['custom/yellow']},
   ], [colors, t]);
 
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [showSnackbar, setShowSnackbar] = useState(false);
-  const [snackbarAction, setSnackbarAction] = useState<{label: string; onPress: () => void} | undefined>(undefined);
   const {open: openAuthSheet} = useAuthSheet();
+  const {showSnackbar} = useSnackbar();
   const [showHandleSheet, setShowHandleSheet] = useState(false);
   const [handleInput, setHandleInput] = useState('');
   const [showPlanSheet, setShowPlanSheet] = useState(false);
@@ -197,11 +195,20 @@ export function ProfileScreen({
     if (openPlanSheetSignal > 0) setShowPlanSheet(true);
   }, [openPlanSheetSignal]);
 
+  // 사진 클라우드 백업 토글 — 스위치·행 전체 클릭 공용.
+  // 켜기(업로드)는 구독 필요 → 비프로면 PlanSheet, 끄기(로컬)는 자유.
+  const togglePhotoCloudBackup = useCallback((v: boolean) => {
+    if (v && !isPro) {
+      setShowPlanSheet(true);
+      return;
+    }
+    setPhotoCloudBackup(v);
+  }, [isPro, setPhotoCloudBackup]);
+
+  // 전역 스낵바(_layout.tsx에서 단일 렌더)를 사용. 페이지별 로컬 스낵바 중복 제거.
   const showMessage = useCallback((msg: string, action?: {label: string; onPress: () => void}) => {
-    setSnackbarMessage(msg);
-    setSnackbarAction(action);
-    setShowSnackbar(true);
-  }, []);
+    showSnackbar(msg, action ? {action} : undefined);
+  }, [showSnackbar]);
 
   const handleTestPush = useCallback(async () => {
     if (Platform.OS === 'web') {
@@ -435,6 +442,8 @@ export function ProfileScreen({
               <ListItem
                 title={t('settings.language')}
                 leading={{type: 'icon', icon: IconGlobeFilled}}
+                // 액션이 '언어 메뉴 열기' 하나뿐 → 행 전체를 클릭 영역으로.
+                onPress={() => setShowLanguageMenu(true)}
                 trailing={{
                   type: 'custom',
                   element: (
@@ -453,19 +462,14 @@ export function ProfileScreen({
               <ListItem
                 title={photoCloudBackup ? t('profile.photoCloudBackupOn') : t('profile.photoCloudBackupLocal')}
                 leading={{type: 'icon', icon: IconCloudFilled}}
+                // 행 전체 클릭 = 스위치 토글. 스위치와 동일 로직 재사용.
+                onPress={() => togglePhotoCloudBackup(!photoCloudBackup)}
                 trailing={{
                   type: 'custom',
                   element: (
                     <Switch
                       value={photoCloudBackup}
-                      onValueChange={v => {
-                        // 켜기(업로드)는 구독 필요 → 비프로면 PlanSheet, 끄기(로컬)는 자유
-                        if (v && !isPro) {
-                          setShowPlanSheet(true);
-                          return;
-                        }
-                        setPhotoCloudBackup(v);
-                      }}
+                      onValueChange={togglePhotoCloudBackup}
                     />
                   ),
                 }}
@@ -637,15 +641,7 @@ export function ProfileScreen({
         </View>
       </BottomSheet>
 
-      {/* 스낵바 */}
-      <View style={styles.snackbarWrapper}>
-        <Snackbar
-          message={snackbarMessage}
-          visible={showSnackbar}
-          onClose={() => setShowSnackbar(false)}
-          action={snackbarAction}
-        />
-      </View>
+      {/* 스낵바는 전역(_layout.tsx)에서 단일 렌더 — 페이지별 로컬 스낵바 제거됨 */}
     </View>
   );
 }
@@ -833,13 +829,5 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     lineHeight: Typography.body.small.lineHeight,
     letterSpacing: Typography.body.small.letterSpacing,
     color: colors['foreground/on-surface'],
-  },
-  snackbarWrapper: {
-    position: 'absolute',
-    bottom: 100,
-    left: 0,
-    right: 0,
-    alignItems: 'center',
-    zIndex: 10,
   },
 });

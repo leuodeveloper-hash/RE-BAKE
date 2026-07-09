@@ -1,5 +1,5 @@
 import React from 'react';
-import {Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
+import {Platform, Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {Radius} from '@constants/tokens';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
@@ -125,8 +125,11 @@ export function ListItem({
   const wrapperProps = isClickable
     ? {
         onPress: () => { triggerHaptic('light'); onPress!(); },
+        // 웹: 클릭 가능한 행 전체에 손가락 커서. 함수형 style에선 RN Web 자동 커서가
+        // 안 붙는 경우가 있어 명시적으로 지정.
         style: ({pressed}: {pressed: boolean}) => [
           styles.stateLayer,
+          Platform.OS === 'web' && ({cursor: 'pointer'} as any),
           multiline && styles.stateLayerTop,
           pressed && styles.stateLayerPressed,
           disabled && styles.disabled,

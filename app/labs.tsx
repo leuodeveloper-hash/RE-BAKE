@@ -1,4 +1,4 @@
-import React, {useCallback, useState} from 'react';
+import React, {useCallback} from 'react';
 import {Platform, ScrollView, StyleSheet, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useRouter} from 'expo-router';
@@ -6,9 +6,9 @@ import {FloatingNavBar, NavPillButton} from '@components/Navigation';
 import {ContentContainer, Card} from '@components/Container';
 import {ListItem} from '@components/ListItem';
 import {SectionHeader} from '@components/SectionHeader';
-import {Snackbar} from '@components/Snackbar';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useAuth} from '@contexts/AuthContext';
+import {useSnackbar} from '@contexts/SnackbarContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
@@ -19,14 +19,12 @@ export default function LabsRoute() {
   const router = useRouter();
   const {isAdmin} = useAuth();
   const {t} = useTranslation();
+  const {showSnackbar} = useSnackbar();
 
-  const [snackbarMessage, setSnackbarMessage] = useState('');
-  const [showSnackbar, setShowSnackbar] = useState(false);
-
+  // 전역 스낵바(_layout.tsx 단일 렌더) 사용 — 로컬 스낵바 중복 제거
   const showMessage = useCallback((msg: string) => {
-    setSnackbarMessage(msg);
-    setShowSnackbar(true);
-  }, []);
+    showSnackbar(msg);
+  }, [showSnackbar]);
 
   const handleTestPush = useCallback(async () => {
     if (Platform.OS === 'web') {
@@ -158,13 +156,7 @@ export default function LabsRoute() {
         left={<NavPillButton icon={IconArrowLeft} onPress={() => router.back()} />}
       />
 
-      <View style={styles.snackbarWrapper} pointerEvents="box-none">
-        <Snackbar
-          message={snackbarMessage}
-          visible={showSnackbar}
-          onClose={() => setShowSnackbar(false)}
-        />
-      </View>
+      {/* 스낵바는 전역(_layout.tsx)에서 단일 렌더 */}
     </View>
   );
 }
@@ -183,12 +175,5 @@ const createStyles = (colors: SemanticColors) =>
     },
     scrollContent: {
       paddingBottom: 80,
-    },
-    snackbarWrapper: {
-      position: 'absolute',
-      bottom: 40,
-      left: 0,
-      right: 0,
-      alignItems: 'center',
     },
   });

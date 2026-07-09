@@ -47,6 +47,8 @@ export interface GroupScreenProps {
   onCookbookPress?: (cookbookName: string) => void;
   /** 공법 행 탭 시 (홈을 해당 공법으로 필터) */
   onMethodPress?: (method: string) => void;
+  /** 공법 축 AppBar ⓘ 탭 시 (공법 설명 페이지 이동) */
+  onMethodGuidePress?: () => void;
   /** 둘러보기 레시피 (어드민 전용) */
   exploreRecipes?: Recipe[];
   /** 둘러보기 레시피 북 목록 (Firestore explore_cookbooks) */
@@ -74,7 +76,8 @@ export interface GroupScreenProps {
   /** 주 레시피 북 목록이 공식(explore) 북인지 (둘러보기 전용). true면 편집/삭제는 어드민만 + explore 경로로 처리 */
   cookbooksAreOfficial?: boolean;
   /** PDF 다운로드(현재 리스트 익스포트) 콜백. 주어지면 오버플로우 메뉴에 'PDF 다운로드' 노출 (둘러보기 전용) */
-  onDownloadPdf?: () => void;
+  /** PDF 다운로드. cookbook 인자가 있으면 해당 북만, 없으면 전체(현재 리스트) 출력 */
+  onDownloadPdf?: (cookbook?: string) => void;
   /** 팩뷰 확대 오버레이 헤더의 +추가 — 해당 레시피 북으로 레시피 추가 (리스트뷰 앱바와 공통) */
   onAddRecipeToCookbook?: (cookbook: string) => void;
 }
@@ -82,7 +85,7 @@ export interface GroupScreenProps {
 const VIEW_MODE_STORAGE_KEY = '@bakle_group_view_mode';
 type ViewMode = 'list' | 'pack';
 
-export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComingSoon, onDeleteCookbook, onCookbookPress, onMethodPress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress, availableAxes = DEFAULT_AXES, axisOverrides, showAddButton = true, bookCarousel = false, addAsOfficial = false, cookbooksAreOfficial = false, onDownloadPdf, onAddRecipeToCookbook}: GroupScreenProps) {
+export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComingSoon, onDeleteCookbook, onCookbookPress, onMethodPress, onMethodGuidePress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress, availableAxes = DEFAULT_AXES, axisOverrides, showAddButton = true, bookCarousel = false, addAsOfficial = false, cookbooksAreOfficial = false, onDownloadPdf, onAddRecipeToCookbook}: GroupScreenProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const colors = useColors();
@@ -496,6 +499,8 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
         titleIconColor={groupFilterMenuItems.find(i => i.id === axis)?.iconColor}
         showDropdown
         showAddButton={showAddButton}
+        showInfoButton={axis === 'method'}
+        onInfoPress={onMethodGuidePress}
         onTitlePress={handleTitlePress}
         onAddPress={() => { setCookbookEditTarget(null); setCookbookInitialOfficial(addAsOfficial); setShowCookbookDialog(true); }}
         onFilterPress={() => { setShowMoreMenu(false); setShowLayoutMenu(prev => !prev); }}
@@ -786,7 +791,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
           onAddRecipe={axis === 'cookbook' ? onAddRecipeToCookbook : undefined}
           onEditCookbook={axis === 'cookbook' ? editCookbookFromOverlay : undefined}
           onDeleteCookbook={axis === 'cookbook' ? deleteCookbookFromOverlay : undefined}
-          onDownloadPdf={onDownloadPdf}
+          onDownloadPdf={axis === 'cookbook' ? onDownloadPdf : undefined}
         />
       )}
 

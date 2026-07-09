@@ -1,4 +1,5 @@
 import React, {useCallback, useMemo, useState} from 'react';
+import {useRouter} from 'expo-router';
 import {AppBar} from '@components/Navigation';
 import {Breadcrumb} from '@components/Navigation/Breadcrumb';
 import {EmptyState} from '@components/EmptyState';
@@ -80,6 +81,7 @@ export function ExploreScreen({
 }: ExploreScreenProps) {
   const colors = useColors();
   const {t} = useTranslation();
+  const router = useRouter();
   const EXPLORE_AXIS_OVERRIDES = useMemo(() => makeExploreAxisOverrides(t), [t]);
   const {selectedExploreCookbook, setSelectedExploreCookbook} = useRecipes();
   // 홈과 동일한 그룹화 축 (전체/레시피북/공법). 'all'=평면 리스트, 그 외=GroupScreen.
@@ -237,6 +239,7 @@ export function ExploreScreen({
         onComingSoon={onComingSoon}
         onCookbookPress={(n) => { setSelectedMethod(null); setSelectedCategory(n); setExploreAxis('all'); }}
         onMethodPress={(m) => { setSelectedCategory('__all__'); setSelectedMethod(m); setExploreAxis('all'); }}
+        onMethodGuidePress={() => router.push('/method-guide' as any)}
         onRecipePress={handleGroupRecipePress}
         onRefresh={onRefresh}
         isAdmin={!!onAddRecipe}

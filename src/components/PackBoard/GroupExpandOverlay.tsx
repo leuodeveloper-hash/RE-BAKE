@@ -1,10 +1,10 @@
 import React, {useEffect, useRef, useState} from 'react';
 import {Animated, Dimensions, Easing, StyleSheet, View} from 'react-native';
-import {FloatingNavBar, NAV_PILL_HEIGHT, navPillStyle} from '@components/Navigation';
+import {FloatingNavBar, navPillStyle} from '@components/Navigation';
 import {Breadcrumb} from '@components/Navigation/Breadcrumb';
 import {GlassContainer, MAX_CONTENT_WIDTH} from '@components/Container';
 import {IconButton} from '@components/IconButton';
-import {IconAdd, IconEllipsisVertical} from '@components/Icon/IconIndex';
+import {IconAdd, IconEllipsisVertical, IconEdit, IconTrash, IconArrowDownToLine} from '@components/Icon/IconIndex';
 import {Menu} from '@components/Menu';
 import {EmptyState} from '@components/EmptyState';
 import {useThemedStyles} from '@hooks/useThemedStyles';
@@ -47,7 +47,8 @@ export interface GroupExpandOverlayProps {
   /** 레시피 북 삭제 */
   onDeleteCookbook?: (name: string, isExplore: boolean) => void;
   /** PDF 다운로드 */
-  onDownloadPdf?: () => void;
+  /** PDF 다운로드 — 현재 펼친 북 이름을 넘겨 그 북 레시피만 출력 */
+  onDownloadPdf?: (cookbook: string) => void;
 }
 
 export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, origin, onClose, onRecipePress, isAdmin, isExploreName, onAddRecipe, onEditCookbook, onDeleteCookbook, onDownloadPdf}: GroupExpandOverlayProps) {
@@ -73,10 +74,11 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
   // 리스트뷰 앱바와 동일한 더보기 액션: 레시피 북 편집/삭제(+공식은 어드민 전용) · PDF 다운로드
   const activeIsExplore = isExploreName?.(active) ?? false;
   const canEditDelete = !activeIsExplore || !!isAdmin; // 일반 북은 모두, 공식 북은 어드민만
+  // 리스트뷰 케밥 메뉴(GroupScreen)와 동일하게 아이콘 + 짧은 레이블로 통일.
   const moreItems = [
-    ...(canEditDelete && onEditCookbook ? [{id: 'edit', label: t('groupExpandOverlay.editCookbook')}] : []),
-    ...(canEditDelete && onDeleteCookbook ? [{id: 'delete', label: t('groupExpandOverlay.deleteCookbook')}] : []),
-    ...(onDownloadPdf ? [{id: 'pdf', label: t('groupExpandOverlay.downloadPdf')}] : []),
+    ...(canEditDelete && onEditCookbook ? [{id: 'edit', label: t('groupExpandOverlay.editCookbook'), icon: IconEdit}] : []),
+    ...(canEditDelete && onDeleteCookbook ? [{id: 'delete', label: t('groupExpandOverlay.deleteCookbook'), icon: IconTrash}] : []),
+    ...(onDownloadPdf ? [{id: 'pdf', label: t('groupExpandOverlay.downloadPdf'), icon: IconArrowDownToLine}] : []),
   ];
   const hasRight = !!onAddRecipe || moreItems.length > 0;
 
@@ -219,7 +221,7 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
                 setShowMoreMenu(false);
                 if (id === 'edit') onEditCookbook?.(active, activeIsExplore);
                 else if (id === 'delete') onDeleteCookbook?.(active, activeIsExplore);
-                else if (id === 'pdf') onDownloadPdf?.();
+                else if (id === 'pdf') onDownloadPdf?.(active);
               }}
               style={styles.moreMenu}
             />
@@ -267,15 +269,15 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
+  // FloatingNavBar의 left/rightMenuContainer가 이미 pill 아래(top: NAV_PILL_HEIGHT+xs)로
+  // 배치하므로, 여기서 top을 또 주면 이중 오프셋으로 메뉴가 두 배 내려간다. top은 컨테이너에 위임.
   methodMenu: {
     position: 'absolute',
-    top: NAV_PILL_HEIGHT + Spacing.xs,
     left: 0,
     zIndex: 20,
   },
   moreMenu: {
     position: 'absolute',
-    top: NAV_PILL_HEIGHT + Spacing.xs,
     right: 0,
     zIndex: 20,
   },

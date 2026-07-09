@@ -118,12 +118,16 @@ export default function ExploreRoute() {
   }, [showSnackbar, exploreReload, t]);
 
   // 둘러보기 리스트 PDF 익스포트 (기존 리스트 HTML + PdfPreviewDialog 재사용)
-  const runListPdf = useCallback(() => {
-    if (exploreRecipes.length === 0) {
+  // cookbook이 주어지면(북 펼침 오버레이의 ⋮) 그 북 레시피만, 없으면 전체.
+  const runListPdf = useCallback((cookbook?: string) => {
+    const source = cookbook
+      ? exploreRecipes.filter(r => r.cookbook === cookbook)
+      : exploreRecipes;
+    if (source.length === 0) {
       showSnackbar(t('explore.noRecipesToExport'));
       return;
     }
-    const pdfData = exploreRecipes.map(r => ({
+    const pdfData = source.map(r => ({
       title: r.title,
       cookbook: r.cookbook,
       method: r.method,
@@ -140,13 +144,14 @@ export default function ExploreRoute() {
     setShowPdfPreview(true);
   }, [exploreRecipes, showSnackbar, t]);
 
-  // 게스트면 로그인 유도 → 성공 시 PDF, 로그인 상태면 바로 PDF
-  const handleDownloadPdf = useCallback(() => {
+  // 게스트면 로그인 유도 → 성공 시 PDF, 로그인 상태면 바로 PDF.
+  // cookbook 인자가 있으면 해당 북만 출력.
+  const handleDownloadPdf = useCallback((cookbook?: string) => {
     if (!user) {
-      openAuthSheet({onSuccess: () => setTimeout(runListPdf, 300)});
+      openAuthSheet({onSuccess: () => setTimeout(() => runListPdf(cookbook), 300)});
       return;
     }
-    runListPdf();
+    runListPdf(cookbook);
   }, [user, openAuthSheet, runListPdf]);
 
   return (

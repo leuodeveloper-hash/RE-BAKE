@@ -424,6 +424,8 @@ export interface RecipeCardProps {
   leadingNumber?: number;
   /** list 레이아웃 커스텀 서브타이틀 (제공 시 cookbook·method 대신 표시) */
   customSubtitle?: string;
+  /** customSubtitle 최대 줄 수 (기본: 1). 설명형이면 2 등으로 늘려 두 줄 표시 */
+  subtitleNumberOfLines?: number;
   /** 커스텀 서브타이틀 아이콘 */
   subtitleIcon?: React.FC<SvgProps>;
   /** grid 레이아웃 이미지 없을 때 종이에 표시할 미리보기 텍스트 라인 (재료 등) */
@@ -464,6 +466,7 @@ export function RecipeCard({
   size = 'default',
   leadingNumber,
   customSubtitle,
+  subtitleNumberOfLines = 1,
   subtitleIcon: SubtitleIcon,
   paperPreview,
   paperTitle,
@@ -571,7 +574,7 @@ export function RecipeCard({
                 {SubtitleIcon && (
                   <SubtitleIcon width={12} height={12} color={colors['foreground/on-surface-muted']} />
                 )}
-                <Text style={styles.listSubtitle} numberOfLines={1}>
+                <Text style={styles.listSubtitle} numberOfLines={subtitleNumberOfLines}>
                   {customSubtitle}
                 </Text>
               </View>
