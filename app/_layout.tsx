@@ -28,6 +28,7 @@ import {YouTubePlayerProvider, useYouTubePlayer} from '@contexts/YouTubePlayerCo
 import {YouTubePlayerModal} from '@components/YouTubePlayer';
 import {SearchCommandBar} from '@components/SearchCommandBar/SearchCommandBar';
 import {parseSession} from '@utils/session';
+import {syncTodayRecipeToWidget} from '@utils/widgetSync';
 import type {Recipe} from '../src/types/recipe';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import type {SemanticColors} from '@constants/tokens';
@@ -227,8 +228,15 @@ function NavigationContent() {
   const {snackbar, clearSnackbar, showSnackbar} = useSnackbar();
   const {user, isAdmin, avatarSeed} = useAuth();
   const {recipes, setRecipes, lastSyncedAt, setCookbookColor, renameCookbookColor, migrationCount, confirmMigration, dismissMigration} = useRecipes();
-  const {reload: exploreReload, exploreCookbooks} = useExploreRecipeContext();
+  const {reload: exploreReload, exploreCookbooks, recipes: exploreRecipesAll} = useExploreRecipeContext();
   const [migrating, setMigrating] = useState(false);
+
+  // 오늘의 레시피를 iOS 위젯에 동기화(iOS 전용, 그 외 no-op).
+  // exploreRecipesAll은 이미 권한 반영됨(어드민이면 hidden 포함).
+  useEffect(() => {
+    if (exploreRecipesAll.length === 0) return;
+    syncTodayRecipeToWidget(exploreRecipesAll).catch(() => {/* 무시 */});
+  }, [exploreRecipesAll]);
 
   // 기존 데이터 마이그레이션(어드민 1회): explore_recipes 레거시 category → cookbook 필드 정리.
   useEffect(() => {
@@ -400,13 +408,15 @@ function NavigationContent() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="labs" />
         <Stack.Screen name="recipe/[id]" />
+        <Stack.Screen name="u/[authorId]" options={{animation: 'slide_from_right'}} />
+        <Stack.Screen name="admin/submissions" options={{animation: 'slide_from_right'}} />
         <Stack.Screen
           name="recipe/edit"
-          options={{animation: 'slide_from_bottom', presentation: 'fullScreenModal'}}
+          options={{animation: 'slide_from_bottom', presentation: 'card'}}
         />
         <Stack.Screen
           name="recipe/edit/[id]"
-          options={{animation: 'slide_from_bottom', presentation: 'fullScreenModal'}}
+          options={{animation: 'slide_from_bottom', presentation: 'card'}}
         />
       </Stack>
 
@@ -569,10 +579,12 @@ function GlobalSearchSheet() {
 
 // 모든 화면(상세/편집 포함) 위에 떠 있는 단일 YouTube PiP
 function GlobalYouTubePlayer() {
-  const {videoId, close, hostInModal} = useYouTubePlayer();
-  // hostInModal이면 요리모드 등 네이티브 Modal이 자기 안에서 같은 PiP를 렌더하므로
-  // 앱 루트 PiP는 숨긴다(중복 재생·가려짐 방지).
-  return <YouTubePlayerModal visible={videoId !== null && !hostInModal} onClose={close} videoId={videoId} />;
+  const {videoId, close} = useYouTubePlayer();
+  // 단일 전역 PiP — 상세/요리모드 등 모든 화면 위에 뜨는 하나의 인스턴스(이어재생).
+  // useNativeModal 제거: iOS Modal은 투명·box-none이어도 화면 전체 터치를 가로채,
+  // 영상이 손톱으로 줄어도 뒤 화면(상세/편집) 버튼이 안 눌렸다. 절대위치 오버레이로 띄워 뒤 터치 통과.
+  // 요리모드도 hostAsView(네이티브 Modal 아닌 일반 View)라 이 루트 PiP가 그 위에 그대로 뜬다.
+  return <YouTubePlayerModal visible={videoId !== null} onClose={close} videoId={videoId} />;
 }
 
 export default function RootLayout() {

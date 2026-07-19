@@ -16,7 +16,7 @@ export default function ProfileRoute() {
   const [planSheetTrigger, setPlanSheetTrigger] = useState(0);
   const {recipes, exportRecipes, importRecipes, lastSyncedAt, lastSyncedDevice} = useRecipes();
   const {showSnackbar} = useSnackbar();
-  const {user, handle, signOut, updateHandle, avatarSeed, isAdmin} = useAuth();
+  const {user, handle, displayName, signOut, updateHandle, updateDisplayName, avatarSeed, isAdmin} = useAuth();
   const {isPro} = useSubscription();
   const {t} = useTranslation();
 
@@ -60,10 +60,14 @@ export default function ProfileRoute() {
         onImport={importRecipes}
         onLogout={handleLogout}
         onUpdateHandle={updateHandle}
+        displayName={displayName}
+        onUpdateDisplayName={updateDisplayName}
         onTermsPress={() => router.push('/terms')}
         onPrivacyPress={() => router.push('/privacy')}
         onLabsPress={() => router.push('/labs' as any)}
+        onSubmissionsPress={() => router.push('/admin/submissions' as any)}
         onExamNotifPress={() => router.push('/exam-notifications' as any)}
+        onWidgetGuidePress={() => router.push('/widget-guide' as any)}
         isPro={isPro}
         isAdmin={isAdmin}
         avatarSeed={avatarSeed}

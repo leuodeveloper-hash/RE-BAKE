@@ -20,6 +20,9 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.bakle.app",
       "googleServicesFile": "./GoogleService-Info.plist",
+      "entitlements": {
+        "com.apple.security.application-groups": ["group.com.bakle.app"]
+      },
       "infoPlist": {
         "CFBundleDisplayName": "Bakle",
         "ITSAppUsesNonExemptEncryption": false,
@@ -103,7 +106,13 @@
           }
         }
       ],
-      "expo-localization"
+      "expo-localization",
+      [
+        "@bacons/apple-targets",
+        {
+          "appleTeamId": "LAQFXSQ5VJ"
+        }
+      ]
     ],
     "owner": "leuokim"
   }

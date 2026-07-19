@@ -31,9 +31,11 @@ import {
   IconImport,
   IconExport,
   IconChevronRight,
+  IconExprolerBookFilled,
   IconPaletteFilled,
   IconLogout,
   IconBellFilled,
+  IconHomeFilled,
   IconSunDimFilled,
   IconCircleHalf,
   IconMoonFilled,
@@ -60,12 +62,19 @@ export interface ProfileScreenProps {
   onImport: (onConfirmOverwrite?: (count: number) => Promise<boolean>) => Promise<boolean>;
   onLogout: () => void;
   onUpdateHandle: (newHandle: string) => Promise<void>;
+  /** 표시 이름 (없으면 handle 표시) */
+  displayName?: string | null;
+  onUpdateDisplayName?: (newDisplayName: string) => Promise<void>;
   onTermsPress: () => void;
   onPrivacyPress: () => void;
   /** Labs(디버그) 화면 진입 */
   onLabsPress?: () => void;
+  /** 둘러보기 신청 검토 화면 진입 (어드민) */
+  onSubmissionsPress?: () => void;
   /** 시험 일정 알림 설정 화면 진입 */
   onExamNotifPress?: () => void;
+  /** 홈 화면 위젯 안내 화면 진입 */
+  onWidgetGuidePress?: () => void;
   /** Pro 구독 여부 */
   isPro?: boolean;
   /** 어드민 여부 (디버그 도구 노출) */
@@ -144,10 +153,14 @@ export function ProfileScreen({
   onImport,
   onLogout,
   onUpdateHandle,
+  displayName,
+  onUpdateDisplayName,
   onTermsPress,
   onPrivacyPress,
   onLabsPress,
+  onSubmissionsPress,
   onExamNotifPress,
+  onWidgetGuidePress,
   isPro = false,
   isAdmin = false,
   avatarSeed,
@@ -188,6 +201,8 @@ export function ProfileScreen({
   const {showSnackbar} = useSnackbar();
   const [showHandleSheet, setShowHandleSheet] = useState(false);
   const [handleInput, setHandleInput] = useState('');
+  const [showDisplayNameSheet, setShowDisplayNameSheet] = useState(false);
+  const [displayNameInput, setDisplayNameInput] = useState('');
   const [showPlanSheet, setShowPlanSheet] = useState(false);
   const {photoCloudBackup, setPhotoCloudBackup} = useSubscription();
 
@@ -306,6 +321,22 @@ export function ProfileScreen({
     }
   }, [handleInput, onUpdateHandle, showMessage, t]);
 
+  const openDisplayNameEdit = useCallback(() => {
+    setDisplayNameInput(displayName ?? '');
+    setShowDisplayNameSheet(true);
+  }, [displayName]);
+
+  const handleSaveDisplayName = useCallback(async () => {
+    const cleaned = displayNameInput.trim();
+    try {
+      await onUpdateDisplayName?.(cleaned);
+      setShowDisplayNameSheet(false);
+      showMessage(t('profile.displayNameChanged'));
+    } catch {
+      showMessage(t('profile.displayNameChangeFailed'));
+    }
+  }, [displayNameInput, onUpdateDisplayName, showMessage, t]);
+
   const handleExport = useCallback(async () => {
     try {
       await onExport();
@@ -355,8 +386,11 @@ export function ProfileScreen({
             <Avatar type="random" size="xlarge" shape="circle" seed={avatarSeed ?? 0} />
             {userEmail ? (
               <>
+                <Pressable onPress={openDisplayNameEdit}>
+                  <Text style={styles.profileName}>{displayName || handle || 'handle'}</Text>
+                </Pressable>
                 <Pressable onPress={handleOpenHandleEdit}>
-                  <Text style={styles.profileName}>@{handle || 'handle'}</Text>
+                  <Text style={styles.profileHandle}>@{handle || 'handle'}</Text>
                 </Pressable>
                 <Text style={styles.profileSub}>{t('profile.profileSub', {recipeCount, reviewCount})}</Text>
               </>
@@ -502,11 +536,41 @@ export function ProfileScreen({
                     </View>
                   ),
                 }}
-                showDivider={false}
+                showDivider
                 onPress={() => onExamNotifPress?.()}
+              />
+              <ListItem
+                title={t('profile.widgetGuide')}
+                leading={{type: 'icon', icon: IconHomeFilled}}
+                trailing={{type: 'icon', icon: IconChevronRight}}
+                showDivider={false}
+                onPress={() => onWidgetGuidePress?.()}
               />
             </Card>
           </ContentContainer>
+
+          {/* 어드민 전용 도구 */}
+          {isAdmin && (
+            <ContentContainer style={styles.section}>
+              <SectionHeader title={t('profile.adminTools')} />
+              <Card>
+                <ListItem
+                  title={t('profile.reviewSubmissions')}
+                  leading={{type: 'icon', icon: IconExprolerBookFilled}}
+                  trailing={{type: 'icon', icon: IconChevronRight}}
+                  onPress={() => onSubmissionsPress?.()}
+                  showDivider
+                />
+                <ListItem
+                  title={t('profile.labs')}
+                  leading={{type: 'icon', icon: IconBellFilled}}
+                  trailing={{type: 'icon', icon: IconChevronRight}}
+                  onPress={() => onLabsPress?.()}
+                  showDivider={false}
+                />
+              </Card>
+            </ContentContainer>
+          )}
 
           {/* 로그아웃 (로그인 시만) */}
           {userEmail && (
@@ -555,6 +619,25 @@ export function ProfileScreen({
           <Button
             label={t('profile.save')}
             onPress={handleSaveHandle}
+          />
+        </View>
+      </BottomSheet>
+
+      {/* 표시 이름 수정 바텀시트 */}
+      <BottomSheet
+        visible={showDisplayNameSheet}
+        onClose={() => setShowDisplayNameSheet(false)}
+        title={t('profile.editDisplayName')}
+      >
+        <View style={styles.authForm}>
+          <TextInput
+            placeholder={t('profile.displayNamePlaceholder')}
+            value={displayNameInput}
+            onChangeText={setDisplayNameInput}
+          />
+          <Button
+            label={t('profile.save')}
+            onPress={handleSaveDisplayName}
           />
         </View>
       </BottomSheet>
@@ -672,6 +755,12 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     lineHeight: Typography.title.large.lineHeight,
     color: colors['foreground/on-surface'],
     marginTop: Spacing.md,
+  },
+  profileHandle: {
+    fontFamily: Typography.body.medium.fontFamily,
+    fontSize: Typography.body.medium.fontSize,
+    color: colors['foreground/on-surface-muted'],
+    marginTop: 2,
   },
   profileSub: {
     fontFamily: Typography.body.medium.fontFamily,
