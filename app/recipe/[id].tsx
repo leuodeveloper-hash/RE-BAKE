@@ -1,6 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {Platform, View, StyleSheet} from 'react-native';
 import {useLocalSearchParams, useRouter} from 'expo-router';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {doc, updateDoc, setDoc, deleteField} from 'firebase/firestore';
 import {RecipeDetailScreen} from '@screens/RecipeDetailScreen';
 import {useRecipes} from '@contexts/RecipeContext';
@@ -52,6 +53,26 @@ export default function RecipeDetailRoute() {
   useEffect(() => { if (routeId) setId(routeId); }, [routeId]);
 
   const recipe = findRecipeById(id) ?? exploreRecipes.find(r => r.id === id);
+
+  // 마지막으로 본 레시피 저장 → 앱 재시작 시 이 화면으로 복귀 (_layout에서 사용).
+  // 실제 존재하는 레시피일 때만 저장(유효하지 않으면 저장 안 해 복귀 시 홈 유지).
+  useEffect(() => {
+    if (id && recipe) AsyncStorage.setItem('last_viewed_recipe_id', id);
+  }, [id, recipe]);
+
+  // 삭제/무효한 레시피로 진입(예: 복귀 대상이 사라짐)하면 잠깐 로드를 기다렸다가
+  // 그래도 없으면 홈으로. (recipe undefined 상태로 렌더하면 크래시 방지)
+  useEffect(() => {
+    if (recipe || !id) return;
+    const timer = setTimeout(() => {
+      if (!findRecipeById(id) && !exploreRecipes.find(r => r.id === id)) {
+        AsyncStorage.removeItem('last_viewed_recipe_id');
+        router.replace('/');
+      }
+    }, 1500);
+    return () => clearTimeout(timer);
+  }, [recipe, id, findRecipeById, exploreRecipes, router]);
+
   const isMyRecipe = recipes.some(r => r.id === id);
   const isExploreRecipe = !isMyRecipe && exploreRecipes.some(r => r.id === id);
   const alreadyImported = recipes.some(r => r.sourceId === id);
@@ -459,6 +480,11 @@ const handleDelete = useCallback(async () => {
   // 복사본(원본 그대로)은 편집 불가 — 회차를 만들어야 내 것이 되어 편집 가능. 삭제는 내 목록이므로 가능.
   const canEdit = (isMyRecipe && !isCopiedFromOthers) || (isExploreRecipe && isAdmin);
   const canDelete = isMyRecipe || (isExploreRecipe && isAdmin);
+
+  // 레시피 로딩 중/무효 — 빈 배경만(위 effect가 무효면 홈으로 보냄). recipe.xxx 크래시 방지.
+  if (!recipe) {
+    return <View style={[styles.container, {backgroundColor: colors['surface/normal']}]} />;
+  }
 
   return (
     <View style={[styles.container, {backgroundColor: colors['surface/normal']}]}>

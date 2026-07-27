@@ -7,6 +7,8 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {GestureHandlerRootView} from 'react-native-gesture-handler';
 import {useFonts} from 'expo-font';
 import * as SplashScreen from 'expo-splash-screen';
+import * as Linking from 'expo-linking';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as Notifications from 'expo-notifications';
 import {BlurView} from 'expo-blur';
 import {ThemeProvider, useTheme, useColors} from '@contexts/ThemeContext';
@@ -624,6 +626,24 @@ export default function RootLayout() {
       SplashScreen.hideAsync();
     }
   }, [fontsLoaded]);
+
+  // 앱 재시작 시 마지막으로 본 레시피로 복귀 (한 번만).
+  // 단, 위젯/딥링크(bakle://…)로 열렸으면 그 URL이 우선 → 복귀 스킵.
+  // 저장된 id가 없거나(=레시피 화면을 안 봤음) 무효하면 홈 유지(recipe/[id]가 없는 레시피는 저장 안 함).
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current) return;
+    if (!fontsLoaded || !keysMigrated) return;
+    restoredRef.current = true;
+    (async () => {
+      try {
+        const initialUrl = await Linking.getInitialURL();
+        if (initialUrl && initialUrl.includes('/recipe/')) return; // 딥링크로 이미 레시피로 감
+        const lastId = await AsyncStorage.getItem('last_viewed_recipe_id');
+        if (lastId) router.push(`/recipe/${lastId}` as any);
+      } catch { /* 무시 — 홈 유지 */ }
+    })();
+  }, [fontsLoaded, keysMigrated, router]);
 
   // Android 8+ 알림 채널 등록 (없으면 알림이 묵음/미표시될 수 있음)
   useEffect(() => {
