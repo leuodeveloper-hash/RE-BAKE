@@ -53,6 +53,9 @@ export default function ExploreRoute() {
       ...recipe,
       id: `user_${Date.now()}`,
       sourceId: recipe.id,
+      // 둘러보기 원본 출처 박제 — 복사/회차로 내 것이 돼도 "원본: @작성자" 표시 유지
+      sourceHandle: recipe.authorHandle,
+      sourceAuthorId: recipe.authorId,
       createdAt: new Date().toISOString(),
     };
     setRecipes(prev => [...prev, copied]);

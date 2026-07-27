@@ -5,6 +5,7 @@ import {
   Image,
   NativeScrollEvent,
   NativeSyntheticEvent,
+  PanResponder,
   Platform,
   Pressable,
   ScrollView,
@@ -34,6 +35,8 @@ import {CookingMode} from '@components/CookingMode';
 import {ReviewLogSheet} from '@components/BottomSheet';
 import {Thumbnail} from '@components/Thumbnail';
 import {StepPhotos} from '@components/StepPhotos';
+import {normalizeStepPhotos} from '@utils/stepPhotos';
+import type {StepPhoto} from '../types/recipe';
 import {EmptyState} from '@components/EmptyState';
 import {SearchCommandBar} from '@components/SearchCommandBar';
 import {useYouTubePlayer} from '@contexts/YouTubePlayerContext';
@@ -64,6 +67,7 @@ import {
   IconEditFilled,
   IconNoteFilled,
   IconArrowTopRight,
+  IconImport,
   IconToolCaseFilled,
   IconSearch,
   IconSparkle,
@@ -104,7 +108,7 @@ interface ProcessStep {
   description: string;
   tip?: string;
   caution?: string;
-  photos?: string[];
+  photos?: (string | StepPhoto)[];
   ingredients?: {name: string; amount: string}[];
 }
 
@@ -177,12 +181,28 @@ export interface RecipeDetailScreenProps {
   onRecipeSelect?: (id: string) => void;
   /** 내 레시피를 둘러보기에 복사 (어드민 전용) */
   onCopyToExplore?: () => void;
+  /** 유저: 둘러보기에 공개 신청 (어드민 승인 필요) */
+  onSubmitToExplore?: () => void;
   /** 삭제 전 확인 다이얼로그 표시 (둘러보기 레시피) */
   showDeleteConfirm?: boolean;
   /** 참고 링크 URL */
   referenceUrl?: string;
+  /** 원본 출처 URL — 외부 사이트(만개의레시피 등)에서 가져온 경우 */
+  sourceUrl?: string;
+  /** 둘러보기에서 복사한 경우 원본 작성자 핸들 (from @핸들 표시) */
+  sourceHandle?: string;
+  /** 원본 작성자 홈으로 이동 */
+  onSourcePress?: () => void;
   /** 공유 버튼 (잠금 해제된 콘텐츠에서만 표시) */
   onShare?: () => void;
+  /** 작성자 닉네임 스냅샷 (공유/둘러보기 레시피에 표시) */
+  authorHandle?: string;
+  /** 작성자 아바타 시드 스냅샷 */
+  authorAvatarSeed?: string;
+  /** 작성자 id — 공식(bakey)이면 심볼 로고 아바타 */
+  authorId?: string;
+  /** 작성자 칩 탭 → 작성자 홈으로 */
+  onAuthorPress?: () => void;
 }
 
 // 베이커스 퍼센티지 자동계산
@@ -277,6 +297,8 @@ const makeSectionTabs = (t: (key: string) => string) => [
   {id: 'review', label: t('recipeDetail.tabReview')},
 ];
 
+/** 히어로 이미지 최대폭 — 이보다 화면이 넓으면 이미지 좌우에 빈 배경이 생겨 페이드 노출 */
+const HERO_MAX_WIDTH = 1000;
 
 export function RecipeDetailScreen({
   id,
@@ -323,9 +345,15 @@ export function RecipeDetailScreen({
   currentRecipeId,
   onRecipeSelect,
   onCopyToExplore,
+  onSubmitToExplore,
   showDeleteConfirm = false,
   referenceUrl,
+  sourceUrl,
+  sourceHandle,
+  onSourcePress,
   onShare,
+  authorHandle,
+  onAuthorPress,
 }: RecipeDetailScreenProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
@@ -415,6 +443,38 @@ export function RecipeDetailScreen({
     setShowReviewSheet(true);
   }, []);
 
+  // ---- 상단 이미지 좌우 스와이프 → 이웃 레시피로 이동 ----
+  // recipeItems(현재 목록) 순서에서 현재 위치 기준 이전/다음 id를 계산.
+  const {prevRecipeId, nextRecipeId} = useMemo(() => {
+    if (!recipeItems || recipeItems.length < 2 || !currentRecipeId) {
+      return {prevRecipeId: undefined, nextRecipeId: undefined};
+    }
+    const idx = recipeItems.findIndex(r => r.id === currentRecipeId);
+    if (idx === -1) return {prevRecipeId: undefined, nextRecipeId: undefined};
+    return {
+      prevRecipeId: idx > 0 ? recipeItems[idx - 1].id : undefined,
+      nextRecipeId: idx < recipeItems.length - 1 ? recipeItems[idx + 1].id : undefined,
+    };
+  }, [recipeItems, currentRecipeId]);
+
+  // 최신 값 참조용 ref(PanResponder는 한 번만 생성되므로 클로저 고정 방지)
+  const swipeRef = useRef({prevRecipeId, nextRecipeId, onRecipeSelect, locked});
+  swipeRef.current = {prevRecipeId, nextRecipeId, onRecipeSelect, locked};
+
+  const heroPanResponder = useRef(
+    PanResponder.create({
+      // 가로 이동이 세로보다 뚜렷할 때만 제스처를 가로챈다(세로 스크롤과 충돌 방지).
+      onMoveShouldSetPanResponder: (_evt, g) =>
+        Math.abs(g.dx) > 16 && Math.abs(g.dx) > Math.abs(g.dy) * 1.5,
+      onPanResponderRelease: (_evt, g) => {
+        const {prevRecipeId: p, nextRecipeId: n, onRecipeSelect: sel, locked: lk} = swipeRef.current;
+        if (lk || !sel) return;
+        if (g.dx <= -50 && n) sel(n);      // 왼쪽으로 밀면 다음
+        else if (g.dx >= 50 && p) sel(p);  // 오른쪽으로 밀면 이전
+      },
+    }),
+  ).current;
+
   // ---- 스크롤 기반 탭 추적 ----
   const scrollViewRef = useRef<ScrollView>(null);
   const sectionPositions = useRef<Record<string, number>>({ingredients: 0, steps: 0, review: 0});
@@ -490,6 +550,7 @@ export function RecipeDetailScreen({
       showDelete: !!onDelete,
       showCookbook: !!onCookbookChange,
       showCopyToExplore: !!onCopyToExplore,
+      showSubmitToExplore: !!onSubmitToExplore,
       showShare: !!onShare,
     });
     if (compareBaseline) {
@@ -501,7 +562,7 @@ export function RecipeDetailScreen({
     }
     return items;
   },
-  [onImport, onRemake, onEdit, onDelete, onCookbookChange, onCopyToExplore, onShare, session, compareBaseline, showDiff, t]);
+  [onImport, onRemake, onEdit, onDelete, onCookbookChange, onCopyToExplore, onSubmitToExplore, onShare, session, compareBaseline, showDiff, t]);
 
   const cookbookSubmenu = useMemo(() => {
     if (!onCookbookChange || !availableCookbooks) return null;
@@ -554,6 +615,8 @@ export function RecipeDetailScreen({
       }
     } else if (id === 'copyToExplore') {
       onCopyToExplore?.();
+    } else if (id === 'submitToExplore') {
+      onSubmitToExplore?.();
     } else if (id === 'share') {
       onShare?.();
     } else if (id === 'download') {
@@ -642,8 +705,8 @@ export function RecipeDetailScreen({
         scrollEventThrottle={16}
         scrollEnabled={!locked}
       >
-        {/* Hero Section */}
-        <View style={styles.heroSection}>
+        {/* Hero Section — 상단 이미지 좌우 스와이프 시 이웃 레시피로 이동 */}
+        <View style={styles.heroSection} {...heroPanResponder.panHandlers}>
           {imageUri ? (
             <>
               <Image
@@ -652,6 +715,29 @@ export function RecipeDetailScreen({
                 resizeMode="cover"
               />
               <View style={styles.heroTextOverlay} />
+              {/* 좌우 페이드는 화면이 이미지 최대폭(1000)보다 넓어 이미지 양옆에 빈 배경이
+                  실제로 생길 때만 — 좁은(모바일) 화면에선 이미지가 꽉 차 페이드가 이미지 양옆을
+                  갉아먹어 어색하므로 숨긴다. */}
+              {windowWidth > HERO_MAX_WIDTH && (
+                <>
+                  {/* 좌측 페이드 — 하단 heroGradient와 동일(surface/dim 그라디언트), 방향만 가로 */}
+                  <LinearGradient
+                    start={{x: 0, y: 0.5}} end={{x: 1, y: 0.5}}
+                    colors={[colors['surface/dim'], colors['surface/dim'] + '00']}
+                    locations={[0, 0.35]}
+                    style={styles.heroSideGradient}
+                    pointerEvents="none"
+                  />
+                  {/* 우측 페이드 */}
+                  <LinearGradient
+                    start={{x: 0, y: 0.5}} end={{x: 1, y: 0.5}}
+                    colors={[colors['surface/dim'] + '00', colors['surface/dim']]}
+                    locations={[0.65, 1]}
+                    style={styles.heroSideGradient}
+                    pointerEvents="none"
+                  />
+                </>
+              )}
               <LinearGradient
                 colors={[colors['surface/dim'] + '00', colors['surface/dim']]}
                 locations={[0.5, 0.85]}
@@ -673,6 +759,14 @@ export function RecipeDetailScreen({
                 )}
               </View>
               <View style={styles.heroDescriptionRow}>
+                {authorHandle && (
+                  <>
+                    <Pressable onPress={onAuthorPress} disabled={!onAuthorPress}>
+                      <Text style={styles.heroDescription} numberOfLines={1}>{authorHandle}</Text>
+                    </Pressable>
+                    <Text style={styles.heroDescription}> · </Text>
+                  </>
+                )}
                 {recipeItems ? (
                   <Pressable style={styles.heroDescriptionTappable} onPress={() => setSearchFilter('cookbook')}>
                     <Text style={[styles.heroDescription, {flexShrink: 1}]} numberOfLines={1}>{cookbook}</Text>
@@ -695,7 +789,7 @@ export function RecipeDetailScreen({
                   </>
                 )}
                 {ratio && isFieldActive('ratio') && (
-                  <Text style={[styles.heroDescription, diffOn && diff!.specificGravityChanged && styles.hlChanged]}> · {t('recipeDetail.specificGravity', {ratio})}</Text>
+                  <Text numberOfLines={1} style={[styles.heroDescription, diffOn && diff!.specificGravityChanged && styles.hlChanged]}> · {t('recipeDetail.specificGravity', {ratio})}</Text>
                 )}
                 {totalReviewCount > 0 && (
                   <>
@@ -735,6 +829,23 @@ export function RecipeDetailScreen({
             ))}
           </ContentContainer>
         </Animated.View>
+
+        {/* 원본 출처 — 한 줄. URL 있으면 URL, 없고 작성자만 있으면 from @작성자. 참고 링크(referenceUrl)와는 별개 필드 */}
+        {(sourceHandle || sourceUrl) && (
+          <Animated.View style={{opacity: sectionAnims[0]}}>
+            <ContentContainer style={styles.sectionCard}>
+              <Card>
+                <ListItem
+                  title={sourceUrl ? sourceUrl : t('recipeDetail.fromAuthor', {name: `@${sourceHandle}`})}
+                  titleNumberOfLines={1}
+                  leading={{type: 'icon', icon: IconImport}}
+                  showDivider={false}
+                  onPress={sourceUrl ? () => Linking.openURL(sourceUrl) : onSourcePress}
+                />
+              </Card>
+            </ContentContainer>
+          </Animated.View>
+        )}
 
         {/* Ingredients Section */}
         {isFieldActive('ingredients') && <View onLayout={(e) => { sectionPositions.current.ingredients = e.nativeEvent.layout.y; }} />}
@@ -903,7 +1014,7 @@ export function RecipeDetailScreen({
                           </View>
                         )}
                         {step.photos && step.photos.length > 0 && (
-                          <StepPhotos photos={step.photos} mode="view" />
+                          <StepPhotos photos={normalizeStepPhotos(step.photos)} mode="view" />
                         )}
                       </ListItem>
                       );
@@ -949,7 +1060,7 @@ export function RecipeDetailScreen({
                       </View>
                     )}
                     {step.photos && step.photos.length > 0 && (
-                      <StepPhotos photos={step.photos} mode="view" />
+                      <StepPhotos photos={normalizeStepPhotos(step.photos)} mode="view" />
                     )}
                   </ListItem>
                   );
@@ -1112,7 +1223,9 @@ export function RecipeDetailScreen({
         pointerEvents={showMenu || showTabMenu ? 'auto' : 'none'}
       />
 
-      {/* Fixed Top Navigation Bar */}
+      {/* Fixed Top Navigation Bar — 요리모드가 뜨면 자체 앱바가 있으므로 숨긴다.
+          (FloatingNavBar는 zIndex 20이라 안 숨기면 요리모드 위로 뚫고 올라와 이중 앱바) */}
+      {!showCookingMode && (
       <FloatingNavBar
         tintColor={imageUri ? (colors['fill/faint'] as string) : undefined}
         left={
@@ -1182,6 +1295,7 @@ export function RecipeDetailScreen({
           )
         }
       />
+      )}
 
       {/* PDF 미리보기 다이얼로그 */}
       <PdfPreviewDialog
@@ -1369,10 +1483,14 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   heroImage: {
     position: 'absolute',
     top: 0,
-    left: 0,
-    right: 0,
+    // 넓은 화면(아이패드 등): 이미지 최대폭 1000으로 제한하고 가로 중앙정렬.
+    // left:0+right:0는 박스를 전체폭으로 고정해 maxWidth/margin auto 중앙정렬이
+    // 안 먹으므로, left:50% + translateX(-50%)로 확실히 가운데에 둔다.
+    left: '50%',
+    transform: [{translateX: '-50%'}],
     width: '100%',
     height: HERO_HEIGHT + 56,
+    maxWidth: HERO_MAX_WIDTH,
   },
   heroGradient: {
     position: 'absolute',
@@ -1380,6 +1498,21 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     right: 0,
     bottom: -56,
     height: '100%',
+    // 이미지와 동일 폭(1000)·중앙정렬 → 이미지 밖 좌우 영역까지 덮지 않게
+    maxWidth: HERO_MAX_WIDTH,
+    marginHorizontal: 'auto',
+  },
+  // 좌우 페이드 — 이미지와 동일 폭(1000)·중앙정렬, 전체 높이 덮음
+  heroSideGradient: {
+    position: 'absolute',
+    top: 0,
+    bottom: -56,
+    // heroImage와 동일하게 중앙정렬(아이패드 등 넓은 화면에서 페이드가 이미지와 정렬).
+    // left:0+right:0+margin auto는 절대위치에서 중앙정렬이 안 먹어 왼쪽으로 쏠린다.
+    left: '50%',
+    transform: [{translateX: '-50%'}],
+    width: '100%',
+    maxWidth: HERO_MAX_WIDTH,
   },
   heroTextOverlay: {
     position: 'absolute',
@@ -1388,6 +1521,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     right: 0,
     bottom: -56,
     backgroundColor: colors['overlay/subtle'],
+    // 이미지와 동일 폭(1000)·중앙정렬 → 이미지 밖 좌우가 어둡게 덮이지 않게
+    maxWidth: HERO_MAX_WIDTH,
+    marginHorizontal: 'auto',
   },
   heroContentWrapper: {
     position: 'absolute',
@@ -1444,6 +1580,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   heroDescriptionRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    flexWrap: 'wrap',
+    rowGap: 2,
     gap: Spacing.xs,
   },
   reviewBadge: {

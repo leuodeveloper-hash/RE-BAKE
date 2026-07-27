@@ -53,6 +53,8 @@ export interface MenuProps {
   maxHeight?: number;
   /** 검색바 표시 */
   searchable?: boolean;
+  /** 메뉴 최상단에 고정으로 렌더할 한 줄 노드(예: 작성자 정보). */
+  headerNode?: React.ReactNode;
 }
 
 export function Menu({
@@ -66,6 +68,7 @@ export function Menu({
   visible = true,
   maxHeight,
   searchable = false,
+  headerNode,
 }: MenuProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
@@ -144,6 +147,7 @@ export function Menu({
         ]}
         pointerEvents={visible ? 'auto' : 'none'}>
         <GlassContainer borderRadius="lg" contentStyle={{padding: Spacing.xs, minWidth: 200, ...(maxHeight ? {maxHeight} : {})}}>
+          {headerNode}
           {searchable && (
             <View style={styles.searchBar}>
               <TextInput

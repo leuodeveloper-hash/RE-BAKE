@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {Animated, Linking, PanResponder, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
+import {Animated, Linking, Modal, PanResponder, Platform, Pressable, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import YoutubePlayer from 'react-native-youtube-iframe';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {IconClose, IconYoutube} from '@components/Icon/IconIndex';
@@ -21,6 +21,12 @@ export interface YouTubePlayerModalProps {
    */
   topInset?: number;
   bottomInset?: number;
+  /**
+   * true면 RN Modal(transparent)로 감싸 네이티브 스택 화면(상세 등) 위에도 뜨게 한다.
+   * absolute 오버레이는 Expo Router 스택 화면에 가려지므로(상세 닫아야 보임) 전역 PiP에 사용.
+   * 요리모드처럼 이미 Modal 안에서 host할 땐 false(이중 Modal 방지).
+   */
+  useNativeModal?: boolean;
 }
 
 // PLAYER_WIDTH/HEIGHT는 화면폭 기준으로 컴포넌트에서 동적 계산(풀 와이드).
@@ -28,7 +34,7 @@ const MARGIN = 16;
 const HANDLE_H = 22; // 드래그 핸들 바 높이 (영상 위 바깥에 위치)
 const BOTTOM_RESERVE = MARGIN; // 하단 스냅 시 안전영역(win.bottom) 위로 MARGIN만 띄워 바닥에 붙임
 // 최소화(손톱) 크기 — 화면 왼쪽으로 던지면 우상단에 작게 도킹, 소리만 유지
-const NAIL_W = 100;
+const NAIL_W = 160;
 const NAIL_H = Math.round((NAIL_W * 9) / 16);
 
 const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min), Math.max(min, max));
@@ -40,7 +46,7 @@ const clamp = (v: number, min: number, max: number) => Math.min(Math.max(v, min)
  * - iOS 새창/에러 방지: onShouldStartLoadWithRequest로 watch 링크 top-level 이동 차단,
  *   Android는 setSupportMultipleWindows=false로 새창 팝업 차단
  */
-export function YouTubePlayerModal({visible, onClose, videoId, topInset, bottomInset}: YouTubePlayerModalProps) {
+export function YouTubePlayerModal({visible, onClose, videoId, topInset, bottomInset, useNativeModal}: YouTubePlayerModalProps) {
   const {t} = useTranslation();
   const insets = useSafeAreaInsets();
   // 호스트가 오프셋을 지정하면(요리모드 등) 그 좌표계 값을 쓰고, 아니면 앱 기본
@@ -190,7 +196,7 @@ export function YouTubePlayerModal({visible, onClose, videoId, topInset, bottomI
   // 크기는 항상 고정(220×124) → WebView 프레임 안정(검은화면 방지). 최소화는 scale로만.
   const scale = minim.interpolate({inputRange: [0, 1], outputRange: [1, NAIL_W / PLAYER_WIDTH]});
 
-  return (
+  const floating = (
     <Animated.View
       style={[styles.floating, {width: PLAYER_WIDTH, height: PLAYER_HEIGHT + HANDLE_H}, {transform: [...pan.getTranslateTransform(), {scale}]}]}
       pointerEvents="box-none">
@@ -253,6 +259,31 @@ export function YouTubePlayerModal({visible, onClose, videoId, topInset, bottomI
       </View>
     </Animated.View>
   );
+
+  // 전역 PiP: 네이티브 Modal(transparent)로 감싸 상세 등 네이티브 스택 화면 위에도 뜨게.
+  // box-none으로 뒤 화면 터치는 통과 → 레시피 스크롤하며 영상 시청 가능.
+  // (요리모드 host 경로는 이미 자체 Modal 안이라 useNativeModal=false → 그대로 인라인)
+  if (useNativeModal) {
+    return (
+      <Modal
+        visible
+        transparent
+        // iPad: presentationStyle 미지정 시 pageSheet로 떠서, 닫은 뒤에도 네이티브
+        // 모달 프레젠테이션이 남아 상세/요리모드/편집 화면의 dismiss·전환을 가로챈다
+        // (유튜브 한 번 열고 닫으면 상세가 안 닫히던 버그). overFullScreen으로 전체화면
+        // 투명 오버레이로 띄워 스택 전환을 막지 않게 한다.
+        presentationStyle="overFullScreen"
+        animationType="none"
+        onRequestClose={onClose}
+        statusBarTranslucent>
+        <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+          {floating}
+        </View>
+      </Modal>
+    );
+  }
+
+  return floating;
 }
 
 const styles = StyleSheet.create({

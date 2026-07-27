@@ -89,9 +89,17 @@ export interface RecipePackProps {
   emptyCover?: boolean;
   /** 비공개(숨김) — 책 표지에 자물쇠 뱃지 (어드민 전용 공식 북 표시) */
   hidden?: boolean;
+  /** 책 표지 중앙에 표시할 작성자들. 1명=아바타+이름, 여러명=겹친 아바타+대표명 외 N명. 비면 브랜드명 폴백 */
+  authors?: BookAuthor[];
 }
 
-export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom, pillCorner, pillProgress, icon: PillIcon, iconColor, locked, variant = 'default', footerLeft, footerRight, emptyCover, hidden}: RecipePackProps) {
+export interface BookAuthor {
+  authorId?: string;
+  displayName: string;
+  avatarSeed: string | number;
+}
+
+export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom, pillCorner, pillProgress, icon: PillIcon, iconColor, locked, variant = 'default', footerLeft, footerRight, emptyCover, hidden, authors}: RecipePackProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const pillAnim = useAnimatedStyle(() => ({opacity: pillProgress ? pillProgress.value : 1}));
@@ -166,7 +174,16 @@ export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom
           {/* 부가정보 — 하단 좌·중·우 (레퍼런스 풋터): 레시피 수 · 브랜드 · 회고 수 */}
           <View style={styles.bookFooter} pointerEvents="none">
             <Text style={[styles.bookMeta, {flex: 1, textAlign: 'left', color: titleColor}]} numberOfLines={2}>{footerLeft ?? t('recipePack.recipeCount', {count: count ?? shown.length})}</Text>
-            <Text style={[styles.bookMeta, {flex: 1, textAlign: 'center', color: titleColor}]} numberOfLines={2}>{t('recipePack.brandName')}</Text>
+            {/* 중앙: 작성자 — "by {이름}" 텍스트. 여러 명이면 "by 대표명 외 N명". 없으면 브랜드명 폴백 */}
+            <View style={styles.bookAuthor}>
+              <Text style={[styles.bookMeta, {color: titleColor}]} numberOfLines={2}>
+                {authors && authors.length > 0
+                  ? (authors.length === 1
+                      ? t('recipePack.byAuthor', {name: authors[0].displayName})
+                      : t('recipePack.byAuthorsMore', {name: authors[0].displayName, count: authors.length - 1}))
+                  : t('recipePack.brandName')}
+              </Text>
+            </View>
             <Text style={[styles.bookMeta, {flex: 1, textAlign: 'right', color: titleColor}]} numberOfLines={2}>{footerRight ?? ''}</Text>
           </View>
           {/* 비공개(숨김) 표시 — 표지 우상단 자물쇠 */}
@@ -315,6 +332,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontSize: 7,
     lineHeight: 9.8,
     letterSpacing: 0.3,
+  },
+  bookAuthor: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   pill: {
     flexDirection: 'row',

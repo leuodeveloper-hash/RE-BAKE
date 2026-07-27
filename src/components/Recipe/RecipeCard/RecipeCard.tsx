@@ -438,6 +438,14 @@ export interface RecipeCardProps {
   hideDivider?: boolean;
   /** 참고 링크(referenceUrl) 보유 여부 — 메타데이터 줄 맨 뒤에 링크 아이콘 표시 */
   hasReference?: boolean;
+  /** 작성자 핸들 — 카드 메타 줄 맨 앞에 @handle 표시 */
+  authorHandle?: string;
+  /** 핸들(@handle) 탭 시 — 작성자 홈 이동 등. 없으면 핸들은 그냥 텍스트 */
+  onAuthorPress?: () => void;
+  /** 레시피북 탭 시 — 해당 북 그룹으로. 없으면 텍스트 */
+  onCookbookPress?: () => void;
+  /** 공법 탭 시 — 해당 공법 그룹으로. 없으면 텍스트 */
+  onMethodPress?: () => void;
 }
 
 // 메타데이터 줄 링크 표시 아이콘 — list/grid/photoList 공통. (참고 링크 보유 표시)
@@ -473,15 +481,39 @@ export function RecipeCard({
   recipePdfData,
   hideDivider = false,
   hasReference = false,
+  authorHandle,
+  onAuthorPress,
+  onCookbookPress,
+  onMethodPress,
 }: RecipeCardProps) {
   const colors = useColors();
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const menuButtonRef = useRef<View>(null);
   const hasImage = !!imageUrl;
-  const parts = [cookbook, method].filter(Boolean);
-  if (specificGravity) parts.push(t('recipeCard.specificGravity', {value: specificGravity}));
-  const subtitle = parts.join(' · ');
+  // 메타 줄 세그먼트: 각 항목이 자기 링크로 이동(핸들→작성자, 레시피북→북, 공법→공법).
+  // 색은 전부 동일(muted). 링크 여부와 무관하게 톤 통일.
+  const metaSegments: {key: string; text: string; onPress?: () => void}[] = [];
+  if (authorHandle) metaSegments.push({key: 'author', text: `@${authorHandle}`, onPress: onAuthorPress});
+  if (cookbook) metaSegments.push({key: 'cookbook', text: cookbook, onPress: onCookbookPress});
+  if (method) metaSegments.push({key: 'method', text: method, onPress: onMethodPress});
+  if (specificGravity) metaSegments.push({key: 'sg', text: t('recipeCard.specificGravity', {value: specificGravity})});
+  const hasMeta = metaSegments.length > 0;
+
+  // 세그먼트 렌더 — textStyle(레이아웃별 서브타이틀 스타일) 위에 링크 여부만 구분.
+  const renderMeta = (textStyle: any) =>
+    metaSegments.map((seg, i) => (
+      <React.Fragment key={seg.key}>
+        {i > 0 && <Text style={textStyle}>·</Text>}
+        {seg.onPress ? (
+          <Pressable onPress={seg.onPress} hitSlop={2}>
+            <Text style={textStyle} numberOfLines={1}>{seg.text}</Text>
+          </Pressable>
+        ) : (
+          <Text style={textStyle} numberOfLines={1}>{seg.text}</Text>
+        )}
+      </React.Fragment>
+    ));
 
   const handlePress = useCallback(() => {
     if (!onPress) return;
@@ -578,15 +610,11 @@ export function RecipeCard({
                   {customSubtitle}
                 </Text>
               </View>
-            ) : (subtitle || reviewCount > 0 || hasReference) && (
+            ) : (hasMeta || reviewCount > 0 || hasReference) && (
               <View style={styles.listSubtitleRow}>
-                {!!subtitle && (
-                  <Text style={styles.listSubtitle} numberOfLines={1}>
-                    {subtitle}
-                  </Text>
-                )}
+                {renderMeta(styles.listSubtitle)}
                 <MetaLinkIcon show={hasReference} size={12} color={colors['foreground/on-surface-muted']} />
-                {reviewCount > 0 && (subtitle || hasReference) && (
+                {reviewCount > 0 && (hasMeta || hasReference) && (
                   <Text style={styles.listSubtitle}>·</Text>
                 )}
                 {reviewCount > 0 && (
@@ -670,9 +698,9 @@ export function RecipeCard({
             )}
           </View>
           <View style={styles.gridSubtitleRow}>
-            {!!subtitle && <Text style={styles.photoListSubtitle} numberOfLines={1}>{subtitle}</Text>}
+            {renderMeta(styles.photoListSubtitle)}
             <MetaLinkIcon show={hasReference} size={10} color="rgba(255,255,255,0.7)" />
-            {reviewCount > 0 && (subtitle || hasReference) && <Text style={styles.photoListSubtitle}>·</Text>}
+            {reviewCount > 0 && (hasMeta || hasReference) && <Text style={styles.photoListSubtitle}>·</Text>}
             {reviewCount > 0 && (
               <View style={styles.gridReviewBadge}>
                 <IconChartNoAxesGantt width={10} height={10} color="rgba(255,255,255,0.7)" />
@@ -712,13 +740,11 @@ export function RecipeCard({
               )}
             </View>
           )}
-          {(subtitle || reviewCount > 0 || hasReference) && (
+          {(hasMeta || reviewCount > 0 || hasReference) && (
             <View style={styles.gridSubtitleRow}>
-              {!!subtitle && (
-                <Text style={styles.gridSubtitle} numberOfLines={1}>{subtitle}</Text>
-              )}
+              {renderMeta(styles.gridSubtitle)}
               <MetaLinkIcon show={hasReference} size={12} color={colors['foreground/on-surface-muted']} />
-              {reviewCount > 0 && (!!subtitle || hasReference) && (
+              {reviewCount > 0 && (hasMeta || hasReference) && (
                 <Text style={styles.gridSubtitle}>·</Text>
               )}
               {reviewCount > 0 && (

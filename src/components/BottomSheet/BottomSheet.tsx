@@ -63,6 +63,17 @@ export interface BottomSheetProps {
   hideHandle?: boolean;
   /** 하단 고정 액션 영역 (버튼 등). 콘텐츠 스크롤과 무관하게 하단 고정 + 상단 마스크 그라디언트 */
   bottomAction?: React.ReactNode;
+  /** fullScreen 시 상단 모서리 라운딩 (기본 true). 완전 전체화면(요리모드 등)은 false로 각지게 */
+  fullScreenRounded?: boolean;
+  /** 커스텀 고정 헤더 (스크롤 영역 밖에 고정). title 대신 브레드크럼 등 커스텀 헤더가 필요할 때 사용 */
+  header?: React.ReactNode;
+  /**
+   * 네이티브 Modal 대신 절대위치 전체화면 View로 렌더한다(요리모드 전용).
+   * iOS 네이티브 Modal은 앱 루트의 일반 오버레이(YouTube PiP 등)를 덮어버려 PiP가 시트 뒤에
+   * 깔린다. hostAsView=true면 같은 RN 계층에 있어 루트 PiP가 시트 위에 정상적으로 뜬다.
+   * (드래그 없는 fullScreen 시트에만 적합 — 배경 dim은 부모 화면에 얹힘)
+   */
+  hostAsView?: boolean;
 }
 
 export function BottomSheet({
@@ -84,6 +95,9 @@ export function BottomSheet({
   animationType = 'slide',
   hideHandle = false,
   bottomAction,
+  fullScreenRounded = true,
+  header,
+  hostAsView = false,
 }: BottomSheetProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
@@ -223,13 +237,7 @@ export function BottomSheet({
     return null;
   }
 
-  return (
-    <Modal
-      visible={mounted}
-      transparent
-      animationType="none"
-      statusBarTranslucent
-      onRequestClose={handleBackdropPress}>
+  const inner = (
       <View style={[styles.container, !fullScreen && {paddingBottom: Math.max(Spacing.sm, safeBottom)}, fullScreen && styles.containerFullScreen]}>
         {/* 배경 오버레이 */}
         <Animated.View
@@ -253,6 +261,7 @@ export function BottomSheet({
           style={[
             styles.sheetContainer,
             fullScreen && styles.sheetFullScreen,
+            fullScreen && !fullScreenRounded && styles.sheetFullScreenSquare,
             fullScreen && backgroundColor ? {backgroundColor} : undefined,
             height !== 'auto' && !fullScreen && {height},
             !fullScreen && {maxHeight: windowHeight - safeTop - safeBottom - Spacing.sm * 2},
@@ -261,7 +270,7 @@ export function BottomSheet({
           ]}
           onLayout={handleLayout}>
           {backgroundElement}
-          <View style={fullScreen ? styles.wrapperFullScreen : undefined}>
+          <View style={fullScreen ? styles.wrapperFullScreen : bottomAction ? {flexShrink: 1} : undefined}>
             {/* 핸들: 터치 즉시 드래그 시작 */}
             <View
               onStartShouldSetResponder={() => enableDragToDismiss}
@@ -275,7 +284,7 @@ export function BottomSheet({
             </View>
 
             <View
-              style={fullScreen ? {flex: 1} : undefined}
+              style={fullScreen ? {flex: 1} : bottomAction ? {flexShrink: 1} : undefined}
               onStartShouldSetResponderCapture={(e: GestureResponderEvent) => {
                 contentTouchStartY.current = e.nativeEvent.pageY;
                 contentTouchStartX.current = e.nativeEvent.pageX;
@@ -302,6 +311,7 @@ export function BottomSheet({
               onResponderTerminate={onDragTerminate}
             >
               {title && <SheetHeader title={title} description={description} onClose={() => animateClose()} headerGraphic={headerGraphic} headerType={headerType} />}
+              {header}
 
               {fullScreen ? (
                 <View style={[styles.content, styles.contentFullScreen]}>{children}</View>
@@ -309,6 +319,7 @@ export function BottomSheet({
                 <ScrollView
                   bounces={false}
                   showsVerticalScrollIndicator={false}
+                  style={bottomAction ? {flexShrink: 1} : undefined}
                   contentContainerStyle={styles.content}
                   onScroll={(e) => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }}
                   scrollEventThrottle={16}
@@ -325,6 +336,25 @@ export function BottomSheet({
           </View>
         </Animated.View>
       </View>
+  );
+
+  // 요리모드 등: 네이티브 Modal 없이 절대위치 전체화면 View로 → 루트 PiP가 시트 위에 뜸
+  if (hostAsView) {
+    return (
+      <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
+        {inner}
+      </View>
+    );
+  }
+
+  return (
+    <Modal
+      visible={mounted}
+      transparent
+      animationType="none"
+      statusBarTranslucent
+      onRequestClose={handleBackdropPress}>
+      {inner}
     </Modal>
   );
 }
@@ -374,6 +404,10 @@ const createStyles = (colors: SemanticColors) =>
       borderTopLeftRadius: Radius['radius-xl'],
       borderTopRightRadius: Radius['radius-xl'],
       overflow: 'hidden',
+    },
+    sheetFullScreenSquare: {
+      borderTopLeftRadius: 0,
+      borderTopRightRadius: 0,
     },
     wrapperFullScreen: {
       flex: 1,

@@ -1,0 +1,7 @@
+{
+  "name": "widget-storage",
+  "version": "1.0.0",
+  "description": "App Group shared storage + widget reload (로컬 Expo 모듈)",
+  "main": "index.ts",
+  "private": true
+}

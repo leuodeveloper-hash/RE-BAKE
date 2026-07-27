@@ -1,15 +1,16 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {ActivityIndicator, Linking, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useRouter} from 'expo-router';
 import {FloatingNavBar, NavPillButton} from '@components/Navigation';
+import {ContentContainer} from '@components/Container';
 import {Selector} from '@components/Selector';
 import {Menu} from '@components/Menu';
 import {Avatar} from '@components/Avatar';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 import {useTranslation, type TranslateFn} from '@contexts/LanguageContext';
-import {type ExamType} from '@constants/examTypes';
+import {type ScheduleExamType} from '@constants/examTypes';
 import {fetchAllSchedules, type ExamSchedule} from '@utils/examSchedules';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
@@ -19,16 +20,15 @@ import {IconClose, IconArrowTopRight, IconDotFilled, IconCircleCheckFilled, Icon
 // 큐넷 기능사 정기 시험일정 페이지
 const QNET_SCHEDULE_URL = 'https://www.q-net.or.kr/crf021.do?id=crf02101&scheType=04';
 
-/** 자격증 그룹 (Firestore examType의 접두사와 매칭) */
-type CertGroup = 'pastry' | 'baking';
-const CERT_IDS: CertGroup[] = ['pastry', 'baking'];
-function certName(id: CertGroup, t: TranslateFn): string {
-  return id === 'pastry' ? t('examschedule.certPastry') : t('examschedule.certBaking');
+/** examType → 실기/필기 */
+function kindLabel(examType: ScheduleExamType, t: TranslateFn): string {
+  return examType.endsWith('practical') ? t('examschedule.kindPractical') : t('examschedule.kindWritten');
 }
 
-/** examType → 실기/필기 */
-function kindLabel(examType: ExamType, t: TranslateFn): string {
-  return examType.endsWith('practical') ? t('examschedule.kindPractical') : t('examschedule.kindWritten');
+/** 시험일 표시: 실기(examEndDate 있음)는 기간 'M월 D일~M월 D일', 필기는 단일일 */
+function examPeriod(s: ExamSchedule): string {
+  if (s.examEndDate) return `${shortDate(s.examDate)}~${shortDate(s.examEndDate)}`;
+  return shortDate(s.examDate);
 }
 
 /** 회차 라벨에서 연도 접두사 제거 ('2026년 3회' → '3회') */
@@ -73,9 +73,14 @@ function ddayLabel(s: ExamSchedule): string {
   return formatDday(diff);
 }
 
-/** 일정이 지난 시험인지 (시험일이 오늘 이전) */
+/**
+ * 일정이 지난 시험인지 — 마지막 마일스톤 기준.
+ * 발표일(resultDate)이 있으면 그날까지, 없으면 시험 종료일(examEndDate/examDate)까지.
+ * → 시험이 끝나도 발표 전이면 '다가오는' 일정에 유지된다.
+ */
 function isPastSchedule(s: ExamSchedule): boolean {
-  const d = daysUntil(s.examDate);
+  const lastIso = s.resultDate ?? s.examEndDate ?? s.examDate;
+  const d = daysUntil(lastIso);
   return d !== null && d < 0;
 }
 
@@ -109,19 +114,25 @@ export default function ExamScheduleRoute() {
   const router = useRouter();
   const insets = useSafeAreaInsets();
 
-  const [cert, setCert] = useState<CertGroup>('pastry');
-  const [menuOpen, setMenuOpen] = useState(false);
   const [pastExpanded, setPastExpanded] = useState(false);
   const [schedules, setSchedules] = useState<ExamSchedule[] | null>(null);
   const [now, setNow] = useState(() => new Date());
 
-  useEffect(() => {
-    let alive = true;
-    fetchAllSchedules()
-      .then(list => { if (alive) setSchedules(list); })
-      .catch(() => { if (alive) setSchedules([]); });
-    return () => { alive = false; };
+  const [refreshing, setRefreshing] = useState(false);
+  const loadSchedules = useCallback(async () => {
+    try {
+      const list = await fetchAllSchedules();
+      setSchedules(list);
+    } catch {
+      setSchedules(prev => prev ?? []);
+    }
   }, []);
+  useEffect(() => { loadSchedules(); }, [loadSchedules]);
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await loadSchedules();
+    setRefreshing(false);
+  }, [loadSchedules]);
 
   // 우측 상단 시계 (분 단위 갱신)
   useEffect(() => {
@@ -129,14 +140,17 @@ export default function ExamScheduleRoute() {
     return () => clearInterval(id);
   }, []);
 
-  // 선택 자격증 일정 (examType 접두사 매칭), fetch에서 시험일 오름차순 정렬됨
+  // 필기/실기 전환 — 회차가 많아 한 종류씩만 표시(필기 41 / 실기 24).
+  const [kind, setKind] = useState<'written' | 'practical'>('written');
+  const [kindMenuOpen, setKindMenuOpen] = useState(false);
+  // 종목(제과/제빵) 통합 + 선택한 필기/실기만
   const shown = useMemo(
-    () => (schedules ?? []).filter(s => s.examType.startsWith(cert)),
-    [schedules, cert],
+    () => (schedules ?? []).filter(s => (kind === 'practical' ? s.examType.endsWith('practical') : s.examType.endsWith('written'))),
+    [schedules, kind],
   );
 
   const year = useMemo(() => scheduleYear(shown), [shown]);
-  const certLabel = `${certName(cert, t)} ${year}`;
+  const certLabel = t(kind === 'practical' ? 'examschedule.certPractical' : 'examschedule.certWritten', {year});
 
   // 지난 / 다가오는 일정 분리
   const {past, upcoming} = useMemo(() => {
@@ -146,21 +160,13 @@ export default function ExamScheduleRoute() {
     return {past: p, upcoming: u};
   }, [shown]);
 
-  // 지난 일정은 기본 닫힘, 펼치면 전체 표시
-  const pastShown = pastExpanded ? past : [];
+  // 지난 일정은 기본 닫힘, 펼치면 표시 — 현재 기준 최신(가까운)부터 역순으로.
+  const pastShown = pastExpanded ? [...past].reverse() : [];
   const hasPastToggle = past.length > 0;
 
-  // 표시 순서: 지난(오래된→최근) → 다가오는. 그라데이션 번호는 이 순서대로 순차 배정
+  // 표시 순서: 지난(최신→오래된) → 다가오는. 전체 ~65개라 지연 로드 없이 전부 렌더(성능 문제 없음).
   const display = [...pastShown, ...upcoming];
   const currentId = upcoming[0]?.id;
-
-  const handleSelectCert = useCallback((id: string) => {
-    setCert(id as CertGroup);
-    setMenuOpen(false);
-    setPastExpanded(false);
-  }, []);
-
-  const certItems = CERT_IDS.map(id => ({id, label: `${certName(id, t)} ${year}`}));
 
   return (
     <View style={styles.container}>
@@ -168,28 +174,35 @@ export default function ExamScheduleRoute() {
         <ScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}>
+          showsVerticalScrollIndicator={false}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}>
           <View style={{height: 64}} />
 
-          {/* 섹션 헤더: 자격증 셀렉트 + 오늘 날짜 (셀렉트에서 메뉴 드롭) */}
+          {/* 다른 페이지처럼 최대폭 제한 (태블릿에서 화면 끝까지 퍼지지 않게).
+              항목별 좌우 패딩은 유지하고 폭만 제한하므로 horizontalPadding=false */}
+          <ContentContainer horizontalPadding={false}>
+          {/* 섹션 헤더: '기능사 {연도}' 고정 라벨 (종목 통합 — 드롭다운 없음) + 오늘 날짜 */}
           <View style={styles.sectionHeader}>
             <View style={styles.selectorWrap}>
               <Selector
                 label={certLabel}
-                showDropdown
                 variant="circle"
-                forcePressed={menuOpen}
-                onPress={() => setMenuOpen(prev => !prev)}
+                showDropdown
+                forcePressed={kindMenuOpen}
+                onPress={() => setKindMenuOpen(prev => !prev)}
                 style={styles.selectorAnchor}
               />
-              {menuOpen && (
+              {kindMenuOpen && (
                 <View style={styles.menuWrap}>
                   <Menu
-                    items={certItems}
-                    selectedId={cert}
-                    onSelect={handleSelectCert}
-                    onClose={() => setMenuOpen(false)}
-                    visible={menuOpen}
+                    items={[
+                      {id: 'written', label: t('examschedule.certWritten', {year})},
+                      {id: 'practical', label: t('examschedule.certPractical', {year})},
+                    ]}
+                    selectedId={kind}
+                    onSelect={(id) => { setKind(id as 'written' | 'practical'); setKindMenuOpen(false); setPastExpanded(false); }}
+                    onClose={() => setKindMenuOpen(false)}
+                    visible={kindMenuOpen}
                   />
                 </View>
               )}
@@ -248,6 +261,7 @@ export default function ExamScheduleRoute() {
               })()}
             </View>
           )}
+          </ContentContainer>
         </ScrollView>
       </SafeAreaView>
 
@@ -316,8 +330,11 @@ function PeriodItem({schedule: s, gradientIndex, isFirst, isLast, variant, style
         </Text>
         <Text style={[styles.dates, isPast && styles.datesPast]} numberOfLines={1}>
           {t('examschedule.labelRegistration')}: {shortDate(s.registrationStart)}
-          {'  ·  '}{t('examschedule.labelExam')}: {shortDate(s.examDate)}
-          {'  ·  '}{t('examschedule.labelResult')}: {shortDate(s.resultDate)}
+          {'  ·  '}{t('examschedule.labelExam')}: {examPeriod(s)}
+          {/* 필기는 시험종료 즉시 발표라 발표 항목 생략, 실기만 발표일 표시 */}
+          {!s.examType.endsWith('written') && (
+            <>{'  ·  '}{t('examschedule.labelResult')}: {shortDate(s.resultDate)}</>
+          )}
         </Text>
       </View>
     </View>
@@ -406,8 +423,8 @@ const createStyles = (colors: SemanticColors) =>
       width: 10,
       height: 24,
       borderRadius: 999,
-      backgroundColor: colors['surface/bright'],
-      borderWidth: StyleSheet.hairlineWidth,
+      backgroundColor: 'transparent',
+      borderWidth: 1,
       borderColor: colors['border/normal'],
     },
     toggleText: {

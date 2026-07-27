@@ -1,7 +1,7 @@
 import React, {useCallback, useMemo} from 'react';
 import {View, StyleSheet} from 'react-native';
 import {useLocalSearchParams, useRouter} from 'expo-router';
-import {doc, setDoc} from 'firebase/firestore';
+import {doc, setDoc, deleteField} from 'firebase/firestore';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {RecipeEditScreen} from '@screens/RecipeEditScreen';
 import {useRecipes} from '@contexts/RecipeContext';
@@ -102,6 +102,11 @@ export default function RecipeEditRoute() {
       try {
         const {imageSource: _imgSrc, ...rest} = data;
         const serializable = stripUndefined(rest);
+        // merge:true는 undefined(삭제된 필드)를 무시하므로 → 비운 optional 필드는 deleteField()로 명시해 실제 삭제.
+        const OPTIONAL_FIELDS = ['sourceUrl', 'referenceUrl', 'advice', 'imageUri', 'ratio', 'time', 'servings', 'method'] as const;
+        for (const f of OPTIONAL_FIELDS) {
+          if ((rest as any)[f] === undefined) (serializable as any)[f] = deleteField();
+        }
         await setDoc(doc(db, 'explore_recipes', id!), serializable, {merge: true});
         // explore는 1회 fetch+캐시라 저장 후 즉시 반영이 안 됨 → fresh reload로 바로 반영
         await reloadExplore();

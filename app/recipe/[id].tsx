@@ -11,6 +11,7 @@ import {useAuth} from '@contexts/AuthContext';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {useRewardedAd} from '@hooks/useRewardedAd';
 import {db} from '@config/firebase';
+import {OFFICIAL_AUTHOR_ID, OFFICIAL_AUTHOR_HANDLE, OFFICIAL_AUTHOR_DISPLAY_NAME, resolveAuthorHandle} from '../../src/types/author';
 import {parseSession, formatSession, sortSessionGroup} from '@utils/session';
 import {shareRecipe} from '@utils/shareRecipe';
 import {uploadRecipeImage, isLocalUri} from '@utils/imageUpload';
@@ -18,6 +19,8 @@ import {getColorVarKey} from '@components/ColorPicker';
 import {DEFAULT_COOKBOOK_COLOR} from '@contexts/RecipeContext';
 import {IconTrashFilled, IconExprolerBookFilled} from '@components/Icon/IconIndex';
 import {CookbookSelectSheet} from '@components/BottomSheet';
+import {Dialog} from '@components/Dialog';
+import {Button} from '@components/Button';
 import {SUBSCRIPTION_ENABLED} from '@contexts/SubscriptionContext';
 import {usePlanSheet} from '@contexts/PlanSheetContext';
 import {useAuthSheet} from '@contexts/AuthSheetContext';
@@ -31,7 +34,7 @@ export default function RecipeDetailRoute() {
   const colors = useColors();
   const {findRecipeById, recipes, setRecipes, availableCookbooks, cookbookColors} = useRecipes();
   const {showSnackbar} = useSnackbar();
-  const {isAdmin, user} = useAuth();
+  const {isAdmin, user, handle, displayName, avatarSeed} = useAuth();
   const {open: openAuthSheet} = useAuthSheet();
   const {recipes: exploreRecipes, exploreCookbooks} = useExploreRecipeContext();
   const {setHideTabBar, setHideContentMask} = useAddSheet();
@@ -39,6 +42,8 @@ export default function RecipeDetailRoute() {
   const [isCookingMode, setIsCookingMode] = useState(false);
   const [unlocked, setUnlocked] = useState(false);
   const [showExploreCookbookSheet, setShowExploreCookbookSheet] = useState(false);
+  // 둘러보기 복사 확인 다이얼로그 대상 쿠북 (선택 후 확인받고 실제 복사)
+  const [copyToExploreCookbook, setCopyToExploreCookbook] = useState<string | null>(null);
   const {open: openPlanSheet} = usePlanSheet();
   const {t} = useTranslation();
   const isLocked = lockedParam === '1' && !unlocked;
@@ -50,6 +55,8 @@ export default function RecipeDetailRoute() {
   const isMyRecipe = recipes.some(r => r.id === id);
   const isExploreRecipe = !isMyRecipe && exploreRecipes.some(r => r.id === id);
   const alreadyImported = recipes.some(r => r.sourceId === id);
+  // 복사본(원본 그대로) — 내 목록에 있지만 작성자가 나(내 uid)가 아님. 편집 불가, 회차로만 내 것으로 만들 수 있다.
+  const isCopiedFromOthers = isMyRecipe && !!recipe?.authorId && recipe.authorId !== user?.uid;
 
   const exploreCookbookColorMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -187,6 +194,16 @@ const handleDelete = useCallback(async () => {
       ...recipe,
       id: `user_${Date.now()}`,
       sourceId: recipe.id,
+      // 둘러보기 원본 출처 박제 — 복사/회차로 내 것이 돼도 "원본: @작성자" 표시 유지
+      sourceHandle: recipe.authorHandle,
+      sourceAuthorId: recipe.authorId,
+      // 가져오면 내 콘텐츠가 된다 — 작성자를 나로 박제(원본 작성자 → 나). remake와 동일.
+      // 이렇게 해야 isCopiedFromOthers=false → 편집·요리모드 사진 추가가 가능해진다.
+      // (출처 source*는 위에서 박제하므로 "원본: @작성자" 표시는 그대로 유지)
+      authorId: user?.uid,
+      authorHandle: handle ?? undefined,
+      authorDisplayName: displayName ?? undefined,
+      authorAvatarSeed: avatarSeed != null ? String(avatarSeed) : undefined,
       createdAt: new Date().toISOString(),
     };
     setRecipes(prev => [...prev, copied]);
@@ -194,7 +211,7 @@ const handleDelete = useCallback(async () => {
       label: t('id.goTo'),
       onPress: () => router.navigate('/'),
     });
-  }, [recipe, setRecipes, showSnackbar, router, t]);
+  }, [recipe, setRecipes, showSnackbar, router, t, user, handle, displayName, avatarSeed]);
 
   const handleRemake = useCallback(() => {
     if (!recipe) return;
@@ -212,6 +229,12 @@ const handleDelete = useCallback(async () => {
       reviews: [] as {evaluation: string; improvement: string}[],
       reviewCount: 0,
       createdAt: new Date().toISOString(),
+      // 회차를 만들면 내 콘텐츠가 된다 — 작성자를 나로 박제(복사본 원본 작성자 → 나로 교체).
+      // 단 원본 출처(sourceId/sourceHandle/sourceAuthorId)는 spread로 유지 → "원본: @작성자" 계속 표시.
+      authorId: user?.uid,
+      authorHandle: handle ?? undefined,
+      authorDisplayName: displayName ?? undefined,
+      authorAvatarSeed: avatarSeed != null ? String(avatarSeed) : undefined,
     };
 
     setRecipes(prev => [
@@ -231,7 +254,7 @@ const handleDelete = useCallback(async () => {
 
     showSnackbar(t('id.sessionAdded'));
     router.push(`/recipe/${newId}` as any);
-  }, [recipe, setRecipes, showSnackbar, router, t]);
+  }, [recipe, setRecipes, showSnackbar, router, t, user, handle, displayName, avatarSeed]);
 
   const sessionItems = useMemo(() => {
     if (!recipe?.remakeGroupId) return [];
@@ -314,9 +337,14 @@ const handleDelete = useCallback(async () => {
     });
   }, [adLoaded, showAd, showSnackbar, t]);
 
-  const handleExploreCookbookSelect = useCallback(async (cookbookName: string) => {
-    if (!recipe) return;
+  // 쿠북 선택 → 시트 닫고 확인 다이얼로그로 (바로 복사하지 않음)
+  const handleExploreCookbookSelect = useCallback((cookbookName: string) => {
     setShowExploreCookbookSheet(false);
+    setCopyToExploreCookbook(cookbookName);
+  }, []);
+
+  const runCopyToExplore = useCallback(async (cookbookName: string) => {
+    if (!recipe) return;
     const exploreId = `explore_${Date.now()}`;
     const {
       id: _id, sourceId: _src, remakeGroupId: _grp,
@@ -324,12 +352,6 @@ const handleDelete = useCallback(async () => {
       deletedAt: _del,
       ...recipeData
     } = recipe;
-    const exploreRecipe = {
-      ...recipeData,
-      cookbook: cookbookName === '__none__' ? '' : cookbookName,
-      reviewCount: 0,
-      createdAt: new Date().toISOString(),
-    };
     // Firestore는 undefined 미지원 → 재귀 제거
     const strip = (obj: any): any => {
       if (Array.isArray(obj)) return obj.map(strip);
@@ -341,16 +363,101 @@ const handleDelete = useCallback(async () => {
       return obj;
     };
     try {
+      // 로컬 이미지(file://)는 다른 유저에게 안 보이므로 Storage에 업로드해 URL로 저장.
+      // 대표 이미지 + 각 과정 사진 모두 변환. 업로드는 exploreId 경로 하위로.
+      const uploadIfLocal = async (uri: string, key: string): Promise<string> =>
+        isLocalUri(uri) ? uploadRecipeImage(uri, `${exploreId}_${key}`) : uri;
+
+      const uploadedImageUri = recipeData.imageUri
+        ? await uploadIfLocal(recipeData.imageUri, 'main')
+        : recipeData.imageUri;
+
+      const uploadedSteps = recipeData.steps
+        ? await Promise.all(recipeData.steps.map(async (step: any, si: number) => {
+            if (!step.photos?.length) return step;
+            const photos = await Promise.all(
+              step.photos.map((p: string, pi: number) => uploadIfLocal(p, `s${si}_${pi}`)),
+            );
+            return {...step, photos};
+          }))
+        : recipeData.steps;
+
+      const exploreRecipe = {
+        ...recipeData,
+        imageUri: uploadedImageUri,
+        steps: uploadedSteps,
+        cookbook: cookbookName === '__none__' ? '' : cookbookName,
+        reviewCount: 0,
+        createdAt: new Date().toISOString(),
+        // 작성자 귀속: 어드민이 올리면 공식 "baeki"(어드민 여럿 공동소유, 계정 소멸 무관),
+        // 일반 유저가 올리면 본인 이름(authorId=uid). 표시용 handle/avatar는 칩 즉시표시 위해 박제.
+        ...(isAdmin
+          ? {authorId: OFFICIAL_AUTHOR_ID, authorHandle: OFFICIAL_AUTHOR_HANDLE, authorDisplayName: OFFICIAL_AUTHOR_DISPLAY_NAME, authorAvatarSeed: OFFICIAL_AUTHOR_ID}
+          : {authorId: user?.uid, authorHandle: handle ?? undefined, authorDisplayName: displayName ?? undefined, authorAvatarSeed: avatarSeed != null ? String(avatarSeed) : undefined}),
+      };
       await setDoc(doc(db, 'explore_recipes', exploreId), strip(exploreRecipe));
       showSnackbar(t('id.copiedToExplore'));
     } catch {
       showSnackbar(t('id.copyFailed'));
     }
-  }, [recipe, showSnackbar, t]);
+  }, [recipe, showSnackbar, t, isAdmin, user, handle, avatarSeed]);
+
+  // 유저: 둘러보기 공개 신청 → submissions에 pending 생성 (어드민 승인 대기)
+  const runSubmitToExplore = useCallback(async () => {
+    if (!recipe || !user) return;
+    const submissionId = `sub_${Date.now()}`;
+    const {
+      id: _id, sourceId: _src, remakeGroupId: _grp,
+      session: _sess, reviews: _rev, reviewCount: _rc,
+      deletedAt: _del,
+      ...recipeData
+    } = recipe;
+    const strip = (obj: any): any => {
+      if (Array.isArray(obj)) return obj.map(strip);
+      if (obj && typeof obj === 'object') {
+        return Object.fromEntries(
+          Object.entries(obj).filter(([, v]) => v !== undefined).map(([k, v]) => [k, strip(v)]),
+        );
+      }
+      return obj;
+    };
+    try {
+      const uploadIfLocal = async (uri: string, key: string): Promise<string> =>
+        isLocalUri(uri) ? uploadRecipeImage(uri, `${submissionId}_${key}`) : uri;
+      const uploadedImageUri = recipeData.imageUri ? await uploadIfLocal(recipeData.imageUri, 'main') : recipeData.imageUri;
+      const uploadedSteps = recipeData.steps
+        ? await Promise.all(recipeData.steps.map(async (step: any, si: number) => {
+            if (!step.photos?.length) return step;
+            const photos = await Promise.all(step.photos.map((p: string, pi: number) => uploadIfLocal(p, `s${si}_${pi}`)));
+            return {...step, photos};
+          }))
+        : recipeData.steps;
+
+      const submission = {
+        ...recipeData,
+        imageUri: uploadedImageUri,
+        steps: uploadedSteps,
+        reviewCount: 0,
+        // 작성자 = 유저 본인 (승인돼도 유지)
+        authorId: user.uid,
+        authorHandle: handle ?? undefined,
+        authorDisplayName: displayName ?? undefined,
+        authorAvatarSeed: avatarSeed != null ? String(avatarSeed) : undefined,
+        status: 'pending',
+        submittedAt: new Date().toISOString(),
+        sourceRecipeId: recipe.id,
+      };
+      await setDoc(doc(db, 'submissions', submissionId), strip(submission));
+      showSnackbar(t('id.submittedToExplore'));
+    } catch {
+      showSnackbar(t('id.submitFailed'));
+    }
+  }, [recipe, user, handle, displayName, avatarSeed, showSnackbar, t]);
 
   if (!recipe) return null;
 
-  const canEdit = isMyRecipe || (isExploreRecipe && isAdmin);
+  // 복사본(원본 그대로)은 편집 불가 — 회차를 만들어야 내 것이 되어 편집 가능. 삭제는 내 목록이므로 가능.
+  const canEdit = (isMyRecipe && !isCopiedFromOthers) || (isExploreRecipe && isAdmin);
   const canDelete = isMyRecipe || (isExploreRecipe && isAdmin);
 
   return (
@@ -397,17 +504,21 @@ const handleDelete = useCallback(async () => {
             (async () => {
               try {
                 const uploaded = {...data};
-                const uploadPhotos = async (photos: string[]) =>
-                  Promise.all(photos.map(async (uri, i) => {
-                    if (!isLocalUri(uri)) return uri;
-                    return uploadRecipeImage(uri, `explore_${id}_p${Date.now()}_${i}`);
+                // 스텝 사진: string(uri) 또는 {uri, caption} 둘 다 지원. uri만 업로드하고 caption 유지.
+                const photoUri = (p: any): string => (typeof p === 'string' ? p : p?.uri);
+                const hasLocalPhoto = (photos: any[]) => photos?.some((p: any) => isLocalUri(photoUri(p)));
+                const uploadPhotos = async (photos: any[]) =>
+                  Promise.all(photos.map(async (p, i) => {
+                    const uri = photoUri(p);
+                    const nextUri = isLocalUri(uri) ? await uploadRecipeImage(uri, `explore_${id}_p${Date.now()}_${i}`) : uri;
+                    return typeof p === 'string' ? nextUri : {...p, uri: nextUri};
                   }));
                 if (uploaded.stepGroups) {
                   uploaded.stepGroups = await Promise.all(
                     uploaded.stepGroups.map(async (g: any) => ({
                       ...g,
                       steps: await Promise.all(g.steps.map(async (s: any) =>
-                        s.photos?.some(isLocalUri)
+                        hasLocalPhoto(s.photos)
                           ? {...s, photos: await uploadPhotos(s.photos)}
                           : s,
                       )),
@@ -417,7 +528,7 @@ const handleDelete = useCallback(async () => {
                 if (uploaded.steps) {
                   uploaded.steps = await Promise.all(
                     uploaded.steps.map(async (s: any) =>
-                      s.photos?.some(isLocalUri)
+                      hasLocalPhoto(s.photos)
                         ? {...s, photos: await uploadPhotos(s.photos)}
                         : s,
                     ),
@@ -449,8 +560,35 @@ const handleDelete = useCallback(async () => {
         currentRecipeId={id}
         onRecipeSelect={handleRecipeSwitch}
         onCopyToExplore={isMyRecipe && isAdmin ? () => setShowExploreCookbookSheet(true) : undefined}
+        onSubmitToExplore={isMyRecipe && !isAdmin && user ? runSubmitToExplore : undefined}
         showDeleteConfirm={isMyRecipe || (isExploreRecipe && isAdmin)}
         onShare={isExploreRecipe ? handleShare : undefined}
+        sourceUrl={recipe.sourceUrl}
+        sourceHandle={recipe.sourceHandle}
+        onSourcePress={recipe.sourceAuthorId ? () => router.push(`/u/${resolveAuthorHandle(recipe.sourceAuthorId, recipe.sourceHandle) ?? recipe.sourceAuthorId}` as any) : undefined}
+        {...(() => {
+          // 작성자 = 레시피에 박제된 값 우선(복사본은 원본 작성자 유지). 박제값이 없는 순수 내 레시피만 내 계정으로 폴백.
+          const hasStamped = !!recipe.authorId;
+          // 표시는 전부 @handle로 통일. 공식은 최신 handle(bakey)로 치환, 핸들 없는 게스트는 @guest.
+          const stampedHandle = resolveAuthorHandle(recipe.authorId, recipe.authorHandle);
+          const badgeName = hasStamped
+            ? `@${stampedHandle ?? 'guest'}`
+            : `@${handle ?? 'guest'}`;
+          const badgeSeed = hasStamped
+            ? (recipe.authorAvatarSeed ?? recipe.authorId)
+            : (avatarSeed != null ? String(avatarSeed) : undefined);
+          const targetAuthorId = hasStamped ? recipe.authorId : user?.uid;
+          // URL은 handle 기반(핸들=주소 일치). 박제 handle → 공식 치환 → 폴백 순.
+          const targetHandle = hasStamped
+            ? (resolveAuthorHandle(recipe.authorId, recipe.authorHandle) ?? recipe.authorId)
+            : (handle ?? user?.uid);
+          return {
+            authorHandle: badgeName,
+            authorAvatarSeed: badgeSeed,
+            authorId: hasStamped ? recipe.authorId : user?.uid,
+            onAuthorPress: targetAuthorId ? () => router.push(`/u/${targetHandle}` as any) : undefined,
+          };
+        })()}
       />
       {isAdmin && (
         <CookbookSelectSheet
@@ -468,6 +606,32 @@ const handleDelete = useCallback(async () => {
           ungroupedLabel={t('id.noOfficialCookbook')}
         />
       )}
+      <Dialog
+        visible={copyToExploreCookbook !== null}
+        onClose={() => setCopyToExploreCookbook(null)}
+        icon={IconExprolerBookFilled}
+        title={t('id.copyToExploreTitle')}
+        description={t('id.copyToExploreDesc', {
+          title: recipe?.title ?? '',
+          cookbook: copyToExploreCookbook === '__none__' || !copyToExploreCookbook
+            ? t('id.noOfficialCookbook')
+            : copyToExploreCookbook,
+        })}
+        actions={
+          <>
+            <Button label={t('id.cancel')} variant="soft" onPress={() => setCopyToExploreCookbook(null)} />
+            <Button
+              label={t('id.copy')}
+              variant="soft"
+              onPress={() => {
+                const cb = copyToExploreCookbook;
+                setCopyToExploreCookbook(null);
+                if (cb !== null) runCopyToExplore(cb);
+              }}
+            />
+          </>
+        }
+      />
     </View>
   );
 }

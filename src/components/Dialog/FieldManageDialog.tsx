@@ -25,6 +25,7 @@ import {
   IconWind,
   IconLogoSymbol,
   IconLink,
+  IconImport,
 } from '@components/Icon/IconIndex';
 
 // 필드 정의
@@ -49,6 +50,7 @@ const makeAllFields = (t: (key: string) => string): FieldDef[] => [
   {id: 'advice', label: t('fieldManage.advice'), icon: IconLogoSymbol, fixed: false},
   {id: 'review', label: t('fieldManage.review'), icon: IconChartNoAxesGantt, fixed: false},
   {id: 'source', label: t('fieldManage.source'), icon: IconLink, fixed: true},
+  {id: 'origin', label: t('fieldManage.origin'), icon: IconImport, fixed: true},
 ];
 
 export interface FieldManageDialogProps {

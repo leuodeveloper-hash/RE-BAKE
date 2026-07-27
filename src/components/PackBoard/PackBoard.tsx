@@ -130,6 +130,11 @@ export function PackBoard({items, height, entrance = false, dimExceptId}: PackBo
         return (
           <Animated.View
             key={item.id}
+            // iOS: transform으로 이동하는 그림자(box-shadow) 요소는 이전 위치의 그림자가
+            // 리페인트되지 않아 상단 등에 빈 그림자 박스 잔상이 남는다(필터 전환 시 재현).
+            // 뷰를 하드웨어 텍스처로 래스터화해 이동 시 통째로 다시 그려지게 한다.
+            shouldRasterizeIOS
+            renderToHardwareTextureAndroid
             style={[
               styles.pack,
               {left, top, opacity, transform: [{translateX}, {translateY}, {scale}]},

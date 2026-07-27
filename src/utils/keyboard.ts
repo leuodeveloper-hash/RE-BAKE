@@ -13,8 +13,10 @@ import {Keyboard, Platform} from 'react-native';
  * - 그 외(Android/web): dismiss만 하고 즉시 resolve.
  */
 export function dismissKeyboardAndWait(fallbackMs = 450): Promise<void> {
-  Keyboard.dismiss();
-  if (Platform.OS !== 'ios') return Promise.resolve();
+  if (Platform.OS !== 'ios') { Keyboard.dismiss(); return Promise.resolve(); }
+  // 리스너를 dismiss보다 "먼저" 건다 — 스캔 메뉴 탭 시 입력이 이미 blur돼 키보드가
+  // 내려가는 중이면, dismiss 후에 등록하면 keyboardDidHide를 놓쳐 fallback까지 늦어지고
+  // 첫 present가 씹힌다("두 번 눌러야 뜸"). 먼저 등록해야 그 이벤트를 확실히 잡는다.
   return new Promise<void>(resolve => {
     let settled = false;
     const done = () => {
@@ -26,6 +28,9 @@ export function dismissKeyboardAndWait(fallbackMs = 450): Promise<void> {
       requestAnimationFrame(() => setTimeout(resolve, 60));
     };
     const sub = Keyboard.addListener('keyboardDidHide', done);
-    const fallback = setTimeout(done, fallbackMs); // 이미 내려가 있으면 이벤트 없음 → 폴백
+    const fallback = setTimeout(done, fallbackMs); // 이미 완전히 내려가 있으면 이벤트 없음 → 폴백
+    // 이미 내려가 있으면(metrics 없음) 이벤트가 안 오므로 즉시 진행
+    if (!Keyboard.isVisible?.()) { done(); return; }
+    Keyboard.dismiss();
   });
 }

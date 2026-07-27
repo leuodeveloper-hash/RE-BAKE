@@ -13,3 +13,16 @@ export function getRecipeShareUrl(id: string): string {
   }
   return `${SHARE_BASE_URL}/recipe/${id}`;
 }
+
+/**
+ * 레시피 북 공유 URL.
+ * - 공식 북: `/cookbook/o/{name}` (이름 기반, 항상 최신)
+ * - 개인 북 스냅샷: `/cookbook/s/{shareId}` (공유 당시 박제본)
+ */
+export function getCookbookShareUrl(kind: 'o' | 's', key: string): string {
+  const path = `/cookbook/${kind}/${encodeURIComponent(key)}`;
+  if (Platform.OS === 'web' && typeof window !== 'undefined' && window.location?.origin) {
+    return `${window.location.origin}${path}`;
+  }
+  return `${SHARE_BASE_URL}${path}`;
+}

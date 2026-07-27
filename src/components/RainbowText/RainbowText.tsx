@@ -35,7 +35,6 @@ export function RainbowText({children, style, animated = true, onDone}: RainbowT
   const chars = useMemo(() => Array.from(text), [text]);
   const n = chars.length;
 
-  const reveal = useRef(new Animated.Value(0)).current;
   const convert = useRef(new Animated.Value(0)).current;
   const onDoneRef = useRef(onDone);
   onDoneRef.current = onDone;
@@ -45,38 +44,23 @@ export function RainbowText({children, style, animated = true, onDone}: RainbowT
       onDoneRef.current?.();
       return;
     }
-    reveal.setValue(0);
     convert.setValue(0);
-    // 두 파도가 같은 속도(글자당 PER_CHAR)로 흘러야 간격이 일정하게 유지됨 → linear
     const PER_CHAR = 20;
-    // 진한색 파도가 reveal 뒤를 쫓는 간격(글자 수). 클수록 연한색 꼬리가 길게 보임
-    const LAG = 6;
-    const revealMs = Math.min(2000, Math.max(220, n * PER_CHAR));
-    const lagMs = LAG * PER_CHAR;
-    // 변환 파도는 reveal보다 lag만큼 늦게 시작해 무지개 BAND까지 마저 통과
+    // 변환 파도: muted로 등장한 글자를 무지개 거쳐 on-surface로 물들이며 흐른다.
     const convertMs = Math.min(2000, Math.max(220, (n + BAND) * PER_CHAR));
-    const anim = Animated.parallel([
-      Animated.timing(reveal, {
-        toValue: n,
-        duration: revealMs,
-        easing: Easing.linear,
-        useNativeDriver: false,
-      }),
-      Animated.sequence([
-        Animated.delay(lagMs),
-        Animated.timing(convert, {
-          toValue: n + BAND,
-          duration: convertMs,
-          easing: Easing.linear,
-          useNativeDriver: false,
-        }),
-      ]),
-    ]);
-    anim.start(({finished}) => {
-      if (finished) onDoneRef.current?.();
+    const anim = Animated.timing(convert, {
+      toValue: n + BAND,
+      duration: convertMs,
+      easing: Easing.linear,
+      useNativeDriver: false,
     });
-    return () => anim.stop();
-  }, [animated, n, reveal, convert]);
+    let done = false;
+    const finish = () => { if (!done) { done = true; onDoneRef.current?.(); } };
+    anim.start(({finished}) => { if (finished) finish(); });
+    // 텍스트 교체 등으로 애니메이션이 중단(stop)돼도 onDone을 보장 → 실제 입력이
+    // color:transparent 인 채로 남아 '빈칸처럼' 보이는 문제 방지. (한번에쓰기 append 시 재현)
+    return () => { anim.stop(); finish(); };
+  }, [animated, n, convert]);
 
   if (n === 0) return null;
   if (!animated) return <Text style={style}>{text}</Text>;
@@ -84,19 +68,17 @@ export function RainbowText({children, style, animated = true, onDone}: RainbowT
   return (
     <Text style={style}>
       {chars.map((ch, i) => {
-        const opacity = reveal.interpolate({
-          inputRange: [i, i + 1],
-          outputRange: [0, 1],
-          extrapolate: 'clamp',
-        });
-        // 파도가 글자 i에 닿으면 muted → 무지개(중간) → on-surface
+        // reveal(등장) 파도: muted 색으로 등장. 애니가 (전환/중단 등으로) 안 끝나도
+        // opacity로 숨기지 않는다 — opacity 0에 갇혀 값이 통째로 안 보이는 버그 방지.
+        // 아직 파도가 안 닿은 글자는 살짝 흐리게(muted+반투명 아님)만.
         const color = convert.interpolate({
+          // 파도가 글자 i에 닿으면 muted → 무지개(중간) → on-surface
           inputRange: [i, i + BAND / 2, i + BAND],
           outputRange: [muted, RAINBOW[i % RAINBOW.length], onSurface],
           extrapolate: 'clamp',
         });
         return (
-          <AnimatedText key={i} style={{color, opacity}}>
+          <AnimatedText key={i} style={{color}}>
             {ch}
           </AnimatedText>
         );

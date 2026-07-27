@@ -61,7 +61,6 @@ function buildSubtitle(data: RecipePdfData): string {
   const parts: string[] = [];
   if (data.cookbook) parts.push(data.cookbook);
   if (data.method) parts.push(data.method);
-  if (data.reviewCount != null) parts.push(`${data.reviewCount}회차`);
   return parts.join(' · ');
 }
 
@@ -70,11 +69,10 @@ function buildMetaHtml(data: RecipePdfData): string {
   const items: string[] = [];
   if (data.time) items.push(`시간 ${escapeHtml(data.time)}`);
   if (data.servings) items.push(`분량 ${escapeHtml(data.servings)}`);
-  if (data.session) items.push(`회차 ${escapeHtml(data.session)}`);
 
   if (items.length === 0) return '';
 
-  return `<div class="meta-row">${items.join('<span class="meta-sep">·</span>')}</div>`;
+  return `<div class="meta-row">${items.join('<span class="meta-sep">/</span>')}</div>`;
 }
 
 function buildIngredientsHtml(data: RecipePdfData): string {
@@ -95,8 +93,8 @@ function buildIngredientsHtml(data: RecipePdfData): string {
           const pct = baseAmount > 0 ? (amount / baseAmount) * 100 : 0;
           return `
           <div class="ingredient-row">
-            <span class="ingredient-pct">${formatPercentage(pct)}</span>
             <span class="ingredient-name">${escapeHtml(ing.name)} ${escapeHtml(ing.amount)}</span>
+            <span class="ingredient-pct">${formatPercentage(pct)}</span>
           </div>`;
         })
         .join('');
@@ -170,8 +168,8 @@ const PDF_CSS = `
   .header { margin-bottom: 16px; }
   .title { font-size: 26px; font-weight: 700; line-height: 1.25; margin-bottom: 6px; letter-spacing: -0.01em; }
   .subtitle { font-size: 13px; color: #6b6f76; }
-  .meta-row { font-size: 13px; color: #4a4d52; margin-bottom: 24px; }
-  .meta-sep { color: #cfd2d6; margin: 0 7px; }
+  .meta-row { font-size: 13px; color: #4a4d52; margin-bottom: 24px; text-align: right; }
+  .meta-sep { color: #cfd2d6; margin: 0 6px; }
   .section-title {
     font-size: 13px; font-weight: 700; color: #1a1a1a;
     margin: 28px 0 4px; padding-bottom: 7px;
@@ -180,12 +178,12 @@ const PDF_CSS = `
   }
   .chevron { color: #a9adb3; font-weight: 400; }
   .card { display: block; }
-  .ingredient-row { display: flex; align-items: baseline; padding: 7px 1px; border-bottom: 1px solid #eef0f2; }
+  .ingredient-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid #eef0f2; }
   .ingredient-row:last-child { border-bottom: none; }
-  .ingredient-pct { width: 46px; font-size: 12px; font-weight: 500; color: #9aa0a6; text-align: right; margin-right: 14px; flex-shrink: 0; }
+  .ingredient-pct { font-size: 12px; font-weight: 500; color: #9aa0a6; text-align: right; flex-shrink: 0; }
   .ingredient-name { font-size: 14px; color: #1a1a1a; }
-  .tools-text { padding: 8px 1px; font-size: 14px; color: #1a1a1a; line-height: 1.6; }
-  .step-row { display: flex; gap: 12px; padding: 11px 1px; border-bottom: 1px solid #eef0f2; }
+  .tools-text { padding: 8px 0; font-size: 14px; color: #1a1a1a; line-height: 1.6; }
+  .step-row { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid #eef0f2; }
   .step-row:last-child { border-bottom: none; }
   .step-number { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid #1a1a1a; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #1a1a1a; }
   .step-content { flex: 1; min-width: 0; }

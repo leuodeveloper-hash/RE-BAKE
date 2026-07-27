@@ -3,6 +3,7 @@ import {Dimensions, Pressable, ScrollView, StyleSheet, Text, View} from 'react-n
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {AppBar} from '@components/Navigation';
+import {Breadcrumb} from '@components/Navigation/Breadcrumb';
 import {ContentContainer, GlassContainer} from '@components/Container';
 import {SectionHeader} from '@components/SectionHeader';
 import {RecipeCard} from '@components/Recipe/RecipeCard';
@@ -23,10 +24,11 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import type {Recipe} from '../types/recipe';
-import {IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconChartNoAxesGantt, IconChevronRight, IconSparkle, IconProcess, IconCards, IconCardsFilled, IconArrowDownToLine, IconList} from '@components/Icon/IconIndex';
+import {IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconChartNoAxesGantt, IconChevronRight, IconSparkle, IconProcess, IconCards, IconCardsFilled, IconArrowDownToLine, IconList, IconClose} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import {buildPaperPreview} from '@utils/recipePaperPreview';
 import {coverCards, recipeCoverCards, emptyCoverCard} from '@utils/cookbookCards';
+import {deriveBookAuthors} from '@utils/bookAuthors';
 import type {ExploreCookbook} from '@hooks/useExploreRecipes';
 import {axisLabel, DEFAULT_AXES, useAxisMenuItems, type AxisOverrides, type GroupAxis} from '@components/RecipeGroups/groupAxis';
 
@@ -80,12 +82,18 @@ export interface GroupScreenProps {
   onDownloadPdf?: (cookbook?: string) => void;
   /** 팩뷰 확대 오버레이 헤더의 +추가 — 해당 레시피 북으로 레시피 추가 (리스트뷰 앱바와 공통) */
   onAddRecipeToCookbook?: (cookbook: string) => void;
+  /** 앱바 셀렉터 앞에 나란히 넣을 컴팩트 노드(작성자 배지). 셀렉터를 대체하지 않음 */
+  authorBadge?: React.ReactNode;
+  /** 축 셀렉터 메뉴 최상단에 넣을 작성자 정보 한 줄(작성자 홈용). 미전달이면 없음. */
+  menuHeaderNode?: React.ReactNode;
+  /** 뒤로가기 (작성자 홈 등). 주어지면 AppBar 좌측에 닫기(X) 버튼 노출 */
+  onBack?: () => void;
 }
 
 const VIEW_MODE_STORAGE_KEY = '@bakle_group_view_mode';
 type ViewMode = 'list' | 'pack';
 
-export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComingSoon, onDeleteCookbook, onCookbookPress, onMethodPress, onMethodGuidePress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress, availableAxes = DEFAULT_AXES, axisOverrides, showAddButton = true, bookCarousel = false, addAsOfficial = false, cookbooksAreOfficial = false, onDownloadPdf, onAddRecipeToCookbook}: GroupScreenProps) {
+export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComingSoon, onDeleteCookbook, onCookbookPress, onMethodPress, onMethodGuidePress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress, availableAxes = DEFAULT_AXES, axisOverrides, showAddButton = true, bookCarousel = false, addAsOfficial = false, cookbooksAreOfficial = false, onDownloadPdf, onAddRecipeToCookbook, authorBadge, menuHeaderNode, onBack}: GroupScreenProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const colors = useColors();
@@ -192,6 +200,8 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
       }, 0);
     return Array.from(map.entries())
       .map(([name, items]) => ({name, items}))
+      // 둘러보기(공식)에서 일반 유저에겐 '레시피 북 없음'(미분류) 숨김 — 어드민만 정리용으로 노출
+      .filter(({name}) => !(name === '레시피 북 없음' && cookbooksAreOfficial && !isAdmin))
       .sort((a, b) => {
         const aUngrouped = a.name === '레시피 북 없음';
         const bUngrouped = b.name === '레시피 북 없음';
@@ -199,7 +209,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
         if (b.items.length !== a.items.length) return b.items.length - a.items.length;
         return latestTime(b.items) - latestTime(a.items);
       });
-  }, [recipes, cookbookColors]);
+  }, [recipes, cookbookColors, cookbooksAreOfficial, isAdmin]);
 
   // 팩뷰: 공법(method)별로 묶기 (어드민은 공식 레시피 합산, 회차는 최신 하나로)
   const methodGroups = useMemo(() => {
@@ -271,6 +281,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
           : colors[getColorVarKey(cookbookColors[cb.name] || DEFAULT_COOKBOOK_COLOR).replace('-var', '') as keyof typeof colors],
         cards,
         variant: 'book' as const,
+        authors: deriveBookAuthors(cb.items),
         emptyCover: cb.items.length === 0, // 빈 북 → 일러스트 투명 렌더
         hidden: cookbooksAreOfficial ? exploreCookbookHiddenMap.get(cb.name) : undefined,
         onPress: (rect: PackOriginRect) => { setExpandedOrigin(rect); setExpandedMethod(cb.name); },
@@ -494,14 +505,18 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
   return (
     <View style={styles.container}>
       <AppBar
-        title={axisLabel(t, axis, axisOverrides)}
-        titleIcon={groupFilterMenuItems.find(i => i.id === axis)?.icon}
-        titleIconColor={groupFilterMenuItems.find(i => i.id === axis)?.iconColor}
-        showDropdown
-        showAddButton={showAddButton}
+        leftIcon={onBack ? IconClose : undefined}
+        onLeftPress={onBack}
+        titleNode={
+          <Breadcrumb
+            leadingNode={authorBadge}
+            axisLabel={axisLabel(t, axis, axisOverrides)}
+            onAxisPress={handleTitlePress}
+          />
+        }
+        showAddButton={showAddButton && axis !== 'method' && axis !== 'retrospective'}
         showInfoButton={axis === 'method'}
         onInfoPress={onMethodGuidePress}
-        onTitlePress={handleTitlePress}
         onAddPress={() => { setCookbookEditTarget(null); setCookbookInitialOfficial(addAsOfficial); setShowCookbookDialog(true); }}
         onFilterPress={() => { setShowMoreMenu(false); setShowLayoutMenu(prev => !prev); }}
         filterIcon={viewMode === 'pack' ? IconCards : IconList}
@@ -515,6 +530,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
             selectedId={axis}
             visible={showGroupFilterMenu}
             onSelect={handleGroupFilterSelect}
+            headerNode={menuHeaderNode}
           />
         }
         rightMenu={

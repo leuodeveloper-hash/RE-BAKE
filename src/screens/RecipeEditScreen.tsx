@@ -2,7 +2,6 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
   Animated,
-  Keyboard,
   Image,
   Platform,
   Pressable,
@@ -12,6 +11,7 @@ import {
   TextInput as RNTextInput,
   View,
   Linking,
+  useWindowDimensions,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
@@ -20,10 +20,12 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {FloatingNavBar, NavPillButton, navPillStyle, NAV_PILL_HEIGHT} from '@components/Navigation';
 import {RecipeInputFloatingBar} from '@components/RecipeOcrButton';
 import type {RecipeOcrField} from '@utils/recipeOcr';
-import {ContentContainer, Card, GlassContainer} from '@components/Container';
+import {ContentContainer, Card, GlassContainer, MAX_CONTENT_WIDTH} from '@components/Container';
 import {IconButton} from '@components/IconButton';
+import {Button} from '@components/Button';
 import {ListItem} from '@components/ListItem';
 import {Menu} from '@components/Menu';
+import {Popover} from '@components/Popover';
 import {CookbookSelectSheet} from '@components/BottomSheet';
 import {EditableChip} from '@components/EditableChip';
 import {Switch} from '@components/Switch';
@@ -32,6 +34,7 @@ import {StepPhotos} from '@components/StepPhotos';
 import {FieldManageDialog, TimeDialog, ServingsDialog, IngredientAmountDialog} from '@components/Dialog';
 import type {ReviewData} from '@components/Dialog';
 import {TextInput} from '@components/TextInput';
+import {AutoGrowInput} from '@components/AutoGrowInput';
 import {DragHandle} from '@components/DragHandle';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useTranslation} from '@contexts/LanguageContext';
@@ -55,10 +58,15 @@ import {Radius} from '@constants/tokens';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 import {useAddSheet} from '@contexts/AddSheetContext';
+import {useAuth} from '@contexts/AuthContext';
+import {useAuthSheet} from '@contexts/AuthSheetContext';
 import {useDragReorder, ROW_HEIGHT} from '@hooks/useDragReorder';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
+import {importRecipeFromUrl} from '@utils/importRecipeFromUrl';
+import type {StepPhoto} from '../types/recipe';
+import {normalizeStepPhotos} from '@utils/stepPhotos';
 import {
   IconClose,
   IconTick,
@@ -66,7 +74,6 @@ import {
   IconPhoto,
   IconClockFilled,
   IconUsersRoundFilled,
-  IconHash,
   IconMinus,
   IconAdd,
   IconPlusCircleFilled,
@@ -91,6 +98,7 @@ import {
   IconLogoSymbol,
   IconBlockPlus,
   IconLink,
+  IconImport,
   IconArrowTopRight,
   IconMic,
 } from '@components/Icon/IconIndex';
@@ -109,13 +117,17 @@ interface EditableStep {
   description: string;
   tip?: string;
   caution?: string;
-  photos?: string[];
+  photos?: StepPhoto[];
 }
 
 interface IngredientGroup {
   id: string;
   title: string;
   ingredients: EditableIngredient[];
+  /** 이 묶음의 "한번에 쓰기" 모드 여부 */
+  bulkMode: boolean;
+  /** bulkMode일 때의 텍스트(재료 콤마 나열) */
+  bulkText: string;
 }
 
 interface EditableTool {
@@ -147,12 +159,13 @@ export interface RecipeEditScreenProps {
     session?: string;
     ingredientGroups: {title: string; ingredients: {name: string; amount: string}[]}[];
     toolGroups: {title: string; tools: {name: string}[]}[];
-    stepGroups: {title: string; steps: {step: number; description: string; tip?: string; caution?: string; photos?: string[]}[]}[];
+    stepGroups: {title: string; steps: {step: number; description: string; tip?: string; caution?: string; photos?: (string | StepPhoto)[]}[]}[];
     activeFieldIds: string[];
     reviews?: ReviewData[];
     advice?: string;
     imageUri?: string;
     referenceUrl?: string;
+    sourceUrl?: string;
     hidden?: boolean;
   }) => void | Promise<void>;
   /** 편집 시 전달되는 레시피 데이터 (없으면 빈 생성 화면) */
@@ -164,8 +177,8 @@ export interface RecipeEditScreenProps {
     ingredientGroups?: {title: string; ingredients: {name: string; amount: string}[]}[];
     tools?: {name: string}[];
     toolGroups?: {title: string; tools: {name: string}[]}[];
-    steps?: {step: number; description: string; tip?: string; caution?: string; photos?: string[]}[];
-    stepGroups?: {title: string; steps: {step: number; description: string; tip?: string; caution?: string; photos?: string[]}[]}[];
+    steps?: {step: number; description: string; tip?: string; caution?: string; photos?: (string | StepPhoto)[]}[];
+    stepGroups?: {title: string; steps: {step: number; description: string; tip?: string; caution?: string; photos?: (string | StepPhoto)[]}[]}[];
     activeFieldIds?: string[];
     imageUri?: string;
     reviews?: ReviewData[];
@@ -174,6 +187,7 @@ export interface RecipeEditScreenProps {
     servings?: string;
     session?: string;
     referenceUrl?: string;
+    sourceUrl?: string;
     hidden?: boolean;
   };
   /** 선택 가능한 레시피 북 목록 */
@@ -196,6 +210,7 @@ type TFn = (key: string, params?: Record<string, any>) => string;
 
 // 메뉴 아이템
 const makeEditMenuItems = (t: TFn) => [
+  {id: 'import-url', label: t('recipeEdit.importFromSite'), icon: IconImport},
   {id: 'field-manage', label: t('recipeEdit.fieldManage'), icon: IconSettingsFilled},
 ];
 
@@ -231,7 +246,13 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   const COOKBOOK_SHEET_MENU_ITEMS = useMemo(() => makeCookbookSheetMenuItems(t), [t]);
   const SLASH_MENU_ITEMS = useMemo(() => makeSlashMenuItems(t), [t]);
   const {setShowCookbookDialog, setCookbookEditTarget, onCookbookCreatedRef} = useAddSheet();
+  const {user} = useAuth();
+  const {open: openAuthSheet} = useAuthSheet();
+  const isLoggedIn = !!user && !user.isAnonymous;
   const insets = useSafeAreaInsets();
+  const {width: screenWidth} = useWindowDimensions();
+  // 팝오버는 콘텐츠 최대너비 기준 X 버튼 아래에 붙어야 함(넓은 웹 화면에서 좌측 밖으로 안 나가게)
+  const contentLeftEdge = Math.max(Spacing.md, (screenWidth - MAX_CONTENT_WIDTH) / 2 + Spacing.md);
   const {showSnackbar} = useSnackbar();
   const nextIdRef = useRef(100);
   const genId = () => String(nextIdRef.current++);
@@ -242,10 +263,12 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   const titleInputRef = useRef<RNTextInput>(null);
   // OCR 툴바: 활성 필드 추적 (키보드 위 고정이라 위치 측정 불필요)
   const [focusedOcrField, setFocusedOcrField] = useState<RecipeOcrField | null>(null);
+  // bulk 재료 입력 중 포커스된 그룹 id — OCR/타이핑 오버레이를 해당 그룹에만 적용
+  const [ocrBulkGroupId, setOcrBulkGroupId] = useState<string | null>(null);
   // 포커스된 과정(step) — 툴바 + 로 팁/주의/사진 추가 대상
   const [focusedStep, setFocusedStep] = useState<{groupId: string; stepId: string} | null>(null);
   // 사진 픽/크롭/OCR 진행 중엔 blur로 바가 언마운트되지 않게 유지 (크롭 모달이 바로 닫히는 문제 방지)
-  const [ocrPickActive, setOcrPickActive] = useState(false);
+  // 툴바는 편집화면 진입 시부터 항상 마운트(요리모드와 동일) → 픽 중 유지 플래그 불필요
   const ocrFieldRef = useRef<RecipeOcrField | null>(null);
   const [ocrLoading, setOcrLoading] = useState(false);
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -255,38 +278,17 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
     if (stepsTypewriterRef.current) clearTimeout(stepsTypewriterRef.current);
   }, []);
+  // 툴바 표시 = 포커스된 OCR 필드 기준(웹·네이티브 공통). 키보드 이벤트 타이밍에 의존하지 않아
+  // 첫 필드부터 즉시 뜨고, 필드 전환 시 '뜨기도 안 뜨기도' 하던 경합이 사라진다.
+  // focus 시 즉시 표시, blur는 지연 숨김(다른 필드로 이동 중이면 재focus가 타이머를 취소 → 안 사라짐).
   const handleFieldFocus = useCallback((f: RecipeOcrField, _e?: any) => {
-    if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+    if (blurTimerRef.current) { clearTimeout(blurTimerRef.current); blurTimerRef.current = null; }
     ocrFieldRef.current = f;
     setFocusedOcrField(f);
   }, []);
   const handleFieldBlur = useCallback(() => {
-    // 네이티브(iOS 등): 포커스 직후 일시 blur로 바가 깜빡 사라지는 문제 방지 → blur로는 숨기지 않고
-    // 키보드가 실제로 내려갈 때(keyboardDidHide)만 숨긴다. 웹은 키보드 이벤트가 없어 blur 기반 유지.
-    if (Platform.OS !== 'web') return;
     if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
-    blurTimerRef.current = setTimeout(() => {
-      setFocusedOcrField(null);
-    }, 250);
-  }, []);
-
-  // 네이티브: 키보드가 완전히 내려가면 OCR 플로팅 바 숨김 (사진 픽/크롭 중이면 ocrPickActive가 바를 유지)
-  // 필드 전환 시 iOS가 순간적으로 hide→show를 쏘므로, hide를 잠깐 지연시키고 그 사이 show가 오면 취소해
-  // 바가 통째로 언마운트됐다 다시 뜨는 "자꾸 내려감" 깜빡임을 방지.
-  useEffect(() => {
-    if (Platform.OS === 'web') return;
-    const scheduleHide = () => {
-      if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
-      blurTimerRef.current = setTimeout(() => setFocusedOcrField(null), 150);
-    };
-    const cancelHide = () => { if (blurTimerRef.current) clearTimeout(blurTimerRef.current); };
-    const subs = [
-      Keyboard.addListener('keyboardWillHide', scheduleHide),
-      Keyboard.addListener('keyboardDidHide', scheduleHide),
-      Keyboard.addListener('keyboardWillShow', cancelHide),
-      Keyboard.addListener('keyboardDidShow', cancelHide),
-    ];
-    return () => { cancelHide(); subs.forEach(s => s.remove()); };
+    blurTimerRef.current = setTimeout(() => setFocusedOcrField(null), 250);
   }, []);
   const [typing, setTyping] = useState(false);
   const [typingField, setTypingField] = useState<RecipeOcrField | null>(null);
@@ -403,10 +405,8 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   const [description, setDescription] = useState('');
   const [ingredientGroups, setIngredientGroups] = useState<IngredientGroup[]>(() => {
     if (recipe?.ingredientGroups) {
-      return recipe.ingredientGroups.map(g => ({
-        id: genId(),
-        title: g.title,
-        ingredients: g.ingredients.map(i => {
+      return recipe.ingredientGroups.map(g => {
+        const ingredients = g.ingredients.map(i => {
           // "600g" → {amount:"600", unit:"g"}, "약간" → {amount:"", unit:"약간"}
           const numUnit = i.amount.match(/^([\d.]+)\s*([a-zA-Zㄱ-ㅎ가-힣]+)/);
           if (numUnit) return {id: genId(), name: i.name, amount: numUnit[1], unit: numUnit[2]};
@@ -414,10 +414,17 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           if (textOnly) return {id: genId(), name: i.name, amount: '', unit: textOnly[1]};
           // 숫자만 있거나 기타
           return {id: genId(), name: i.name, amount: i.amount.replace(/[^0-9.]/g, ''), unit: 'g'};
-        }),
-      }));
+        });
+        return {
+          id: genId(),
+          title: g.title,
+          ingredients,
+          bulkMode: false,
+          bulkText: ingredientsToBulkText(ingredients),
+        };
+      });
     }
-    return [{id: genId(), title: '재료', ingredients: [{id: genId(), name: '', amount: '', unit: 'g'}]}];
+    return [{id: genId(), title: '재료', ingredients: [{id: genId(), name: '', amount: '', unit: 'g'}], bulkMode: false, bulkText: ''}];
   });
   const [toolGroups, setToolGroups] = useState<EditableToolGroup[]>(() => {
     if (recipe?.toolGroups) {
@@ -442,7 +449,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           description: s.description,
           tip: s.tip,
           caution: s.caution,
-          photos: s.photos,
+          photos: normalizeStepPhotos(s.photos),
         })),
       }));
     }
@@ -455,7 +462,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           description: s.description,
           tip: s.tip,
           caution: s.caution,
-          photos: s.photos,
+          photos: normalizeStepPhotos(s.photos),
         })),
       }];
     }
@@ -471,24 +478,24 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   const [fieldManageVisible, setFieldManageVisible] = useState(false);
   const [reviews, setReviews] = useState<ReviewData[]>(recipe?.reviews ?? []);
   const [advice, setAdvice] = useState(recipe?.advice ?? '');
-  const [referenceUrl, setSourceUrl] = useState(recipe?.referenceUrl ?? '');
+  const [referenceUrl, setReferenceUrl] = useState(recipe?.referenceUrl ?? '');
+  // 원본 링크 (외부 사이트에서 가져온 레시피 출처). 참고 링크와 별개 필드.
+  const [sourceUrl, setSourceUrl] = useState(recipe?.sourceUrl ?? '');
   // 공식(둘러보기) 레시피 숨김 — 어드민만 보임(다른 유저 비공개). 개발 중 콘텐츠 가림용.
   const [hidden, setHidden] = useState(() => !!recipe?.hidden);
   // PiP는 앱 루트에서 단일 인스턴스로 관리 (화면 전환 시에도 유지)
   const {open: openYouTube} = useYouTubePlayer();
   const referenceYouTubeId = useMemo(() => parseYouTubeVideoId(referenceUrl), [referenceUrl]);
   const [slashMenu, setSlashMenu] = useState<{groupId: string; stepId: string} | null>(null);
+  // 과정 묶음 롱프레스 메뉴 (위/아래 이동) — 열린 묶음 id
+  const [stepGroupMenu, setStepGroupMenu] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(recipe?.imageUri ?? null);
   const [toolsBulkMode, setToolsBulkMode] = useState(true);
   const [toolsBulkText, setToolsBulkText] = useState(() => {
     if (recipe?.toolGroups) return toolsToBulkText(recipe.toolGroups.flatMap(g => g.tools));
     return toolsToBulkText(recipe?.tools ?? []);
   });
-  const [ingredientsBulkMode, setIngredientsBulkMode] = useState(false);
-  const [ingredientsBulkText, setIngredientsBulkText] = useState(() => {
-    if (recipe?.ingredientGroups) return ingredientsToBulkText(recipe.ingredientGroups.flatMap(g => g.ingredients));
-    return '';
-  });
+  // 재료 bulk 상태는 그룹별(ingredientGroups[].bulkMode/bulkText)로 관리한다. 전역 상태 없음.
   const [stepsBulkMode, setStepsBulkMode] = useState(false);
   const [stepsBulkText, setStepsBulkText] = useState(() => {
     if (recipe?.stepGroups) return stepsToBulkText(recipe.stepGroups.flatMap(g => g.steps));
@@ -499,10 +506,23 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   const [activeFieldIds, setActiveFieldIds] = useState<string[]>(
     recipe?.activeFieldIds ?? [
       'info', 'photo', 'time', 'ingredients', 'tools', 'steps', 'servings',
-      'method', 'ratio', 'cookbook', 'review',
+      'method', 'ratio', 'cookbook', 'review', 'origin',
     ],
   );
   const isFieldActive = (id: string) => activeFieldIds.includes(id);
+
+  // 재료 묶음 → 저장용 {name, amount}[] 변환. bulkMode면 bulkText 파싱, 아니면 개별 폼.
+  const resolveGroupIngredients = (g: IngredientGroup): {name: string; amount: string}[] => {
+    if (g.bulkMode) {
+      return bulkTextToIngredients(g.bulkText).map(i => ({
+        name: i.name,
+        amount: i.amount ? `${i.amount}${i.unit}` : i.unit || '',
+      }));
+    }
+    return g.ingredients
+      .filter(i => i.name.trim())
+      .map(i => ({name: i.name, amount: i.amount ? `${i.amount}${i.unit}` : i.unit}));
+  };
 
   // 변경 감지: 현재 폼 상태를 저장 데이터 형태로 스냅샷
   const currentSnapshot = useMemo(() => JSON.stringify({
@@ -513,14 +533,10 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     time: time || undefined,
     servings: servings || undefined,
     session: session || undefined,
-    ingredientGroups: (ingredientGroups.length === 1 && ingredientsBulkMode)
-      ? [{title: ingredientGroups[0].title, ingredients: bulkTextToIngredients(ingredientsBulkText).map(i => ({name: i.name, amount: i.amount ? `${i.amount}${i.unit}` : i.unit || ''}))}]
-      : ingredientGroups.map(g => ({
-          title: g.title,
-          ingredients: g.ingredients
-            .filter(i => i.name.trim())
-            .map(i => ({name: i.name, amount: i.amount ? `${i.amount}${i.unit}` : i.unit})),
-        })),
+    ingredientGroups: ingredientGroups.map(g => ({
+      title: g.title,
+      ingredients: resolveGroupIngredients(g),
+    })),
     toolGroups: toolGroups.map(g => ({
       title: g.title,
       tools: g.tools.filter(t => t.name.trim()).map(t => ({name: t.name})),
@@ -538,19 +554,91 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     advice: advice || undefined,
     imageUri: imageUri || undefined,
     referenceUrl: referenceUrl || undefined,
-  }), [title, cookbook, method, ratio, time, servings, session, ingredientGroups, ingredientsBulkMode, ingredientsBulkText, toolGroups, stepGroups, stepsBulkMode, stepsBulkText, activeFieldIds, reviews, advice, imageUri, referenceUrl]);
+    sourceUrl: sourceUrl || undefined,
+    // 비공개 토글도 변경 감지 대상 — 이게 빠지면 비공개만 바꿨을 때 isDirty가 안 잡혀 저장 불가.
+    hidden: isExplore ? hidden : undefined,
+  }), [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, stepGroups, stepsBulkMode, stepsBulkText, activeFieldIds, reviews, advice, imageUri, referenceUrl, sourceUrl, isExplore, hidden]);
   const initialSnapshotRef = useRef(currentSnapshot);
   // 생성 모드(recipe 없음)는 항상 저장 가능, 편집 모드에서만 변경 여부 체크
   const isDirty = !recipe || currentSnapshot !== initialSnapshotRef.current;
   const hasTitle = title.trim().length > 0;
-  const hasIngredient = (ingredientGroups.length === 1 && ingredientsBulkMode)
-    ? ingredientsBulkText.split(',').some(s => s.trim())
-    : ingredientGroups.some(g => g.ingredients.some(i => i.name.trim()));
+  const hasIngredient = ingredientGroups.some(g =>
+    g.bulkMode ? g.bulkText.split(',').some(s => s.trim()) : g.ingredients.some(i => i.name.trim()),
+  );
   const hasStep = (stepGroups.length === 1 && stepsBulkMode)
     ? bulkTextToStepDescriptions(stepsBulkText).length > 0
     : stepGroups.some(g => g.steps.some(s => s.description.trim()));
   const canSave = isDirty && hasTitle && hasIngredient && hasStep;
   const [saving, setSaving] = useState(false);
+  // 닫기 확인: 변경사항이 있고 실제 입력한 내용이 있을 때만(빈 폼은 그냥 닫음)
+  const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  const requestClose = useCallback(() => {
+    const hasContent = hasTitle || hasIngredient || hasStep || !!imageUri || !!sourceUrl;
+    if (isDirty && hasContent) setShowDiscardConfirm(true);
+    else onClose?.();
+  }, [isDirty, hasTitle, hasIngredient, hasStep, imageUri, sourceUrl, onClose]);
+
+  // 저장 실행 — 저장 버튼과 닫기 팝오버 "저장" 공용. 필수 필드 없으면 해당 위치로 스크롤/포커스.
+  const handleSave = useCallback(async () => {
+    if (!title.trim()) {
+      setTitleError(true);
+      scrollViewRef.current?.scrollTo({y: 0, animated: true});
+      titleInputRef.current?.focus();
+      return;
+    }
+    const hasIng = ingredientGroups.some(g =>
+      g.bulkMode ? g.bulkText.split(',').some(s => s.trim()) : g.ingredients.some(i => i.name.trim()),
+    );
+    if (!hasIng) {
+      const y = sectionPositions.current['ingredients'];
+      if (y != null) scrollViewRef.current?.scrollTo({y: y - 80, animated: true});
+      setTimeout(() => sectionInputRefs.current['ingredients']?.focus(), 300);
+      return;
+    }
+    const hasStp = (stepGroups.length === 1 && stepsBulkMode)
+      ? bulkTextToStepDescriptions(stepsBulkText).length > 0
+      : stepGroups.some(g => g.steps.some(s => s.description.trim()));
+    if (!hasStp) {
+      const y = sectionPositions.current['steps'];
+      if (y != null) scrollViewRef.current?.scrollTo({y: y - 80, animated: true});
+      setTimeout(() => sectionInputRefs.current['steps']?.focus(), 300);
+      return;
+    }
+    setSaving(true);
+    try {
+      await onSave?.({
+        title: title.trim(),
+        cookbook: cookbook || undefined,
+        method: method || undefined,
+        specificGravity: ratio || undefined,
+        time: time || undefined,
+        servings: servings || undefined,
+        session: session || undefined,
+        ingredientGroups: ingredientGroups.map(g => ({
+          title: g.title,
+          ingredients: resolveGroupIngredients(g),
+        })),
+        toolGroups: (toolGroups.length === 1 && toolsBulkMode)
+          ? [{title: toolGroups[0].title, tools: bulkTextToToolNames(toolsBulkText).map(name => ({name}))}]
+          : toolGroups.map(g => ({title: g.title, tools: g.tools.filter(tl => tl.name.trim()).map(tl => ({name: tl.name}))})),
+        stepGroups: (stepGroups.length === 1 && stepsBulkMode)
+          ? [{title: stepGroups[0].title, steps: bulkTextToStepDescriptions(stepsBulkText).map((description, idx) => ({step: idx + 1, description}))}]
+          : stepGroups.map(g => ({
+              title: g.title,
+              steps: g.steps.filter(s => s.description.trim()).map((s, idx) => ({step: idx + 1, description: s.description, tip: s.tip, caution: s.caution, photos: s.photos?.length ? s.photos : undefined})),
+            })),
+        activeFieldIds,
+        reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
+        advice: advice || undefined,
+        imageUri: imageUri || undefined,
+        referenceUrl: referenceUrl || undefined,
+        sourceUrl: sourceUrl || undefined,
+        ...(isExplore ? {hidden} : {}),
+      });
+    } finally {
+      setSaving(false);
+    }
+  }, [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, toolsBulkMode, toolsBulkText, stepGroups, stepsBulkMode, stepsBulkText, activeFieldIds, reviews, advice, imageUri, referenceUrl, sourceUrl, isExplore, hidden, onSave]);
 
   const pickImage = async (source: 'camera' | 'gallery') => {
     if (source === 'camera') {
@@ -595,10 +683,78 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     setShowMenu(prev => !prev);
   };
 
+  // "600g" → {amount:'600', unit:'g'} 등, 합쳐진 양 문자열을 편집화면 재료 형태로 분리
+  const splitAmountUnit = (amount: string): {amount: string; unit: string} => {
+    const numUnit = amount.match(/^([\d.]+)\s*([a-zA-Zㄱ-ㅎ가-힣]+)/);
+    if (numUnit) return {amount: numUnit[1], unit: numUnit[2]};
+    const textOnly = amount.match(/^([a-zA-Zㄱ-ㅎ가-힣]+)$/);
+    if (textOnly) return {amount: '', unit: textOnly[1]};
+    return {amount: amount.replace(/[^0-9.]/g, ''), unit: 'g'};
+  };
+
+  const [importing, setImporting] = useState(false);
+
+  // 같은 URL을 자동+수동으로 중복 임포트하지 않도록 마지막 시도 URL 기억
+  const lastImportedUrlRef = useRef<string>('');
+
+  /** 원본 링크 URL에서 레시피를 가져와 폼을 채운다 (두 엔트리 공용). 성공 시 sourceUrl 저장. */
+  const runImportFromUrl = useCallback(async (url: string) => {
+    const trimmed = url.trim();
+    if (!/^https?:\/\/.+/.test(trimmed) || importing) return;
+    // 가져오기는 로그인 필요 — 미로그인이면 로그인 시트 → 성공 시 이어서 진행
+    if (!isLoggedIn) {
+      openAuthSheet({onSuccess: () => { runImportFromUrl(trimmed); }});
+      return;
+    }
+    lastImportedUrlRef.current = trimmed;
+    setImporting(true);
+    showSnackbar(t('recipeEdit.importLoading'));
+    try {
+      const r = await importRecipeFromUrl(trimmed);
+      if (r.title) setTitle(r.title);
+      if (r.servings) setServings(r.servings);
+      if (r.imageUrl && !imageUri) setImageUri(r.imageUrl);
+      if (r.ingredients.length > 0) {
+        setIngredientGroups([{
+          id: genId(),
+          title: '재료',
+          ingredients: r.ingredients.map(i => ({id: genId(), name: i.name, ...splitAmountUnit(i.amount)})),
+          bulkMode: false,
+          bulkText: '',
+        }]);
+      }
+      if (r.steps.length > 0) {
+        setStepGroups([{
+          id: genId(),
+          title: '과정',
+          steps: r.steps.map(s => ({id: genId(), description: s.description, photos: s.photo ? [{uri: s.photo}] : undefined})),
+        }]);
+      }
+      setSourceUrl(trimmed);
+      showSnackbar(t('recipeEdit.importSuccess'));
+    } catch (e: any) {
+      const code = e?.message ?? '';
+      const key = code === 'NO_RECIPE_DATA' ? 'recipeEdit.importNoData'
+        : code.startsWith('HTTP_') || code === 'FETCH_FAILED' ? 'recipeEdit.importFetchFailed'
+        : 'recipeEdit.importFailed';
+      showSnackbar(t(key));
+    } finally {
+      setImporting(false);
+    }
+  }, [importing, imageUri, isLoggedIn, openAuthSheet, showSnackbar, t]);
+
   const handleMenuSelect = (id: string) => {
     setShowMenu(false);
     if (id === 'field-manage') {
       setFieldManageVisible(true);
+    } else if (id === 'import-url') {
+      // 원본 링크 필드가 꺼져 있으면 켜고, 그 위치로 스크롤 + 입력 포커스 (두 번째 엔트리)
+      if (!isFieldActive('origin')) setActiveFieldIds(prev => [...prev, 'origin']);
+      setTimeout(() => {
+        const y = sectionPositions.current['origin'];
+        if (y != null) scrollViewRef.current?.scrollTo({y: y - 80, animated: true});
+        setTimeout(() => originInputRef.current?.focus(), 250);
+      }, 50);
     }
   };
 
@@ -654,6 +810,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   const scrollViewRef = useRef<ScrollView>(null);
   const sectionPositions = useRef<Record<string, number>>({});
   const sectionInputRefs = useRef<Record<string, RNTextInput | null>>({});
+  const originInputRef = useRef<RNTextInput | null>(null);
 
   useEffect(() => {
     if (!initialSection) return;
@@ -674,22 +831,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
 
   const drag = useDragReorder();
 
-  // Multiline auto-grow heights
-  const [inputHeights, setInputHeights] = useState<Record<string, number>>({});
-  const onInputContentSizeChange = useCallback((key: string, e: any) => {
-    const h = Math.ceil(e.nativeEvent.contentSize.height);
-    setInputHeights(prev => {
-      if (prev[key] === h) return prev;
-      return {...prev, [key]: h};
-    });
-  }, []);
-  const resetInputHeight = useCallback((key: string) => {
-    setInputHeights(prev => {
-      if (!(key in prev)) return prev;
-      const {[key]: _, ...rest} = prev;
-      return rest;
-    });
-  }, []);
+  // 멀티라인 자동확장 높이 관리는 이제 <AutoGrowInput> 내부로 이동(한 곳 관리)
 
   // Drop target listener — 햅틱 + 타겟 아이템 하이라이트
   const flatItemsRef = useRef<{id: string; groupId: string}[]>([]);
@@ -750,7 +892,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   // ---- Ingredient Group Handlers ----
 
   const addIngredientGroup = (afterGroupId?: string) => {
-    const newGroup = {id: genId(), title: '재료', ingredients: [{id: genId(), name: '', amount: '', unit: 'g'}]};
+    const newGroup = {id: genId(), title: '재료', ingredients: [{id: genId(), name: '', amount: '', unit: 'g'}], bulkMode: false, bulkText: ''};
     setIngredientGroups(prev => {
       if (afterGroupId) {
         const idx = prev.findIndex(g => g.id === afterGroupId);
@@ -991,6 +1133,18 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     );
   };
 
+  // 과정 묶음 순서 이동 (박스 롱프레스 메뉴). dir: -1=위로, 1=아래로. 인접 묶음과 swap.
+  const moveStepGroup = (groupId: string, dir: -1 | 1) => {
+    setStepGroups(prev => {
+      const idx = prev.findIndex(g => g.id === groupId);
+      const to = idx + dir;
+      if (idx < 0 || to < 0 || to >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[to]] = [next[to], next[idx]];
+      return next;
+    });
+  };
+
   const addStep = (groupId: string, position: 'top' | 'bottom' = 'top') => {
     setStepGroups(prev =>
       prev.map(g =>
@@ -1113,7 +1267,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
               ? {...g, steps: g.steps.map(s => {
                   if (s.id !== stepId) return s;
                   const existing = s.photos ?? [];
-                  return {...s, photos: [...existing, ...uris].slice(0, 3)};
+                  return {...s, photos: [...existing, ...uris.map(u => ({uri: u}))].slice(0, 3)};
                 })}
               : g,
           ),
@@ -1215,20 +1369,15 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           <Card style={{overflow: 'visible'}}>
             <View style={styles.titleRow}>
               <View style={[styles.titleInputWrap, titleError && {borderBottomColor: colors['foreground/negative'], borderBottomWidth: 2}]}>
-                <RNTextInput
+                <AutoGrowInput
                   ref={titleInputRef}
-                  style={[styles.titleInput, noOutline, inputHeights['title'] != null && {height: inputHeights['title']}, typing && typingField === 'title' && !!title && {color: 'transparent'}]}
+                  style={[styles.titleInput, noOutline, typing && typingField === 'title' && !!title && {color: 'transparent'}]}
                   placeholder={t('recipeEdit.titlePlaceholder')}
                   placeholderTextColor={titleError ? colors['foreground/negative'] : colors['foreground/on-surface-muted']}
-                  selectionColor={colors['foreground/on-surface']}
                   value={title}
-                  onChangeText={t => { setTitle(t); if (titleError) setTitleError(false); resetInputHeight('title'); }}
+                  onChangeText={t => { setTitle(t); if (titleError) setTitleError(false); }}
                   onFocus={(e) => handleFieldFocus('title', e.nativeEvent)}
                   onBlur={handleFieldBlur}
-                  multiline
-                  numberOfLines={1}
-                  blurOnSubmit={false}
-                  onContentSizeChange={e => onInputContentSizeChange('title', e)}
                 />
                 {/* OCR 진행 중 스켈레톤 */}
                 {ocrLoading && focusedOcrField === 'title' && (
@@ -1290,17 +1439,11 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
             )}
             <View style={styles.dividerFull} />
             <View style={styles.descriptionContainer}>
-              <RNTextInput
-                style={[styles.descriptionInput, noOutline, inputHeights['desc'] != null && {height: inputHeights['desc']}]}
+              <AutoGrowInput
+                style={[styles.descriptionInput, noOutline]}
                 placeholder={t('recipeEdit.descriptionPlaceholder')}
-                placeholderTextColor={colors['foreground/on-surface-muted']}
-                selectionColor={colors['foreground/on-surface']}
                 value={description}
-                onChangeText={v => { setDescription(v); resetInputHeight('desc'); }}
-                multiline
-                numberOfLines={1}
-                blurOnSubmit={false}
-                onContentSizeChange={e => onInputContentSizeChange('desc', e)}
+                onChangeText={setDescription}
               />
             </View>
           </Card>
@@ -1341,8 +1484,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
             </View>
             <OptionTile icon={IconClockFilled} label={time || t('recipeEdit.time')} onPress={() => setShowTimeDialog(true)} />
             <OptionTile icon={IconUsersRoundFilled} label={servings || t('recipeEdit.servings')} onPress={() => setShowServingsDialog(true)} />
-            {/* 회차는 '다시 만들기'로 자동 부여되는 값이라 생성 시엔 설정 불가 → 편집(기존 레시피) 때 표시만 */}
-            {recipe && <OptionTile icon={IconHash} label={session || t('recipeEdit.session')} />}
+            {/* 회차 타일 제거 — '다시 만들기' 자동값이라 편집화면에 표시할 필요 없음 (session 데이터는 저장 유지) */}
           </View>
           {/* 공법/비중 칩은 제목 영역으로 이동됨 */}
         </ContentContainer>
@@ -1366,7 +1508,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                     <Text style={styles.referenceLinkText} numberOfLines={1}>{referenceUrl.trim()}</Text>
                     <IconArrowTopRight width={16} height={16} color={colors['foreground/on-surface-muted']} />
                   </Pressable>
-                  <IconButton icon={IconClose} size="small" variant="ghost-secondary" onPress={() => setSourceUrl('')} />
+                  <IconButton icon={IconClose} size="small" variant="ghost-secondary" onPress={() => setReferenceUrl('')} />
                 </View>
               ) : (
                 <View style={styles.referenceLinkRow}>
@@ -1374,8 +1516,8 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                     <TextInput
                       style="ghost"
                       value={referenceUrl}
-                      onChangeText={setSourceUrl}
-                      placeholder="https://..."
+                      onChangeText={setReferenceUrl}
+                      placeholder={t('recipeEdit.referenceLinkPlaceholder')}
                       keyboardType="url"
                       autoCapitalize="none"
                     />
@@ -1385,6 +1527,62 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
             </ListItem>
           </Card>
         </ContentContainer>
+
+        {/* 원본 링크 — 만개의레시피 등 외부 사이트 URL. 입력 시 자동으로 레시피를 가져온다.
+            'origin'/'source'(옛 ID 혼용) 중 하나라도 활성이거나 값이 있으면 노출 → 상세에 뜨면 편집에서도 수정 가능 */}
+        {(isFieldActive('origin') || isFieldActive('source') || !!sourceUrl) && (
+        <View onLayout={e => { sectionPositions.current['origin'] = e.nativeEvent.layout.y; }}>
+        <ContentContainer style={styles.navItemGap}>
+          <Card>
+            <ListItem
+              leading={{type: 'icon', icon: IconImport}}
+              showDivider={false}
+              trailing={importing ? {type: 'custom', element: <ActivityIndicator size="small" color={colors['foreground/on-surface-muted']} />} : undefined}
+            >
+              {/* 한 줄 고정: [왼쪽 URL(입력/링크·말줄임)] [열기] [X] [가져오기]. 오른쪽 버튼은 항상 고정 → 이동 없음 */}
+              <View style={styles.referenceLinkRow}>
+                <View style={{flex: 1, minWidth: 0}}>
+                  {/^https?:\/\/.+/.test(sourceUrl.trim()) ? (
+                    <Pressable style={styles.referenceLinkChip} onPress={() => Linking.openURL(sourceUrl.trim())}>
+                      <Text style={styles.referenceLinkText} numberOfLines={1}>{sourceUrl.trim()}</Text>
+                      <IconArrowTopRight width={16} height={16} color={colors['foreground/on-surface-muted']} />
+                    </Pressable>
+                  ) : (
+                    <TextInput
+                      ref={(node: any) => { originInputRef.current = node; }}
+                      style="ghost"
+                      value={sourceUrl}
+                      onChangeText={setSourceUrl}
+                      onSubmitEditing={() => runImportFromUrl(sourceUrl)}
+                      onBlur={() => runImportFromUrl(sourceUrl)}
+                      placeholder={t('recipeEdit.originLinkPlaceholder')}
+                      keyboardType="url"
+                      autoCapitalize="none"
+                      editable={!importing}
+                    />
+                  )}
+                </View>
+                <IconButton
+                  icon={IconClose}
+                  size="small"
+                  variant="ghost-secondary"
+                  onPress={() => setSourceUrl('')}
+                  disabled={!sourceUrl}
+                />
+                <Button
+                  label={t('recipeEdit.import')}
+                  variant="soft"
+                  size="small"
+                  onPress={() => runImportFromUrl(sourceUrl)}
+                  disabled={importing || !/^https?:\/\/.+/.test(sourceUrl.trim())}
+                  loading={importing}
+                />
+              </View>
+            </ListItem>
+          </Card>
+        </ContentContainer>
+        </View>
+        )}
 
         {/* 재료 Groups */}
         {isFieldActive('ingredients') && <View onLayout={e => { sectionPositions.current['ingredients'] = e.nativeEvent.layout.y; }}>
@@ -1403,17 +1601,11 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                   <View style={styles.breadcrumbRow}>
                     <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.ingredientsLabel')}</Text>
                     <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
-                    <RNTextInput
-                      style={[styles.editableRowInput, noOutline, inputHeights[`igt-${group.id}`] != null && {height: inputHeights[`igt-${group.id}`]}]}
+                    <AutoGrowInput
+                      style={[styles.editableRowInput, noOutline]}
                       value={group.title}
-                      onChangeText={v => { updateIngredientGroupTitle(group.id, v); resetInputHeight(`igt-${group.id}`); }}
+                      onChangeText={v => updateIngredientGroupTitle(group.id, v)}
                       placeholder={t('recipeEdit.groupNamePlaceholder')}
-                      placeholderTextColor={colors['foreground/on-surface-muted']}
-                      selectionColor={colors['foreground/on-surface']}
-                      multiline
-                      numberOfLines={1}
-                      blurOnSubmit={false}
-                      onContentSizeChange={e => onInputContentSizeChange(`igt-${group.id}`, e)}
                     />
                   </View>
                 </ListItem>
@@ -1422,32 +1614,29 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                   leading={{type: 'icon', icon: IconLeafFilled}}
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
-                      {ingredientGroups.length === 1 && (
-                        <Switch
-                          label={t('recipeEdit.bulkWrite')}
-                          value={ingredientsBulkMode}
-                          onValueChange={(v) => {
-                            if (!v) {
-                              const parsed = bulkTextToIngredients(ingredientsBulkText);
-                              if (parsed.length > 0) {
-                                const existingByName = new Map(group.ingredients.map(i => [i.name, i]));
-                                setIngredientGroups(p => p.map(g => g.id === group.id ? {...g, ingredients: parsed.map(item => {
-                                  const existing = existingByName.get(item.name);
-                                  if (existing && !item.amount && existing.unit === item.unit) {
-                                    return {...existing, id: genId(), name: item.name};
-                                  }
-                                  return {id: genId(), name: item.name, amount: item.amount, unit: item.unit};
-                                })} : g));
-                              } else {
-                                setIngredientGroups(p => p.map(g => g.id === group.id ? {...g, ingredients: []} : g));
+                      {/* 묶음마다 개별 "한번에 쓰기" 토글 */}
+                      <Switch
+                        label={t('recipeEdit.bulkWrite')}
+                        value={group.bulkMode}
+                        onValueChange={(v) => {
+                          if (!v) {
+                            // bulk → 폼: 이 그룹 bulkText를 파싱해 개별 재료로. 기존 값(양·단위) 최대 보존.
+                            const parsed = bulkTextToIngredients(group.bulkText);
+                            const existingByName = new Map(group.ingredients.map(i => [i.name, i]));
+                            const nextIngredients = parsed.length > 0 ? parsed.map(item => {
+                              const existing = existingByName.get(item.name);
+                              if (existing && !item.amount && existing.unit === item.unit) {
+                                return {...existing, id: genId(), name: item.name};
                               }
-                            } else {
-                              setIngredientsBulkText(ingredientsToBulkText(group.ingredients));
-                            }
-                            setIngredientsBulkMode(v);
-                          }}
-                        />
-                      )}
+                              return {id: genId(), name: item.name, amount: item.amount, unit: item.unit};
+                            }) : [];
+                            setIngredientGroups(p => p.map(g => g.id === group.id ? {...g, bulkMode: false, ingredients: nextIngredients} : g));
+                          } else {
+                            // 폼 → bulk: 이 그룹 재료를 bulkText로.
+                            setIngredientGroups(p => p.map(g => g.id === group.id ? {...g, bulkMode: true, bulkText: ingredientsToBulkText(group.ingredients)} : g));
+                          }
+                        }}
+                      />
                       <View style={styles.headerAddSlot}>
                         <IconButton icon={IconPlusCircleFilled} onPress={() => addIngredient(group.id)} variant="ghost-secondary" size="medium" />
                       </View>
@@ -1460,28 +1649,25 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
               )}
 
               {/* Ingredients */}
-              {ingredientGroups.length === 1 && ingredientsBulkMode ? (
+              {group.bulkMode ? (
                 <View style={styles.bulkToolInput}>
-                  <RNTextInput
-                    ref={(node: any) => { sectionInputRefs.current['ingredients'] = node; }}
-                    style={[styles.editableRowInput, noOutline, typing && typingField === 'ingredients' && !!ingredientsBulkText && {color: 'transparent'}]}
+                  <AutoGrowInput
+                    ref={(node: any) => { sectionInputRefs.current[`ingredients:${group.id}`] = node; }}
+                    style={[styles.editableRowInput, styles.bulkInput, noOutline, typing && typingField === 'ingredients' && ocrBulkGroupId === group.id && !!group.bulkText && {color: 'transparent'}]}
                     placeholder={t('recipeEdit.ingredientsBulkPlaceholder')}
-                    placeholderTextColor={colors['foreground/on-surface-muted']}
-                    selectionColor={colors['foreground/on-surface']}
-                    value={ingredientsBulkText}
-                    onChangeText={setIngredientsBulkText}
-                    onFocus={(e) => handleFieldFocus('ingredients', e.nativeEvent)}
+                    value={group.bulkText}
+                    onChangeText={(v: string) => setIngredientGroups(p => p.map(g => g.id === group.id ? {...g, bulkText: v} : g))}
+                    onFocus={(e) => { setOcrBulkGroupId(group.id); handleFieldFocus('ingredients', e.nativeEvent); }}
                     onBlur={handleFieldBlur}
-                    multiline
                   />
-                  {ocrLoading && focusedOcrField === 'ingredients' && (
+                  {ocrLoading && focusedOcrField === 'ingredients' && ocrBulkGroupId === group.id && (
                     <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.bulkToolInput]}>
                       <SkeletonLine lines={2} lineHeight={14} />
                     </View>
                   )}
-                  {typing && typingField === 'ingredients' && !!ingredientsBulkText && (
+                  {typing && typingField === 'ingredients' && ocrBulkGroupId === group.id && !!group.bulkText && (
                     <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.bulkToolInput]}>
-                      <RainbowText style={styles.editableRowInput} animated onDone={finishTyping}>{ingredientsBulkText}</RainbowText>
+                      <RainbowText style={styles.editableRowInput} animated onDone={finishTyping}>{group.bulkText}</RainbowText>
                     </View>
                   )}
                 </View>
@@ -1533,23 +1719,14 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                         }}
                         showDivider={index < group.ingredients.length - 1}>
                         <View style={styles.editableRowContent}>
-                          <RNTextInput
+                          <AutoGrowInput
                             ref={groupIndex === 0 && index === 0 ? (node) => { sectionInputRefs.current['ingredients'] = node; } : undefined}
-                            style={[styles.editableRowInput, noOutline, inputHeights[ingredient.id] != null && {height: inputHeights[ingredient.id]}]}
+                            style={[styles.editableRowInput, noOutline]}
                             placeholder={t('recipeEdit.ingredientNamePlaceholder')}
-                            placeholderTextColor={colors['foreground/on-surface-muted']}
-                            selectionColor={colors['foreground/on-surface']}
                             value={ingredient.name}
-                            onChangeText={v => {
-                              updateIngredient(group.id, ingredient.id, 'name', v);
-                              resetInputHeight(ingredient.id);
-                            }}
+                            onChangeText={v => updateIngredient(group.id, ingredient.id, 'name', v)}
                             onFocus={(e) => handleFieldFocus('ingredients', e.nativeEvent)}
                             onBlur={handleFieldBlur}
-                            multiline
-                            numberOfLines={1}
-                            blurOnSubmit={false}
-                            onContentSizeChange={e => onInputContentSizeChange(ingredient.id, e)}
                           />
                           <Pressable
                             style={styles.amountInputContainer}
@@ -1608,17 +1785,11 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                   <View style={styles.breadcrumbRow}>
                     <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.toolsLabel')}</Text>
                     <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
-                    <RNTextInput
-                      style={[styles.editableRowInput, noOutline, inputHeights[`tgt-${group.id}`] != null && {height: inputHeights[`tgt-${group.id}`]}]}
+                    <AutoGrowInput
+                      style={[styles.editableRowInput, noOutline]}
                       value={group.title}
-                      onChangeText={v => { updateToolGroupTitle(group.id, v); resetInputHeight(`tgt-${group.id}`); }}
+                      onChangeText={v => updateToolGroupTitle(group.id, v)}
                       placeholder={t('recipeEdit.groupNamePlaceholder')}
-                      placeholderTextColor={colors['foreground/on-surface-muted']}
-                      selectionColor={colors['foreground/on-surface']}
-                      multiline
-                      numberOfLines={1}
-                      blurOnSubmit={false}
-                      onContentSizeChange={e => onInputContentSizeChange(`tgt-${group.id}`, e)}
                     />
                   </View>
                 </ListItem>
@@ -1660,17 +1831,14 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
               {/* Tools */}
               {toolGroups.length === 1 && toolsBulkMode ? (
                 <View style={styles.bulkToolInput}>
-                  <RNTextInput
+                  <AutoGrowInput
                     ref={(node: any) => { sectionInputRefs.current['tools'] = node; }}
-                    style={[styles.editableRowInput, noOutline, typing && typingField === 'tools' && !!toolsBulkText && {color: 'transparent'}]}
+                    style={[styles.editableRowInput, styles.bulkInput, noOutline, typing && typingField === 'tools' && !!toolsBulkText && {color: 'transparent'}]}
                     placeholder={t('recipeEdit.toolsBulkPlaceholder')}
-                    placeholderTextColor={colors['foreground/on-surface-muted']}
-                    selectionColor={colors['foreground/on-surface']}
                     value={toolsBulkText}
                     onChangeText={setToolsBulkText}
                     onFocus={(e) => handleFieldFocus('tools', e.nativeEvent)}
                     onBlur={handleFieldBlur}
-                    multiline
                   />
                   {ocrLoading && focusedOcrField === 'tools' && (
                     <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.bulkToolInput]}>
@@ -1730,20 +1898,14 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                           variant: 'ghost-secondary',
                         }}
                         showDivider={index < group.tools.length - 1}>
-                        <RNTextInput
+                        <AutoGrowInput
                           ref={groupIndex === 0 && index === 0 ? (node: any) => { sectionInputRefs.current['tools'] = node; } : undefined}
-                          style={[styles.editableRowInput, noOutline, inputHeights[tool.id] != null && {height: inputHeights[tool.id]}]}
+                          style={[styles.editableRowInput, noOutline]}
                           placeholder={t('recipeEdit.toolNamePlaceholder')}
-                          placeholderTextColor={colors['foreground/on-surface-muted']}
-                          selectionColor={colors['foreground/on-surface']}
                           value={tool.name}
-                          onChangeText={v => { updateTool(group.id, tool.id, v); resetInputHeight(tool.id); }}
+                          onChangeText={v => updateTool(group.id, tool.id, v)}
                           onFocus={(e) => handleFieldFocus('tools', e.nativeEvent)}
                           onBlur={handleFieldBlur}
-                          multiline
-                          numberOfLines={1}
-                          blurOnSubmit={false}
-                          onContentSizeChange={e => onInputContentSizeChange(tool.id, e)}
                         />
                       </ListItem>
                     </Animated.View>
@@ -1780,6 +1942,11 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(groupHasDragging ? {zIndex: 100} : undefined)}}>
             <Card style={groupHasDragging ? {overflow: 'visible'} : undefined}>
               {/* Group Header — editable when 2+ groups, non-first gets minus button */}
+              {/* 묶음 헤더 박스 롱프레스 → 위/아래 이동 메뉴 (묶음 2개 이상일 때만 의미) */}
+              <View style={{position: 'relative', zIndex: stepGroupMenu === group.id ? 200 : undefined}}>
+              <Pressable
+                onLongPress={stepGroups.length >= 2 ? () => { triggerHaptic('light'); setStepGroupMenu(group.id); } : undefined}
+                delayLongPress={300}>
               {stepGroups.length >= 2 ? (
                 <ListItem
                   leading={groupIndex > 0
@@ -1796,17 +1963,11 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                   <View style={styles.breadcrumbRow}>
                     <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.stepsLabel')}</Text>
                     <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
-                    <RNTextInput
-                      style={[styles.editableRowInput, noOutline, inputHeights[`sgt-${group.id}`] != null && {height: inputHeights[`sgt-${group.id}`]}]}
+                    <AutoGrowInput
+                      style={[styles.editableRowInput, noOutline]}
                       value={group.title}
-                      onChangeText={v => { updateStepGroupTitle(group.id, v); resetInputHeight(`sgt-${group.id}`); }}
+                      onChangeText={v => updateStepGroupTitle(group.id, v)}
                       placeholder={t('recipeEdit.groupNamePlaceholder')}
-                      placeholderTextColor={colors['foreground/on-surface-muted']}
-                      selectionColor={colors['foreground/on-surface']}
-                      multiline
-                      numberOfLines={1}
-                      blurOnSubmit={false}
-                      onContentSizeChange={e => onInputContentSizeChange(`sgt-${group.id}`, e)}
                     />
                   </View>
                 </ListItem>
@@ -1848,21 +2009,30 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                   </View>
                 </ListItem>
               )}
+              </Pressable>
+              <Menu
+                items={[
+                  {id: 'up', label: t('recipeEdit.moveGroupUp'), disabled: groupIndex === 0},
+                  {id: 'down', label: t('recipeEdit.moveGroupDown'), disabled: groupIndex === stepGroups.length - 1},
+                ]}
+                visible={stepGroupMenu === group.id}
+                onSelect={(id) => { moveStepGroup(group.id, id === 'up' ? -1 : 1); setStepGroupMenu(null); }}
+                onClose={() => setStepGroupMenu(null)}
+                style={styles.stepGroupMoveMenu}
+              />
+              </View>
 
               {/* Steps — 한번에 쓰기 모드면 줄바꿈 구분 일괄 입력 */}
               {stepGroups.length === 1 && stepsBulkMode ? (
                 <View style={styles.bulkToolInput}>
-                  <RNTextInput
+                  <AutoGrowInput
                     ref={(node: any) => { sectionInputRefs.current['steps'] = node; }}
-                    style={[styles.editableRowInput, noOutline, typing && typingField === 'steps' && !!stepsBulkText && {color: 'transparent'}]}
+                    style={[styles.editableRowInput, styles.bulkInput, noOutline, typing && typingField === 'steps' && !!stepsBulkText && {color: 'transparent'}]}
                     placeholder={t('recipeEdit.stepsBulkPlaceholder')}
-                    placeholderTextColor={colors['foreground/on-surface-muted']}
-                    selectionColor={colors['foreground/on-surface']}
                     value={stepsBulkText}
                     onChangeText={setStepsBulkText}
                     onFocus={(e) => handleFieldFocus('steps', e.nativeEvent)}
                     onBlur={handleFieldBlur}
-                    multiline
                   />
                   {ocrLoading && focusedOcrField === 'steps' && (
                     <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.bulkToolInput]}>
@@ -1931,33 +2101,12 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                           multiline
                           placeholder={t('recipeEdit.stepDescriptionPlaceholder')}
                           value={step.description}
-                          onChangeText={v => {
-                            updateStep(group.id, step.id, v);
-                            // 슬래시 메뉴 감지
-                            if (v.endsWith('/')) {
-                              setSlashMenu({groupId: group.id, stepId: step.id});
-                            } else if (slashMenu?.stepId === step.id) {
-                              setSlashMenu(null);
-                            }
-                          }}
+                          onChangeText={v => { updateStep(group.id, step.id, v); }}
                           onFocus={(e) => { handleFieldFocus('steps', e.nativeEvent); setFocusedStep({groupId: group.id, stepId: step.id}); }}
                           onBlur={handleFieldBlur}
-                          numberOfLines={1}
                           blurOnSubmit={false}
                         />
-                        {/* 슬래시 메뉴 */}
-                        {slashMenu?.groupId === group.id && slashMenu?.stepId === step.id && (
-                          <View style={styles.slashMenuInline}>
-                            <Menu
-                              items={SLASH_MENU_ITEMS.map(item => ({
-                                ...item,
-                                disabled: (item.id === 'photo' && (step.photos?.length ?? 0) >= 3) || (item.id === 'tip' && step.tip != null) || (item.id === 'caution' && step.caution != null),
-                              }))}
-                              onSelect={handleSlashMenuSelect}
-                              visible
-                            />
-                          </View>
-                        )}
+                        {/* 슬래시/칩추가 메뉴는 이제 키보드 툴바 하위 뎁스(subView)로 통일 (인라인 제거) */}
                         {step.tip != null && (
                           <View style={styles.tipChipInline}>
                             <EditableChip
@@ -1983,6 +2132,17 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                           <StepPhotos
                             photos={step.photos}
                             mode="edit"
+                            onCaptionChange={(pi, caption) => {
+                              setStepGroups(prev => prev.map(g =>
+                                g.id === group.id
+                                  ? {...g, steps: g.steps.map(s =>
+                                      s.id === step.id
+                                        ? {...s, photos: s.photos?.map((p, i) => i === pi ? {...p, caption: caption || undefined} : p)}
+                                        : s,
+                                    )}
+                                  : g,
+                              ));
+                            }}
                             onRemove={(pi) => {
                               setStepGroups(prev => prev.map(g =>
                                 g.id === group.id
@@ -2011,7 +2171,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                                 g.id === group.id
                                   ? {...g, steps: g.steps.map(s =>
                                       s.id === step.id
-                                        ? {...s, photos: s.photos?.map((p, i) => i === pi ? uri : p)}
+                                        ? {...s, photos: s.photos?.map((p, i) => i === pi ? {...p, uri} : p)}
                                         : s,
                                     )}
                                   : g,
@@ -2100,17 +2260,6 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
             </Card>
           </ContentContainer>
           </View>
-        )}
-        {isExplore && (
-          <ContentContainer style={isFieldActive('advice') ? styles.navItemGap : styles.section}>
-            <Card>
-              <ListItem
-                title={t('recipeEdit.hidden')}
-                trailing={{type: 'custom', element: <Switch value={hidden} onValueChange={setHidden} />}}
-                showDivider={false}
-              />
-            </Card>
-          </ContentContainer>
         )}
         {isFieldActive('review') && (
           <View onLayout={e => { sectionPositions.current['review'] = e.nativeEvent.layout.y; }}>
@@ -2231,6 +2380,32 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
       </CookbookSelectSheet>
 
 
+      {/* 저장 안 하고 닫기 — X 버튼 아래 팝오버(저장/버리기 버튼) */}
+      <Popover
+        visible={showDiscardConfirm}
+        onClose={() => setShowDiscardConfirm(false)}
+        style={{position: 'absolute', top: insets.top + NAV_PILL_HEIGHT + 8, left: contentLeftEdge, zIndex: 100}}
+      >
+        <View style={{gap: Spacing.xs}}>
+          <Button
+            label={t('recipeEdit.discardConfirm')}
+            variant="soft"
+            size="medium"
+            shape="square"
+            destructive
+            onPress={() => { setShowDiscardConfirm(false); onClose?.(); }}
+          />
+          <Button
+            label={t('recipeEdit.saveAndClose')}
+            variant="soft"
+            size="medium"
+            shape="square"
+            disabled={!canSave}
+            onPress={() => { setShowDiscardConfirm(false); handleSave(); }}
+          />
+        </View>
+      </Popover>
+
       {/* 필드관리 다이얼로그 */}
       <FieldManageDialog
         visible={fieldManageVisible}
@@ -2282,7 +2457,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
       {/* Fixed Top Navigation Bar */}
       <FloatingNavBar
         left={
-          <NavPillButton icon={IconClose} onPress={onClose} />
+          <NavPillButton icon={IconClose} onPress={requestClose} />
         }
         rightMenu={
           <Menu
@@ -2293,6 +2468,13 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
         }
         right={
           <>
+            {/* 비공개(공식 레시피 어드민 전용) — 플로팅 박스 없이 라벨 + 스위치만, 오버플로우 메뉴 옆 */}
+            {isExplore && (
+              <View style={styles.hiddenInline}>
+                <Text style={styles.hiddenLabel} numberOfLines={1}>{t('recipeEdit.hidden')}</Text>
+                <Switch value={hidden} onValueChange={setHidden} />
+              </View>
+            )}
             <GlassContainer contentStyle={navPillStyle}>
               <IconButton
                 icon={IconEllipsisVertical}
@@ -2307,74 +2489,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 icon={IconTick}
                 disabled={!canSave}
                 loading={saving}
-                onPress={async () => {
-                if (!title.trim()) {
-                  setTitleError(true);
-                  scrollViewRef.current?.scrollTo({y: 0, animated: true});
-                  titleInputRef.current?.focus();
-                  return;
-                }
-                const hasIngredient = (ingredientGroups.length === 1 && ingredientsBulkMode)
-                  ? ingredientsBulkText.split(',').some(s => s.trim())
-                  : ingredientGroups.some(g => g.ingredients.some(i => i.name.trim()));
-                if (!hasIngredient) {
-                  const y = sectionPositions.current['ingredients'];
-                  if (y != null) scrollViewRef.current?.scrollTo({y: y - 80, animated: true});
-                  setTimeout(() => sectionInputRefs.current['ingredients']?.focus(), 300);
-                  return;
-                }
-                const hasStep = (stepGroups.length === 1 && stepsBulkMode)
-                  ? bulkTextToStepDescriptions(stepsBulkText).length > 0
-                  : stepGroups.some(g => g.steps.some(s => s.description.trim()));
-                if (!hasStep) {
-                  const y = sectionPositions.current['steps'];
-                  if (y != null) scrollViewRef.current?.scrollTo({y: y - 80, animated: true});
-                  setTimeout(() => sectionInputRefs.current['steps']?.focus(), 300);
-                  return;
-                }
-                setSaving(true);
-                try {
-                  await onSave?.({
-                    title: title.trim(),
-                    cookbook: cookbook || undefined,
-                    method: method || undefined,
-                    specificGravity: ratio || undefined,
-                    time: time || undefined,
-                    servings: servings || undefined,
-                    session: session || undefined,
-                    ingredientGroups: (ingredientGroups.length === 1 && ingredientsBulkMode)
-                      ? [{title: ingredientGroups[0].title, ingredients: bulkTextToIngredients(ingredientsBulkText).map(i => ({name: i.name, amount: i.amount ? `${i.amount}${i.unit}` : i.unit || ''}))}]
-                      : ingredientGroups.map(g => ({
-                          title: g.title,
-                          ingredients: g.ingredients
-                            .filter(i => i.name.trim())
-                            .map(i => ({name: i.name, amount: i.amount ? `${i.amount}${i.unit}` : i.unit})),
-                        })),
-                    toolGroups: (toolGroups.length === 1 && toolsBulkMode)
-                      ? [{title: toolGroups[0].title, tools: bulkTextToToolNames(toolsBulkText).map(name => ({name}))}]
-                      : toolGroups.map(g => ({
-                          title: g.title,
-                          tools: g.tools.filter(t => t.name.trim()).map(t => ({name: t.name})),
-                        })),
-                    stepGroups: (stepGroups.length === 1 && stepsBulkMode)
-                      ? [{title: stepGroups[0].title, steps: bulkTextToStepDescriptions(stepsBulkText).map((description, idx) => ({step: idx + 1, description}))}]
-                      : stepGroups.map(g => ({
-                          title: g.title,
-                          steps: g.steps
-                            .filter(s => s.description.trim())
-                            .map((s, idx) => ({step: idx + 1, description: s.description, tip: s.tip, caution: s.caution, photos: s.photos?.length ? s.photos : undefined})),
-                        })),
-                    activeFieldIds,
-                    reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
-                    advice: advice || undefined,
-                    imageUri: imageUri || undefined,
-                    referenceUrl: referenceUrl || undefined,
-                    ...(isExplore ? {hidden} : {}),
-                  });
-                } finally {
-                  setSaving(false);
-                }
-              }}
+                onPress={handleSave}
               variant="filled"
               size="large"
             />
@@ -2383,9 +2498,12 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
         }
       />
 
-      {/* OCR/음성 인식 툴바 — 필드 활성 시 키보드 위에 고정 노출.
-          픽/크롭/OCR 진행 중(ocrPickActive)엔 blur로 언마운트되지 않게 유지 */}
-      {(focusedOcrField || ocrPickActive) && (() => {
+      {/* OCR/음성 인식 툴바 — 키보드가 올라와 있으면 그냥 표시 (필드마다 나왔다 안 나왔다 안 함).
+          현재 필드가 OCR 대상(제목·재료·도구·과정)이 아니면 OCR/영역이동/칩 버튼만 disabled.
+          - 네이티브: keyboardVisible 기준 / 웹: focus 기준(키보드 이벤트 없음). 픽/크롭 중(ocrPickActive)엔 유지 */}
+      {(() => {
+        // 현재 포커스가 OCR 대상 필드인지 (아니면 OCR 기능 비활성)
+        const isOcrField = !!focusedOcrField;
         // 영역이동(◀▶): 활성화된 입력 구역을 순서대로 이동
         const OCR_FIELD_ORDER: RecipeOcrField[] = ['title', 'ingredients', 'tools', 'steps'];
         const navFields = OCR_FIELD_ORDER.filter(f => f === 'title' || isFieldActive(f));
@@ -2401,16 +2519,35 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           if (s) stepHasRoom = s.tip == null || s.caution == null || (s.photos?.length ?? 0) < 3;
         }
         const canAddChip = focusedOcrField === 'steps' && stepHasRoom;
+        // 칩추가(+) 툴바 뎁스: slashMenu 열리면 [←][사진][팁][주의] (여유 있는 것만)
+        const chipSubView = slashMenu ? (() => {
+          const g = stepGroups.find(gg => gg.id === slashMenu.groupId);
+          const s = g?.steps.find(ss => ss.id === slashMenu.stepId);
+          const actions = SLASH_MENU_ITEMS
+            .filter(item =>
+              item.id === 'photo' ? (s?.photos?.length ?? 0) < 3
+              : item.id === 'tip' ? s?.tip == null
+              : item.id === 'caution' ? s?.caution == null
+              : true,
+            )
+            .map(item => ({
+              label: item.label,
+              icon: item.icon as any,
+              onPress: () => handleSlashMenuSelect(item.id),
+            }));
+          return {onBack: () => setSlashMenu(null), actions};
+        })() : null;
         return (
         <RecipeInputFloatingBar
           field={focusedOcrField ?? ocrFieldRef.current ?? 'title'}
+          ocrDisabled={!isOcrField}
           onPrevField={() => { if (canPrev) focusField(navFields[curIdx - 1]); }}
           onNextField={() => { if (canNext) focusField(navFields[curIdx + 1]); }}
           canPrev={canPrev}
           canNext={canNext}
           onAddChip={() => { if (focusedStep) setSlashMenu(focusedStep); }}
           canAddChip={canAddChip}
-          onPickActiveChange={setOcrPickActive}
+          subView={chipSubView}
           onOcrStart={() => setOcrLoading(true)}
           onOcrEnd={() => setOcrLoading(false)}
           externalBusy={typing || ocrLoading}
@@ -2421,10 +2558,20 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
             } else if (field === 'ingredients' && Array.isArray(value)) {
               const cleaned = value.map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
               if (cleaned.length === 0) return;
-              if (!ingredientsBulkMode) setIngredientsBulkMode(true);
-              const existing = ingredientsBulkText.trim();
+              // OCR 대상 그룹: 마지막 포커스한 bulk 그룹, 없으면 첫 그룹.
+              const targetId = ocrBulkGroupId ?? ingredientGroups[0]?.id;
+              if (!targetId) return;
+              const target = ingredientGroups.find(g => g.id === targetId);
+              // 대상 그룹 bulk 모드 켜기(폼이었으면 기존 재료를 bulkText로 이어받아).
+              setIngredientGroups(p => p.map(g => g.id === targetId
+                ? {...g, bulkMode: true, bulkText: g.bulkMode ? g.bulkText : ingredientsToBulkText(g.ingredients)}
+                : g));
+              setOcrBulkGroupId(targetId);
+              const existing = (target?.bulkMode ? target.bulkText : ingredientsToBulkText(target?.ingredients ?? [])).trim();
               const prefix = existing ? existing + ', ' : '';
-              typewriteAppendItems(cleaned, prefix, setIngredientsBulkText, 'ingredients');
+              // 그룹 bulkText setter
+              const setGroupBulk = (v: string) => setIngredientGroups(p => p.map(g => g.id === targetId ? {...g, bulkText: v} : g));
+              typewriteAppendItems(cleaned, prefix, setGroupBulk, 'ingredients');
             } else if (field === 'tools' && Array.isArray(value)) {
               const cleaned = value.map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
               if (cleaned.length === 0) return;
@@ -2458,6 +2605,19 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   container: {
     flex: 1,
     alignItems: 'center',
+  },
+  hiddenInline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    height: NAV_PILL_HEIGHT,
+    paddingHorizontal: 8,
+  },
+  hiddenLabel: {
+    fontFamily: Typography.label.medium.fontFamily,
+    fontSize: Typography.label.medium.fontSize,
+    fontWeight: Typography.label.medium.fontWeight as '600',
+    color: colors['foreground/on-surface'],
   },
   scrollView: {
     flex: 1,
@@ -2599,6 +2759,14 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     marginTop: 4,
     zIndex: 20,
   },
+  // 과정 묶음 롱프레스 이동 메뉴 — 헤더 좌측 아래에 뜸
+  stepGroupMoveMenu: {
+    position: 'absolute' as const,
+    top: '100%' as any,
+    left: Spacing.md,
+    marginTop: 4,
+    zIndex: 200,
+  },
   photoTileFilled: {
     flex: 1,
     overflow: 'hidden',
@@ -2695,10 +2863,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   tipChipInline: {
     paddingTop: Spacing.sm,
   },
-  slashMenuInline: {
-    paddingTop: Spacing.sm,
-    alignSelf: 'flex-start',
-  },
 
   // Breadcrumb prefix (재료 > , 과정 > )
   breadcrumbRow: {
@@ -2718,11 +2882,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
 
   // Add button row
   addButtonRow: {
-    paddingBottom: Spacing.sm,
+    paddingBottom: 0,
   },
   addButtonDivider: {
     width: '100%',
-    paddingBottom: Spacing.sm,
+    paddingBottom: 0,
   },
   addButtonVDivider: {
     width: 1,
@@ -2733,8 +2897,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   addButtonPair: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'center',
-    maxWidth: 320,
+    alignSelf: 'stretch',
     width: '100%',
     gap: 16,
   },
@@ -2803,6 +2966,12 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   bulkToolInput: {
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.smd,
+  },
+  // bulk 멀티라인 입력: editableRowInput의 flex:1(가로 행용)이 AutoGrowInput의 자동
+  // 높이를 무력화해 한 줄로 갇힌다. flex를 끄고 가로만 stretch → 세로 자동 확장 복구.
+  bulkInput: {
+    flex: 0,
+    alignSelf: 'stretch',
   },
 
   // Overlay & Menu

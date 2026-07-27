@@ -25,6 +25,9 @@ const titleFix = {
   '트위스트 단과자 빵': '트위스트 단과자빵',
 };
 
+// 비상스트레이트법으로 지정할 표시 제목 (그 외는 스트레이트법)
+const EMERGENCY_STRAIGHT_TITLES = new Set(['식빵', '단팥빵']);
+
 // 표시 제목 → 참고 유튜브 링크
 const refUrl = {
   '모카빵': 'https://youtu.be/ocxTAneRVQE',
@@ -105,7 +108,8 @@ async function main() {
       id: docId,
       title,
       cookbook: '제빵기능사',
-      method: '스트레이트법',
+      // 제빵기능사 실기 기준 비상스트레이트법 품목(식빵·단팥빵)만 예외, 나머지는 스트레이트법
+      method: EMERGENCY_STRAIGHT_TITLES.has(title) ? '비상스트레이트법' : '스트레이트법',
       reviewCount: 0,
       time: '3시간',
       servings: '적당량',

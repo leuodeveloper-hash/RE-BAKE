@@ -30,12 +30,28 @@ export interface SearchCommandBarItem {
   imageUrl?: string;
 }
 
+/** 탭(레시피/사용자 등) — 각 탭이 자기 아이템/선택 핸들러/렌더 방식을 갖는다 */
+export interface SearchCommandBarTab {
+  id: string;
+  label: string;
+  items: SearchCommandBarItem[];
+  onSelect: (id: string) => void;
+  /** 이 탭 아이템에 공통 적용할 아이콘 */
+  icon?: React.FC<SvgProps>;
+  iconColor?: string;
+  /** 결과를 RecipeCard(list/small)로 표시 */
+  useRecipeCards?: boolean;
+  placeholder?: string;
+  /** 빈 결과 문구 (query 파라미터 사용) */
+  emptyLabel?: (query: string) => string;
+}
+
 export interface SearchCommandBarProps {
   visible: boolean;
   onClose: () => void;
-  items: SearchCommandBarItem[];
+  items?: SearchCommandBarItem[];
   selectedId?: string;
-  onSelect: (id: string) => void;
+  onSelect?: (id: string) => void;
   placeholder?: string;
   /** 모든 아이템에 공통 적용할 아이콘 */
   icon?: React.FC<SvgProps>;
@@ -45,6 +61,8 @@ export interface SearchCommandBarProps {
   initialQuery?: string;
   /** 결과를 RecipeCard(list/small)로 표시 */
   useRecipeCards?: boolean;
+  /** 탭 모드: 지정하면 상단에 탭 스트립 표시, 각 탭이 자기 items/onSelect 사용 (단일 items 무시) */
+  tabs?: SearchCommandBarTab[];
 }
 
 export function SearchCommandBar({
@@ -58,6 +76,7 @@ export function SearchCommandBar({
   iconColor,
   initialQuery,
   useRecipeCards,
+  tabs,
 }: SearchCommandBarProps) {
   const {t} = useTranslation();
   const styles = useThemedStyles(createStyles);
@@ -68,8 +87,20 @@ export function SearchCommandBar({
   const [mounted, setMounted] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [focusedIndex, setFocusedIndex] = useState(0);
+  const [activeTabId, setActiveTabId] = useState<string | undefined>(tabs?.[0]?.id);
   const scrollRef = useRef<ScrollView>(null);
   const inputRef = useRef<RNTextInput>(null);
+
+  // 활성 탭이 있으면 그 탭 설정을, 없으면 단일 items props를 사용 (하위호환)
+  const activeTab = tabs?.find(tb => tb.id === activeTabId) ?? tabs?.[0];
+  const activeItems = activeTab?.items ?? items ?? [];
+  const activeOnSelect = activeTab?.onSelect ?? onSelect ?? (() => {});
+  const activeIcon = activeTab?.icon ?? icon;
+  const activeIconColor = activeTab?.iconColor ?? iconColor;
+  const activeUseRecipeCards = activeTab?.useRecipeCards ?? useRecipeCards;
+  const activePlaceholder = activeTab?.placeholder ?? placeholder;
+  const activeEmptyLabel = activeTab?.emptyLabel
+    ?? ((q: string) => t('searchCommandBar.emptyRecipes', {query: q}));
 
   const filteredItems = useMemo(() => {
     const dedupe = (list: SearchCommandBarItem[]) => {
@@ -80,18 +111,18 @@ export function SearchCommandBar({
         return true;
       });
     };
-    if (!searchQuery.trim()) return dedupe(items).slice(-10);
+    if (!searchQuery.trim()) return dedupe(activeItems).slice(-10);
     const q = searchQuery.trim().toLowerCase();
-    return dedupe(items.filter(item =>
+    return dedupe(activeItems.filter(item =>
       item.label.toLowerCase().includes(q) ||
-      item.searchableTexts?.some(t => t.toLowerCase().includes(q)),
+      item.searchableTexts?.some(txt => txt.toLowerCase().includes(q)),
     ));
-  }, [searchQuery, items]);
+  }, [searchQuery, activeItems]);
 
-  // 검색어 변경 시 포커스 인덱스 리셋
+  // 검색어/탭 변경 시 포커스 인덱스 리셋
   useEffect(() => {
     setFocusedIndex(0);
-  }, [searchQuery]);
+  }, [searchQuery, activeTabId]);
 
   // 열릴 때 포커스 인덱스 리셋
   useEffect(() => {
@@ -154,9 +185,9 @@ export function SearchCommandBar({
     } else if (key === 'Enter') {
       e.preventDefault?.();
       const item = filteredItems[focusedIndex];
-      if (item) onSelect(item.id);
+      if (item) activeOnSelect(item.id);
     }
-  }, [filteredItems, focusedIndex, onSelect]);
+  }, [filteredItems, focusedIndex, activeOnSelect]);
 
   if (!mounted) return null;
 
@@ -183,10 +214,27 @@ export function SearchCommandBar({
             pointerEvents={visible ? 'auto' : 'none'}>
             <Pressable>
               <GlassContainer borderRadius="lg" contentStyle={styles.content}>
+                {tabs && tabs.length > 1 && (
+                  <View style={styles.tabStrip}>
+                    {tabs.map(tb => {
+                      const active = tb.id === (activeTab?.id ?? tabs[0].id);
+                      return (
+                        <Pressable
+                          key={tb.id}
+                          onPress={() => setActiveTabId(tb.id)}
+                          style={[styles.tab, active && styles.tabActive]}>
+                          <Text style={[styles.tabLabel, active && styles.tabLabelActive]}>
+                            {tb.label}
+                          </Text>
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                )}
                 <View style={styles.searchBar}>
                   <TextInput
                     ref={inputRef}
-                    placeholder={placeholder ?? t('searchCommandBar.searchPlaceholder')}
+                    placeholder={activePlaceholder ?? t('searchCommandBar.searchPlaceholder')}
                     value={searchQuery}
                     onChangeText={setSearchQuery}
                     style="ghost"
@@ -205,7 +253,7 @@ export function SearchCommandBar({
                   <ScrollView ref={scrollRef} bounces={false} showsVerticalScrollIndicator>
                     {filteredItems.map((item, index) => (
                       <View key={item.id}>
-                        {useRecipeCards ? (
+                        {activeUseRecipeCards ? (
                           <RecipeCard
                             id={item.id}
                             title={item.label}
@@ -213,7 +261,7 @@ export function SearchCommandBar({
                             customSubtitle={item.searchableTexts?.join(' · ')}
                             layout="list"
                             size="small"
-                            onPress={() => onSelect(item.id)}
+                            onPress={() => activeOnSelect(item.id)}
                             locked={item.locked}
                           />
                         ) : (
@@ -221,10 +269,10 @@ export function SearchCommandBar({
                             <MenuItem
                               id={item.id}
                               label={item.label}
-                              icon={icon}
-                              iconColor={item.iconColor ?? iconColor}
+                              icon={activeIcon}
+                              iconColor={item.iconColor ?? activeIconColor}
                               selected={index === focusedIndex || item.id === selectedId}
-                              onPress={() => onSelect(item.id)}
+                              onPress={() => activeOnSelect(item.id)}
                             />
                             {item.locked && (
                               <View style={styles.lockOverlay} pointerEvents="none">
@@ -240,7 +288,7 @@ export function SearchCommandBar({
                   <View style={styles.emptyContainer}>
                     <EmptyState
                       variant="simple"
-                      title={t('searchCommandBar.emptyRecipes', {query: searchQuery.trim()})}
+                      title={activeEmptyLabel(searchQuery.trim())}
                     />
                   </View>
                 )}
@@ -274,6 +322,29 @@ const createStyles = (colors: SemanticColors) =>
     content: {
       padding: Spacing.xs,
       height: 320,
+    },
+    tabStrip: {
+      flexDirection: 'row',
+      gap: Spacing.xs,
+      paddingHorizontal: Spacing.xs,
+      paddingBottom: Spacing.xs,
+    },
+    tab: {
+      paddingHorizontal: Spacing.smd,
+      paddingVertical: Spacing.xs,
+      borderRadius: 999,
+    },
+    tabActive: {
+      backgroundColor: colors['surface/dim'],
+    },
+    tabLabel: {
+      fontFamily: Typography.label['large - semibold'].fontFamily,
+      fontSize: Typography.label['large - semibold'].fontSize,
+      fontWeight: Typography.label['large - semibold'].fontWeight as '600',
+      color: colors['foreground/on-surface-muted'],
+    },
+    tabLabelActive: {
+      color: colors['foreground/on-surface'],
     },
     searchBar: {
       paddingHorizontal: Spacing.sm,

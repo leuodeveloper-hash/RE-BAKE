@@ -29,6 +29,7 @@ import {YouTubePlayerModal} from '@components/YouTubePlayer';
 import {SearchCommandBar} from '@components/SearchCommandBar/SearchCommandBar';
 import {parseSession} from '@utils/session';
 import {syncTodayRecipeToWidget} from '@utils/widgetSync';
+import {checkForUpdate} from '@utils/appVersionCheck';
 import type {Recipe} from '../src/types/recipe';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import type {SemanticColors} from '@constants/tokens';
@@ -238,6 +239,19 @@ function NavigationContent() {
     syncTodayRecipeToWidget(exploreRecipesAll).catch(() => {/* 무시 */});
   }, [exploreRecipesAll]);
 
+  // 앱/웹 접속 시 새 버전 체크 → 있으면 스낵바로 알림(버튼: 웹=새로고침, 앱=스토어).
+  useEffect(() => {
+    checkForUpdate().then(res => {
+      if (!res) return;
+      showSnackbar(t('layout.updateAvailable'), {
+        label: t('layout.updateAction'),
+        onPress: res.onUpdate,
+      });
+    });
+    // 마운트 시 1회. showSnackbar/t는 안정적.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // 기존 데이터 마이그레이션(어드민 1회): explore_recipes 레거시 category → cookbook 필드 정리.
   useEffect(() => {
     if (!isAdmin) return;
@@ -278,6 +292,9 @@ function NavigationContent() {
     else if (pathname === '/group') setActiveTab('group');
     else if (pathname === '/explore') setActiveTab('explore');
     else if (pathname === '/profile') setActiveTab('profile');
+    // 작성자 홈(/u/[handle])은 둘러보기 소속 → 둘러보기 탭 활성으로 표시.
+    // (매칭 안 되면 activeTab이 이전값 '홈'에 남아 탭이 안 바뀌던 문제)
+    else if (pathname.startsWith('/u/')) setActiveTab('explore');
   }, [pathname]);
 
   // 레시피 상세/편집 라우트에서는 메인 탭바 숨김 (상세는 회차 눈금 슬라이더가 대신함)
@@ -408,7 +425,7 @@ function NavigationContent() {
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="labs" />
         <Stack.Screen name="recipe/[id]" />
-        <Stack.Screen name="u/[authorId]" options={{animation: 'slide_from_right'}} />
+        <Stack.Screen name="u/[handle]" options={{animation: 'slide_from_right'}} />
         <Stack.Screen name="admin/submissions" options={{animation: 'slide_from_right'}} />
         <Stack.Screen
           name="recipe/edit"

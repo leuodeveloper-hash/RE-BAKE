@@ -31,6 +31,7 @@ import {
   IconTrashTwotone,
   IconArrowDownToLine,
   IconCloudFilled,
+  IconClose,
 } from '@components/Icon/IconIndex';
 
 
@@ -42,18 +43,47 @@ const makeMoreMenuItems = (t: (key: string) => string) => [
 const getDefaultCardMenuItems = (recipe: Recipe, t: (key: string, params?: Record<string, unknown>) => string) =>
   getRecipeMenuItems({t, session: recipe.session, showRemake: true, showEdit: true, showDelete: true, showCookbook: true});
 
-export function HomeScreen() {
+export interface HomeScreenProps {
+  /** 작성자 홈 모드: 이 authorId로 필터된 둘러보기 레시피를 표시(내 레시피 대신) */
+  authorId?: string;
+  /** 뒤로가기 (작성자 홈 등 하위 화면일 때) */
+  onBack?: () => void;
+  /** 앱바 타이틀 자리에 넣을 컴팩트 노드(작성자 아바타+닉네임 배지). 주어지면 그룹화 셀렉터 대신 표시 */
+  authorBadge?: React.ReactNode;
+  /** 축 셀렉터 메뉴 최상단에 한 줄로 넣을 작성자 정보 노드(작성자 홈용). */
+  menuHeaderNode?: React.ReactNode;
+}
+
+export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: HomeScreenProps = {}) {
   const {t} = useTranslation();
   const styles = useThemedStyles(createStyles);
+  const isAuthorMode = !!authorId;
   const colors = useColors();
   const router = useRouter();
-  const {recipes, setRecipes, selectedCookbook, setSelectedCookbook, selectedMethod, setSelectedMethod, availableCookbooks, cookbookColors, setCookbookColor, removeCookbookColor, isLoading, reload, canAddRecipe} = useRecipes();
+  const {recipes: myRecipes, setRecipes, selectedCookbook, setSelectedCookbook, selectedMethod, setSelectedMethod, availableCookbooks: myAvailableCookbooks, cookbookColors, setCookbookColor, removeCookbookColor, isLoading: myLoading, reload, canAddRecipe} = useRecipes();
   const {showSnackbar} = useSnackbar();
   const {isPro} = useSubscription();
   const {user, isAdmin} = useAuth();
   // 홈은 개인 레시피만 표시. explore는 pull-to-refresh 동기화 용도로만 reload 사용.
-  const {reload: exploreReload, exploreCookbooks} = useExploreRecipeContext();
+  const {reload: exploreReload, exploreCookbooks, recipes: exploreRecipesAll, isLoading: exploreLoading} = useExploreRecipeContext();
+
+  // 작성자 홈 모드: 내 레시피 대신 이 authorId로 필터된 둘러보기 레시피. 구조는 홈과 동일.
+  const recipes = useMemo(
+    () => isAuthorMode ? exploreRecipesAll.filter(r => r.authorId === authorId && !r.hidden) : myRecipes,
+    [isAuthorMode, exploreRecipesAll, authorId, myRecipes],
+  );
+  const isLoading = isAuthorMode ? exploreLoading : myLoading;
+  const availableCookbooks = isAuthorMode
+    ? Array.from(new Set(recipes.map(r => r.cookbook).filter(Boolean) as string[]))
+    : myAvailableCookbooks;
   const isGuest = !user;
+
+  // 앱바 작성자 칩: 작성자 홈이면 넘겨받은 배지. 내 홈에선 탭바에 이미 내 아바타가
+  // 있어 중복·거슬림 → 앱바엔 내 아바타 배지를 넣지 않는다.
+  const resolvedBadge = useMemo(() => {
+    if (isAuthorMode) return authorBadge;
+    return undefined;
+  }, [isAuthorMode, authorBadge]);
 
   // 정리: 개인 cookbookColors에 잘못 들어간 '공식 레시피 북' 이름의 빈 껍데기 제거.
   // (과거 오배선으로 공식 북 이름이 개인 색맵에 새어 홈에 빈 레시피 북으로 뜨던 오염 청소.
@@ -363,6 +393,9 @@ export function HomeScreen() {
       <GroupScreen
         recipes={recipes}
         cookbookColors={cookbookColors}
+        authorBadge={resolvedBadge}
+        menuHeaderNode={menuHeaderNode}
+        onBack={onBack}
         axis={groupAxis}
         onAxisChange={handleAxisChange}
         onComingSoon={handleGroupComingSoon}
@@ -392,7 +425,7 @@ export function HomeScreen() {
       onOverlayPress={closeLocalMenus}
       extraOverlayVisible={showMoreMenu || crumbMenu !== null}
       onRefresh={reload}
-      listHeaderExtra={isGuest && !guestBannerDismissed ? (
+      listHeaderExtra={!isAuthorMode && isGuest && !guestBannerDismissed ? (
         <InlineBanner
           icon={IconCloudFilled}
           label={t('home.guestBanner')}
@@ -436,8 +469,11 @@ export function HomeScreen() {
       renderAppBar={({handleFilterPress, showLayoutMenu, closeMenus, layoutMenu, filterIcon}) => (
         <AppBar
           filterIcon={filterIcon}
+          leftIcon={onBack ? IconClose : undefined}
+          onLeftPress={onBack}
           titleNode={
             <Breadcrumb
+              leadingNode={resolvedBadge}
               axisLabel={axisLabel(t, crumbAxis)}
               axisIcon={axisMenuItems.find(i => i.id === crumbAxis)?.icon}
               axisIconColor={axisMenuItems.find(i => i.id === crumbAxis)?.iconColor}
@@ -482,6 +518,7 @@ export function HomeScreen() {
                 selectedId={crumbAxis}
                 onSelect={handleHomeAxisSelect}
                 visible={crumbMenu === 'axis'}
+                headerNode={menuHeaderNode}
               />
               {crumbItemLabel != null && (
                 <Menu

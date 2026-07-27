@@ -155,11 +155,13 @@ export function useExploreRecipes(onError?: (msg: string) => void, isAdmin = fal
 
       if (cancelled) return;
 
-      // 2) 캐시가 신선하면 Firestore 호출 생략 (읽기 0).
-      //    단 어드민은 항상 재조회 — 첫 로드(auth 미확정) 때 비어드민 쿼리로 캐시된
-      //    '숨김 제외' 데이터를 그대로 쓰면 어드민이 숨김 콘텐츠를 못 보기 때문.
+      // 2) 캐시가 있으면 즉시 로딩 종료(체감 빠름). 단 Firestore 갱신은 아래에서 계속 진행
+      //    (stale-while-revalidate) → 새 필드(작성자 등)가 캐시에 없어도 백그라운드로 최신화된다.
+      //    캐시가 신선(TTL 이내)하고 비어드민이면 읽기 비용 절약 위해 여기서 종료.
       if (cacheFresh && !isAdmin) {
         setIsLoading(false);
+        // 스키마가 바뀌어도 반영되도록, 캐시가 신선해도 백그라운드 1회 갱신은 수행
+        fetchFromFirestore().catch(() => {});
         return;
       }
 

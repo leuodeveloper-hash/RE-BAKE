@@ -33,31 +33,62 @@ export function KeyboardToolbar({left, right, above, style}: KeyboardToolbarProp
     () => (Platform.OS !== 'web' && Keyboard.metrics?.()?.height) || 0,
   );
 
+  // 웹(모바일 브라우저): RN Keyboard 이벤트가 안 와서 툴바가 키보드에 깔린다.
+  // visualViewport로 키보드에 가려진 높이를 계산해 그만큼 툴바를 띄운다.
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const vv = (typeof window !== 'undefined' ? window.visualViewport : null) as VisualViewport | null;
+    if (!vv) return;
+    const update = () => {
+      // 키보드가 올라오면 visualViewport.height가 줄어듦 → 가려진 높이 = 레이아웃뷰포트 - 시각뷰포트 - 오프셋
+      const hidden = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      setKbHeight(hidden > 80 ? hidden : 0); // 80px 미만은 키보드 아님(주소창 등)
+    };
+    vv.addEventListener('resize', update);
+    vv.addEventListener('scroll', update);
+    update();
+    return () => {
+      vv.removeEventListener('resize', update);
+      vv.removeEventListener('scroll', update);
+    };
+  }, []);
+
   useEffect(() => {
     if (Platform.OS === 'web') return;
-    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
     // 필드 전환 시 hide→show가 연속으로 와서 툴바가 바닥으로 떨어졌다 올라오는 깜빡임 발생.
     // → hide를 잠깐 지연시키고, 그 사이 show가 오면 취소해서 위치를 유지한다.
     let hideTimer: ReturnType<typeof setTimeout> | null = null;
     const cancelHide = () => { if (hideTimer) { clearTimeout(hideTimer); hideTimer = null; } };
-    const showSub = Keyboard.addListener(showEvt, e => {
+    const onShow = (e: any) => {
       cancelHide();
-      setKbHeight(e.endCoordinates?.height ?? 0);
-    });
-    const hideSub = Keyboard.addListener(hideEvt, () => {
+      const h = e?.endCoordinates?.height ?? 0;
+      if (h > 0) setKbHeight(h);
+    };
+    const onHide = () => {
       cancelHide();
       hideTimer = setTimeout(() => setKbHeight(0), 80);
-    });
+    };
+    // will/did 둘 다 등록 — 툴바가 포커스 후 재마운트되면 willShow를 놓쳐 kbHeight가 0으로
+    // 시작해 키보드 밑에 깔린다. didShow까지 들어 어느 시점에 마운트돼도 높이를 확보.
+    const subs = Platform.OS === 'ios'
+      ? [Keyboard.addListener('keyboardWillShow', onShow), Keyboard.addListener('keyboardDidShow', onShow),
+         Keyboard.addListener('keyboardWillHide', onHide), Keyboard.addListener('keyboardDidHide', onHide)]
+      : [Keyboard.addListener('keyboardDidShow', onShow), Keyboard.addListener('keyboardDidHide', onHide)];
+    // 재마운트 시 이미 올라와 있는 키보드 높이를 즉시 반영
+    const m = Keyboard.metrics?.();
+    if (m?.height) setKbHeight(m.height);
     return () => {
       cancelHide();
-      showSub.remove();
-      hideSub.remove();
+      subs.forEach(s => s.remove());
     };
   }, []);
 
-  // 키보드 위 8px (키보드 없으면 하단 안전영역 위)
-  const bottom = ((Platform.OS !== 'web' && kbHeight > 0) ? kbHeight : insets.bottom) + 8;
+  // 키보드 위 8px. 키보드가 올라와 있으면(kbHeight>0) 그 위로, 없으면 하단 안전영역 위.
+  // 웹은 safe-area가 0이라 키보드 없을 때 최소 여백 16 확보(바닥에 딱 안 붙게).
+  const baseBottom = kbHeight > 0
+    ? kbHeight
+    : (Platform.OS === 'web' ? Math.max(insets.bottom, 16) : insets.bottom);
+  const bottom = baseBottom + 8;
 
   return (
     <>

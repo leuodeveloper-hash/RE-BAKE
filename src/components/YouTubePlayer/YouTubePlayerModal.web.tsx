@@ -1,4 +1,5 @@
 import React, {useMemo, useState, useEffect, useRef, useCallback} from 'react';
+import {createPortal} from 'react-dom';
 import {StyleSheet, View} from 'react-native';
 import {IconClose} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
@@ -67,7 +68,7 @@ export function YouTubePlayerModal({visible, onClose, videoId}: YouTubePlayerMod
 
   if (!embedUrl || !visible) return null;
 
-  return (
+  const content = (
     <View
       // @ts-ignore web inline style
       style={{
@@ -76,7 +77,7 @@ export function YouTubePlayerModal({visible, onClose, videoId}: YouTubePlayerMod
         top: pos?.y ?? 0,
         width: PLAYER_WIDTH,
         height: PLAYER_HEIGHT,
-        zIndex: 50,
+        zIndex: 2147483647,
         backgroundColor: '#000',
         borderRadius: Radius['radius-xl'],
         overflow: 'hidden',
@@ -119,6 +120,13 @@ export function YouTubePlayerModal({visible, onClose, videoId}: YouTubePlayerMod
       </View>
     </View>
   );
+
+  // document.body에 Portal로 렌더 → 상세 등 라우트 화면의 stacking context에 갇히지 않고
+  // 항상 최상위에 뜬다. (position:fixed만으론 부모 transform/opacity에 갇혀 상세에 가려짐)
+  if (typeof document !== 'undefined' && document.body) {
+    return createPortal(content, document.body);
+  }
+  return content;
 }
 
 const styles = StyleSheet.create({

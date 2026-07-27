@@ -25,6 +25,8 @@ interface RecipeMenuOptions {
   showDelete?: boolean;
   showCookbook?: boolean;
   showCopyToExplore?: boolean;
+  /** 유저: 둘러보기에 공개 신청 (어드민 승인 필요) */
+  showSubmitToExplore?: boolean;
   showShare?: boolean;
   /** 전체 PDF 다운로드 (단일 download 대신, 리스트 화면용) */
   showDownloadAll?: boolean;
@@ -45,6 +47,7 @@ export function getRecipeMenuItems(options: RecipeMenuOptions): MenuItemData[] {
   if (options.showEdit) items.push({id: 'edit', label: t('recipeMenuItems.edit'), icon: IconEdit});
   if (options.showCookbook) items.push({id: 'cookbook', label: t('recipeMenuItems.recipeBook'), icon: IconBookFilled});
   if (options.showCopyToExplore) items.push({id: 'copyToExplore', label: t('recipeMenuItems.copyToExplore'), icon: IconExprolerBookFilled});
+  if (options.showSubmitToExplore) items.push({id: 'submitToExplore', label: t('recipeMenuItems.submitToExplore'), icon: IconExprolerBookFilled});
   if (options.showShare) items.push({id: 'share', label: t('recipeMenuItems.share'), icon: IconShare});
   if (options.showDownloadAll) items.push({id: 'downloadAll', label: t('recipeMenuItems.downloadPdf'), icon: IconArrowDownToLine});
   if (options.showDownload !== false && !options.showDownloadAll) {

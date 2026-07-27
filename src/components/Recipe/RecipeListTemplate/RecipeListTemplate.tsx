@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, Dimensions, Easing, FlatList, Pressable, StyleSheet, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {ContentContainer, contentAreaPadding} from '@components/Container';
+import {ContentContainer, contentAreaPadding, APPBAR_HEIGHT} from '@components/Container';
 import {RecipeCard, RecipeCardLayout} from '@components/Recipe/RecipeCard';
 import {Menu, MenuItemData} from '@components/Menu';
 import {Tabs, type TabItem} from '@components/Tabs';
@@ -285,6 +285,15 @@ export interface RecipeListTemplateProps {
   lockedRecipeIds?: Set<string>;
   /** FlatList 헤더 영역에 추가 콘텐츠 (인라인 배너 등) */
   listHeaderExtra?: React.ReactNode;
+  /** 카드 메타 줄 맨 앞에 표시할 작성자 핸들. 둘러보기는 공식이라 'bakey' 고정.
+   *  미지정(홈 등)이면 표시 안 함. */
+  authorHandle?: string;
+  /** 카드 핸들(@handle) 탭 시 — 작성자 홈으로 이동 등. handle을 인자로 받음. */
+  onAuthorPress?: (handle: string) => void;
+  /** 카드 레시피북 탭 시 — 해당 북 그룹으로. cookbook 이름을 인자로. */
+  onCookbookPress?: (cookbook: string) => void;
+  /** 카드 공법 탭 시 — 해당 공법 그룹으로. method를 인자로. */
+  onMethodPress?: (method: string) => void;
   children?: React.ReactNode;
 }
 
@@ -305,6 +314,10 @@ export function RecipeListTemplate({
   scrollEnabled,
   lockedRecipeIds,
   listHeaderExtra,
+  authorHandle,
+  onAuthorPress,
+  onCookbookPress,
+  onMethodPress,
   children,
 }: RecipeListTemplateProps) {
   const styles = useThemedStyles(createStyles);
@@ -543,6 +556,10 @@ export function RecipeListTemplate({
       <RecipeCard
         id={item.id}
         title={item.title}
+        authorHandle={authorHandle}
+        onAuthorPress={authorHandle && onAuthorPress ? () => onAuthorPress(authorHandle) : undefined}
+        onCookbookPress={item.cookbook && onCookbookPress ? () => onCookbookPress(item.cookbook) : undefined}
+        onMethodPress={item.method && onMethodPress ? () => onMethodPress(item.method!) : undefined}
         cookbook={item.cookbook}
         method={item.method}
         specificGravity={item.specificGravity}
@@ -570,7 +587,7 @@ export function RecipeListTemplate({
         ) : card}
       </View>
     );
-  }, [activeLayout, styles, onRecipePress, cardMenuItems, handleCardMenuPress, lockedRecipeIds]);
+  }, [activeLayout, styles, onRecipePress, cardMenuItems, handleCardMenuPress, lockedRecipeIds, authorHandle, onAuthorPress, onCookbookPress, onMethodPress]);
 
   return (
     <>
@@ -665,6 +682,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   packFull: {
     flex: 1,
     width: '100%',
+  },
+  packHeaderExtra: {
+    paddingTop: APPBAR_HEIGHT,
+    paddingHorizontal: Spacing.md,
   },
   packEmpty: {
     flex: 1,

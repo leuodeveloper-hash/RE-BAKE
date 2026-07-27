@@ -10,12 +10,15 @@ import {GradientGlow} from './GradientGlow';
 
 export type ButtonVariant = 'filled' | 'soft' | 'outlined' | 'ghost';
 export type ButtonSize = 'small' | 'medium';
+export type ButtonShape = 'pill' | 'square';
 
 export interface ButtonProps {
   label: string;
   onPress?: () => void;
   variant?: ButtonVariant;
   size?: ButtonSize;
+  /** 모서리 — 기본 알약(pill), square는 살짝 둥근 사각 */
+  shape?: ButtonShape;
   disabled?: boolean;
   loading?: boolean;
   /** 에러/삭제 등 위험한 액션 (빨간색 스타일) */
@@ -39,6 +42,7 @@ export function Button({
   onPress,
   variant = 'filled',
   size = 'medium',
+  shape = 'pill',
   disabled = false,
   loading = false,
   destructive = false,
@@ -50,12 +54,13 @@ export function Button({
 }: ButtonProps) {
   const colors = useColors();
   const sizeConfig = SIZE_CONFIG[size];
+  const borderRadius = shape === 'square' ? Radius['radius-md'] : sizeConfig.borderRadius;
 
   const getContainerStyle = (pressed: boolean): ViewStyle => {
     const base: ViewStyle = {
       height: sizeConfig.height,
       paddingHorizontal: sizeConfig.paddingHorizontal,
-      borderRadius: sizeConfig.borderRadius,
+      borderRadius,
       alignItems: 'center',
       justifyContent: 'center',
     };
@@ -127,7 +132,7 @@ export function Button({
         <GradientGlow
           width={layoutSize.w}
           height={layoutSize.h}
-          borderRadius={sizeConfig.borderRadius}
+          borderRadius={borderRadius}
         />
       )}
       <Pressable

@@ -17,6 +17,7 @@ import {
   IconNoteFilled,
   IconTrashTwotone,
   IconArrowDownToLine,
+  IconUserFilled,
 } from '@components/Icon/IconIndex';
 import {getColorVarKey} from '@components/ColorPicker/ColorPicker';
 import type {ExploreCookbook} from '@hooks/useExploreRecipes';
@@ -24,6 +25,7 @@ import {GroupScreen} from './GroupScreen';
 import {axisLabel, useAxisMenuItems, type AxisOverrides, type GroupAxis} from '@components/RecipeGroups/groupAxis';
 import {IconExprolerBookFilled} from '@components/Icon/IconIndex';
 import type {AvatarColor} from '@components/Avatar/Avatar';
+import {resolveAuthorHandle} from '../types/author';
 
 // 둘러보기 노출 축: 회고 제외 (둘러보기 레시피엔 회고가 없음)
 const EXPLORE_AXES: GroupAxis[] = ['all', 'cookbook', 'method'];
@@ -176,6 +178,35 @@ export function ExploreScreen({
     [data, lockedRecipeIds, exploreCookbookMap, colors],
   );
 
+  // 작성자 검색: 둘러보기 레시피에 박제된 authorId별로 집계 (레시피 수 내림차순)
+  const authorItems = useMemo(() => {
+    const byAuthor = new Map<string, {displayName: string; handle: string; count: number}>();
+    for (const r of data) {
+      if (!r.authorId) continue;
+      const entry = byAuthor.get(r.authorId);
+      if (entry) {
+        entry.count += 1;
+      } else {
+        byAuthor.set(r.authorId, {
+          displayName: (() => { const h = resolveAuthorHandle(r.authorId, r.authorHandle); return h ? `@${h}` : r.authorId!; })(),
+          handle: resolveAuthorHandle(r.authorId, r.authorHandle) || '',
+          count: 1,
+        });
+      }
+    }
+    return Array.from(byAuthor.entries())
+      .sort((a, b) => b[1].count - a[1].count)
+      .map(([authorId, a]) => ({
+        // 네비게이션 URL = handle(핸들=주소 일치). handle 없으면 authorId 폴백.
+        id: a.handle || authorId,
+        label: a.displayName,
+        searchableTexts: [
+          a.handle ? `@${a.handle}` : '',
+          t('searchCommandBar.userRecipeCount', {count: a.count}),
+        ].filter(Boolean),
+      }));
+  }, [data, t]);
+
   const handleCardMenuSelect = useCallback((id: string, recipe: Recipe) => {
     if (id === 'save') {
       onImportRecipe(recipe);
@@ -262,6 +293,10 @@ export function ExploreScreen({
     <RecipeListTemplate
       data={paywallData}
       loading={loading}
+      authorHandle="bakey"
+      onAuthorPress={(h) => router.push(`/u/${h}` as any)}
+      onCookbookPress={(n) => { setSelectedMethod(null); setSelectedCategory(n); setExploreAxis('all'); }}
+      onMethodPress={(m) => { setSelectedCategory(CRUMB_ALL); setSelectedMethod(m); setExploreAxis('all'); }}
       onRecipePress={handleRecipePress}
       cardMenuItems={cardMenuItems}
       onCardMenuSelect={handleCardMenuSelect}
@@ -397,14 +432,32 @@ export function ExploreScreen({
     <SearchCommandBar
       visible={showSearch}
       onClose={() => setShowSearch(false)}
-      items={searchItems}
-      icon={IconNoteFilled}
-      iconColor={colors['custom/green-var']}
-      onSelect={(id) => {
-        setShowSearch(false);
-        const recipe = data.find(r => r.id === id);
-        if (recipe) handleRecipePress(recipe);
-      }}
+      tabs={[
+        {
+          id: 'recipes',
+          label: t('searchCommandBar.tabRecipes'),
+          items: searchItems,
+          icon: IconNoteFilled,
+          iconColor: colors['custom/green-var'],
+          onSelect: (id) => {
+            setShowSearch(false);
+            const recipe = data.find(r => r.id === id);
+            if (recipe) handleRecipePress(recipe);
+          },
+        },
+        {
+          id: 'users',
+          label: t('searchCommandBar.tabUsers'),
+          items: authorItems,
+          icon: IconUserFilled,
+          iconColor: colors['custom/blue-var'],
+          emptyLabel: (query) => t('searchCommandBar.emptyUsers', {query}),
+          onSelect: (id) => {
+            setShowSearch(false);
+            router.push(`/u/${id}` as any);
+          },
+        },
+      ]}
     />
 
     <Dialog

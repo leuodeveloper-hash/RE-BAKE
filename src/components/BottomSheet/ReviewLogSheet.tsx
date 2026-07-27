@@ -170,53 +170,54 @@ export function ReviewLogSheet({
   // 뒤로가기 가능 여부 (GroupScreen에서 진입했을 때만)
   const canGoBack = !selectedRecipeProp && mode === 'detail';
 
-  return (
-    <BottomSheet visible={visible} onClose={onClose}>
-      {/* 헤더 */}
-      <View style={styles.header}>
-        {showSearch ? (
-          <View style={styles.searchBar}>
-            <StyledTextInput
-              ref={searchInputRef}
-              placeholder={mode === 'list' ? t('reviewLog.searchRecipePlaceholder') : t('reviewLog.searchReviewPlaceholder')}
-              value={searchQuery}
-              onChangeText={setSearchQuery}
-              style="ghost"
-              size="small"
-              autoFocus
-              leadingIcon={<AppIcon icon={IconSearch} size="xs" color={colors['foreground/on-surface-muted']} />}
-            />
-            <Pressable onPress={handleCancelSearch} hitSlop={8}>
-              <Text style={styles.cancelText}>{t('reviewLog.cancel')}</Text>
-            </Pressable>
+  const headerNode = (
+    <View style={styles.header}>
+      {showSearch ? (
+        <View style={styles.searchBar}>
+          <StyledTextInput
+            ref={searchInputRef}
+            placeholder={mode === 'list' ? t('reviewLog.searchRecipePlaceholder') : t('reviewLog.searchReviewPlaceholder')}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            style="ghost"
+            size="small"
+            autoFocus
+            leadingIcon={<AppIcon icon={IconSearch} size="xs" color={colors['foreground/on-surface-muted']} />}
+          />
+          <Pressable onPress={handleCancelSearch} hitSlop={8}>
+            <Text style={styles.cancelText}>{t('reviewLog.cancel')}</Text>
+          </Pressable>
+        </View>
+      ) : (
+        <>
+          <View style={styles.titleRow}>
+            <AppIcon icon={IconChartNoAxesGantt} size="xs" color={colors['foreground/on-surface-muted']} />
+            {mode === 'detail' ? (
+              <>
+                {canGoBack ? (
+                  <Pressable onPress={handleBackToList}>
+                    <Text style={styles.titleMuted}>{t('reviewLog.title')}</Text>
+                  </Pressable>
+                ) : (
+                  <Text style={styles.titleMuted}>회고 노트</Text>
+                )}
+                <Text style={styles.titleSlash}>/</Text>
+                <Text style={styles.title} numberOfLines={1}>{currentTitle}</Text>
+              </>
+            ) : (
+              <Text style={styles.title}>{t('reviewLog.title')}</Text>
+            )}
           </View>
-        ) : (
-          <>
-            <View style={styles.titleRow}>
-              <AppIcon icon={IconChartNoAxesGantt} size="xs" color={colors['foreground/on-surface-muted']} />
-              {mode === 'detail' ? (
-                <>
-                  {canGoBack ? (
-                    <Pressable onPress={handleBackToList}>
-                      <Text style={styles.titleMuted}>{t('reviewLog.title')}</Text>
-                    </Pressable>
-                  ) : (
-                    <Text style={styles.titleMuted}>회고 노트</Text>
-                  )}
-                  <Text style={styles.titleSlash}>/</Text>
-                  <Text style={styles.title} numberOfLines={1}>{currentTitle}</Text>
-                </>
-              ) : (
-                <Text style={styles.title}>{t('reviewLog.title')}</Text>
-              )}
-            </View>
-            <Pressable onPress={handleToggleSearch} hitSlop={8}>
-              <AppIcon icon={IconSearch} size="xs" color={colors['foreground/on-surface-muted']} />
-            </Pressable>
-          </>
-        )}
-      </View>
+          <Pressable onPress={handleToggleSearch} hitSlop={8}>
+            <AppIcon icon={IconSearch} size="xs" color={colors['foreground/on-surface-muted']} />
+          </Pressable>
+        </>
+      )}
+    </View>
+  );
 
+  return (
+    <BottomSheet visible={visible} onClose={onClose} header={headerNode}>
       {mode === 'list' ? (
         /* ---- Depth 1: 레시피 목록 ---- */
         <View style={styles.content}>

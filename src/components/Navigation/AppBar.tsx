@@ -55,6 +55,8 @@ export interface AppBarProps {
   rightMenu?: React.ReactNode;
   /** 좌측 타이틀을 커스텀 노드로 대체 (예: 브레드크럼). 지정 시 title/Selector 대신 렌더 */
   titleNode?: React.ReactNode;
+  /** 뒤로가기와 타이틀/셀렉터 사이에 끼우는 노드(예: 작성자 칩). 셀렉터를 대체하지 않고 나란히 추가 */
+  titleLeadingNode?: React.ReactNode;
 }
 
 export function AppBar({
@@ -84,6 +86,7 @@ export function AppBar({
   titleMenu,
   rightMenu,
   titleNode,
+  titleLeadingNode,
 }: AppBarProps) {
   const themedStyles = useThemedStyles(createThemedStyles);
   const {t} = useTranslation();
@@ -109,19 +112,30 @@ export function AppBar({
 
   const hasRightButtons = showAddButton || showSearchButton || showInfoButton || showFilterButton || showMenuButton;
 
+  const leftContent = titleNode ?? (
+    <GlassContainer contentStyle={styles.titlePill}>
+      {/* 리딩노드(작성자 로고 배지 등)는 셀렉터와 같은 알약 안에 함께 넣는다.
+          Breadcrumb.leading과 동일한 톤으로 셀렉터에 붙인다. */}
+      {titleLeadingNode ? <View style={styles.titleLeading}>{titleLeadingNode}</View> : null}
+      <Selector
+        label={resolvedTitle}
+        showDropdown={showDropdown}
+        onPress={onTitlePress}
+        variant="ghost"
+      />
+    </GlassContainer>
+  );
+
   return (
     <FloatingNavBar
       left={
-        titleNode ?? (
-          <GlassContainer contentStyle={styles.titlePill}>
-            <Selector
-              label={resolvedTitle}
-              showDropdown={showDropdown}
-              onPress={onTitlePress}
-              variant="ghost"
-            />
-          </GlassContainer>
-        )
+        // 뒤로가기 버튼이 있으면 셀렉터 알약 앞에 나란히 배치.
+        leftIcon ? (
+          <View style={styles.leftRow}>
+            <NavPillButton icon={leftIcon} onPress={onLeftPress} />
+            {leftContent}
+          </View>
+        ) : leftContent
       }
       right={
         hasRightButtons ? (
@@ -178,10 +192,22 @@ export function AppBar({
 }
 
 const styles = StyleSheet.create({
+  leftRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   titlePill: {
     height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
     justifyContent: 'center',
     padding: 2,
+  },
+  // 아바타와 셀렉터 사이 간격 (Breadcrumb.leading과 동일). 음수 마진은 겹침 유발해 금지.
+  titleLeading: {
+    marginLeft: 6,
+    marginRight: -2,
   },
 });
 

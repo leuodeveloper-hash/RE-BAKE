@@ -19,6 +19,10 @@ import {getDeviceName} from '@utils/deviceInfo';
 import {uploadRecipeImage, isLocalUri} from '@utils/imageUpload';
 import {useOnlineStatus} from './useOnlineStatus';
 
+// 스텝 사진: string(uri) 또는 {uri, caption} 둘 다 지원.
+const photoUri = (p: any): string => (typeof p === 'string' ? p : p?.uri);
+const hasLocalPhoto = (photos: any[] | undefined): boolean => !!photos?.some((p: any) => isLocalUri(photoUri(p)));
+
 const STORAGE_KEY = 'bakle_recipes_v4';
 
 /** 로그인 유저 최대 레시피 수 (클라우드 동기화 제한) */
@@ -89,17 +93,19 @@ async function uploadLocalImages(recipe: Recipe): Promise<Recipe> {
       const newSteps = [];
       for (let sIdx = 0; sIdx < g.steps.length; sIdx++) {
         const s = g.steps[sIdx];
-        if (!s.photos?.some(isLocalUri)) {
+        if (!hasLocalPhoto(s.photos as any)) {
           newSteps.push(s);
           continue;
         }
         const photos = await Promise.all(
-          s.photos!.map(async (uri, pIdx) => {
-            if (!isLocalUri(uri)) return uri;
+          (s.photos as any[])!.map(async (p, pIdx) => {
+            const uri = photoUri(p);
+            if (!isLocalUri(uri)) return p;
             try {
               changed = true;
-              return await uploadRecipeImage(uri, `${recipe.id}_g${gIdx}_s${sIdx}_p${pIdx}`);
-            } catch (e) { console.warn('[Storage] stepGroup photo upload failed:', e); return uri; }
+              const nextUri = await uploadRecipeImage(uri, `${recipe.id}_g${gIdx}_s${sIdx}_p${pIdx}`);
+              return typeof p === 'string' ? nextUri : {...p, uri: nextUri};
+            } catch (e) { console.warn('[Storage] stepGroup photo upload failed:', e); return p; }
           }),
         );
         newSteps.push({...s, photos});
@@ -114,17 +120,19 @@ async function uploadLocalImages(recipe: Recipe): Promise<Recipe> {
     const newSteps = [];
     for (let sIdx = 0; sIdx < updated.steps.length; sIdx++) {
       const s = updated.steps[sIdx];
-      if (!s.photos?.some(isLocalUri)) {
+      if (!hasLocalPhoto(s.photos as any)) {
         newSteps.push(s);
         continue;
       }
       const photos = await Promise.all(
-        s.photos!.map(async (uri, pIdx) => {
-          if (!isLocalUri(uri)) return uri;
+        (s.photos as any[])!.map(async (p, pIdx) => {
+          const uri = photoUri(p);
+          if (!isLocalUri(uri)) return p;
           try {
             changed = true;
-            return await uploadRecipeImage(uri, `${recipe.id}_s${sIdx}_p${pIdx}`);
-          } catch (e) { console.warn('[Storage] step photo upload failed:', e); return uri; }
+            const nextUri = await uploadRecipeImage(uri, `${recipe.id}_s${sIdx}_p${pIdx}`);
+            return typeof p === 'string' ? nextUri : {...p, uri: nextUri};
+          } catch (e) { console.warn('[Storage] step photo upload failed:', e); return p; }
         }),
       );
       newSteps.push({...s, photos});

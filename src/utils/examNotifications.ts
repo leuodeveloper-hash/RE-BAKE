@@ -1,11 +1,12 @@
 import {Platform} from 'react-native';
 import type {ExamSchedule} from './examSchedules';
-import {getExamTypes} from '@constants/examTypes';
+import {getExamTypes, toExamType} from '@constants/examTypes';
 import {translate, deviceLanguage} from '../i18n';
 
 const t = (key: string, params?: Record<string, string | number>) =>
   translate(deviceLanguage(), key, params);
 
+// 알림 유형(실기/필기) → 라벨. Firestore examType(baking_practical 등)은 toExamType으로 매핑.
 const LABEL_BY_TYPE = Object.fromEntries(getExamTypes(t).map(e => [e.id, e.label]));
 
 /**
@@ -58,7 +59,7 @@ export async function scheduleExamNotifications(schedules: ExamSchedule[]): Prom
   };
 
   for (const s of schedules) {
-    const label = LABEL_BY_TYPE[s.examType] ?? t('examNotifications.defaultExamLabel');
+    const label = LABEL_BY_TYPE[toExamType(s.examType)] ?? t('examNotifications.defaultExamLabel');
     const round = s.round ? ` (${s.round})` : '';
 
     const triggers: {date: Date; title: string; body: string}[] = [];

@@ -1,6 +1,8 @@
 import React from 'react';
 import {ViewStyle} from 'react-native';
+import {SvgProps} from 'react-native-svg';
 import {IconButton} from '@components/IconButton';
+import {Button} from '@components/Button';
 import {KeyboardToolbar} from '@components/KeyboardToolbar';
 import {
   IconChevronLeft,
@@ -32,6 +34,21 @@ export interface ToolbarAction {
   active?: boolean;
 }
 
+/** 서브뷰(뎁스) 안의 레이블 버튼 하나 */
+export interface ToolbarSubAction {
+  label: string;
+  // 프로젝트 svg 아이콘(.svg import)은 FC<SvgProps>로 온전히 안 잡혀 ComponentType로 받는다.
+  icon?: React.ComponentType<SvgProps>;
+  onPress: () => void;
+  disabled?: boolean;
+}
+
+/** 서브뷰(뎁스): 지정 시 툴바 좌측이 [뒤로가기]+[레이블 버튼들]로 바뀐다 */
+export interface ToolbarSubView {
+  onBack: () => void;
+  actions: ToolbarSubAction[];
+}
+
 export interface EditorToolbarProps {
   prev?: ToolbarAction;
   next?: ToolbarAction;
@@ -48,6 +65,8 @@ export interface EditorToolbarProps {
   doneDisabled?: boolean;
   /** 바 위에 뜨는 슬롯 (추가/스캔 메뉴) */
   above?: React.ReactNode;
+  /** 하위 뎁스 뷰 — 지정 시 좌측을 [뒤로가기]+[레이블 버튼]으로 대체 */
+  subView?: ToolbarSubView | null;
   style?: ViewStyle;
 }
 
@@ -65,22 +84,42 @@ export function EditorToolbar({
   onDone,
   doneDisabled,
   above,
+  subView,
   style,
 }: EditorToolbarProps) {
   return (
     <KeyboardToolbar
       style={style}
-      above={above}
+      above={subView ? undefined : above}
       left={
-        <>
-          <IconButton icon={IconChevronLeft} onPress={prev?.onPress} variant="ghost-primary" size="medium" disabled={isOff(prev)} />
-          <IconButton icon={IconChevronRight} onPress={next?.onPress} variant="ghost-primary" size="medium" disabled={isOff(next)} />
-          <IconButton icon={IconUndo} onPress={undo?.onPress} variant="ghost-primary" size="medium" disabled={isOff(undo)} />
-          <IconButton icon={IconRedo} onPress={redo?.onPress} variant="ghost-primary" size="medium" disabled={isOff(redo)} />
-          <IconButton icon={IconAdd} onPress={add?.onPress} variant="ghost-primary" size="medium" disabled={isOff(add)} forcePressed={add?.active} />
-          <IconButton icon={IconMic} onPress={voice?.onPress} variant="ghost-primary" size="medium" disabled={isOff(voice)} forcePressed={voice?.active} />
-          <IconButton icon={IconScanText} onPress={scan?.onPress} variant="ghost-primary" size="medium" disabled={isOff(scan)} forcePressed={scan?.active} />
-        </>
+        subView ? (
+          // 하위 뎁스: [뒤로가기 아이콘] + [레이블 버튼들]
+          <>
+            <IconButton icon={IconChevronLeft} onPress={subView.onBack} variant="ghost-primary" size="medium" />
+            {subView.actions.map((a, i) => (
+              <Button
+                key={i}
+                label={a.label}
+                icon={a.icon}
+                onPress={a.onPress}
+                disabled={a.disabled}
+                variant="soft"
+                size="small"
+                shape="square"
+              />
+            ))}
+          </>
+        ) : (
+          <>
+            <IconButton icon={IconChevronLeft} onPress={prev?.onPress} variant="ghost-primary" size="medium" disabled={isOff(prev)} />
+            <IconButton icon={IconChevronRight} onPress={next?.onPress} variant="ghost-primary" size="medium" disabled={isOff(next)} />
+            <IconButton icon={IconUndo} onPress={undo?.onPress} variant="ghost-primary" size="medium" disabled={isOff(undo)} />
+            <IconButton icon={IconRedo} onPress={redo?.onPress} variant="ghost-primary" size="medium" disabled={isOff(redo)} />
+            <IconButton icon={IconAdd} onPress={add?.onPress} variant="ghost-primary" size="medium" disabled={isOff(add)} forcePressed={add?.active} />
+            <IconButton icon={IconMic} onPress={voice?.onPress} variant="ghost-primary" size="medium" disabled={isOff(voice)} forcePressed={voice?.active} />
+            <IconButton icon={IconScanText} onPress={scan?.onPress} variant="ghost-primary" size="medium" disabled={isOff(scan)} forcePressed={scan?.active} />
+          </>
+        )
       }
       right={
         <IconButton icon={IconTick} onPress={onDone} variant="ghost-primary" size="large" disabled={doneDisabled} />

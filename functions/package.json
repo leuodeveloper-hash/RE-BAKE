@@ -1,0 +1,13 @@
+{
+  "name": "bakle-functions",
+  "description": "Bakle Cloud Functions (recipe import proxy)",
+  "type": "module",
+  "engines": {
+    "node": "20"
+  },
+  "main": "index.js",
+  "dependencies": {
+    "firebase-functions": "^5.0.0"
+  },
+  "private": true
+}

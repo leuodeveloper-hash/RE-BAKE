@@ -3,14 +3,14 @@ import {StyleSheet, View} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {GlassContainer} from '@components/Container';
 import {Selector} from '@components/Selector';
-import {IconChevronRight, IconChevronLeft} from '@components/Icon/IconIndex';
+import {IconChevronRight, IconArrowLeft} from '@components/Icon/IconIndex';
 import {useColors} from '@contexts/ThemeContext';
 import {NavPillButton} from '@components/Navigation';
 
 export interface BreadcrumbProps {
   /** 1뎁스: 축 라벨 (전체/레시피 북/공법/회고 노트) */
   axisLabel: string;
-  /** 1뎁스 축 아이콘 — 선택된 축을 메뉴와 동일하게 표시 (레시피북/공법 등) */
+  /** (deprecated) 축 아이콘 — 셀렉터엔 표시하지 않는다. 호출부 호환용으로만 남김. */
   axisIcon?: React.FC<SvgProps>;
   axisIconColor?: string;
   /** 2뎁스: 선택 항목 (특정 책/공법). 없으면 1뎁스만 */
@@ -22,6 +22,8 @@ export interface BreadcrumbProps {
    * → 브레드크럼이 길어지지 않고 상위 목록으로 되돌아가는 동작만 남긴다. (항목 셀렉터는 유지)
    */
   onBack?: () => void;
+  /** 셀렉터 알약 안 맨 앞에 넣을 노드(작성자 아바타 등). */
+  leadingNode?: React.ReactNode;
 }
 
 /**
@@ -30,7 +32,7 @@ export interface BreadcrumbProps {
  *
  * onBack이 주어지고 항목(2뎁스)이 있으면: `[‹ 뒤로가기] [항목 ⌄]` 형태로 축 텍스트를 버튼으로 대체.
  */
-export function Breadcrumb({axisLabel, axisIcon, axisIconColor, itemLabel, onAxisPress, onItemPress, onBack}: BreadcrumbProps) {
+export function Breadcrumb({axisLabel, itemLabel, onAxisPress, onItemPress, onBack, leadingNode}: BreadcrumbProps) {
   const colors = useColors();
   const hasItem = itemLabel != null && itemLabel !== '';
 
@@ -39,11 +41,12 @@ export function Breadcrumb({axisLabel, axisIcon, axisIconColor, itemLabel, onAxi
     return (
       <View style={styles.row}>
         <NavPillButton
-          icon={IconChevronLeft}
+          icon={IconArrowLeft}
           onPress={onBack}
           variant="ghost-secondary"
         />
         <GlassContainer contentStyle={styles.pill}>
+          {leadingNode ? <View style={styles.leading}>{leadingNode}</View> : null}
           <Selector
             label={itemLabel!}
             showDropdown
@@ -57,6 +60,7 @@ export function Breadcrumb({axisLabel, axisIcon, axisIconColor, itemLabel, onAxi
 
   return (
     <GlassContainer contentStyle={styles.pill}>
+      {leadingNode ? <View style={styles.leading}>{leadingNode}</View> : null}
       <Selector
         label={axisLabel}
         showDropdown={!hasItem}
@@ -88,8 +92,10 @@ const styles = StyleSheet.create({
     height: 44,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    padding: 2,
-    gap: 2,
+    paddingHorizontal: 4,
+  },
+  // 아바타는 셀렉터에 딱 붙인다(갭 0). 셀렉터 자체 좌측 패딩이 최소 간격 역할.
+  leading: {
+    marginRight: 0,
   },
 });

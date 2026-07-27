@@ -7,12 +7,6 @@ interface YouTubePlayerContextValue {
   open: (videoId: string) => void;
   /** PiP 닫기 */
   close: () => void;
-  /**
-   * true면 앱 루트 PiP를 숨긴다 — 요리모드 같은 네이티브 Modal이 앱 루트 위에 떠서
-   * 루트 PiP를 덮기 때문에, 그 Modal이 자기 안에서 같은 PiP를 직접 렌더할 때 사용.
-   */
-  hostInModal: boolean;
-  setHostInModal: (v: boolean) => void;
 }
 
 const YouTubePlayerContext = createContext<YouTubePlayerContextValue | null>(null);
@@ -23,7 +17,6 @@ const YouTubePlayerContext = createContext<YouTubePlayerContextValue | null>(nul
  */
 export function YouTubePlayerProvider({children}: {children: React.ReactNode}) {
   const [videoId, setVideoId] = useState<string | null>(null);
-  const [hostInModal, setHostInModal] = useState(false);
 
   // iOS 포함 모든 플랫폼에서 PiP로 연다. iOS는 react-native-youtube-iframe가
   // WKWebView Referer/origin을 정식 처리해 임베드 재생을 시도하고,
@@ -32,8 +25,8 @@ export function YouTubePlayerProvider({children}: {children: React.ReactNode}) {
   const close = useCallback(() => setVideoId(null), []);
 
   const value = useMemo(
-    () => ({videoId, open, close, hostInModal, setHostInModal}),
-    [videoId, open, close, hostInModal],
+    () => ({videoId, open, close}),
+    [videoId, open, close],
   );
 
   return (

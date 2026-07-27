@@ -13,6 +13,7 @@ PeakUp의 배포 방식(웹: `expo export -p web` → `dist` → Firebase Hostin
 - `eas build` (클라우드)를 **절대 실행하지 않는다.** 사용자가 명시적으로 금지함.
 - 안드로이드 APK는 **로컬 gradle**로만 만든다 (`./gradlew`). `eas build --local`도 사용자가 직접 원할 때만.
 - iOS는 이 스킬 범위가 아니다 (로컬 Xcode 빌드는 메모리의 EAS Build Rules 참고).
+- iOS 앱 아이콘/스플래시/네이티브 반영(prebuild)은 `ios-icon` 스킬 사용.
 
 ## 0. 대상 결정
 

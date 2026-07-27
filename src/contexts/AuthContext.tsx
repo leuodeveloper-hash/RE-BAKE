@@ -48,7 +48,10 @@ GoogleSignin.configure({
 
 interface AuthContextValue {
   user: User | null;
+  /** 고유 아이디 — 영문/숫자/언더스코어 (URL·멘션용) */
   handle: string | null;
+  /** 화면 표시 이름 — 한글 등 자유. 없으면 handle 표시 */
+  displayName: string | null;
   isAdmin: boolean;
   isLoading: boolean;
   /** 아바타 시드: 게스트=AsyncStorage 랜덤, 로그인=UID 기반 */
@@ -58,6 +61,7 @@ interface AuthContextValue {
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
   updateHandle: (newHandle: string) => Promise<void>;
+  updateDisplayName: (newDisplayName: string) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -81,6 +85,7 @@ function generateHandle(displayName: string | null, email: string | null): strin
 export function AuthProvider({children}: {children: React.ReactNode}) {
   const [user, setUser] = useState<User | null>(null);
   const [handle, setHandle] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState<string | null>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [guestSeed, setGuestSeed] = useState<number>(0);
@@ -124,22 +129,27 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
             setIsAdmin(false);
           }
         }
-        // 핸들 로드 (없으면 자동 생성)
+        // 핸들·표시이름 로드 (핸들 없으면 자동 생성)
         try {
           const userDoc = await getDoc(doc(db, 'users', firebaseUser.uid));
-          if (userDoc.exists() && userDoc.data().handle) {
-            setHandle(userDoc.data().handle);
+          const data = userDoc.exists() ? userDoc.data() : null;
+          if (data?.handle) {
+            setHandle(data.handle);
           } else {
             const newHandle = generateHandle(firebaseUser.displayName, firebaseUser.email);
             await setDoc(doc(db, 'users', firebaseUser.uid), {handle: newHandle}, {merge: true});
             setHandle(newHandle);
           }
+          // 표시이름: 저장값 우선, 없으면 구글 계정 이름 폴백(있을 때)
+          setDisplayName(data?.displayName ?? firebaseUser.displayName ?? null);
         } catch {
           setHandle(generateHandle(firebaseUser.displayName, firebaseUser.email));
+          setDisplayName(firebaseUser.displayName ?? null);
         }
       } else {
         setIsAdmin(false);
         setHandle(null);
+        setDisplayName(null);
       }
       setIsLoading(false);
     });
@@ -192,9 +202,16 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
     setHandle(newHandle);
   }, [user]);
 
+  const updateDisplayName = useCallback(async (newDisplayName: string) => {
+    if (!user) return;
+    await setDoc(doc(db, 'users', user.uid), {displayName: newDisplayName}, {merge: true});
+    setDisplayName(newDisplayName);
+  }, [user]);
+
   const value = useMemo<AuthContextValue>(() => ({
     user,
     handle,
+    displayName,
     isAdmin,
     isLoading,
     avatarSeed,
@@ -203,7 +220,8 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
     signInWithGoogle: signInWithGoogleFn,
     signOut,
     updateHandle,
-  }), [user, handle, isAdmin, isLoading, avatarSeed, signIn, signUp, signInWithGoogleFn, signOut, updateHandle]);
+    updateDisplayName,
+  }), [user, handle, displayName, isAdmin, isLoading, avatarSeed, signIn, signUp, signInWithGoogleFn, signOut, updateHandle, updateDisplayName]);
 
   return (
     <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

@@ -1,10 +1,14 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Animated, Dimensions, Easing, StyleSheet, View} from 'react-native';
 import {FloatingNavBar, navPillStyle} from '@components/Navigation';
 import {Breadcrumb} from '@components/Navigation/Breadcrumb';
 import {GlassContainer, MAX_CONTENT_WIDTH} from '@components/Container';
 import {IconButton} from '@components/IconButton';
-import {IconAdd, IconEllipsisVertical, IconEdit, IconTrash, IconArrowDownToLine} from '@components/Icon/IconIndex';
+import {IconAdd, IconEllipsisVertical, IconEdit, IconTrash, IconArrowDownToLine, IconList, IconCards, IconShare} from '@components/Icon/IconIndex';
+import {shareOfficialCookbook, sharePersonalCookbook} from '@utils/shareCookbook';
+import {useSnackbar} from '@contexts/SnackbarContext';
+import {RecipeCard} from '@components/Recipe/RecipeCard';
+import {ScrollView} from 'react-native';
 import {Menu} from '@components/Menu';
 import {EmptyState} from '@components/EmptyState';
 import {useThemedStyles} from '@hooks/useThemedStyles';
@@ -54,11 +58,19 @@ export interface GroupExpandOverlayProps {
 export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, origin, onClose, onRecipePress, isAdmin, isExploreName, onAddRecipe, onEditCookbook, onDeleteCookbook, onDownloadPdf}: GroupExpandOverlayProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
+  const {showSnackbar} = useSnackbar();
   const progress = useRef(new Animated.Value(0)).current;
   const [closing, setClosing] = useState(false);
   const [active, setActive] = useState(activeLabel);
   const [showMethodMenu, setShowMethodMenu] = useState(false);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
+  // 리스트뷰 북 화면과 동일하게 리스트/팩 전환 (기본 팩 — 팩뷰에서 진입했으므로)
+  const [viewMode, setViewMode] = useState<'list' | 'pack'>('pack');
+  const [showLayoutMenu, setShowLayoutMenu] = useState(false);
+  const layoutMenuItems = [
+    {id: 'list', label: t('group.listView'), icon: IconList},
+    {id: 'pack', label: t('group.packView'), icon: IconCards},
+  ];
   // 회차 플로우 펼침 상태 (멀티 회차 팩을 탭하면 보드 안에서 회차 카드들로 펼침)
   const [flow, setFlow] = useState<{
     packId: string;
@@ -76,11 +88,22 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
   const canEditDelete = !activeIsExplore || !!isAdmin; // 일반 북은 모두, 공식 북은 어드민만
   // 리스트뷰 케밥 메뉴(GroupScreen)와 동일하게 아이콘 + 짧은 레이블로 통일.
   const moreItems = [
+    {id: 'share', label: t('groupExpandOverlay.shareCookbook'), icon: IconShare},
     ...(canEditDelete && onEditCookbook ? [{id: 'edit', label: t('groupExpandOverlay.editCookbook'), icon: IconEdit}] : []),
     ...(canEditDelete && onDeleteCookbook ? [{id: 'delete', label: t('groupExpandOverlay.deleteCookbook'), icon: IconTrash}] : []),
     ...(onDownloadPdf ? [{id: 'pdf', label: t('groupExpandOverlay.downloadPdf'), icon: IconArrowDownToLine}] : []),
   ];
-  const hasRight = !!onAddRecipe || moreItems.length > 0;
+
+  // 북 공유 — 공식 북은 이름 기반 링크, 개인 북은 스냅샷 업로드 후 링크. (링크 복사 시 스낵바)
+  const handleShareCookbook = useCallback(() => {
+    const onCopied = () => showSnackbar(t('groupExpandOverlay.linkCopied'));
+    const onError = () => showSnackbar(t('groupExpandOverlay.shareFailed'));
+    if (activeIsExplore) {
+      shareOfficialCookbook({name: active, onCopied, onError});
+    } else {
+      sharePersonalCookbook({name: active, recipes, onCopied, onError});
+    }
+  }, [activeIsExplore, active, recipes, showSnackbar, t]);
 
   const {width: W, height: H} = Dimensions.get('window');
   const originCx = origin.x + origin.width / 2;
@@ -173,26 +196,23 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
           left={
             <View style={styles.navLeftRow}>
               {/* 리스트뷰 앱바와 공통: [축] › [항목] 브레드크럼. 축 탭=닫기(상위로), 항목 탭=그룹 전환 */}
-              <View>
-                <Breadcrumb
-                  axisLabel={axisLabel}
-                  itemLabel={active}
-                  onBack={close}
-                  onItemPress={showSelector ? () => setShowMethodMenu(prev => !prev) : undefined}
-                />
-                {showSelector && (
-                  <Menu
-                    items={methodMenuItems}
-                    selectedId={active}
-                    onSelect={id => { setShowMethodMenu(false); setActive(id); }}
-                    visible={showMethodMenu}
-                    style={styles.methodMenu}
-                  />
-                )}
-              </View>
+              <Breadcrumb
+                axisLabel={axisLabel}
+                itemLabel={active}
+                onBack={close}
+                onItemPress={showSelector ? () => setShowMethodMenu(prev => !prev) : undefined}
+              />
             </View>
           }
-          right={hasRight ? (
+          leftMenu={showSelector ? (
+            <Menu
+              items={methodMenuItems}
+              selectedId={active}
+              onSelect={id => { setShowMethodMenu(false); setActive(id); }}
+              visible={showMethodMenu}
+            />
+          ) : undefined}
+          right={
             <GlassContainer contentStyle={navPillStyle}>
               {onAddRecipe && (
                 <IconButton
@@ -202,30 +222,51 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
                   size="medium"
                 />
               )}
+              {/* 리스트뷰 북 화면과 동일한 리스트/팩 전환 버튼 */}
+              <IconButton
+                icon={viewMode === 'pack' ? IconCards : IconList}
+                onPress={() => { setShowMoreMenu(false); setShowLayoutMenu(prev => !prev); }}
+                variant="ghost-primary"
+                size="medium"
+                forcePressed={showLayoutMenu}
+              />
               {moreItems.length > 0 && (
                 <IconButton
                   icon={IconEllipsisVertical}
-                  onPress={() => setShowMoreMenu(prev => !prev)}
+                  onPress={() => { setShowLayoutMenu(false); setShowMoreMenu(prev => !prev); }}
                   variant="ghost-primary"
                   size="medium"
                   forcePressed={showMoreMenu}
                 />
               )}
             </GlassContainer>
-          ) : undefined}
-          rightMenu={moreItems.length > 0 ? (
-            <Menu
-              items={moreItems}
-              visible={showMoreMenu}
-              onSelect={id => {
-                setShowMoreMenu(false);
-                if (id === 'edit') onEditCookbook?.(active, activeIsExplore);
-                else if (id === 'delete') onDeleteCookbook?.(active, activeIsExplore);
-                else if (id === 'pdf') onDownloadPdf?.(active);
-              }}
-              style={styles.moreMenu}
-            />
-          ) : undefined}
+          }
+          rightMenu={
+            <>
+              <Menu
+                items={layoutMenuItems}
+                selectedId={viewMode}
+                visible={showLayoutMenu}
+                onSelect={id => {
+                  setShowLayoutMenu(false);
+                  if (id === 'list' || id === 'pack') setViewMode(id);
+                }}
+              />
+              {moreItems.length > 0 && (
+                <Menu
+                  items={moreItems}
+                  visible={showMoreMenu}
+                  onSelect={id => {
+                    setShowMoreMenu(false);
+                    if (id === 'share') handleShareCookbook();
+                    else if (id === 'edit') onEditCookbook?.(active, activeIsExplore);
+                    else if (id === 'delete') onDeleteCookbook?.(active, activeIsExplore);
+                    else if (id === 'pdf') onDownloadPdf?.(active);
+                  }}
+                />
+              )}
+            </>
+          }
         />
         {/* 보드: 팬/핀치로 로밍. 플로우가 떠 있는 동안엔 다른 팩들 흐리게 */}
         {recipes.length === 0 ? (
@@ -236,6 +277,24 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
               subtitle={t('groupExpandOverlay.emptySubtitle')}
             />
           </View>
+        ) : viewMode === 'list' ? (
+          // 리스트뷰 북 화면과 동일한 세로 목록
+          <ScrollView style={styles.listScroll} contentContainerStyle={styles.listContent} showsVerticalScrollIndicator={false}>
+            {recipes.map((r, idx) => (
+              <RecipeCard
+                key={r.id}
+                id={r.id}
+                title={r.title}
+                cookbook={r.cookbook}
+                method={r.method}
+                reviewCount={r.reviewCount ?? r.reviews?.length}
+                imageUrl={r.imageUri}
+                layout="list"
+                onPress={() => onRecipePress?.(r.id)}
+                hideDivider={idx === recipes.length - 1}
+              />
+            ))}
+          </ScrollView>
         ) : (
           <PackCanvas items={items} entrance={!closing} dimExceptId={flow?.packId} />
         )}
@@ -269,18 +328,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  // FloatingNavBar의 left/rightMenuContainer가 이미 pill 아래(top: NAV_PILL_HEIGHT+xs)로
-  // 배치하므로, 여기서 top을 또 주면 이중 오프셋으로 메뉴가 두 배 내려간다. top은 컨테이너에 위임.
-  methodMenu: {
-    position: 'absolute',
-    left: 0,
-    zIndex: 20,
-  },
-  moreMenu: {
-    position: 'absolute',
-    right: 0,
-    zIndex: 20,
-  },
+  // 메뉴 위치는 FloatingNavBar의 left/rightMenuContainer가 앵커 아래로 잡아줌 (leftMenu/rightMenu 슬롯 사용).
   scrollContent: {
     paddingHorizontal: Spacing.md,
     paddingTop: 80,
@@ -293,6 +341,17 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     width: '100%',
     maxWidth: MAX_CONTENT_WIDTH,
     alignSelf: 'center',
+  },
+  listScroll: {
+    flex: 1,
+  },
+  listContent: {
+    width: '100%',
+    maxWidth: MAX_CONTENT_WIDTH,
+    alignSelf: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingTop: 80,
+    paddingBottom: 120,
   },
   emptyWrap: {
     flex: 1,

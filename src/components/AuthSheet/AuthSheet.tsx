@@ -15,7 +15,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-const APP_LOGO = require('../../../assets/icon.png');
+const APP_LOGO = require('../../../assets/images/avatars/bakey-avatar.png');
 
 export interface AuthSheetProps {
   visible: boolean;
@@ -136,7 +136,7 @@ export function AuthSheet({visible, onClose, onSuccess}: AuthSheetProps) {
           </View>
         </View>
       ) : (
-        <View style={styles.authForm}>
+        <View style={[styles.authForm, styles.authFormNoTopPad]}>
           <View style={styles.authLoginButtons}>
             <Button
               label={t('auth.continueWithGoogle')}
@@ -210,6 +210,10 @@ const createStyles = (colors: SemanticColors) =>
     },
     authLoginButtons: {
       gap: Spacing.sm,
+    },
+    // 초기 로그인 화면: 설명과 버튼 사이 여백을 4로 축소(기본 md는 넓음). 이메일 폼은 유지.
+    authFormNoTopPad: {
+      paddingTop: Spacing.xs,
     },
     termsCaption: {
       ...Typography.body.small,

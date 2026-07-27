@@ -59,6 +59,26 @@ target 'Bakle' do
       :mac_catalyst_enabled => false,
       :ccache_enabled => ccache_enabled?(podfile_properties),
     )
+
+    # RNGoogleMobileAds 빌드 스크립트는 Info.plist가 아직 안 만들어졌을 때 error: + exit 1로
+    # 빌드를 중단시킨다. 위젯(확장 타깃) 추가로 빌드 그래프가 바뀌며 plist 생성 전 스크립트가
+    # 돌아 아카이브가 실패한다. xcodeproj 객체 수정은 CocoaPods 최종 저장 때 덮어써져 정착이
+    # 안 되므로, 최종 저장된 pbxproj 파일을 직접 후처리한다.
+    #  error: → note: (Xcode가 error 출력을 실패로 처리) + 그 직후 exit 1 → exit 0.
+    #  (GADApplicationIdentifier는 Expo 플러그인이 app.json에서 이미 주입하므로 안전.)
+    pbxproj_path = File.join(__dir__, 'Bakle.xcodeproj', 'project.pbxproj')
+    if File.exist?(pbxproj_path)
+      text = File.read(pbxproj_path)
+      # pbxproj 안에서는 개행이 \n, 따옴표가 \" 로 이스케이프되어 한 줄에 저장된다.
+      orig = 'echo \\"error: unable to locate Info.plist to set properties. App will crash without GADApplicationIdentifier set.\\"\\n  exit 1'
+      patched = 'echo \\"note: unable to locate Info.plist (skipping, plugin injects at runtime).\\"\\n  exit 0'
+      if text.include?(orig)
+        File.write(pbxproj_path, text.gsub(orig, patched))
+        Pod::UI.puts '[AdMobPatch] pbxproj 패치 적용됨 (exit 1 → exit 0)'
+      else
+        Pod::UI.puts '[AdMobPatch] 대상 문자열 미발견 (이미 패치됐거나 형태 변경)'
+      end
+    end
   end
 end
 

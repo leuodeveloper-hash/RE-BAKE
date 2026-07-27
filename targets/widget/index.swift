@@ -4,48 +4,71 @@ import SwiftUI
 // App Group으로 앱↔위젯 데이터 공유
 let appGroup = "group.com.bakle.app"
 
-// 앱(JS 브릿지)이 shared UserDefaults에 저장하는 오늘의 레시피 후보 1건.
-// 후보 풀 중 "그날의 하나"는 앱이 골라 저장하고, 위젯은 그대로 표시만 한다.
+// 앱(JS 브릿지)이 shared UserDefaults의 후보 목록(recipeCandidates)에 저장하는 항목.
+// 이미지는 후보에 넣지 않고, "오늘 것" 1장만 별도 키(todayImagePath)로 저장한다.
 struct DailyRecipe: Codable {
   let id: String
   let title: String
   let cookbook: String?
-  let imagePath: String? // App Group 컨테이너 내 로컬 이미지 파일 경로(없을 수 있음)
 }
 
 struct RecipeEntry: TimelineEntry {
   let date: Date
   let recipe: DailyRecipe?
+  let imagePath: String? // 오늘 항목에만 채워짐(그날 이미지). 그 외 날짜는 nil(이모지 폴백).
 }
 
-// shared UserDefaults에서 오늘의 레시피 읽기
-func readTodayRecipe() -> DailyRecipe? {
+// shared UserDefaults에서 후보 "전체"를 읽어, 날짜 시드로 그날 하나를 고른다.
+// 앱을 열지 않아도 위젯이 매일 스스로 다른 레시피를 표시하게 하는 핵심.
+func readTodayRecipe(for date: Date = Date()) -> DailyRecipe? {
   guard let defaults = UserDefaults(suiteName: appGroup),
-        let raw = defaults.string(forKey: "todayRecipe"),
+        let raw = defaults.string(forKey: "recipeCandidates"),
         let data = raw.data(using: .utf8),
-        let recipe = try? JSONDecoder().decode(DailyRecipe.self, from: data)
+        let list = try? JSONDecoder().decode([DailyRecipe].self, from: data),
+        !list.isEmpty
   else { return nil }
-  return recipe
+
+  let cal = Calendar.current
+  let comps = cal.dateComponents([.year, .month, .day], from: date)
+  let seed = (comps.year ?? 0) * 10000 + (comps.month ?? 0) * 100 + (comps.day ?? 0)
+  let idx = ((seed % list.count) + list.count) % list.count
+  return list[idx]
+}
+
+// 앱이 미리 받아둔 "오늘 이미지" 로컬 경로.
+func readTodayImagePath() -> String? {
+  guard let defaults = UserDefaults(suiteName: appGroup) else { return nil }
+  let p = defaults.string(forKey: "todayImagePath")
+  return (p?.isEmpty == false) ? p : nil
 }
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> RecipeEntry {
-    RecipeEntry(date: Date(), recipe: DailyRecipe(id: "", title: "오늘의 레시피", cookbook: nil, imagePath: nil))
+    RecipeEntry(date: Date(), recipe: DailyRecipe(id: "", title: "오늘의 레시피", cookbook: nil), imagePath: nil)
   }
 
   func getSnapshot(in context: Context, completion: @escaping (RecipeEntry) -> Void) {
-    completion(RecipeEntry(date: Date(), recipe: readTodayRecipe()))
+    completion(RecipeEntry(date: Date(), recipe: readTodayRecipe(), imagePath: readTodayImagePath()))
   }
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<RecipeEntry>) -> Void) {
-    let entry = RecipeEntry(date: Date(), recipe: readTodayRecipe())
-    // 매일 오전 9시에 다음 갱신 (앱이 백그라운드에서 못 밀어줘도 위젯이 스스로 리로드 요청)
+    // 앞으로 14일치 엔트리를 각 날짜 00:00 기준으로 미리 만들어 둔다(텍스트는 매일 자동 순환).
+    // 이미지는 오늘 것만 준비돼 있으므로 "오늘(offset 0)" 엔트리에만 채운다.
     let cal = Calendar.current
-    var next = cal.date(bySettingHour: 9, minute: 0, second: 0, of: Date())!
-    if next <= Date() {
-      next = cal.date(byAdding: .day, value: 1, to: next)!
+    let startOfToday = cal.startOfDay(for: Date())
+    let todayImage = readTodayImagePath()
+    var entries: [RecipeEntry] = []
+    for dayOffset in 0..<14 {
+      guard let day = cal.date(byAdding: .day, value: dayOffset, to: startOfToday) else { continue }
+      entries.append(RecipeEntry(
+        date: day,
+        recipe: readTodayRecipe(for: day),
+        imagePath: dayOffset == 0 ? todayImage : nil
+      ))
     }
-    completion(Timeline(entries: [entry], policy: .after(next)))
+    // 마지막 엔트리 이후(14일 뒤) 타임라인 갱신 요청 → 그때 앱이 안 열렸어도 다시 순환.
+    let refreshDate = cal.date(byAdding: .day, value: 14, to: startOfToday) ?? Date()
+    completion(Timeline(entries: entries, policy: .after(refreshDate)))
   }
 }
 
@@ -55,71 +78,59 @@ struct BakleWidgetEntryView: View {
 
   var body: some View {
     let recipe = entry.recipe
+    let hasRecipe = recipe.map { !$0.id.isEmpty } ?? false
     // 탭 → 앱의 레시피 상세로 딥링크. id 없으면 앱만 열기.
     let url = URL(string: recipe.flatMap { $0.id.isEmpty ? nil : "bakle://recipe/\($0.id)" } ?? "bakle://")!
 
-    ZStack {
-      Color("$widgetBackground")
-      content(recipe: recipe)
+    ZStack(alignment: .bottomLeading) {
+      if hasRecipe, let recipe = recipe {
+        // 하단 가독성용 어두운 그라디언트 (배경 이미지는 containerBackground가 담당)
+        LinearGradient(
+          gradient: Gradient(colors: [.clear, .black.opacity(0.15), .black.opacity(0.75)]),
+          startPoint: .center, endPoint: .bottom
+        )
+        VStack(alignment: .leading, spacing: 3) {
+          Text("오늘의 레시피")
+            .font(.caption2).fontWeight(.semibold)
+            .foregroundColor(.white.opacity(0.85))
+          Text(recipe.title)
+            .font(family == .systemSmall ? .subheadline : .headline)
+            .fontWeight(.bold)
+            .foregroundColor(.white)
+            .lineLimit(2)
+          if let cookbook = recipe.cookbook, !cookbook.isEmpty {
+            Text(cookbook)
+              .font(.caption2)
+              .foregroundColor(.white.opacity(0.8))
+              .lineLimit(1)
+          }
+        }
         .padding(family == .systemSmall ? 12 : 16)
+      } else {
+        VStack(spacing: 6) {
+          Text("🥐").font(.system(size: 36))
+          Text("앱을 열어 오늘의 레시피를 받아보세요")
+            .font(.caption)
+            .foregroundColor(.secondary)
+            .multilineTextAlignment(.center)
+            .lineLimit(3)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(12)
+      }
     }
     .widgetURL(url)
   }
 
+  // 오늘 레시피 이미지(로컬). 위젯 전체를 채우는 배경. 없으면 브랜드 톤.
   @ViewBuilder
-  func content(recipe: DailyRecipe?) -> some View {
-    if let recipe = recipe, !recipe.id.isEmpty {
-      HStack(spacing: family == .systemSmall ? 0 : 14) {
-        VStack(alignment: .leading, spacing: 6) {
-          Text("오늘의 레시피 🥐")
-            .font(.caption2)
-            .foregroundColor(Color("$accent"))
-            .lineLimit(1)
-          Text(recipe.title)
-            .font(family == .systemSmall ? .headline : .title3)
-            .fontWeight(.bold)
-            .foregroundColor(.primary)
-            .lineLimit(family == .systemSmall ? 3 : 2)
-          if let cookbook = recipe.cookbook, !cookbook.isEmpty {
-            Text(cookbook)
-              .font(.caption)
-              .foregroundColor(.secondary)
-              .lineLimit(1)
-          }
-          Spacer(minLength: 0)
-        }
-        if family != .systemSmall {
-          thumbnail(recipe: recipe)
-        }
-      }
-    } else {
-      // 후보가 아직 동기화되지 않은 상태
-      VStack(alignment: .leading, spacing: 6) {
-        Text("오늘의 레시피 🥐")
-          .font(.caption2)
-          .foregroundColor(Color("$accent"))
-        Text("앱을 열어 오늘의 레시피를 받아보세요")
-          .font(.subheadline)
-          .foregroundColor(.secondary)
-          .lineLimit(3)
-        Spacer(minLength: 0)
-      }
-    }
-  }
-
-  @ViewBuilder
-  func thumbnail(recipe: DailyRecipe) -> some View {
-    if let path = recipe.imagePath, let uiImage = UIImage(contentsOfFile: path) {
+  static func backgroundLayer(imagePath: String?) -> some View {
+    if let path = imagePath, let uiImage = UIImage(contentsOfFile: path) {
       Image(uiImage: uiImage)
         .resizable()
         .aspectRatio(contentMode: .fill)
-        .frame(width: 84, height: 84)
-        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
     } else {
-      RoundedRectangle(cornerRadius: 14, style: .continuous)
-        .fill(Color("$accent").opacity(0.12))
-        .frame(width: 84, height: 84)
-        .overlay(Text("🥐").font(.system(size: 34)))
+      Color("$widgetBackground")
     }
   }
 }
@@ -130,15 +141,15 @@ struct BakleWidget: Widget {
 
   var body: some WidgetConfiguration {
     StaticConfiguration(kind: kind, provider: Provider()) { entry in
-      if #available(iOS 17.0, *) {
-        BakleWidgetEntryView(entry: entry)
-          .containerBackground(Color("$widgetBackground"), for: .widget)
-      } else {
-        BakleWidgetEntryView(entry: entry)
-      }
+      // 이미지가 위젯 전체(가장자리까지)를 채우도록 배경 자체를 containerBackground로.
+      // 위젯 타깃은 iOS18+ 이므로 항상 이 경로.
+      BakleWidgetEntryView(entry: entry)
+        .containerBackground(for: .widget) {
+          BakleWidgetEntryView.backgroundLayer(imagePath: entry.imagePath)
+        }
     }
     .configurationDisplayName("오늘의 레시피")
-    .description("매일 오전 9시, 오늘의 레시피를 추천해드려요.")
+    .description("매일 새로운 오늘의 레시피를 추천해드려요.")
     .supportedFamilies([.systemSmall, .systemMedium])
   }
 }

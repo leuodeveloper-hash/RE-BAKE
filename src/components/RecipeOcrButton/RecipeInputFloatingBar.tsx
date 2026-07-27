@@ -1,21 +1,12 @@
 import React, {useCallback, useState} from 'react';
-import {Keyboard, Platform, StyleSheet, ViewStyle} from 'react-native';
+import {Keyboard, Platform, ViewStyle} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {
-  IconMic,
-  IconScanText,
   IconPhoto,
   IconCameraFilled,
-  IconChevronLeft,
-  IconChevronRight,
-  IconTick,
-  IconAdd,
 } from '@components/Icon/IconIndex';
-import {IconButton} from '@components/IconButton';
-import {Menu} from '@components/Menu';
-import {KeyboardToolbar} from '@components/KeyboardToolbar';
-import {EditorToolbar} from '@components/EditorToolbar';
+import {EditorToolbar, type ToolbarSubView} from '@components/EditorToolbar';
 import {useSTT} from '@hooks/useSTT';
 import {recognizeImageText, parseRecognizedText, type RecipeOcrField} from '@utils/recipeOcr';
 import {dismissKeyboardAndWait} from '@utils/keyboard';
@@ -57,6 +48,10 @@ export interface RecipeInputFloatingBarProps {
    * (사진 고를 때 입력창 blur → 바 언마운트 → 크롭 모달이 닫히는 문제 방지)
    */
   onPickActiveChange?: (active: boolean) => void;
+  /** OCR 대상이 아닌 필드일 때 true → 음성·스캔(OCR) 버튼 비활성 (툴바 자체는 노출) */
+  ocrDisabled?: boolean;
+  /** 칩추가 등 부모가 주입하는 툴바 하위 뎁스 뷰. 스캔 뎁스보다 우선순위 낮음. */
+  subView?: ToolbarSubView | null;
   style?: ViewStyle;
 }
 
@@ -80,6 +75,8 @@ export function RecipeInputFloatingBar({
   canAddChip = false,
   onDone,
   onPickActiveChange,
+  ocrDisabled = false,
+  subView,
   style,
 }: RecipeInputFloatingBarProps) {
   const {showSnackbar} = useSnackbar();
@@ -195,21 +192,6 @@ export function RecipeInputFloatingBar({
     }
   }, [busy, field, runOcrPipeline, showSnackbar, onPickActiveChange, t]);
 
-  const handleCameraTap = useCallback(() => {
-    if (busy) return;
-    if (Platform.OS === 'web') {
-      // 웹 이미지 인식(OCR)은 정확도·안정성이 낮아 막고 앱으로 안내
-      showSnackbar(t('recipeInputFloatingBar.ocrAppOnly'));
-      return;
-    }
-    pickImage('camera');
-  }, [busy, pickImage, showSnackbar, t]);
-
-  const handleGalleryTap = useCallback(() => {
-    if (busy) return;
-    pickImage('library');
-  }, [busy, pickImage]);
-
   // 스캔 버튼: 촬영/갤러리 선택 메뉴 토글 (웹은 OCR 미지원 안내)
   const handleScanTap = useCallback(() => {
     if (busy) return;
@@ -233,8 +215,6 @@ export function RecipeInputFloatingBar({
     onDone?.();
   }, [onDone]);
 
-  const showRegionNav = !!(onPrevField || onNextField);
-
   return (
     <>
       <EditorToolbar
@@ -242,7 +222,7 @@ export function RecipeInputFloatingBar({
         prev={{onPress: onPrevField, disabled: !onPrevField || !canPrev}}
         next={{onPress: onNextField, disabled: !onNextField || !canNext}}
         add={{onPress: onAddChip, disabled: !canAddChip}}
-        voice={{onPress: handleVoice, active: stt.recording}}
+        voice={{onPress: handleVoice, active: stt.recording, disabled: ocrDisabled}}
         scan={{
           onPress: () => {
             if (externalBusy || busy) {
@@ -252,27 +232,34 @@ export function RecipeInputFloatingBar({
             }
           },
           active: showScanMenu,
+          disabled: ocrDisabled,
         }}
         onDone={handleDone}
-        above={showScanMenu ? (
-          <Menu
-            items={[
-              {id: 'camera', label: t('recipeInputFloatingBar.scanByCamera'), icon: IconCameraFilled},
-              {id: 'gallery', label: t('recipeInputFloatingBar.scanFromGallery'), icon: IconPhoto},
-            ]}
-            visible={showScanMenu}
-            onSelect={(id) => {
-              // 툴바(이 컴포넌트)가 blur로 언마운트되면 pickImage의 async 흐름이 끊겨
-              // 피커 present가 씹힌다("한 번 눌러선 안 열림"). → 메뉴 닫기 전에 pickActive를
-              // 먼저 세워 툴바 유지를 보장하고, 그 다음 메뉴를 닫는다.
-              onPickActiveChange?.(true);
-              setShowScanMenu(false);
-              pickImage(id === 'camera' ? 'camera' : 'library');
-            }}
-            onClose={() => { setShowScanMenu(false); onPickActiveChange?.(false); }}
-            style={styles.scanMenu}
-          />
-        ) : undefined}
+        subView={(showScanMenu || subView) ? (showScanMenu ? {
+          // 스캔 뎁스: [←][촬영][갤러리]
+          onBack: () => { setShowScanMenu(false); onPickActiveChange?.(false); },
+          actions: [
+            {
+              label: t('recipeInputFloatingBar.scanByCamera'),
+              icon: IconCameraFilled as any,
+              onPress: () => {
+                // 툴바 유지를 먼저 보장(blur로 언마운트 시 피커 씹힘) → 메뉴 닫고 픽.
+                onPickActiveChange?.(true);
+                setShowScanMenu(false);
+                pickImage('camera');
+              },
+            },
+            {
+              label: t('recipeInputFloatingBar.scanFromGallery'),
+              icon: IconPhoto as any,
+              onPress: () => {
+                onPickActiveChange?.(true);
+                setShowScanMenu(false);
+                pickImage('library');
+              },
+            },
+          ],
+        } : subView) : null}
       />
       <OcrCropModal
         visible={!!cropTarget}
@@ -294,10 +281,3 @@ export function RecipeInputFloatingBar({
   );
 }
 
-const styles = StyleSheet.create({
-  // 스캔 선택 메뉴: 바 위쪽, 스캔 버튼 근처에 앵커
-  scanMenu: {
-    marginLeft: 96,
-    marginBottom: 6,
-  },
-});

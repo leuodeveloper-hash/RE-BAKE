@@ -197,6 +197,10 @@ export function PackCanvas({items, entrance, dimExceptId}: PackCanvasProps) {
         {/* 웹: 캔버스 transform 재-fit(전체→레시피북 전환 등) 시 하위 box-shadow 잔상이
             상단에 남는 문제 → GPU 레이어로 승격해 깨끗이 리페인트. (PackBoard 개별 팩과 동일 처리) */}
         <Animated.View
+          // iOS: 캔버스 transform 재-fit 시 하위 box-shadow 잔상이 클리어되지 않아
+          // 빈 그림자 박스가 남는다 → 하드웨어 텍스처로 래스터화해 통째로 리페인트.
+          shouldRasterizeIOS
+          renderToHardwareTextureAndroid
           style={[
             styles.canvas,
             Platform.OS === 'web' && ({willChange: 'transform', backfaceVisibility: 'hidden'} as any),

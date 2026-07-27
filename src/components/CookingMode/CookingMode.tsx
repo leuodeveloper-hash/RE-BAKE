@@ -23,23 +23,23 @@ import * as VideoThumbnails from 'expo-video-thumbnails';
 import {getPersistentUri} from '@utils/imageUpload';
 import {ensureImagePermission} from '@utils/imagePermission';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {GlassContainer, Card, MAX_CONTENT_WIDTH} from '@components/Container';
+import {GlassContainer, Card, MAX_CONTENT_WIDTH, ContentMask} from '@components/Container';
 import {BottomSheet} from '@components/BottomSheet';
 import {Snackbar} from '@components/Snackbar';
-import {Tooltip} from '@components/Tooltip';
 import {IconButton} from '@components/IconButton';
 import {Selector} from '@components/Selector';
-import {navPillStyle, RulerSlider, NavPillButton} from '@components/Navigation';
+import {navPillStyle, RulerSlider, NavPillButton, FloatingNavBar} from '@components/Navigation';
 import {Menu, MenuItem, Subheader, type MenuItemData} from '@components/Menu';
 import {SearchCommandBar} from '@components/SearchCommandBar';
 import {Button} from '@components/Button';
 import {EditableChip} from '@components/EditableChip/EditableChip';
 import {StepPhotos} from '@components/StepPhotos';
+import {normalizeStepPhotos} from '@utils/stepPhotos';
+import type {StepPhoto} from '../../types/recipe';
 import {BottomActionBar} from '@components/BottomActionBar';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {
   IconAdd,
-  IconCaretRight,
   IconClose,
   IconEdit,
   IconTick,
@@ -51,7 +51,6 @@ import {
   IconTrash,
   IconUndo,
   IconRedo,
-  IconCircleInfoFilled,
   IconEllipsisVertical,
   IconCheckList,
   IconNoteFilled,
@@ -62,7 +61,6 @@ import {
 } from '@components/Icon/IconIndex';
 import {KeyboardToolbar} from '@components/KeyboardToolbar';
 import {EditorToolbar} from '@components/EditorToolbar';
-import {YouTubePlayerModal} from '@components/YouTubePlayer';
 import {useYouTubePlayer} from '@contexts/YouTubePlayerContext';
 import {parseYouTubeVideoId} from '@utils/youtube';
 import {useThemedStyles} from '@hooks/useThemedStyles';
@@ -88,7 +86,7 @@ interface ProcessStep {
   description: string;
   tip?: string;
   caution?: string;
-  photos?: string[];
+  photos?: (string | StepPhoto)[];
   /** 과정별 수동 지정 재료 */
   ingredients?: IngredientInput[];
 }
@@ -191,7 +189,7 @@ function buildCards(
           description: step.description,
           tip: step.tip,
           caution: step.caution,
-          photos: step.photos,
+          photos: normalizeStepPhotos(step.photos as any).map(p => p.uri),
           matchedIngredients: step.ingredients ?? matchIngredients(step.description, ingredientGroups),
         });
         globalIdx++;
@@ -208,7 +206,7 @@ function buildCards(
         description: step.description,
         tip: step.tip,
         caution: step.caution,
-        photos: step.photos,
+        photos: normalizeStepPhotos(step.photos as any).map(p => p.uri),
         matchedIngredients: step.ingredients ?? matchIngredients(step.description, ingredientGroups),
       });
       globalIdx++;
@@ -280,14 +278,10 @@ export function CookingMode({
   const [showAddMenu, setShowAddMenu] = useState(false);
   const [showScanMenu, setShowScanMenu] = useState(false);
   const [ocrBusy, setOcrBusy] = useState(false);
-  // 유튜브 PiP는 상세와 동일한 전역 인스턴스 사용. 요리모드는 네이티브 Modal이라
-  // 앱 루트 PiP를 덮으므로, 열려 있는 동안 hostInModal=true로 루트 PiP를 숨기고
-  // 여기(Modal 안)에서 같은 videoId로 직접 렌더 → PiP가 요리모드 위에 뜬다.
-  const {videoId: ytVideoId, open: openYouTube, close: closeYouTube, setHostInModal} = useYouTubePlayer();
-  useEffect(() => {
-    setHostInModal(true);
-    return () => setHostInModal(false);
-  }, [setHostInModal]);
+  // 유튜브 PiP는 상세와 동일한 전역 인스턴스(videoId 공유 → 이어재생) 사용. 단, 요리모드는
+  // 네이티브 Modal이라 앱 루트 PiP를 덮는다. 그래서 요리모드가 열려 있는 동안 hostInModal=true로
+  // 루트 PiP 렌더를 숨기고, 여기(Modal 안)에서 같은 videoId로 직접 렌더 → PiP가 요리모드 위에 뜬다.
+  const {videoId: ytVideoId, open: openYouTube} = useYouTubePlayer();
 
   const referenceYouTubeId = useMemo(() => parseYouTubeVideoId(referenceUrl), [referenceUrl]);
   const [showPhotoSubmenu, setShowPhotoSubmenu] = useState(false);
@@ -433,33 +427,43 @@ export function CookingMode({
   }, [scrollX]);
 
   const scrollToIndex = useCallback((index: number, animated = true) => {
-    scrollViewRef.current?.scrollTo({x: pageOffsetsRef.current[index] ?? 0, animated});
+    const x = pageOffsetsRef.current[index] ?? 0;
+    if (animated) {
+      // 좌우 밀림 대신 제자리 crossfade
+      Animated.timing(fadeAnim, {toValue: 0, duration: 130, useNativeDriver: true}).start(() => {
+        scrollViewRef.current?.scrollTo({x, animated: false});
+        Animated.timing(fadeAnim, {toValue: 1, duration: 150, useNativeDriver: true}).start();
+      });
+    } else {
+      scrollViewRef.current?.scrollTo({x, animated: false});
+    }
     setCurrentStopId(null); // 프로그램 이동 시 해당 스텝의 첫 스톱으로 눈금 동기화
-  }, []);
+  }, [fadeAnim]);
 
   // 눈금 탭 이동: 멀리 떨어진 번호면 "직전 한 페이지로 즉시 점프 → 마지막 한 칸만 애니메이션"
   // → 거리에 상관없이 항상 한 번 스와이프해 들어오는 느낌. (중간 스텝을 쫙 훑지 않음)
+  // 좌우 밀림(스크롤 애니) 대신 제자리 crossfade로 점프 (눈금 탭·◀▶·그룹 이동 공용).
+  // 스와이프(드래그)는 그대로 스크롤 유지 — 여기선 버튼/눈금 점프만 페이드로.
+  const fadeJumpToOffset = useCallback((offset: number) => {
+    Animated.timing(fadeAnim, {toValue: 0, duration: 130, useNativeDriver: true}).start(() => {
+      scrollViewRef.current?.scrollTo({x: offset, animated: false}); // 순간 이동(밀림 없음)
+      Animated.timing(fadeAnim, {toValue: 1, duration: 150, useNativeDriver: true}).start();
+    });
+  }, [fadeAnim]);
+
   const scrollToStop = useCallback((id: string) => {
     const stop = stopsRef.current.find(s => s.id === id);
     if (!stop) return;
     if (isEditingRef.current) exitEditingRef.current?.();
-    const cw = containerWidth || 0;
-    const cur = scrollXValueRef.current;
-    const target = stop.offset;
-    if (cw > 0 && Math.abs(target - cur) > cw * 1.5) {
-      const pre = target + (target > cur ? -cw : cw); // 목표 직전 한 페이지
-      scrollViewRef.current?.scrollTo({x: pre, animated: false});
-      requestAnimationFrame(() => scrollViewRef.current?.scrollTo({x: target, animated: true}));
-    } else {
-      scrollViewRef.current?.scrollTo({x: target, animated: true});
-    }
+    // 좌우로 훑지 않고 그 자리에서 사라졌다 나타남(crossfade)
+    fadeJumpToOffset(stop.offset);
     setCurrentStopId(stop.id);
     setCurrentIndex(stop.stepIndex);
     setShowAddMenu(false);
     setShowPhotoSubmenu(false);
     setShowCardOverflow(false);
     setShowInfoTooltip(false);
-  }, [containerWidth]);
+  }, [fadeJumpToOffset]);
 
   // Group names for selector
   const groupNames = useMemo(() => {
@@ -490,14 +494,11 @@ export function CookingMode({
       targetIdx = displayCards.findIndex(c => c.groupIndex === groupIndex);
     }
     if (targetIdx >= 0) {
-      Animated.timing(fadeAnim, {toValue: 0, duration: 150, useNativeDriver: true}).start(() => {
-        setCurrentIndex(targetIdx);
-        scrollToIndex(targetIdx, false);
-        Animated.timing(fadeAnim, {toValue: 1, duration: 150, useNativeDriver: true}).start();
-      });
+      setCurrentIndex(targetIdx);
+      scrollToIndex(targetIdx); // fade crossfade 내장(좌우 밀림 없음)
     }
     setShowGroupMenu(false);
-  }, [displayCards, fadeAnim, scrollToIndex]);
+  }, [displayCards, scrollToIndex]);
 
   // visible이 되면 초기 인덱스로 스크롤 (레이아웃 안정화 후 표시)
   const prevVisible = useRef(false);
@@ -533,22 +534,8 @@ export function CookingMode({
     })));
   }, []);
 
-  // 렌더링용 isDirty (버튼 disabled 등 UI 반영)
-  const isDirty = useMemo(() => {
-    if (!isEditing) return false;
-    const current = snapshotEditCards(editCards);
-    if (savedSnapshotRef.current) return current !== savedSnapshotRef.current;
-    // 아직 저장 안 됨 → flatCards 기준 비교
-    return editCards.some((card, i) => {
-      const orig = flatCards[i];
-      if (!orig) return true;
-      return card.description !== orig.description || card.tip !== orig.tip || card.caution !== orig.caution
-        || JSON.stringify(card.photos) !== JSON.stringify(orig.photos)
-        || JSON.stringify(card.editIngredients) !== JSON.stringify(orig.matchedIngredients);
-    });
-  }, [isEditing, editCards, flatCards, snapshotEditCards, lastSavedAt]);
-
-  // isDirty를 ref 기반으로 즉시 계산 (stale closure 방지)
+  // 저장 여부 판단은 computeIsDirty(ref 기반)만 사용. 렌더용 isDirty useMemo는 제거(완료 버튼 항상 활성).
+  // ref 기반으로 즉시 계산 (stale closure 방지)
   const computeIsDirty = useCallback(() => {
     if (!isEditingRef.current) return false;
     const cards = editCardsRef.current;
@@ -563,7 +550,7 @@ export function CookingMode({
     });
   }, [flatCards, snapshotEditCards]);
 
-  const saveEdits = useCallback((silent = false) => {
+  const saveEdits = useCallback(() => {
     if (!onUpdate) return;
     const adviceDirty = editAdvice !== (advice ?? '') || JSON.stringify(editAdvicePhotos) !== JSON.stringify(advicePhotos ?? []);
     if (!computeIsDirty() && !adviceDirty) return;
@@ -633,11 +620,13 @@ export function CookingMode({
     }
     savedSnapshotRef.current = snapshotEditCards(cards);
     setLastSavedAt(new Date());
-    showSnackbar(silent ? t('cookingMode.autoSaved') : t('cookingMode.changesSaved'));
+    showSnackbar(t('cookingMode.changesSaved'));
   }, [onUpdate, computeIsDirty, stepGroups, ingredientGroups, showSnackbar, snapshotEditCards, editAdvice, advice, editAdvicePhotos, advicePhotos, t]);
 
   const exitEditing = useCallback(() => {
-    if (computeIsDirty()) saveEdits(true);
+    // computeIsDirty는 과정 카드만 검사(조언 미포함)라, 조건부 호출 시 조언만 수정하면 저장을 놓친다.
+    // → 항상 saveEdits 호출(내부에서 과정·조언 dirty를 모두 판단해 필요 시에만 실제 저장).
+    saveEdits();
     setIsEditing(false);
     setShowAddMenu(false);
     setShowPhotoSubmenu(false);
@@ -652,18 +641,8 @@ export function CookingMode({
     onClose();
   }, [saveEdits, onClose]);
 
-  // 자동 저장: editCards 변경 후 1.5초 뒤 자동 저장
-  const autoSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  useEffect(() => {
-    if (!isEditing || !onUpdate) return;
-    if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    autoSaveTimerRef.current = setTimeout(() => {
-      saveEdits(true);
-    }, 1500);
-    return () => {
-      if (autoSaveTimerRef.current) clearTimeout(autoSaveTimerRef.current);
-    };
-  }, [editCards, isEditing, onUpdate, saveEdits]);
+  // 자동저장 제거 — 편집 종료(exitEditing)·닫기(handleClose) 시에만 저장한다.
+  // (타이머 자동저장은 의존성 누락으로 조언 등이 조용히 안 저장되는 버그 유발 → 명시 저장만)
 
   // Undo/Redo helpers
   const updateEditCards = useCallback((updater: (prev: CookingCard[]) => CookingCard[]) => {
@@ -1026,13 +1005,6 @@ export function CookingMode({
     }
   }, [editCards, currentIndex, updateEditCards, pickPhoto]);
 
-  const formatSavedTime = useCallback((date: Date) => {
-    const h = date.getHours();
-    const m = date.getMinutes();
-    const period = h < 12 ? t('cookingMode.am') : t('cookingMode.pm');
-    const h12 = h === 0 ? 12 : h > 12 ? h - 12 : h;
-    return t('cookingMode.lastSavedAt', {period, time: `${h12}:${String(m).padStart(2, '0')}`});
-  }, [t]);
 
   // 카드 오버플로우 메뉴
   const cardOverflowItems = useMemo((): MenuItemData[] => [
@@ -1208,7 +1180,9 @@ export function CookingMode({
     return (
       <View style={[
         styles.photoRow,
-        isNarrow
+        // 편집·좁은 화면은 세로 배치라 좌측 라인(본문·재료)에 맞춤(marginLeft 0).
+        // 넓은 화면 보기 모드만 텍스트 옆 가로 배치라 간격 40.
+        (isNarrow || editing)
           ? {marginLeft: 0, marginTop: Spacing.lg, height: photoW, alignSelf: 'flex-start'}
           : {marginLeft: 40},
       ]}>
@@ -1315,37 +1289,23 @@ export function CookingMode({
     return (
       <View style={styles.cardOuter}>
         <Card style={styles.mainCard}>
-          {/* Step count + actions */}
-          <View style={styles.cardHeader}>
-            <Text style={[styles.stepCount, {flex: 1}]}>{item.globalIndex + 1}/{totalCards}</Text>
-            {isCurrentEditing ? (
-              <View style={styles.cardHeaderActions}>
-                <Tooltip
-                  message={lastSavedAt ? formatSavedTime(lastSavedAt) : t('cookingMode.noSaveHistory')}
-                  visible={showInfoTooltip && isActive}
-                  onClose={() => setShowInfoTooltip(false)}
-                  position="bottom"
-                >
+          {/* Step count + actions — 편집 중엔 스텝 번호 줄 숨김(편집 대상 아님). 하단 눈금으로 위치 확인 */}
+          {!isCurrentEditing && (
+            <View style={styles.cardHeader}>
+              <Text style={[styles.stepCount, {flex: 1}]}>{item.globalIndex + 1}/{totalCards}</Text>
+              {isActive && canEdit ? (
+                <View style={styles.cardHeaderActions}>
                   <IconButton
-                    icon={IconCircleInfoFilled}
-                    onPress={() => setShowInfoTooltip(prev => !prev)}
+                    icon={IconEllipsisVertical}
+                    onPress={() => setShowCardOverflow(prev => !prev)}
                     variant="ghost-secondary"
-                    size="medium"
+                    size="small"
+                    forcePressed={showCardOverflow}
                   />
-                </Tooltip>
-              </View>
-            ) : isActive && canEdit ? (
-              <View style={styles.cardHeaderActions}>
-                <IconButton
-                  icon={IconEllipsisVertical}
-                  onPress={() => setShowCardOverflow(prev => !prev)}
-                  variant="ghost-secondary"
-                  size="small"
-                  forcePressed={showCardOverflow}
-                />
-              </View>
-            ) : null}
-          </View>
+                </View>
+              ) : null}
+            </View>
+          )}
 
           {/* Scrollable content: description + chips */}
           <ScrollView
@@ -1358,7 +1318,8 @@ export function CookingMode({
             {isCurrentEditing ? (
               <RNTextInput
                 ref={descInputRef}
-                style={[styles.descLarge, cookingBodyFont, {padding: 0}, noOutline]}
+                // 빈 본문일 때도 최소 높이 확보 — multiline이 높이 0으로 붕괴돼 입력칸이 안 보이던 문제 방지
+                style={[styles.descLarge, cookingBodyFont, {padding: 0, minHeight: (cookingBodyFont.lineHeight ?? 30) * 2}, noOutline]}
                 value={item.description}
                 onChangeText={text => updateCardField(item.globalIndex, 'description', text)}
                 multiline
@@ -1451,147 +1412,144 @@ export function CookingMode({
         </Card>
       </View>
     );
-  }, [isEditing, renderViewStep, renderPhotoStack, styles, colors, updateCardField, totalCards, photoExpanded, checkedIngredients, toggleIngredient, undo, redo, canUndo, canRedo, showAddMenu, showPhotoSubmenu, addMenuItems, photoSubmenuItems, handleAddMenuSelect, removeCardField, canEdit, handleDoubleTap, lastSavedAt, formatSavedTime, showInfoTooltip, showCardOverflow, cardOverflowItems, handleCardOverflowSelect, t]);
+  }, [isEditing, renderViewStep, renderPhotoStack, styles, colors, updateCardField, totalCards, photoExpanded, checkedIngredients, toggleIngredient, undo, redo, canUndo, canRedo, showAddMenu, showPhotoSubmenu, addMenuItems, photoSubmenuItems, handleAddMenuSelect, removeCardField, canEdit, handleDoubleTap, showCardOverflow, cardOverflowItems, handleCardOverflowSelect, t]);
 
   return (
     <BottomSheet
       visible={visible}
       onClose={handleClose}
       fullScreen
+      fullScreenRounded={false}
       animationType="fade"
       hideHandle
       enableDragToDismiss={false}
       backgroundColor={colors['surface/dim']}
+      hostAsView
     >
-        {/* Top nav */}
-        <Pressable style={[styles.topNav, {paddingTop: Spacing.smd}]} onPress={isEditing ? exitEditing : undefined}>
-          <View style={styles.navInner}>
+        {/* Top nav — 공통 FloatingNavBar (고정·safe-area·마스크 그라디언트 내장) */}
+        <FloatingNavBar
+          tintColor={colors['surface/dim'] as string}
+          left={
             <View style={styles.topLeft}>
               <NavPillButton
                 icon={IconClose}
                 onPress={handleClose}
                 variant="ghost-secondary"
               />
-
-              <View>
+              {/* 과정 그룹/조언(2뎁스)이 있을 때만 브레드크럼 표시. 단일 그룹(원뎁)이면 숨김. */}
+              {(isOnAdviceCard || hasGroups) && (
                 <GlassContainer contentStyle={styles.breadcrumbPill}>
-                  {/* 좁은 화면(모바일): 요리(레시피) 셀렉터는 숨기고 과정 중심으로.
-                      단, 보여줄 과정 브레드크럼이 없으면(단일 그룹) 빈 알약 방지 위해 레시피 표시 */}
-                  {(!isNarrow || (!hasGroups && !isOnAdviceCard)) && (
+                  {isOnAdviceCard ? (
                     <Selector
-                      label={title}
-                      disabled={!recipeItems?.length}
-                      muted={!recipeItems?.length}
+                      label={t('cookingMode.bakeyAdvice')}
                       variant="ghost"
-                      style={{maxWidth: 120}}
-                      onPress={recipeItems?.length ? () => setShowRecipeMenu(prev => !prev) : undefined}
+                      showDropdown
+                      onPress={() => setShowGroupMenu(prev => !prev)}
                     />
-                  )}
-                  {hasGroups && !isOnAdviceCard && (
-                    <>
-                      {!isNarrow && (
-                        <View style={styles.breadcrumbCaret}>
-                          <AppIcon icon={IconCaretRight} size="xs" color={colors['foreground/on-surface-muted']} />
-                        </View>
-                      )}
-                      <Selector
-                        label={currentGroupTitle}
-                        onPress={() => setShowGroupMenu(prev => !prev)}
-                        variant="ghost"
-                      />
-                    </>
-                  )}
-                  {isOnAdviceCard && (
-                    <>
-                      {!isNarrow && (
-                        <View style={styles.breadcrumbCaret}>
-                          <AppIcon icon={IconCaretRight} size="xs" color={colors['foreground/on-surface-muted']} />
-                        </View>
-                      )}
-                      <Selector
-                        label={t('cookingMode.bakeyAdvice')}
-                        variant="ghost"
-                        onPress={() => setShowGroupMenu(prev => !prev)}
-                      />
-                    </>
+                  ) : (
+                    <Selector
+                      label={currentGroupTitle}
+                      onPress={() => setShowGroupMenu(prev => !prev)}
+                      variant="ghost"
+                      showDropdown
+                    />
                   )}
                 </GlassContainer>
-                <SearchCommandBar
-                  visible={showRecipeMenu}
-                  onClose={() => setShowRecipeMenu(false)}
-                  items={recipeItems ?? []}
-                  selectedId={currentRecipeId}
-                  icon={IconNoteFilled}
-                  iconColor={colors['custom/green-var']}
-                  onSelect={(id) => { setShowRecipeMenu(false); onRecipeSelect?.(id); }}
-                />
-                {(hasGroups || hasAdvice) && (
-                  <Menu
-                    items={groupMenuItems}
-                    selectedId={isOnAdviceCard ? 'advice' : String(currentCard?.groupIndex ?? 0)}
-                    onSelect={(id) => goToGroup(id)}
-                    visible={showGroupMenu}
-                    style={styles.groupMenu}
-                  />
-                )}
-              </View>
+              )}
             </View>
-
-            <View style={styles.topRight}>
-              {isEditing ? null : (
-                <GlassContainer contentStyle={navPillStyle}>
-                  {referenceUrl && (
-                    <IconButton
-                      icon={IconArrowTopRight}
-                      onPress={() => {
-                        if (referenceYouTubeId) {
-                          openYouTube(referenceYouTubeId);
-                        } else {
-                          Linking.openURL(referenceUrl);
-                        }
-                      }}
-                      // 이미 같은 영상이 재생 중이면 링크 버튼 비활성 (중복 열기 방지)
-                      disabled={!!referenceYouTubeId && ytVideoId === referenceYouTubeId}
-                      variant="ghost-secondary"
-                      size="medium"
-                    />
-                  )}
+          }
+          leftMenu={
+            <>
+              <SearchCommandBar
+                visible={showRecipeMenu}
+                onClose={() => setShowRecipeMenu(false)}
+                items={recipeItems ?? []}
+                selectedId={currentRecipeId}
+                icon={IconNoteFilled}
+                iconColor={colors['custom/green-var']}
+                onSelect={(id) => { setShowRecipeMenu(false); onRecipeSelect?.(id); }}
+              />
+              {(hasGroups || hasAdvice) && (
+                <Menu
+                  items={groupMenuItems}
+                  selectedId={isOnAdviceCard ? 'advice' : String(currentCard?.groupIndex ?? 0)}
+                  onSelect={(id) => goToGroup(id)}
+                  visible={showGroupMenu}
+                />
+              )}
+            </>
+          }
+          right={
+            isEditing ? (
+              // 편집 중: 상단 우측에 완료(뷰로 돌아가기) 버튼. 변경 여부와 무관하게 항상 활성.
+              <GlassContainer contentStyle={navPillStyle}>
+                <IconButton
+                  icon={IconTick}
+                  onPress={exitEditing}
+                  variant="ghost-primary"
+                  size="medium"
+                />
+              </GlassContainer>
+            ) : (
+              <GlassContainer contentStyle={navPillStyle}>
+                {referenceUrl && (
                   <IconButton
-                    icon={IconCheckList}
-                    onPress={() => setShowIngredientList(true)}
-                    variant="ghost-secondary"
+                    icon={IconArrowTopRight}
+                    onPress={() => {
+                      if (referenceYouTubeId) {
+                        openYouTube(referenceYouTubeId);
+                      } else {
+                        Linking.openURL(referenceUrl);
+                      }
+                    }}
+                    // 이미 같은 영상이 재생 중이면 링크 버튼 비활성 (중복 열기 방지)
+                    disabled={!!referenceYouTubeId && ytVideoId === referenceYouTubeId}
+                    variant="ghost-primary"
                     size="medium"
                   />
-                  {canEdit && (
-                    <IconButton
-                      icon={IconEllipsisVertical}
-                      onPress={() => setShowTopOverflow(prev => !prev)}
-                      variant="ghost-secondary"
-                      size="medium"
-                      forcePressed={showTopOverflow}
-                    />
-                  )}
-                </GlassContainer>
-              )}
-              {!isEditing && canEdit && (
-                <Menu
-                  items={topOverflowItems}
-                  visible={showTopOverflow}
-                  onSelect={handleTopOverflowSelect}
-                  onClose={() => setShowTopOverflow(false)}
-                  style={styles.topOverflowMenu}
+                )}
+                <IconButton
+                  icon={IconCheckList}
+                  onPress={() => setShowIngredientList(true)}
+                  variant="ghost-primary"
+                  size="medium"
                 />
-              )}
-            </View>
-          </View>
-        </Pressable>
+                {canEdit && (
+                  <IconButton
+                    icon={IconEllipsisVertical}
+                    onPress={() => setShowTopOverflow(prev => !prev)}
+                    variant="ghost-primary"
+                    size="medium"
+                    forcePressed={showTopOverflow}
+                  />
+                )}
+              </GlassContainer>
+            )
+          }
+          rightMenu={
+            !isEditing && canEdit ? (
+              <Menu
+                items={topOverflowItems}
+                visible={showTopOverflow}
+                onSelect={handleTopOverflowSelect}
+                onClose={() => setShowTopOverflow(false)}
+              />
+            ) : undefined
+          }
+        />
 
         {/* Cards with horizontal scroll */}
         <Animated.View
           style={{flex: 1, opacity: contentReady ? fadeAnim : 0}}
           onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
+          {/* 하단 마스크 그라디언트 (공통) — 상단은 FloatingNavBar가 자체 마스크 처리 */}
+          <ContentMask
+            topHeight={0}
+            bottomHeight={insets.bottom + Spacing.md * 2 + 48 + 24}
+          />
           {/* 앱바(topNav) 높이만큼만 비움 — 세이프에어리어는 BottomSheet가 이미 처리하므로 insets.top 중복 금지 */}
-          <Pressable style={{height: 72}} onPress={isEditing ? exitEditing : undefined} />
+          {/* FloatingNavBar 높이만큼 비움 (safeTop + 패딩 + pill). FloatingNavBar가 자체 safe-area를 잡으므로 insets.top 포함 */}
+          <Pressable style={{height: insets.top + 72}} onPress={isEditing ? exitEditing : undefined} />
           <Animated.ScrollView
             ref={scrollViewRef as any}
             horizontal
@@ -1628,19 +1586,7 @@ export function CookingMode({
                           <AppIcon icon={IconLogoSymbol} size="sm" color={colors['custom/yellow-var']} />
                           <Text style={styles.adviceTitle}>{t('cookingMode.bakeyAdvice')}</Text>
                         </View>
-                        {isEditing && isOnAdviceCard && (
-                          <View style={styles.cardHeaderActions}>
-                            <View style={{marginLeft: 6}}>
-                              <IconButton
-                                icon={IconAdd}
-                                onPress={() => { setShowAddMenu(prev => !prev); setShowPhotoSubmenu(false); }}
-                                variant={isOnAdviceCard ? 'ghost-yellow' : 'soft'}
-                                size="small"
-                                forcePressed={showAddMenu}
-                              />
-                            </View>
-                          </View>
-                        )}
+                        {/* + 버튼 제거 — 편집 시 하단 EditorToolbar의 추가 기능으로 통합 (중복 제거) */}
                       </View>
                       {/* Body */}
                       <ScrollView style={{flex: 1}} showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
@@ -1667,7 +1613,7 @@ export function CookingMode({
                         if (photos.length === 0) return null;
                         return (
                           <StepPhotos
-                            photos={photos}
+                            photos={normalizeStepPhotos(photos)}
                             mode={(isEditing && isOnAdviceCard) ? 'edit' : 'view'}
                             size={containerWidth >= 600 ? 140 : 96}
                             gap={Spacing.sm}
@@ -1725,7 +1671,6 @@ export function CookingMode({
               })(),
             }}
             onDone={exitEditing}
-            doneDisabled={!isDirty}
             above={
               showScanMenu ? (
                 <Menu
@@ -1829,22 +1774,17 @@ export function CookingMode({
           ))}
         </BottomSheet>
 
-        {/* Bottom nav — 키보드가 올라오면 숨김 */}
-        {keyboardHeight === 0 && (
-          <View
-            style={[
-              styles.bottomNav,
-              // 홈바 있는 기기는 insets.bottom만으로 충분, 없으면 최소 여백(sm).
-              // 예전 insets+md에 bottomInner marginBottom까지 겹쳐 여백이 과했음.
-              {paddingBottom: insets.bottom || Spacing.sm},
-            ]}
-          >
+        {/* Bottom nav(회차 눈금) — 키보드가 올라오거나 편집 모드일 땐 숨김. 공통 BottomActionBar로 하단 고정 */}
+        {keyboardHeight === 0 && !isEditing && (
+          <View style={styles.bottomNav}>
             <View style={styles.bottomInner}>
-              <RulerSlider
-                items={stepRulerItems}
-                selectedId={selectedStopId}
-                onSelect={scrollToStop}
-              />
+              <BottomActionBar showTopMask={false} style={styles.bottomActionBar}>
+                <RulerSlider
+                  items={stepRulerItems}
+                  selectedId={selectedStopId}
+                  onSelect={scrollToStop}
+                />
+              </BottomActionBar>
             </View>
           </View>
         )}
@@ -1858,16 +1798,8 @@ export function CookingMode({
           />
         </View>
 
-        <YouTubePlayerModal
-          visible={ytVideoId !== null}
-          onClose={closeYouTube}
-          videoId={ytVideoId}
-          // 요리모드는 BottomSheet 좌표계(safe-area는 시트가 처리)라 자체 앱바(72px)
-          // 아래로만 띄우고, insets.top 중복 계산을 피한다. 안 넘기면 PiP가 상단에서
-          // 너무 내려오고 하단이 화면을 벗어남.
-          topInset={72}
-          bottomInset={insets.bottom}
-        />
+        {/* YouTube PiP: 요리모드는 hostAsView로 일반 RN 계층에 있어(네이티브 Modal 아님) 루트
+            전역 PiP(GlobalYouTubePlayer)가 요리모드 위에 그대로 뜬다 → 여기서 별도 렌더 불필요. */}
 
         {/* 사진 전체보기 뷰어 — 탭하면 큰 이미지 풀스크린. 편집 가능하면 교체/삭제 */}
         {viewerPhoto && (() => {
@@ -1921,32 +1853,11 @@ export function CookingMode({
 
 const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
-    topNav: {
-      position: 'absolute',
-      top: 0,
-      left: 0,
-      right: 0,
-      zIndex: 10,
-      alignItems: 'center',
-      paddingHorizontal: Spacing.md,
-    },
-    navInner: {
-      width: '100%',
-      maxWidth: MAX_CONTENT_WIDTH,
-      flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'flex-start',
-    },
     topLeft: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: Spacing.sm,
       flex: 1,
-    },
-    topRight: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: Spacing.sm,
     },
     breadcrumbPill: {
       height: 44,
@@ -1956,18 +1867,6 @@ const createStyles = (colors: SemanticColors) =>
     },
     breadcrumbCaret: {
       marginHorizontal: -4,
-    },
-    groupMenu: {
-      position: 'absolute' as const,
-      top: 44 + Spacing.xs,
-      right: 0,
-      zIndex: 20,
-    },
-    topOverflowMenu: {
-      position: 'absolute' as const,
-      top: 48 + Spacing.xs,
-      right: 0,
-      zIndex: 20,
     },
     cardOuter: {
       flex: 1,
@@ -2169,14 +2068,18 @@ const createStyles = (colors: SemanticColors) =>
       bottom: 0,
       left: 0,
       right: 0,
-      paddingHorizontal: Spacing.md,
       alignItems: 'center',
     },
     bottomInner: {
       width: '100%',
       maxWidth: MAX_CONTENT_WIDTH,
       alignItems: 'center',
-      // 하단 여백은 bottomNav paddingBottom(=insets.bottom)이 전담. 여기 중복 마진 두지 않음.
+    },
+    bottomActionBar: {
+      // 하단 여백·safe-area는 공통 BottomActionBar가 전담. 눈금 슬라이더는 세로 여백 최소화.
+      width: '100%',
+      paddingTop: Spacing.sm,
+      alignItems: 'center',
     },
     bottomControls: {
       flexDirection: 'row',
@@ -2214,14 +2117,14 @@ const createStyles = (colors: SemanticColors) =>
     adviceTitle: {
       ...Typography.title.large,
       fontWeight: Typography.title.large.fontWeight as '700',
-      color: colors['custom/yellow-var'],
+      color: colors['custom/yellow-on-container'],
       marginTop: FONT_BASELINE_OFFSET,
     },
     adviceBody: {
       ...Typography.headline.small,
       lineHeight: 30,
       fontWeight: Typography.headline.small.fontWeight as '600',
-      color: colors['custom/yellow-var'],
+      color: colors['custom/yellow-on-container'],
       marginTop: FONT_BASELINE_OFFSET,
     },
   });
