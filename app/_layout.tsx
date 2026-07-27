@@ -234,6 +234,28 @@ function NavigationContent() {
   const {reload: exploreReload, exploreCookbooks, recipes: exploreRecipesAll} = useExploreRecipeContext();
   const [migrating, setMigrating] = useState(false);
 
+  // 앱 재시작 시 마지막으로 본 레시피로 복귀 (한 번만).
+  // NavigationContent는 Stack 하위 + router 보유라 navigate 안전(RootLayout에선 크래시).
+  // 딥링크(위젯 등)로 이미 /recipe/로 열렸거나, 저장된 레시피가 없거나 무효면 홈 유지.
+  const restoredRef = useRef(false);
+  useEffect(() => {
+    if (restoredRef.current) return;
+    // recipes/explore 둘 다 아직 안 채워졌으면 로딩 중일 수 있어 대기(deps로 재실행됨).
+    if (recipes.length === 0 && exploreRecipesAll.length === 0) return;
+    restoredRef.current = true;
+    (async () => {
+      try {
+        const initialUrl = await Linking.getInitialURL();
+        if (initialUrl && initialUrl.includes('/recipe/')) return;
+        const lastId = await AsyncStorage.getItem('last_viewed_recipe_id');
+        if (!lastId) return;
+        const exists = recipes.some(r => r.id === lastId) || exploreRecipesAll.some(r => r.id === lastId);
+        if (exists) router.push(`/recipe/${lastId}` as any);
+        else AsyncStorage.removeItem('last_viewed_recipe_id');
+      } catch { /* 무시 — 홈 유지 */ }
+    })();
+  }, [recipes, exploreRecipesAll, router]);
+
   // 오늘의 레시피를 iOS 위젯에 동기화(iOS 전용, 그 외 no-op).
   // exploreRecipesAll은 이미 권한 반영됨(어드민이면 hidden 포함).
   useEffect(() => {
@@ -627,23 +649,6 @@ export default function RootLayout() {
     }
   }, [fontsLoaded]);
 
-  // 앱 재시작 시 마지막으로 본 레시피로 복귀 (한 번만).
-  // 단, 위젯/딥링크(bakle://…)로 열렸으면 그 URL이 우선 → 복귀 스킵.
-  // 저장된 id가 없거나(=레시피 화면을 안 봤음) 무효하면 홈 유지(recipe/[id]가 없는 레시피는 저장 안 함).
-  const restoredRef = useRef(false);
-  useEffect(() => {
-    if (restoredRef.current) return;
-    if (!fontsLoaded || !keysMigrated) return;
-    restoredRef.current = true;
-    (async () => {
-      try {
-        const initialUrl = await Linking.getInitialURL();
-        if (initialUrl && initialUrl.includes('/recipe/')) return; // 딥링크로 이미 레시피로 감
-        const lastId = await AsyncStorage.getItem('last_viewed_recipe_id');
-        if (lastId) router.push(`/recipe/${lastId}` as any);
-      } catch { /* 무시 — 홈 유지 */ }
-    })();
-  }, [fontsLoaded, keysMigrated, router]);
 
   // Android 8+ 알림 채널 등록 (없으면 알림이 묵음/미표시될 수 있음)
   useEffect(() => {

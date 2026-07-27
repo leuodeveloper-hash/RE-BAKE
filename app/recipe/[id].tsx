@@ -560,9 +560,24 @@ const handleDelete = useCallback(async () => {
                     ),
                   );
                 }
-                await updateDoc(doc(db, 'explore_recipes', id!), uploaded);
-              } catch {
-                showSnackbar(t('id.updateFailed'));
+                // Firestore는 undefined 값을 거부한다(throw) → 저장 전 undefined 필드 제거.
+                // (예: 캡션 없는 사진 {uri, caption: undefined} 등)
+                const stripUndefined = (v: any): any => {
+                  if (Array.isArray(v)) return v.map(stripUndefined);
+                  if (v && typeof v === 'object') {
+                    const o: any = {};
+                    for (const k of Object.keys(v)) {
+                      if (v[k] !== undefined) o[k] = stripUndefined(v[k]);
+                    }
+                    return o;
+                  }
+                  return v;
+                };
+                await updateDoc(doc(db, 'explore_recipes', id!), stripUndefined(uploaded));
+              } catch (e: any) {
+                // 원인 구분: code(권한/문서없음 등) + message
+                console.warn('[explore update] 실패 code=', e?.code, 'msg=', e?.message, e);
+                showSnackbar(t('id.updateFailed') + (e?.code ? ` (${e.code})` : ''));
               }
             })();
           }

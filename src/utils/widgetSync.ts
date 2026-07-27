@@ -15,12 +15,23 @@ function dateSeed(d: Date = new Date()): number {
  * iOS 위젯은 원격 URL 이미지를 못 불러오므로(WidgetKit 제약), 오늘 보여줄 1장만
  * 미리 로컬로 받아둔다. 이미지 없거나 실패 시 ''(위젯은 이모지 타일 폴백).
  */
-async function downloadTodayImage(recipe: Recipe, dir: Directory): Promise<string> {
+async function downloadTodayImage(recipe: Recipe, dir: Directory, seed: number): Promise<string> {
   const url = recipe.imageUri;
   if (!url || !url.startsWith('http')) return '';
   try {
-    const dest = new File(dir, 'today.jpg');
-    if (dest.exists) dest.delete();
+    // 파일명에 날짜 시드를 넣어 매번 다른 파일로 저장한다.
+    // 고정 파일명(today.jpg)은 (1) 삭제~재다운로드 사이 위젯이 읽으면 깨지고,
+    // (2) 경로가 안 바뀌어 위젯이 이미지 갱신을 인식 못 해 "나왔다 안 나왔다" 발생.
+    const name = `today-${seed}.jpg`;
+    const dest = new File(dir, name);
+    // 이미 오늘 파일이 있으면 재다운로드 없이 재사용(불필요한 삭제/공백 구간 방지)
+    if (dest.exists) return dest.uri.replace('file://', '');
+    // 오래된 today-*.jpg 정리 (오늘 것만 남김)
+    try {
+      for (const f of dir.list()) {
+        if (f instanceof File && f.name.startsWith('today-') && f.name !== name) f.delete();
+      }
+    } catch { /* 목록/삭제 실패 무시 */ }
     const file = await File.downloadFileAsync(url, dest);
     return file.uri.replace('file://', '');
   } catch {
@@ -58,8 +69,9 @@ export async function syncTodayRecipeToWidget(candidates: Recipe[]): Promise<voi
   }));
 
   // 오늘 항목을 날짜 시드로 선택 후, 그 이미지 1장만 다운로드.
-  const todayIndex = ((dateSeed() % items.length) + items.length) % items.length;
-  const todayImagePath = await downloadTodayImage(candidates[todayIndex], dir);
+  const seed = dateSeed();
+  const todayIndex = ((seed % items.length) + items.length) % items.length;
+  const todayImagePath = await downloadTodayImage(candidates[todayIndex], dir, seed);
 
   try {
     // 자체 로컬 Expo 모듈(WidgetStorage)로 App Group에 기록 + 위젯 갱신.

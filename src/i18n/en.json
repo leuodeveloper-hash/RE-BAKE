@@ -73,6 +73,7 @@
   "cookingMode.noTextFound": "No text found in the image",
   "cookingMode.photo": "Photo",
   "cookingMode.photoAddFailed": "Couldn't add photo",
+  "cookingMode.noEditPermission": "You don't have edit permission",
   "cookingMode.photoAdded": "Photo added",
   "cookingMode.photoDeleteFailed": "Couldn't delete",
   "cookingMode.photoDeleted": "Photo deleted",

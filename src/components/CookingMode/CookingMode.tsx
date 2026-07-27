@@ -68,6 +68,7 @@ import {useKeyboardHeight} from '@hooks/useKeyboardHeight';
 import {useEscapeKey} from '@hooks/useEscapeKey';
 import {useColors} from '@contexts/ThemeContext';
 import {useAuthSheet} from '@contexts/AuthSheetContext';
+import {useAuth} from '@contexts/AuthContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {useResponsiveTypography} from '@hooks/useResponsiveTypography';
 import type {SemanticColors} from '@constants/tokens';
@@ -249,6 +250,7 @@ export function CookingMode({
   }, []);
   const clearLocalSnackbar = useCallback(() => setLocalSnackbar(null), []);
   const {open: openAuthSheet} = useAuthSheet();
+  const {user} = useAuth();
   // 반응형 본문 타이포(headline-medium): 폰 24/30, 태블릿 30/38. 폭 의존이라 inline 머지로 주입.
   const rType = useResponsiveTypography();
   const bodyType = useMemo(() => ({
@@ -1160,7 +1162,12 @@ export function CookingMode({
     const lifts = isNarrow ? [0, 0, 0] : [-56, 56, -56];
     const showAdd = photos.length < 3;
     const onAdd = () => {
-      if (!canEdit) { openAuthSheet(); return; }
+      if (!canEdit) {
+        // 로그인 안 했으면 로그인 시트, 로그인은 했지만 권한 없으면 안내(로그인 시트 X — "또 로그인" 혼란 방지)
+        if (!user) openAuthSheet();
+        else showSnackbar(t('cookingMode.noEditPermission'));
+        return;
+      }
       if (editing) pickPhoto('gallery', item.globalIndex, item.photos);
       else addStepPhoto(item);
     };
@@ -1228,7 +1235,7 @@ export function CookingMode({
         ) : null}
       </View>
     );
-  }, [isNarrow, canEdit, photoManage, openAuthSheet, pickPhoto, addStepPhoto, replacePhoto, replaceStepPhotoView, removePhoto, commitStepPhotos, showSnackbar, styles, colors, t]);
+  }, [isNarrow, canEdit, user, photoManage, openAuthSheet, pickPhoto, addStepPhoto, replacePhoto, replaceStepPhotoView, removePhoto, commitStepPhotos, showSnackbar, styles, colors, t]);
 
   // 보기(요리) 스텝 — [텍스트 칼럼(좌)][사진 최대 3장 일렬·기울임 + 추가카드(우)].
   // 사진은 고정 크기, 좁으면 잘리고 슬라이드로 노출.
@@ -1547,9 +1554,9 @@ export function CookingMode({
             topHeight={0}
             bottomHeight={insets.bottom + Spacing.md * 2 + 48 + 24}
           />
-          {/* 앱바(topNav) 높이만큼만 비움 — 세이프에어리어는 BottomSheet가 이미 처리하므로 insets.top 중복 금지 */}
-          {/* FloatingNavBar 높이만큼 비움 (safeTop + 패딩 + pill). FloatingNavBar가 자체 safe-area를 잡으므로 insets.top 포함 */}
-          <Pressable style={{height: insets.top + 72}} onPress={isEditing ? exitEditing : undefined} />
+          {/* FloatingNavBar 높이만큼만 비움 = safeTop(insets.top) + paddingTop(10) + pill(44) = insets.top + 54.
+              기존 +72는 18px 과다 → 앱바 위/아래에 빈 공간이 생겨 콘텐츠가 아래로 밀렸음. */}
+          <Pressable style={{height: insets.top + 54}} onPress={isEditing ? exitEditing : undefined} />
           <Animated.ScrollView
             ref={scrollViewRef as any}
             horizontal

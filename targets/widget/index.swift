@@ -84,11 +84,14 @@ struct BakleWidgetEntryView: View {
 
     ZStack(alignment: .bottomLeading) {
       if hasRecipe, let recipe = recipe {
-        // 하단 가독성용 어두운 그라디언트 (배경 이미지는 containerBackground가 담당)
-        LinearGradient(
-          gradient: Gradient(colors: [.clear, .black.opacity(0.15), .black.opacity(0.75)]),
-          startPoint: .center, endPoint: .bottom
-        )
+        // 좌측 상단 B 브랜드 마크 — 이미지 위라 흰색.
+        Text("B")
+          .font(.system(size: 18, weight: .heavy, design: .rounded))
+          .foregroundColor(.white)
+          .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+          .padding(family == .systemSmall ? 12 : 16)
+        // 그라디언트/이미지는 backgroundLayer(containerBackground)에서 처리 → 여기선 텍스트만.
         VStack(alignment: .leading, spacing: 3) {
           Text("오늘의 레시피")
             .font(.caption2).fontWeight(.semibold)
@@ -105,6 +108,9 @@ struct BakleWidgetEntryView: View {
               .lineLimit(1)
           }
         }
+        // 그라디언트를 배경 레이어로 옮기며 채움 요소가 사라져 텍스트가 위젯 전체로 안 늘어남 →
+        // 위젯 전체를 채우고 하단좌측 정렬로 이전 레이아웃 복원.
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
         .padding(family == .systemSmall ? 12 : 16)
       } else {
         VStack(spacing: 6) {
@@ -122,15 +128,22 @@ struct BakleWidgetEntryView: View {
     .widgetURL(url)
   }
 
-  // 오늘 레시피 이미지(로컬). 위젯 전체를 채우는 배경. 없으면 브랜드 톤.
+  // 오늘 레시피 이미지(로컬) + 하단 그라디언트. containerBackground에 넣어 위젯 가장자리까지 채운다.
+  // (그라디언트를 body에 두면 콘텐츠 패딩 안쪽에만 깔려 어긋남 → 배경 레이어에 함께.)
   @ViewBuilder
   static func backgroundLayer(imagePath: String?) -> some View {
-    if let path = imagePath, let uiImage = UIImage(contentsOfFile: path) {
-      Image(uiImage: uiImage)
-        .resizable()
-        .aspectRatio(contentMode: .fill)
-    } else {
-      Color("$widgetBackground")
+    ZStack {
+      if let path = imagePath, let uiImage = UIImage(contentsOfFile: path) {
+        Image(uiImage: uiImage)
+          .resizable()
+          .aspectRatio(contentMode: .fill)
+      } else {
+        Color("$widgetBackground")
+      }
+      LinearGradient(
+        gradient: Gradient(colors: [.clear, .black.opacity(0.15), .black.opacity(0.75)]),
+        startPoint: .center, endPoint: .bottom
+      )
     }
   }
 }

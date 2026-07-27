@@ -18,6 +18,7 @@ import {
 import {LockedBottomBar} from '@components/LockedBottomBar';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {LinearGradient} from 'expo-linear-gradient';
+import {Image as ExpoImage} from 'expo-image';
 import {FloatingNavBar, navPillStyle, NavPillButton, RulerSlider} from '@components/Navigation';
 import {GlassContainer, ContentContainer, Card, ContentMask} from '@components/Container';
 import {IconButton} from '@components/IconButton';
@@ -709,10 +710,14 @@ export function RecipeDetailScreen({
         <View style={styles.heroSection} {...heroPanResponder.panHandlers}>
           {imageUri ? (
             <>
-              <Image
+              {/* expo-image: memory-disk 캐시 + transition 페이드인으로 로딩 시 깜빡임 방지
+                  (RN Image는 로드 전 빈 공간→툭 나타남). RecipeCard와 동일 방식. */}
+              <ExpoImage
                 source={{uri: imageUri}}
                 style={styles.heroImage}
-                resizeMode="cover"
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={200}
               />
               <View style={styles.heroTextOverlay} />
               {/* 좌우 페이드는 화면이 이미지 최대폭(1000)보다 넓어 이미지 양옆에 빈 배경이
@@ -1351,11 +1356,12 @@ export function RecipeDetailScreen({
         referenceUrl={referenceUrl}
       />
 
-      {/* 회차 슬라이더: 하단 탭바 자리에서 좌우 슬라이드/스냅으로 회차 전환 */}
-      {hasMultipleSessions && !locked && (
+      {/* 회차 슬라이더: 하단 탭바 자리에서 좌우 슬라이드/스냅으로 회차 전환.
+          요리모드가 뜨면 상세 위에 얹히므로 회차 슬라이더는 숨긴다(상세 전용). */}
+      {hasMultipleSessions && !locked && !showCookingMode && (
         <ContentMask topHeight={0} />
       )}
-      {hasMultipleSessions && !locked && (
+      {hasMultipleSessions && !locked && !showCookingMode && (
         <View
           style={[styles.sessionSliderWrap, {bottom: (insets.bottom || Spacing.sm) + Spacing.xs}]}
           pointerEvents="box-none">
@@ -1502,13 +1508,13 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     maxWidth: HERO_MAX_WIDTH,
     marginHorizontal: 'auto',
   },
-  // 좌우 페이드 — 이미지와 동일 폭(1000)·중앙정렬, 전체 높이 덮음
+  // 좌우 페이드 — heroImage와 "동일한" 중앙정렬(left:50% + translateX -50%).
+  // marginHorizontal:'auto'는 RN 네이티브(아이패드)의 absolute에서 안 먹어 left:0만 적용→왼쪽 쏠림.
+  // heroImage가 이 방식으로 웹·네이티브 둘 다 정확히 중앙정렬되므로 페이드도 동일하게 맞춘다.
   heroSideGradient: {
     position: 'absolute',
     top: 0,
-    bottom: -56,
-    // heroImage와 동일하게 중앙정렬(아이패드 등 넓은 화면에서 페이드가 이미지와 정렬).
-    // left:0+right:0+margin auto는 절대위치에서 중앙정렬이 안 먹어 왼쪽으로 쏠린다.
+    height: HERO_HEIGHT + 56,
     left: '50%',
     transform: [{translateX: '-50%'}],
     width: '100%',

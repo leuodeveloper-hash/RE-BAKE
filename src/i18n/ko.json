@@ -73,6 +73,7 @@
   "cookingMode.noTextFound": "이미지에서 글씨를 찾지 못했어요",
   "cookingMode.photo": "사진",
   "cookingMode.photoAddFailed": "사진을 추가하지 못했어요",
+  "cookingMode.noEditPermission": "편집 권한이 없어요",
   "cookingMode.photoAdded": "사진이 추가되었습니다",
   "cookingMode.photoDeleteFailed": "삭제하지 못했어요",
   "cookingMode.photoDeleted": "사진이 삭제되었습니다",
