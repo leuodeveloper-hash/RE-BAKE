@@ -227,7 +227,9 @@ const BAKING_METHODS = [
 ];
 
 const makeSlashMenuItems = (t: TFn) => [
-  {id: 'photo', label: t('recipeEdit.photo'), icon: IconPhoto},
+  // 사진: 촬영/갤러리 둘 다 제공 (기존 photo 하나는 카메라 직행이라 갤러리 선택지가 없었음)
+  {id: 'camera', label: t('recipeEdit.takePhoto'), icon: IconCameraFilled},
+  {id: 'gallery', label: t('recipeEdit.chooseFromGallery'), icon: IconPhoto},
   {id: 'tip', label: t('recipeEdit.tip'), icon: IconAstriks},
   {id: 'caution', label: t('recipeEdit.caution'), icon: IconCircleAlertFilled},
 ];
@@ -1229,34 +1231,31 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     if (!slashMenu) return;
     const {groupId, stepId} = slashMenu;
 
-    // 사진: 갤러리 열고 선택 후 step.photos에 추가
-    if (menuId === 'photo') {
-      // "/" 먼저 제거
-      setStepGroups(prev =>
-        prev.map(g =>
-          g.id === groupId
-            ? {...g, steps: g.steps.map(s => {
-                if (s.id !== stepId) return s;
-                const desc = s.description.endsWith('/') ? s.description.slice(0, -1) : s.description;
-                return {...s, description: desc};
-              })}
-            : g,
-        ),
-      );
+    // 사진: 촬영(camera) 또는 갤러리(gallery) → step.photos에 추가
+    if (menuId === 'camera' || menuId === 'gallery') {
+      const isCamera = menuId === 'camera';
       setSlashMenu(null);
-      const camOk = await ensureImagePermission('camera', {
-        deniedMessage: t('recipeEdit.cameraPermissionNeeded'),
-        showSnackbar,
-        settingsTitle: t('permission.cameraTitle'),
-        settingsBody: t('permission.cameraBody'),
-        settingsConfirmLabel: t('permission.openSettings'),
-        settingsCancelLabel: t('permission.cancel'),
-      });
-      if (!camOk) return;
-      const result = await ImagePicker.launchCameraAsync({
-        quality: 0.8,
-        base64: Platform.OS === 'web',
-      });
+      const permOk = isCamera
+        ? await ensureImagePermission('camera', {
+            deniedMessage: t('recipeEdit.cameraPermissionNeeded'),
+            showSnackbar,
+            settingsTitle: t('permission.cameraTitle'),
+            settingsBody: t('permission.cameraBody'),
+            settingsConfirmLabel: t('permission.openSettings'),
+            settingsCancelLabel: t('permission.cancel'),
+          })
+        : await ensureImagePermission('mediaLibrary', {
+            deniedMessage: t('recipeEdit.photoPermissionNeeded'),
+            showSnackbar,
+            settingsTitle: t('permission.photoTitle'),
+            settingsBody: t('permission.photoBody'),
+            settingsConfirmLabel: t('permission.openSettings'),
+            settingsCancelLabel: t('permission.cancel'),
+          });
+      if (!permOk) return;
+      const result = isCamera
+        ? await ImagePicker.launchCameraAsync({quality: 0.8, base64: Platform.OS === 'web'})
+        : await ImagePicker.launchImageLibraryAsync({mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web'});
       if (!result.canceled && result.assets.length > 0) {
         const uris = await Promise.all(
           result.assets.map(a => getPersistentUri(a.uri, a.base64)),
@@ -2525,7 +2524,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           const s = g?.steps.find(ss => ss.id === slashMenu.stepId);
           const actions = SLASH_MENU_ITEMS
             .filter(item =>
-              item.id === 'photo' ? (s?.photos?.length ?? 0) < 3
+              (item.id === 'camera' || item.id === 'gallery') ? (s?.photos?.length ?? 0) < 3
               : item.id === 'tip' ? s?.tip == null
               : item.id === 'caution' ? s?.caution == null
               : true,

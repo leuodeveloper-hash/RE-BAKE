@@ -573,9 +573,10 @@ const handleDelete = useCallback(async () => {
                   }
                   return v;
                 };
-                await updateDoc(doc(db, 'explore_recipes', id!), stripUndefined(uploaded));
+                // updateDoc은 문서가 없으면(not-found) 실패한다. setDoc merge는 없으면 만들고
+                // 있으면 부분 병합 → 요리모드 사진 추가가 안정적으로 저장됨(편집화면과 동일 톤).
+                await setDoc(doc(db, 'explore_recipes', id!), stripUndefined(uploaded), {merge: true});
               } catch (e: any) {
-                // 원인 구분: code(권한/문서없음 등) + message
                 console.warn('[explore update] 실패 code=', e?.code, 'msg=', e?.message, e);
                 showSnackbar(t('id.updateFailed') + (e?.code ? ` (${e.code})` : ''));
               }

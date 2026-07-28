@@ -278,7 +278,7 @@ export function BottomSheet({
               onResponderMove={onDragMove}
               onResponderRelease={onDragRelease}
               onResponderTerminate={onDragTerminate}
-              style={[styles.handleContainer, fullScreen && {paddingTop: safeTop}]}
+              style={[styles.handleContainer, fullScreen && !hideHandle && {paddingTop: safeTop}]}
             >
               {!hideHandle && <View style={styles.handle} />}
             </View>

@@ -80,6 +80,11 @@ export async function syncTodayRecipeToWidget(candidates: Recipe[]): Promise<voi
     const WidgetStorage = require('../../modules/widget-storage').default;
     WidgetStorage.setString('recipeCandidates', JSON.stringify(items), APP_GROUP);
     WidgetStorage.setString('todayImagePath', todayImagePath, APP_GROUP);
+    // 제목-이미지 불일치 방지: 오늘 항목(제목+북+이미지)을 "한 세트"로 저장.
+    // 위젯은 이 세트를 그대로 써야 텍스트와 사진이 항상 같은 레시피가 된다.
+    // (위젯이 후보 리스트에서 idx를 다시 계산하면, 리스트 순서가 바뀔 때 이미지와 어긋남)
+    const today = {...items[todayIndex], imagePath: todayImagePath};
+    WidgetStorage.setString('todayRecipe', JSON.stringify(today), APP_GROUP);
     WidgetStorage.reloadWidget(WIDGET_NAME);
     console.log(`[widgetSync] 저장 완료 — 후보 ${items.length}개, 오늘=${items[todayIndex]?.title}, 이미지=${todayImagePath ? 'O' : 'X'}`);
   } catch (e) {

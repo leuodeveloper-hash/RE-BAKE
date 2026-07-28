@@ -42,29 +42,58 @@ func readTodayImagePath() -> String? {
   return (p?.isEmpty == false) ? p : nil
 }
 
+// 오늘 항목(제목+북+이미지)을 "한 세트"로 저장한 것을 읽는다.
+// 제목과 이미지가 항상 같은 레시피가 되도록(리스트 idx 재계산으로 어긋나는 문제 방지).
+struct TodaySet: Codable {
+  let id: String
+  let title: String
+  let cookbook: String?
+  let imagePath: String?
+}
+func readTodaySet() -> TodaySet? {
+  guard let defaults = UserDefaults(suiteName: appGroup),
+        let raw = defaults.string(forKey: "todayRecipe"),
+        let data = raw.data(using: .utf8),
+        let set = try? JSONDecoder().decode(TodaySet.self, from: data)
+  else { return nil }
+  return set
+}
+
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> RecipeEntry {
     RecipeEntry(date: Date(), recipe: DailyRecipe(id: "", title: "오늘의 레시피", cookbook: nil), imagePath: nil)
   }
 
+  // 오늘 엔트리: JS가 저장한 todayRecipe 세트(제목+이미지 일치)를 우선 사용.
+  // 없으면 후보 리스트에서 계산(구버전 폴백).
+  func todayEntry(date: Date) -> RecipeEntry {
+    if let set = readTodaySet() {
+      return RecipeEntry(
+        date: date,
+        recipe: DailyRecipe(id: set.id, title: set.title, cookbook: set.cookbook),
+        imagePath: (set.imagePath?.isEmpty == false) ? set.imagePath : nil
+      )
+    }
+    return RecipeEntry(date: date, recipe: readTodayRecipe(), imagePath: readTodayImagePath())
+  }
+
   func getSnapshot(in context: Context, completion: @escaping (RecipeEntry) -> Void) {
-    completion(RecipeEntry(date: Date(), recipe: readTodayRecipe(), imagePath: readTodayImagePath()))
+    completion(todayEntry(date: Date()))
   }
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<RecipeEntry>) -> Void) {
-    // 앞으로 14일치 엔트리를 각 날짜 00:00 기준으로 미리 만들어 둔다(텍스트는 매일 자동 순환).
-    // 이미지는 오늘 것만 준비돼 있으므로 "오늘(offset 0)" 엔트리에만 채운다.
+    // 앞으로 14일치 엔트리(텍스트는 매일 자동 순환). 오늘(offset 0)은 제목-이미지 일치 세트,
+    // 그 외 날짜는 후보 순환(제목만, 이미지 없음).
     let cal = Calendar.current
     let startOfToday = cal.startOfDay(for: Date())
-    let todayImage = readTodayImagePath()
     var entries: [RecipeEntry] = []
     for dayOffset in 0..<14 {
       guard let day = cal.date(byAdding: .day, value: dayOffset, to: startOfToday) else { continue }
-      entries.append(RecipeEntry(
-        date: day,
-        recipe: readTodayRecipe(for: day),
-        imagePath: dayOffset == 0 ? todayImage : nil
-      ))
+      if dayOffset == 0 {
+        entries.append(todayEntry(date: day))
+      } else {
+        entries.append(RecipeEntry(date: day, recipe: readTodayRecipe(for: day), imagePath: nil))
+      }
     }
     // 마지막 엔트리 이후(14일 뒤) 타임라인 갱신 요청 → 그때 앱이 안 열렸어도 다시 순환.
     let refreshDate = cal.date(byAdding: .day, value: 14, to: startOfToday) ?? Date()
