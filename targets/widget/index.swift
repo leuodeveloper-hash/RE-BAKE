@@ -4,8 +4,6 @@ import SwiftUI
 // App Group으로 앱↔위젯 데이터 공유
 let appGroup = "group.com.bakle.app"
 
-// 앱(JS 브릿지)이 shared UserDefaults의 후보 목록(recipeCandidates)에 저장하는 항목.
-// 이미지는 후보에 넣지 않고, "오늘 것" 1장만 별도 키(todayImagePath)로 저장한다.
 struct DailyRecipe: Codable {
   let id: String
   let title: String
@@ -15,48 +13,43 @@ struct DailyRecipe: Codable {
 struct RecipeEntry: TimelineEntry {
   let date: Date
   let recipe: DailyRecipe?
-  let imagePath: String? // 오늘 항목에만 채워짐(그날 이미지). 그 외 날짜는 nil(이모지 폴백).
+  let imagePath: String?
 }
 
-// shared UserDefaults에서 후보 "전체"를 읽어, 날짜 시드로 그날 하나를 고른다.
-// 앱을 열지 않아도 위젯이 매일 스스로 다른 레시피를 표시하게 하는 핵심.
-func readTodayRecipe(for date: Date = Date()) -> DailyRecipe? {
-  guard let defaults = UserDefaults(suiteName: appGroup),
-        let raw = defaults.string(forKey: "recipeCandidates"),
-        let data = raw.data(using: .utf8),
-        let list = try? JSONDecoder().decode([DailyRecipe].self, from: data),
-        !list.isEmpty
-  else { return nil }
-
-  let cal = Calendar.current
-  let comps = cal.dateComponents([.year, .month, .day], from: date)
-  let seed = (comps.year ?? 0) * 10000 + (comps.month ?? 0) * 100 + (comps.day ?? 0)
-  let idx = ((seed % list.count) + list.count) % list.count
-  return list[idx]
-}
-
-// 앱이 미리 받아둔 "오늘 이미지" 로컬 경로.
-func readTodayImagePath() -> String? {
-  guard let defaults = UserDefaults(suiteName: appGroup) else { return nil }
-  let p = defaults.string(forKey: "todayImagePath")
-  return (p?.isEmpty == false) ? p : nil
-}
-
-// 오늘 항목(제목+북+이미지)을 "한 세트"로 저장한 것을 읽는다.
-// 제목과 이미지가 항상 같은 레시피가 되도록(리스트 idx 재계산으로 어긋나는 문제 방지).
-struct TodaySet: Codable {
+// 앱(JS)이 저장한 날짜별 세트: seed(YYYYMMDD)로 그날의 제목+북+이미지가 한 세트.
+// 미리 받아둔 이미지라 다음날도 빈칸 없이 텍스트-이미지가 항상 일치한다.
+struct DailySet: Codable {
+  let seed: Int
   let id: String
   let title: String
   let cookbook: String?
   let imagePath: String?
 }
-func readTodaySet() -> TodaySet? {
+
+func readDailySets() -> [DailySet] {
   guard let defaults = UserDefaults(suiteName: appGroup),
-        let raw = defaults.string(forKey: "todayRecipe"),
+        let raw = defaults.string(forKey: "dailySets"),
         let data = raw.data(using: .utf8),
-        let set = try? JSONDecoder().decode(TodaySet.self, from: data)
-  else { return nil }
-  return set
+        let sets = try? JSONDecoder().decode([DailySet].self, from: data)
+  else { return [] }
+  return sets
+}
+
+func seedFor(_ date: Date) -> Int {
+  let c = Calendar.current.dateComponents([.year, .month, .day], from: date)
+  return (c.year ?? 0) * 10000 + (c.month ?? 0) * 100 + (c.day ?? 0)
+}
+
+func entryFor(date: Date, sets: [DailySet]) -> RecipeEntry {
+  let seed = seedFor(date)
+  if let s = sets.first(where: { $0.seed == seed }) {
+    return RecipeEntry(
+      date: date,
+      recipe: DailyRecipe(id: s.id, title: s.title, cookbook: s.cookbook),
+      imagePath: (s.imagePath?.isEmpty == false) ? s.imagePath : nil
+    )
+  }
+  return RecipeEntry(date: date, recipe: nil, imagePath: nil)
 }
 
 struct Provider: TimelineProvider {
@@ -64,38 +57,21 @@ struct Provider: TimelineProvider {
     RecipeEntry(date: Date(), recipe: DailyRecipe(id: "", title: "오늘의 레시피", cookbook: nil), imagePath: nil)
   }
 
-  // 오늘 엔트리: JS가 저장한 todayRecipe 세트(제목+이미지 일치)를 우선 사용.
-  // 없으면 후보 리스트에서 계산(구버전 폴백).
-  func todayEntry(date: Date) -> RecipeEntry {
-    if let set = readTodaySet() {
-      return RecipeEntry(
-        date: date,
-        recipe: DailyRecipe(id: set.id, title: set.title, cookbook: set.cookbook),
-        imagePath: (set.imagePath?.isEmpty == false) ? set.imagePath : nil
-      )
-    }
-    return RecipeEntry(date: date, recipe: readTodayRecipe(), imagePath: readTodayImagePath())
-  }
-
   func getSnapshot(in context: Context, completion: @escaping (RecipeEntry) -> Void) {
-    completion(todayEntry(date: Date()))
+    completion(entryFor(date: Date(), sets: readDailySets()))
   }
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<RecipeEntry>) -> Void) {
-    // 앞으로 14일치 엔트리(텍스트는 매일 자동 순환). 오늘(offset 0)은 제목-이미지 일치 세트,
-    // 그 외 날짜는 후보 순환(제목만, 이미지 없음).
+    // 날짜별 세트(제목+이미지 일치)를 각 날짜 00:00 엔트리로. 매일 자정에 다음 세트로 전환.
     let cal = Calendar.current
     let startOfToday = cal.startOfDay(for: Date())
+    let sets = readDailySets()
     var entries: [RecipeEntry] = []
     for dayOffset in 0..<14 {
       guard let day = cal.date(byAdding: .day, value: dayOffset, to: startOfToday) else { continue }
-      if dayOffset == 0 {
-        entries.append(todayEntry(date: day))
-      } else {
-        entries.append(RecipeEntry(date: day, recipe: readTodayRecipe(for: day), imagePath: nil))
-      }
+      entries.append(entryFor(date: day, sets: sets))
     }
-    // 마지막 엔트리 이후(14일 뒤) 타임라인 갱신 요청 → 그때 앱이 안 열렸어도 다시 순환.
+    // 14일 뒤 갱신 요청 → 앱이 안 열렸어도 다시 준비된 만큼 순환.
     let refreshDate = cal.date(byAdding: .day, value: 14, to: startOfToday) ?? Date()
     completion(Timeline(entries: entries, policy: .after(refreshDate)))
   }
@@ -113,34 +89,21 @@ struct BakleWidgetEntryView: View {
 
     ZStack(alignment: .bottomLeading) {
       if hasRecipe, let recipe = recipe {
-        // 좌측 상단 B 브랜드 마크 — 이미지 위라 흰색.
-        Text("B")
-          .font(.system(size: 18, weight: .heavy, design: .rounded))
-          .foregroundColor(.white)
-          .shadow(color: .black.opacity(0.25), radius: 2, y: 1)
+        // 좌측 상단 흰색 로고
+        Image("logo")
+          .resizable()
+          .aspectRatio(contentMode: .fit)
+          .frame(width: family == .systemSmall ? 22 : 26, height: family == .systemSmall ? 22 : 26)
           .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
           .padding(family == .systemSmall ? 12 : 16)
-        // 그라디언트/이미지는 backgroundLayer(containerBackground)에서 처리 → 여기선 텍스트만.
-        VStack(alignment: .leading, spacing: 3) {
-          Text("오늘의 레시피")
-            .font(.caption2).fontWeight(.semibold)
-            .foregroundColor(.white.opacity(0.85))
-          Text(recipe.title)
-            .font(family == .systemSmall ? .subheadline : .headline)
-            .fontWeight(.bold)
-            .foregroundColor(.white)
-            .lineLimit(2)
-          if let cookbook = recipe.cookbook, !cookbook.isEmpty {
-            Text(cookbook)
-              .font(.caption2)
-              .foregroundColor(.white.opacity(0.8))
-              .lineLimit(1)
-          }
-        }
-        // 그라디언트를 배경 레이어로 옮기며 채움 요소가 사라져 텍스트가 위젯 전체로 안 늘어남 →
-        // 위젯 전체를 채우고 하단좌측 정렬로 이전 레이아웃 복원.
-        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-        .padding(family == .systemSmall ? 12 : 16)
+        // 하단 좌측: 제목만
+        Text(recipe.title)
+          .font(family == .systemSmall ? .subheadline : .headline)
+          .fontWeight(.bold)
+          .foregroundColor(.white)
+          .lineLimit(2)
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+          .padding(family == .systemSmall ? 12 : 16)
       } else {
         VStack(spacing: 6) {
           Text("🥐").font(.system(size: 36))
@@ -193,5 +156,8 @@ struct BakleWidget: Widget {
     .configurationDisplayName("오늘의 레시피")
     .description("매일 새로운 오늘의 레시피를 추천해드려요.")
     .supportedFamilies([.systemSmall, .systemMedium])
+    // 시스템 기본 콘텐츠 여백 제거 → 이미지가 가장자리까지 차고, 텍스트 패딩은 body의 .padding만 적용
+    // (시스템 여백 + 내 패딩이 겹쳐 "너무 넓게" 보이던 문제 해결)
+    .contentMarginsDisabled()
   }
 }

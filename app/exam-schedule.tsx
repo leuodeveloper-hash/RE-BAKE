@@ -59,17 +59,14 @@ function formatDday(diffDays: number): string {
 }
 
 /**
- * 일정의 D-day 라벨 — 푸시 알림과 동일하게 "가장 가까운 다가오는 마일스톤" 기준.
- * 접수 전이면 접수까지, 접수 후~시험 전이면 시험까지, 그 뒤면 발표까지 남은 일수.
- * 모두 지났으면 가장 최근 마일스톤 기준(D+N), 유효 날짜가 없으면 TBD.
+ * 일정의 D-day 라벨 — 시험 시작일(examDate) 기준으로 남은 일수.
+ * (접수/발표가 아니라 "시험까지 며칠"을 보여준다. 실기는 examDate=시작일.)
+ * examDate 없으면 시험일 대체 불가 → 접수/발표 순으로 폴백, 그것도 없으면 TBD.
  */
 function ddayLabel(s: ExamSchedule): string {
-  const diffs = [s.registrationStart, s.examDate, s.resultDate]
-    .map(daysUntil)
-    .filter((d): d is number => d !== null);
-  if (diffs.length === 0) return 'TBD';
-  const upcoming = diffs.filter(d => d >= 0);
-  const diff = upcoming.length ? Math.min(...upcoming) : Math.max(...diffs);
+  const iso = s.examDate ?? s.registrationStart ?? s.resultDate;
+  const diff = iso ? daysUntil(iso) : null;
+  if (diff === null) return 'TBD';
   return formatDday(diff);
 }
 
