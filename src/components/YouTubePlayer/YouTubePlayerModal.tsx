@@ -121,9 +121,13 @@ export function YouTubePlayerModal({visible, onClose, videoId, topInset, bottomI
     const maxX = win.current.width - MARGIN;
     const minY = win.current.top + MARGIN;
     const maxY = win.current.height - win.current.bottom - BOTTOM_RESERVE - MARGIN;
+    // scale은 박스 "전체"(PLAYER_HEIGHT + HANDLE_H) 중심 기준이므로, 좌상단 역산도
+    // 전체 높이의 절반을 빼야 축소박스 하단이 정확히 바닥(maxY)에 붙는다.
+    // (기존엔 PLAYER_HEIGHT/2만 빼서 HANDLE_H/2만큼 바닥에서 떴음)
+    const halfBox = (PLAYER_HEIGHT + HANDLE_H) / 2;
     return {
       x: (isRight ? maxX - NAIL_W / 2 : minX + NAIL_W / 2) - PLAYER_WIDTH / 2,
-      y: (isBottom ? maxY - NAIL_H / 2 : minY + NAIL_H / 2) - PLAYER_HEIGHT / 2,
+      y: (isBottom ? maxY - NAIL_H / 2 : minY + NAIL_H / 2) - halfBox,
     };
   };
 
