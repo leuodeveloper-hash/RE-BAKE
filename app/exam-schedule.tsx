@@ -163,7 +163,17 @@ export default function ExamScheduleRoute() {
 
   // 표시 순서: 지난(최신→오래된) → 다가오는. 전체 ~65개라 지연 로드 없이 전부 렌더(성능 문제 없음).
   const display = [...pastShown, ...upcoming];
-  const currentId = upcoming[0]?.id;
+  // 녹색(current) 강조 = "다음 접수일" 기준. 접수 파악이 가장 중요하므로
+  // 오늘 이후 접수 시작일(registrationStart)이 가장 가까운 시험을 강조한다.
+  // (접수일이 다 지났으면 가장 최근 접수 기준으로 폴백)
+  const currentId = useMemo(() => {
+    const withReg = upcoming
+      .map(s => ({id: s.id, d: daysUntil(s.registrationStart)}))
+      .filter((x): x is {id: string; d: number} => x.d !== null);
+    const future = withReg.filter(x => x.d >= 0).sort((a, b) => a.d - b.d);
+    const fallback = [...withReg].sort((a, b) => b.d - a.d); // 다 지났으면 가장 최근
+    return (future[0] ?? fallback[0])?.id ?? upcoming[0]?.id;
+  }, [upcoming]);
 
   return (
     <View style={styles.container}>
