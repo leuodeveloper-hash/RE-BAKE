@@ -55,9 +55,20 @@ export default function RecipeDetailRoute() {
   const recipe = findRecipeById(id) ?? exploreRecipes.find(r => r.id === id);
 
   // 마지막으로 본 레시피 저장 → 앱 재시작 시 이 화면으로 복귀 (_layout에서 사용).
-  // 실제 존재하는 레시피일 때만 저장(유효하지 않으면 저장 안 해 복귀 시 홈 유지).
+  // + 위젯 "본 것 제외" 순환용 seen 기록. 실제 존재하는 레시피일 때만.
   useEffect(() => {
-    if (id && recipe) AsyncStorage.setItem('last_viewed_recipe_id', id);
+    if (!id || !recipe) return;
+    AsyncStorage.setItem('last_viewed_recipe_id', id);
+    // 위젯에 뜬 레시피를 봤으면 seen에 추가 → 위젯은 안 본 것부터 순환.
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem('widget_seen_ids');
+        const seen: string[] = raw ? JSON.parse(raw) : [];
+        if (!seen.includes(id)) {
+          await AsyncStorage.setItem('widget_seen_ids', JSON.stringify([...seen, id]));
+        }
+      } catch { /* 무시 */ }
+    })();
   }, [id, recipe]);
 
   // 삭제/무효한 레시피로 진입(예: 복귀 대상이 사라짐)하면 잠깐 로드를 기다렸다가

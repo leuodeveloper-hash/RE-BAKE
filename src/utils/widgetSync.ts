@@ -1,4 +1,5 @@
 import {Platform} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {Directory, File, Paths} from 'expo-file-system';
 import type {Recipe} from '../types/recipe';
 
@@ -52,11 +53,26 @@ export async function syncTodayRecipeToWidget(candidates: Recipe[]): Promise<voi
     return;
   }
 
-  const n = candidates.length;
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
 
-  // 앞으로 DAYS_AHEAD일: 각 날짜 시드로 레시피 선택 + 이미지 다운로드
+  // "본 것 제외" 순환: seen(위젯 탭해서 열어본 레시피) 목록을 읽어 안 본 것부터 순서대로.
+  let seen: string[] = [];
+  try {
+    const raw = await AsyncStorage.getItem('widget_seen_ids');
+    seen = raw ? JSON.parse(raw) : [];
+  } catch { /* 무시 */ }
+  const seenSet = new Set(seen);
+  let unseen = candidates.filter(r => !seenSet.has(r.id));
+  // 다 봤으면 한 바퀴 → seen 초기화하고 전체를 다시 순환.
+  if (unseen.length === 0) {
+    unseen = candidates;
+    try { await AsyncStorage.removeItem('widget_seen_ids'); } catch { /* 무시 */ }
+  }
+
+  // 앞으로 DAYS_AHEAD일: 안 본 것을 순서대로 각 날짜에 배정(오늘=unseen[0], 내일=unseen[1]...).
+  // 이미지는 그 레시피 것 다운로드. seed는 날짜 기준(위젯이 그날 엔트리를 찾는 키).
+  const m = unseen.length;
   const validSeeds = new Set<number>();
   const dailySets = await Promise.all(
     Array.from({length: DAYS_AHEAD}, async (_, offset) => {
@@ -64,8 +80,7 @@ export async function syncTodayRecipeToWidget(candidates: Recipe[]): Promise<voi
       day.setDate(day.getDate() + offset);
       const seed = dateSeed(day);
       validSeeds.add(seed);
-      const idx = ((seed % n) + n) % n;
-      const r = candidates[idx];
+      const r = unseen[offset % m];
       const imagePath = await downloadImageFor(r, dir, seed);
       return {seed, id: r.id, title: r.title, cookbook: r.cookbook ?? '', imagePath};
     }),
