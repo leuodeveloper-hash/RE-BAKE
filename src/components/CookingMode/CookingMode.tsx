@@ -351,10 +351,22 @@ export function CookingMode({
     return false;
   }, [visible, onClose]));
 
-  const flatCards = useMemo(
-    () => buildCards(steps, stepGroups, ingredientGroups),
-    [steps, stepGroups, ingredientGroups],
-  );
+  // 뷰 모드 사진 추가/삭제 낙관적 반영: onUpdate는 부모 상태/Firestore 비동기라 props(steps)
+  // 갱신이 늦어 화면이 바로 안 바뀐다("새로고침해야 적용"). 로컬 오버라이드로 즉시 반영.
+  // key = `${groupIndex}:${stepIndex}` → photos.
+  const [photoOverrides, setPhotoOverrides] = useState<Record<string, string[] | undefined>>({});
+
+  const flatCards = useMemo(() => {
+    const cards = buildCards(steps, stepGroups, ingredientGroups);
+    if (Object.keys(photoOverrides).length === 0) return cards;
+    return cards.map(c => {
+      const k = `${c.groupIndex}:${c.stepIndex}`;
+      return k in photoOverrides ? {...c, photos: photoOverrides[k]} : c;
+    });
+  }, [steps, stepGroups, ingredientGroups, photoOverrides]);
+
+  // props가 실제로 갱신되면 오버라이드 초기화(중복/스테일 방지).
+  useEffect(() => { setPhotoOverrides({}); }, [steps, stepGroups]);
 
   const hasAdvice = !!advice?.trim();
   const totalCards = flatCards.length + (hasAdvice ? 1 : 0);
@@ -1074,6 +1086,8 @@ export function CookingMode({
   const commitStepPhotos = useCallback((card: CookingCard, newPhotos: string[]): boolean => {
     if (!onUpdate) return false;
     const photos = newPhotos.length > 0 ? newPhotos : undefined;
+    // 낙관적: 화면(flatCards)에 즉시 반영 → 저장(onUpdate) 전에 바로 보임.
+    setPhotoOverrides(prev => ({...prev, [`${card.groupIndex}:${card.stepIndex}`]: photos}));
     if (stepGroups && stepGroups.length > 0) {
       onUpdate({stepGroups: stepGroups.map((g, gIdx) => ({
         title: g.title,

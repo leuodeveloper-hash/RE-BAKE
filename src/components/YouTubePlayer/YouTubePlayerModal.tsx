@@ -159,8 +159,8 @@ export function YouTubePlayerModal({visible, onClose, videoId, topInset, bottomI
       setMinimized(false);
       setLoadFailed(false);
       minim.setValue(0);
-      // 상단 중앙으로 클램프 (x는 가로 중앙, y=0 → 앱바 아래 minY로 클램프)
-      const pos = clampPos((width - PLAYER_WIDTH) / 2, 0, false);
+      // 하단 우측으로 클램프 (큰 x·y → clampPos가 우측·하단 한계로 잘라 우하단 배치)
+      const pos = clampPos(width, height, false);
       pan.setValue(pos);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
