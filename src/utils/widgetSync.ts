@@ -23,8 +23,11 @@ async function downloadImageFor(recipe: Recipe, dir: Directory, seed: number): P
   const url = recipe.imageUri;
   if (!url || !url.startsWith('http')) return '';
   try {
-    const dest = new File(dir, `day-${seed}.jpg`);
-    if (dest.exists) return dest.uri.replace('file://', ''); // 이미 받아둠 → 재사용
+    // 파일명에 레시피 id까지 넣어야 함 — seed(날짜)만 쓰면 그날 배정 레시피가 바뀌어도
+    // 같은 파일을 재사용해 "이미지 고정" 발생. id 포함 → 레시피 바뀌면 새 파일.
+    const safeId = recipe.id.replace(/[^a-zA-Z0-9_-]/g, '');
+    const dest = new File(dir, `day-${seed}-${safeId}.jpg`);
+    if (dest.exists) return dest.uri.replace('file://', ''); // 같은 날+같은 레시피 → 재사용 OK
     const file = await File.downloadFileAsync(url, dest);
     return file.uri.replace('file://', '');
   } catch {
@@ -86,12 +89,13 @@ export async function syncTodayRecipeToWidget(candidates: Recipe[]): Promise<voi
     }),
   );
 
-  // 오래된(범위 밖) day-*.jpg 정리
+  // 오래된(범위 밖) day-{seed}-{id}.jpg 정리 — seed(첫 세그먼트)가 유효 범위 밖이면 삭제.
   try {
     for (const f of dir.list()) {
       if (f instanceof File && f.name.startsWith('day-')) {
-        const s = parseInt(f.name.replace('day-', '').replace('.jpg', ''), 10);
-        if (!validSeeds.has(s)) f.delete();
+        const seedStr = f.name.replace('day-', '').split('-')[0];
+        const s = parseInt(seedStr, 10);
+        if (!Number.isNaN(s) && !validSeeds.has(s)) f.delete();
       }
     }
   } catch { /* 무시 */ }

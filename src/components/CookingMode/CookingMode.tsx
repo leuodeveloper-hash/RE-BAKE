@@ -1160,14 +1160,10 @@ export function CookingMode({
     const photoStep = isNarrow ? photoW - 12 : photoW * 0.6;
     const tilts = [-8, 6, -6];
     const lifts = isNarrow ? [0, 0, 0] : [-56, 56, -56];
-    const showAdd = photos.length < 3;
+    // 권한(canEdit) 있을 때만 사진 추가(+) 버튼 노출 — 어드민/내 레시피 아니면 아예 안 보임.
+    const showAdd = photos.length < 3 && canEdit;
     const onAdd = () => {
-      if (!canEdit) {
-        // 로그인 안 했으면 로그인 시트, 로그인은 했지만 권한 없으면 안내(로그인 시트 X — "또 로그인" 혼란 방지)
-        if (!user) openAuthSheet();
-        else showSnackbar(t('cookingMode.noEditPermission'));
-        return;
-      }
+      if (!canEdit) return; // showAdd로 이미 숨김 — 방어
       if (editing) pickPhoto('gallery', item.globalIndex, item.photos);
       else addStepPhoto(item);
     };
