@@ -30,6 +30,8 @@ export interface StepPhotosProps {
   onReplace?: (index: number) => void;
   /** 관리모드에서 캡션 확정(blur/제출) 시 호출 */
   onCaptionChange?: (index: number, caption: string) => void;
+  /** 캡션 옆 곡선 화살표 표시 여부. 요리모드에서만 true(상세/편집은 화살표 없이 캡션만). 기본 false */
+  showArrow?: boolean;
 }
 
 const DEFAULT_SIZE = 56;
@@ -49,6 +51,7 @@ export function StepPhotos({
   onRemove,
   onReplace,
   onCaptionChange,
+  showArrow = false,
 }: StepPhotosProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
@@ -100,7 +103,7 @@ export function StepPhotos({
             {/* 캡션 + 화살표: [화살표][텍스트] 가로 배치 */}
             {showCaptionRow && (
               <View style={[styles.captionRow, arrowDir === 'up' && styles.captionRowUp]}>
-                <PhotoCaptionArrow direction={arrowDir} color={varColor} size={24} />
+                {showArrow && <PhotoCaptionArrow direction={arrowDir} color={varColor} size={24} />}
                 {editingThis || (editable && manage && !caption) ? (
                   <TextInput
                     style={[styles.captionText, styles.captionInput]}

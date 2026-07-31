@@ -1635,6 +1635,7 @@ export function CookingMode({
                             size={containerWidth >= 600 ? 140 : 96}
                             gap={Spacing.sm}
                             paddingTop={false}
+                            showArrow
                             onRemove={(pIdx) => removeAdvicePhoto(pIdx)}
                           />
                         );
