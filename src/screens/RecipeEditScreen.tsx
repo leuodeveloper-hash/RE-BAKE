@@ -2928,9 +2928,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     gap: 16,
   },
   // 단일 그룹 헤더 + 버튼을 하단 행의 - 버튼(ListItem iconButton 슬롯 28)과 동일 슬롯에 배치해 정렬 맞춤
+  // 헤더 +/- 버튼: 아이템 행 trailing 버튼과 우측 정렬이 맞도록 고정 28 슬롯 제거.
+  // (28 슬롯에 medium 버튼을 가두면 아이템 버튼보다 안쪽으로 들어가 보였음)
   headerAddSlot: {
-    width: 28,
-    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
