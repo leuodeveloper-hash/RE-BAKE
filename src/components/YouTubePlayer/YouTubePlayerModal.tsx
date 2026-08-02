@@ -337,7 +337,8 @@ const styles = StyleSheet.create({
   closeBtn: {
     position: 'absolute',
     top: Spacing.xs,
-    right: Spacing.xs,
+    // 좌측 상단 — 유튜브 기본 툴바의 설정(⚙️)이 우측 상단이라 겹침 방지
+    left: Spacing.xs,
     zIndex: 6,
   },
   openBtn: {
