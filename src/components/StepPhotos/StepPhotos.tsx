@@ -108,7 +108,7 @@ export function StepPhotos({
             {showCaptionRow && (
               <View style={[styles.captionRow, arrowDir === 'up' && styles.captionRowUp]}>
                 {showArrow && <PhotoCaptionArrow direction={arrowDir} color={varColor} size={24} />}
-                {editingThis || (editable && manage && !caption) ? (
+                {editingThis || (editable && manage) ? (
                   <TextInput
                     style={[styles.captionText, styles.captionInput]}
                     value={editingThis ? draftCaption!.text : caption}
