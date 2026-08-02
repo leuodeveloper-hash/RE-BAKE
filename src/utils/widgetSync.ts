@@ -66,10 +66,14 @@ export async function syncTodayRecipeToWidget(candidates: Recipe[]): Promise<voi
     seen = raw ? JSON.parse(raw) : [];
   } catch { /* 무시 */ }
   const seenSet = new Set(seen);
-  let unseen = candidates.filter(r => !seenSet.has(r.id));
-  // 다 봤으면 한 바퀴 → seen 초기화하고 전체를 다시 순환.
+  // 위젯은 이미지가 핵심 → 이미지(http URL) 있는 레시피만 후보로. 없으면 위젯이 빈 배경+제목만 떠서
+  // "제목만 나옴"이 됐음. 이미지 있는 것만 순환.
+  const withImage = candidates.filter(r => !!r.imageUri && r.imageUri.startsWith('http'));
+  const pool = withImage.length > 0 ? withImage : candidates; // 이미지 있는 게 하나도 없으면 폴백
+  let unseen = pool.filter(r => !seenSet.has(r.id));
+  // 다 봤으면 한 바퀴 → seen 초기화하고 (이미지 있는) 전체를 다시 순환.
   if (unseen.length === 0) {
-    unseen = candidates;
+    unseen = pool;
     try { await AsyncStorage.removeItem('widget_seen_ids'); } catch { /* 무시 */ }
   }
 
