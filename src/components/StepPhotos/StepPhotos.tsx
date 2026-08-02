@@ -119,7 +119,11 @@ export function StepPhotos({
                     autoFocus={editingThis}
                     onFocus={() => setDraftCaption({idx: i, text: caption})}
                     onChangeText={(v) => setDraftCaption({idx: i, text: v})}
-                    onBlur={() => setDraftCaption(null)}
+                    // blur(다른 곳 탭)에도 저장 — 완료 안 눌러도 입력값이 반영되게(기존엔 버려짐)
+                    onBlur={() => {
+                      if (draftCaption?.idx === i) onCaptionChange?.(i, draftCaption.text.trim());
+                      setDraftCaption(null);
+                    }}
                     onSubmitEditing={() => {
                       if (draftCaption?.idx === i) onCaptionChange?.(i, draftCaption.text.trim());
                       setDraftCaption(null);
