@@ -1191,6 +1191,16 @@ export function CookingMode({
       if (editing) replacePhoto(item.globalIndex, i, item.photos);
       else replaceStepPhotoView(item, i);
     };
+    // 캡션(설명) 변경 — 편집 모드는 editCards, 뷰 모드는 commitStepPhotos(onUpdate+낙관적 반영).
+    // (뷰 모드에서 editCards만 갱신하면 화면(flatCards)에 반영 안 돼 "입력 안 됨"처럼 보였음)
+    const onCaption = (i: number, caption: string) => {
+      if (editing) {
+        updateCardPhotoCaption(item.globalIndex, i, caption, item.photos);
+      } else {
+        const np = (item.photos ?? []).map((p, k) => k === i ? {...p, caption: caption || undefined} : p);
+        commitStepPhotos(item, np);
+      }
+    };
     const onDelete = (i: number) => {
       if (editing) {
         removePhoto(item.globalIndex, i, item.photos);
@@ -1250,7 +1260,7 @@ export function CookingMode({
                       placeholderTextColor={colors['foreground/on-surface-muted']}
                       multiline
                       maxLength={60}
-                      onChangeText={(v) => updateCardPhotoCaption(item.globalIndex, i, v, item.photos)}
+                      onChangeText={(v) => onCaption(i, v)}
                     />
                   ) : (
                     <Text style={styles.photoCaptionText} numberOfLines={2}>{cap}</Text>
