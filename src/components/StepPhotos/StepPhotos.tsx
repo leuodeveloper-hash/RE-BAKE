@@ -57,7 +57,11 @@ export function StepPhotos({
   const colors = useColors();
   const editable = mode === 'edit';
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
-  const [manage, setManage] = useState(false);
+  // edit 모드는 이미 편집 중이므로 롱프레스 관리모드 없이 항상 캡션 입력칸·삭제(X) 노출.
+  // (상세/편집화면: 모드 전환 불필요 → 바로 편집)
+  const [manageState, setManageState] = useState(false);
+  const manage = editable ? true : manageState;
+  const setManage = setManageState;
   // 캡션 편집 임시값: 저장 전 blur하면 버려짐(원상복구)
   const [draftCaption, setDraftCaption] = useState<{idx: number; text: string} | null>(null);
 
