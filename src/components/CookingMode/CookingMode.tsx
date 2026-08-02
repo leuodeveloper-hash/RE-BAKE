@@ -310,6 +310,8 @@ export function CookingMode({
   const [viewerPhoto, setViewerPhoto] = useState<{card: CookingCard; index: number; editing: boolean} | null>(null);
   // 사진 관리모드 (썸네일 롱프레스 → X 삭제 노출, 탭=교체)
   const [photoManage, setPhotoManage] = useState(false);
+  // 관리모드에서 롱프레스한 사진 index — 그 사진을 맨 앞(zIndex 최상단)으로 올려 X버튼이 안 가리게.
+  const [activePhotoIdx, setActivePhotoIdx] = useState<number | null>(null);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [showInfoTooltip, setShowInfoTooltip] = useState(false);
@@ -1226,7 +1228,8 @@ export function CookingMode({
               width: photoW, height: photoW,
               marginLeft: i === 0 ? 0 : -(photoW - photoStep),
               transform: [{translateY: lifts[i] ?? 0}, {rotate: `${tilts[i] ?? 0}deg`}],
-              zIndex: i,
+              // 관리모드에서 롱프레스한 사진은 맨 앞으로(X버튼 안 가리게)
+              zIndex: (photoManage && activePhotoIdx === i) ? 99 : i,
             }]}>
             <Pressable
               style={{flex: 1}}
@@ -1234,7 +1237,7 @@ export function CookingMode({
                 if (canEdit && photoManage) onReplace(i);
                 else setViewerPhoto({card: item, index: i, editing});
               }}
-              onLongPress={canEdit ? () => setPhotoManage(m => !m) : undefined}
+              onLongPress={canEdit ? () => { setActivePhotoIdx(i); setPhotoManage(m => !m); } : undefined}
               delayLongPress={300}>
               <Image source={{uri: p.uri}} style={{flex: 1, borderRadius: 11}} resizeMode="cover" />
             </Pressable>
@@ -1260,7 +1263,11 @@ export function CookingMode({
                       placeholderTextColor={colors['foreground/on-surface-muted']}
                       multiline
                       maxLength={60}
+                      returnKeyType="done"
+                      blurOnSubmit
                       onChangeText={(v) => onCaption(i, v)}
+                      // 완료(제출) 시 관리모드 종료 — "입력 끝내면 편집모드 빠져나오기"
+                      onSubmitEditing={() => setPhotoManage(false)}
                     />
                   ) : (
                     <Text style={styles.photoCaptionText} numberOfLines={2}>{cap}</Text>
@@ -1274,11 +1281,6 @@ export function CookingMode({
           <Pressable
             onPress={onAdd}
             style={[styles.emptyPack, {width: photoW, height: photoW, marginLeft: photos.length === 0 ? 0 : -(photoW - photoStep), zIndex: photos.length}]}>
-            {/* 점선 아웃라인: RN 기본 dashed는 간격 조절 불가 → SVG로 dash/gap 넓게 */}
-            <Svg width={photoW} height={photoW} style={StyleSheet.absoluteFill} pointerEvents="none">
-              <Rect x={1.5} y={1.5} width={photoW - 3} height={photoW - 3} rx={15} ry={15}
-                fill="none" stroke={colors['border/normal']} strokeWidth={2} strokeDasharray="9 8" />
-            </Svg>
             <View style={styles.addCircle}>
               <AppIcon icon={IconAdd} size="md" color={colors['foreground/on-surface-muted']} />
             </View>
@@ -1286,7 +1288,7 @@ export function CookingMode({
         ) : null}
       </View>
     );
-  }, [isNarrow, canEdit, user, photoManage, openAuthSheet, pickPhoto, addStepPhoto, replacePhoto, replaceStepPhotoView, removePhoto, commitStepPhotos, updateCardPhotoCaption, showSnackbar, styles, colors, t]);
+  }, [isNarrow, canEdit, user, photoManage, activePhotoIdx, openAuthSheet, pickPhoto, addStepPhoto, replacePhoto, replaceStepPhotoView, removePhoto, commitStepPhotos, updateCardPhotoCaption, showSnackbar, styles, colors, t]);
 
   // 보기(요리) 스텝 — [텍스트 칼럼(좌)][사진 최대 3장 일렬·기울임 + 추가카드(우)].
   // 사진은 고정 크기, 좁으면 잘리고 슬라이드로 노출.
@@ -1997,11 +1999,13 @@ const createStyles = (colors: SemanticColors) =>
       lineHeight: Typography.label.small.lineHeight,
       color: colors['foreground/on-surface-var'],
     },
-    // 추가(+) 카드도 사진과 같은 흰 프레임 + 안쪽 dim 채움 (Figma)
+    // 추가(+) 카드: 점선 대신 배경(surface/container) + 실선 보더
     emptyPack: {
       padding: 6,
       borderRadius: 16,
-      // 점선 아웃라인은 SVG(Rect strokeDasharray)로 그림 — 하얀 배경/그림자/RN 테두리 없음
+      backgroundColor: colors['surface/container'],
+      borderWidth: 1,
+      borderColor: colors['border/normal'],
     },
     photoDeleteBtn: {
       position: 'absolute',
@@ -2011,6 +2015,9 @@ const createStyles = (colors: SemanticColors) =>
       height: 22,
       borderRadius: 11,
       backgroundColor: 'rgba(0,0,0,0.6)',
+      // 흰 테두리(보더 1처럼) — 사진 위에서 X가 또렷하게 분리돼 보이도록
+      borderWidth: 1.5,
+      borderColor: colors['surface/bright'],
       alignItems: 'center',
       justifyContent: 'center',
       zIndex: 20,
