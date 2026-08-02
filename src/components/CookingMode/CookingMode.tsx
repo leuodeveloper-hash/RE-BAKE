@@ -34,6 +34,7 @@ import {SearchCommandBar} from '@components/SearchCommandBar';
 import {Button} from '@components/Button';
 import {EditableChip} from '@components/EditableChip/EditableChip';
 import {StepPhotos} from '@components/StepPhotos';
+import {PhotoCaptionArrow} from '@components/StepPhotos/PhotoCaptionArrow';
 import {normalizeStepPhotos} from '@utils/stepPhotos';
 import type {StepPhoto} from '../../types/recipe';
 import {BottomActionBar} from '@components/BottomActionBar';
@@ -117,7 +118,7 @@ interface CookingCard {
   description: string;
   tip?: string;
   caution?: string;
-  photos?: string[];
+  photos?: StepPhoto[]; // uri+caption. 캡션을 요리모드에서도 유지(상세/편집과 동일 데이터)
   matchedIngredients: IngredientInput[];
   editIngredients?: IngredientInput[];
 }
@@ -190,7 +191,7 @@ function buildCards(
           description: step.description,
           tip: step.tip,
           caution: step.caution,
-          photos: normalizeStepPhotos(step.photos as any).map(p => p.uri),
+          photos: normalizeStepPhotos(step.photos),
           matchedIngredients: step.ingredients ?? matchIngredients(step.description, ingredientGroups),
         });
         globalIdx++;
@@ -207,7 +208,7 @@ function buildCards(
         description: step.description,
         tip: step.tip,
         caution: step.caution,
-        photos: normalizeStepPhotos(step.photos as any).map(p => p.uri),
+        photos: normalizeStepPhotos(step.photos),
         matchedIngredients: step.ingredients ?? matchIngredients(step.description, ingredientGroups),
       });
       globalIdx++;
@@ -354,7 +355,7 @@ export function CookingMode({
   // 뷰 모드 사진 추가/삭제 낙관적 반영: onUpdate는 부모 상태/Firestore 비동기라 props(steps)
   // 갱신이 늦어 화면이 바로 안 바뀐다("새로고침해야 적용"). 로컬 오버라이드로 즉시 반영.
   // key = `${groupIndex}:${stepIndex}` → photos.
-  const [photoOverrides, setPhotoOverrides] = useState<Record<string, string[] | undefined>>({});
+  const [photoOverrides, setPhotoOverrides] = useState<Record<string, StepPhoto[] | undefined>>({});
 
   const flatCards = useMemo(() => {
     const cards = buildCards(steps, stepGroups, ingredientGroups);
@@ -805,7 +806,7 @@ export function CookingMode({
     ));
   }, []);
 
-  const updateCardPhotos = useCallback((globalIndex: number, photos: string[] | undefined) => {
+  const updateCardPhotos = useCallback((globalIndex: number, photos: StepPhoto[] | undefined) => {
     updateEditCards(prev => prev.map(card =>
       card.globalIndex === globalIndex ? {...card, photos} : card,
     ));
@@ -874,7 +875,7 @@ export function CookingMode({
     }
   }, [ocrBusy, editCards, currentIndex, updateEditCards, showSnackbar, t]);
 
-  const pickPhoto = useCallback(async (source: 'camera' | 'gallery', globalIndex: number, currentPhotos?: string[]) => {
+  const pickPhoto = useCallback(async (source: 'camera' | 'gallery', globalIndex: number, currentPhotos?: StepPhoto[]) => {
     if ((currentPhotos?.length ?? 0) >= MAX_PHOTOS) return;
     const permOk = source === 'camera'
       ? await ensureImagePermission('camera', {
@@ -905,20 +906,27 @@ export function CookingMode({
         : await ImagePicker.launchImageLibraryAsync(options);
     if (!result.canceled && result.assets.length > 0) {
       const uris = await Promise.all(result.assets.map(a => getPersistentUri(a.uri, a.base64)));
-      const newPhotos = [...(currentPhotos ?? []), ...uris].slice(0, MAX_PHOTOS);
+      const newPhotos = [...(currentPhotos ?? []), ...uris.map(u => ({uri: u}))].slice(0, MAX_PHOTOS);
       updateCardPhotos(globalIndex, newPhotos);
     }
   }, [updateCardPhotos, showSnackbar, t]);
 
   // 사진 삭제
-  const removePhoto = useCallback((globalIndex: number, photoIndex: number, currentPhotos?: string[]) => {
+  const removePhoto = useCallback((globalIndex: number, photoIndex: number, currentPhotos?: StepPhoto[]) => {
     if (!currentPhotos) return;
     const newPhotos = currentPhotos.filter((_, i) => i !== photoIndex);
     updateCardPhotos(globalIndex, newPhotos.length > 0 ? newPhotos : undefined);
   }, [updateCardPhotos]);
 
+  // 사진 캡션(설명) 변경 — 관리모드 롱프레스에서 입력. uri는 유지, caption만 갱신.
+  const updateCardPhotoCaption = useCallback((globalIndex: number, photoIndex: number, caption: string, currentPhotos?: StepPhoto[]) => {
+    if (!currentPhotos) return;
+    const next = currentPhotos.map((p, i) => i === photoIndex ? {...p, caption: caption || undefined} : p);
+    updateCardPhotos(globalIndex, next);
+  }, [updateCardPhotos]);
+
   // 사진 교체
-  const replacePhoto = useCallback(async (globalIndex: number, photoIndex: number, currentPhotos?: string[]) => {
+  const replacePhoto = useCallback(async (globalIndex: number, photoIndex: number, currentPhotos?: StepPhoto[]) => {
     if (!currentPhotos) return;
     const permOk = await ensureImagePermission('mediaLibrary', {
       deniedMessage: t('cookingMode.photoPermission'),
@@ -936,8 +944,7 @@ export function CookingMode({
     });
     if (!result.canceled && result.assets.length > 0) {
       const uri = await getPersistentUri(result.assets[0].uri, result.assets[0].base64);
-      const newPhotos = [...currentPhotos];
-      newPhotos[photoIndex] = uri;
+      const newPhotos = currentPhotos.map((p, i) => i === photoIndex ? {...p, uri} : p);
       updateCardPhotos(globalIndex, newPhotos);
     }
   }, [updateCardPhotos, showSnackbar, t]);
@@ -1083,7 +1090,7 @@ export function CookingMode({
   }, [startEditing, handleCardOverflowSelect]);
 
   // 스텝 사진을 원본 레시피에 반영 (뷰 모드 공통 — onUpdate 경로). 실제 반영 성공 여부 반환.
-  const commitStepPhotos = useCallback((card: CookingCard, newPhotos: string[]): boolean => {
+  const commitStepPhotos = useCallback((card: CookingCard, newPhotos: StepPhoto[]): boolean => {
     if (!onUpdate) return false;
     const photos = newPhotos.length > 0 ? newPhotos : undefined;
     // 낙관적: 화면(flatCards)에 즉시 반영 → 저장(onUpdate) 전에 바로 보임.
@@ -1136,7 +1143,7 @@ export function CookingMode({
       }
     }
     const uri = await getPersistentUri(srcUri, srcBase64);
-    const newPhotos = [...(card.photos ?? []), uri].slice(0, MAX_PHOTOS);
+    const newPhotos = [...(card.photos ?? []), {uri}].slice(0, MAX_PHOTOS);
     const ok = commitStepPhotos(card, newPhotos);
     showSnackbar(ok ? t('cookingMode.photoAdded') : t('cookingMode.photoAddFailed'));
   }, [commitStepPhotos, showSnackbar, t]);
@@ -1159,8 +1166,7 @@ export function CookingMode({
     });
     if (result.canceled || result.assets.length === 0) return;
     const uri = await getPersistentUri(result.assets[0].uri, result.assets[0].base64);
-    const newPhotos = [...(card.photos ?? [])];
-    newPhotos[photoIndex] = uri;
+    const newPhotos = (card.photos ?? []).map((p, i) => i === photoIndex ? {...p, uri} : p);
     const ok = commitStepPhotos(card, newPhotos);
     showSnackbar(ok ? t('cookingMode.photoReplaced') : t('cookingMode.photoReplaceFailed'));
   }, [commitStepPhotos, showSnackbar, t]);
@@ -1220,13 +1226,38 @@ export function CookingMode({
               }}
               onLongPress={canEdit ? () => setPhotoManage(m => !m) : undefined}
               delayLongPress={300}>
-              <Image source={{uri: p}} style={{flex: 1, borderRadius: 11}} resizeMode="cover" />
+              <Image source={{uri: p.uri}} style={{flex: 1, borderRadius: 11}} resizeMode="cover" />
             </Pressable>
             {canEdit && photoManage ? (
               <Pressable style={styles.photoDeleteBtn} hitSlop={8} onPress={() => onDelete(i)}>
                 <IconClose width={12} height={12} color={colors['foreground/on-surface-inverse']} />
               </Pressable>
             ) : null}
+            {/* 캡션(설명): 관리모드면 입력칸, 아니면 있을 때만 표시. 짝수=위/홀수=아래로 교차, 화살표는 요리모드만. */}
+            {(() => {
+              const cap = p.caption ?? '';
+              const showCap = (canEdit && photoManage) || !!cap.trim();
+              if (!showCap) return null;
+              const up = i % 2 === 1;
+              return (
+                <View style={[styles.photoCaptionWrap, up ? styles.photoCaptionDown : styles.photoCaptionUp]}>
+                  <PhotoCaptionArrow direction={up ? 'up' : 'down'} color={colors['foreground/on-surface-var']} size={22} />
+                  {canEdit && photoManage ? (
+                    <RNTextInput
+                      style={styles.photoCaptionInput}
+                      value={cap}
+                      placeholder="사진 설명"
+                      placeholderTextColor={colors['foreground/on-surface-muted']}
+                      multiline
+                      maxLength={60}
+                      onChangeText={(v) => updateCardPhotoCaption(item.globalIndex, i, v, item.photos)}
+                    />
+                  ) : (
+                    <Text style={styles.photoCaptionText} numberOfLines={2}>{cap}</Text>
+                  )}
+                </View>
+              );
+            })()}
           </View>
         ))}
         {showAdd ? (
@@ -1245,7 +1276,7 @@ export function CookingMode({
         ) : null}
       </View>
     );
-  }, [isNarrow, canEdit, user, photoManage, openAuthSheet, pickPhoto, addStepPhoto, replacePhoto, replaceStepPhotoView, removePhoto, commitStepPhotos, showSnackbar, styles, colors, t]);
+  }, [isNarrow, canEdit, user, photoManage, openAuthSheet, pickPhoto, addStepPhoto, replacePhoto, replaceStepPhotoView, removePhoto, commitStepPhotos, updateCardPhotoCaption, showSnackbar, styles, colors, t]);
 
   // 보기(요리) 스텝 — [텍스트 칼럼(좌)][사진 최대 3장 일렬·기울임 + 추가카드(우)].
   // 사진은 고정 크기, 좁으면 잘리고 슬라이드로 노출.
@@ -1821,7 +1852,7 @@ export function CookingMode({
 
         {/* 사진 전체보기 뷰어 — 탭하면 큰 이미지 풀스크린. 편집 가능하면 교체/삭제 */}
         {viewerPhoto && (() => {
-          const uri = viewerPhoto.card.photos?.[viewerPhoto.index];
+          const uri = viewerPhoto.card.photos?.[viewerPhoto.index]?.uri;
           if (!uri) return null;
           return (
             <Modal visible transparent animationType="fade" onRequestClose={() => setViewerPhoto(null)} statusBarTranslucent>
@@ -1927,6 +1958,34 @@ const createStyles = (colors: SemanticColors) =>
       borderRadius: 16,
       padding: 6,
       boxShadow: '0px 10px 22px -6px rgba(14, 14, 13, 0.22)',
+    },
+    // 캡션+화살표 오버레이 — 카드 바깥(위/아래)에 삐져나오게 절대배치.
+    photoCaptionWrap: {
+      position: 'absolute',
+      left: 6,
+      right: -60,
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 2,
+    },
+    photoCaptionUp: { top: -34 },   // 짝수 사진: 카드 위
+    photoCaptionDown: { bottom: -34 }, // 홀수 사진: 카드 아래
+    photoCaptionText: {
+      flexShrink: 1,
+      fontFamily: Typography.label.small.fontFamily,
+      fontSize: Typography.label.small.fontSize,
+      fontWeight: Typography.label.small.fontWeight as '500',
+      lineHeight: Typography.label.small.lineHeight,
+      color: colors['foreground/on-surface-var'],
+    },
+    photoCaptionInput: {
+      flex: 1,
+      minWidth: 80,
+      padding: 0,
+      fontFamily: Typography.label.small.fontFamily,
+      fontSize: Typography.label.small.fontSize,
+      lineHeight: Typography.label.small.lineHeight,
+      color: colors['foreground/on-surface-var'],
     },
     // 추가(+) 카드도 사진과 같은 흰 프레임 + 안쪽 dim 채움 (Figma)
     emptyPack: {
