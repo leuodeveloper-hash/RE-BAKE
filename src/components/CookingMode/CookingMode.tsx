@@ -1259,7 +1259,7 @@ export function CookingMode({
                     <RNTextInput
                       style={styles.photoCaptionInput}
                       value={cap}
-                      placeholder="사진 설명"
+                      placeholder="캡션"
                       placeholderTextColor={colors['foreground/on-surface-muted']}
                       multiline
                       maxLength={60}

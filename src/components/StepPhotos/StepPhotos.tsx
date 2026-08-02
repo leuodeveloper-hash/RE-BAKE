@@ -108,7 +108,7 @@ export function StepPhotos({
                   <TextInput
                     style={[styles.captionText, styles.captionInput]}
                     value={editingThis ? draftCaption!.text : caption}
-                    placeholder="사진 설명"
+                    placeholder="캡션"
                     placeholderTextColor={colors['foreground/on-surface-muted']}
                     multiline
                     maxLength={60}
