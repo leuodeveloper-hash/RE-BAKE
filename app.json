@@ -21,7 +21,9 @@
       "bundleIdentifier": "com.bakle.app",
       "googleServicesFile": "./GoogleService-Info.plist",
       "entitlements": {
-        "com.apple.security.application-groups": ["group.com.bakle.app"]
+        "com.apple.security.application-groups": [
+          "group.com.bakle.app"
+        ]
       },
       "infoPlist": {
         "CFBundleDisplayName": "Bakle",
@@ -55,7 +57,8 @@
       [
         "expo-notifications",
         {
-          "color": "#FCEEE3"
+          "color": "#FCEEE3",
+          "icon": "./assets/notification-icon.png"
         }
       ],
       [

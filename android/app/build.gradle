@@ -87,7 +87,7 @@ android {
     buildToolsVersion rootProject.ext.buildToolsVersion
     compileSdk rootProject.ext.compileSdkVersion
 
-    namespace 'com.bakecycle.app'
+    namespace 'com.bakle.app'
     defaultConfig {
         applicationId 'com.bakle.app'
         minSdkVersion rootProject.ext.minSdkVersion

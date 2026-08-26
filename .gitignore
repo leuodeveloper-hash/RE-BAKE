@@ -71,3 +71,10 @@ storybook-static
 # Firebase service account key (secret — do not commit)
 *firebase-adminsdk*.json
 *serviceAccount*.json
+
+# 애플 인앱결제/API 비밀 키 — 절대 커밋 금지
+*.p8
+
+# 웹 빌드 산출물 — 배포마다 바뀌어 diff만 늘어난다
+dist/
+.firebase/

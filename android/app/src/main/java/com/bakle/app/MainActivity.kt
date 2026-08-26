@@ -1,4 +1,4 @@
-package com.bakecycle.app
+package com.bakle.app
 import expo.modules.splashscreen.SplashScreenManager
 
 import android.os.Build
