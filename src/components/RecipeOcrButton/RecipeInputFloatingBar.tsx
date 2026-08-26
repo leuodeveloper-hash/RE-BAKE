@@ -41,6 +41,20 @@ export interface RecipeInputFloatingBarProps {
   onAddChip?: () => void;
   /** + 활성화 여부 (해당사항 없으면 false → disabled) */
   canAddChip?: boolean;
+  /** 되돌리기 — 없으면 버튼 숨김 */
+  onUndo?: () => void;
+  canUndo?: boolean;
+  /** 다시하기 — 없으면 버튼 숨김 */
+  onRedo?: () => void;
+  canRedo?: boolean;
+  /** 묶음 나누기: 커서가 있는 과정 줄을 그룹명으로 승격. 없으면 버튼 숨김 */
+  onGroupSplit?: () => void;
+  /** 묶음 나누기 활성 여부 */
+  canGroupSplit?: boolean;
+  /** 선택한 텍스트에 링크 넣기. 없으면 버튼 숨김 */
+  onLink?: () => void;
+  /** 링크 버튼 활성 여부 (텍스트가 선택돼 있을 때만) */
+  canLink?: boolean;
   /** 완료(✓): 기본은 키보드 내리기 */
   onDone?: () => void;
   /**
@@ -73,6 +87,14 @@ export function RecipeInputFloatingBar({
   canNext = true,
   onAddChip,
   canAddChip = false,
+  onUndo,
+  canUndo = false,
+  onRedo,
+  canRedo = false,
+  onGroupSplit,
+  canGroupSplit = false,
+  onLink,
+  canLink = false,
   onDone,
   onPickActiveChange,
   ocrDisabled = false,
@@ -146,7 +168,8 @@ export function RecipeInputFloatingBar({
     let cropStarted = false;
     try {
       await dismissKeyboardAndWait();
-      const permOk = source === 'camera'
+      // 웹은 OS 권한 개념이 없다(브라우저 파일 선택창이 처리) → 권한 확인을 건너뛴다
+      const permOk = Platform.OS === 'web' ? true : source === 'camera'
         ? await ensureImagePermission('camera', {
             deniedMessage: t('recipeInputFloatingBar.cameraPermissionNeeded'),
             showSnackbar,
@@ -192,11 +215,13 @@ export function RecipeInputFloatingBar({
     }
   }, [busy, field, runOcrPipeline, showSnackbar, onPickActiveChange, t]);
 
-  // 스캔 버튼: 촬영/갤러리 선택 메뉴 토글 (웹은 OCR 미지원 안내)
+  // 스캔 버튼: 촬영/갤러리 선택 메뉴 토글.
+  // 웹도 OCR을 지원한다(recipeOcr.web.ts — Tesseract.js). 다만 촬영은 브라우저마다
+  // 동작이 제각각이라 파일 선택 하나로 바로 들어간다(메뉴 생략).
   const handleScanTap = useCallback(() => {
     if (busy) return;
     if (Platform.OS === 'web') {
-      showSnackbar(t('recipeInputFloatingBar.ocrAppOnly'));
+      pickImage('library');
       return;
     }
     if (showScanMenu) {
@@ -208,7 +233,7 @@ export function RecipeInputFloatingBar({
       onPickActiveChange?.(true);
       setShowScanMenu(true);
     }
-  }, [busy, showScanMenu, showSnackbar, onPickActiveChange, t]);
+  }, [busy, showScanMenu, showSnackbar, onPickActiveChange, pickImage, t]);
 
   const handleDone = useCallback(() => {
     Keyboard.dismiss();
@@ -222,6 +247,10 @@ export function RecipeInputFloatingBar({
         prev={{onPress: onPrevField, disabled: !onPrevField || !canPrev}}
         next={{onPress: onNextField, disabled: !onNextField || !canNext}}
         add={{onPress: onAddChip, disabled: !canAddChip}}
+        undo={onUndo ? {onPress: onUndo, disabled: !canUndo} : undefined}
+        redo={onRedo ? {onPress: onRedo, disabled: !canRedo} : undefined}
+        group={onGroupSplit ? {onPress: onGroupSplit, disabled: !canGroupSplit} : undefined}
+        link={onLink ? {onPress: onLink, disabled: !canLink} : undefined}
         voice={{onPress: handleVoice, active: stt.recording, disabled: ocrDisabled}}
         scan={{
           onPress: () => {

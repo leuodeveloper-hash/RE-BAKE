@@ -39,6 +39,11 @@ import {DragHandle} from '@components/DragHandle';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {ensureImagePermission} from '@utils/imagePermission';
+import {applyLink, expandToLink, stripRichText} from '@utils/richText';
+import {LinkTargetProvider, useLinkTarget} from '@contexts/LinkTargetContext';
+import {UrlField, isUrlLike} from '@components/UrlField/UrlField';
+import {LinkInputDialog} from '@components/Dialog';
+import {Tooltip} from '@components/Tooltip';
 import {getColorVarKey} from '@components/ColorPicker';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import {RainbowText} from '@components/RainbowText';
@@ -61,6 +66,9 @@ import {useAddSheet} from '@contexts/AddSheetContext';
 import {useAuth} from '@contexts/AuthContext';
 import {useAuthSheet} from '@contexts/AuthSheetContext';
 import {useDragReorder, ROW_HEIGHT} from '@hooks/useDragReorder';
+import {useEditHistory} from '@hooks/useEditHistory';
+import {RichEditor} from '@components/RichEditor';
+import {KEYBOARD_TOOLBAR_HEIGHT} from '@components/KeyboardToolbar';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
@@ -86,6 +94,7 @@ import {
   IconOpenbookFilled,
   IconWind,
   IconAstriks,
+  IconCircleAlert,
   IconCircleAlertFilled,
   IconCameraFilled,
   IconLeafFilled,
@@ -98,6 +107,7 @@ import {
   IconLogoSymbol,
   IconBlockPlus,
   IconLink,
+  IconYourubeColored,
   IconImport,
   IconArrowTopRight,
   IconMic,
@@ -139,12 +149,20 @@ interface EditableToolGroup {
   id: string;
   title: string;
   tools: EditableTool[];
+  /** 이 묶음의 "한번에 쓰기" 모드 여부 */
+  bulkMode: boolean;
+  /** bulkMode일 때의 텍스트(도구 콤마 나열) */
+  bulkText: string;
 }
 
 interface StepGroup {
   id: string;
   title: string;
   steps: EditableStep[];
+  /** 이 묶음의 "한번에 쓰기" 모드 여부 */
+  bulkMode: boolean;
+  /** bulkMode일 때의 텍스트(과정 줄바꿈 나열) */
+  bulkText: string;
 }
 
 export interface RecipeEditScreenProps {
@@ -209,6 +227,9 @@ export interface RecipeEditScreenProps {
 type TFn = (key: string, params?: Record<string, any>) => string;
 
 // 메뉴 아이템
+/** 팝오버 메뉴와 기준 버튼 사이 간격 — 모든 메뉴가 이 값 하나를 쓴다 */
+const MENU_GAP = 4;
+
 const makeEditMenuItems = (t: TFn) => [
   {id: 'import-url', label: t('recipeEdit.importFromSite'), icon: IconImport},
   {id: 'field-manage', label: t('recipeEdit.fieldManage'), icon: IconSettingsFilled},
@@ -240,7 +261,20 @@ const noOutline: any = {outlineStyle: 'none'};
 
 // ---- Component ----
 
-export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookColors: cookbookColorsProp, onSetCookbookColor, initialSection, initialCookbook, isExplore, onDeleteCookbook}: RecipeEditScreenProps) {
+/**
+ * 링크 배선(LinkTargetProvider)으로 감싼 편집 화면.
+ * Provider 안에서 AutoGrowInput들이 선택 구간을 자동 등록하므로,
+ * 입력칸마다 핸들러를 달 필요가 없다.
+ */
+export function RecipeEditScreen(props: RecipeEditScreenProps) {
+  return (
+    <LinkTargetProvider>
+      <RecipeEditScreenInner {...props} />
+    </LinkTargetProvider>
+  );
+}
+
+function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColors: cookbookColorsProp, onSetCookbookColor, initialSection, initialCookbook, isExplore, onDeleteCookbook}: RecipeEditScreenProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const {t} = useTranslation();
@@ -269,6 +303,27 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   const [ocrBulkGroupId, setOcrBulkGroupId] = useState<string | null>(null);
   // 포커스된 과정(step) — 툴바 + 로 팁/주의/사진 추가 대상
   const [focusedStep, setFocusedStep] = useState<{groupId: string; stepId: string} | null>(null);
+  // 링크 대상은 공용 컨텍스트가 관리한다 — 입력칸마다 핸들러를 달 필요 없이
+  // AutoGrowInput이 자동 등록한다(LinkTargetProvider로 이 화면을 감싼다).
+  const linkCtx = useLinkTarget();
+  // Android 폴백용 링크 입력 다이얼로그
+  const [linkDialog, setLinkDialog] = useState<{initial: string; label: string} | null>(null);
+  // 다이얼로그가 확인될 때 실행할 적용 함수 (툴바 핸들러·링크 탭에서 채운다)
+  const applyLinkRef = useRef<((url: string, label: string) => void) | undefined>(undefined);
+
+  // 편집 화면에서 옐로우 링크 단어를 탭하면 URL 편집 다이얼로그를 연다.
+  // 다이얼로그는 이 화면이 갖고 있으므로 여는 함수를 컨텍스트에 등록해 둔다.
+  useEffect(() => {
+    linkCtx?.setEditRequestHandler((tgt) => {
+      const src = tgt.getValue();
+      const range = expandToLink(src, tgt.selection);
+      applyLinkRef.current = (url: string, label: string) => {
+        tgt.setValue(applyLink(src, range, url, label));
+      };
+      setLinkDialog({initial: range.url ?? '', label: stripRichText(src.slice(range.start, range.end))});
+    });
+    return () => linkCtx?.setEditRequestHandler(null);
+  }, [linkCtx]);
   // 사진 픽/크롭/OCR 진행 중엔 blur로 바가 언마운트되지 않게 유지 (크롭 모달이 바로 닫히는 문제 방지)
   // 툴바는 편집화면 진입 시부터 항상 마운트(요리모드와 동일) → 픽 중 유지 플래그 불필요
   const ocrFieldRef = useRef<RecipeOcrField | null>(null);
@@ -279,6 +334,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     if (typewriterRef.current) clearInterval(typewriterRef.current);
     if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
     if (stepsTypewriterRef.current) clearTimeout(stepsTypewriterRef.current);
+    if (stepsSafetyRef.current) clearTimeout(stepsSafetyRef.current);
   }, []);
   // 툴바 표시 = 포커스된 OCR 필드 기준(웹·네이티브 공통). 키보드 이벤트 타이밍에 의존하지 않아
   // 첫 필드부터 즉시 뜨고, 필드 전환 시 '뜨기도 안 뜨기도' 하던 경합이 사라진다.
@@ -321,6 +377,19 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   // 영영 남지 않도록, 최대 애니메이션 시간 후 강제로 타이핑 종료해 글을 노출시킨다.
   const TYPING_SAFETY_MS = 6000;
 
+  /**
+   * OCR 타자기 오버레이 대상 묶음인지.
+   *
+   * 투명 처리(입력 글자 숨김)와 무지개 오버레이는 반드시 같은 조건을 써야 한다.
+   * 한쪽만 참이면 글자도 오버레이도 없는 "빈 화면"이 된다(실제로 그랬다).
+   * ocrBulkGroupId가 아직 없으면(폼 모드 경로) 첫 묶음을 대상으로 본다.
+   */
+  const isOcrTypingTarget = useCallback(
+    (groupId: string, firstGroupId: string | undefined) =>
+      ocrBulkGroupId ? ocrBulkGroupId === groupId : groupId === firstGroupId,
+    [ocrBulkGroupId],
+  );
+
   /** 최종 값을 세팅하고 RainbowText 애니메이션(muted reveal → on-surface 변환 파도) 시작 */
   const typewriteString = useCallback((target: string, setter: (v: string) => void, field: RecipeOcrField | null = null) => {
     if (typewriterRef.current) { clearTimeout(typewriterRef.current); typewriterRef.current = null; }
@@ -354,18 +423,34 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
       clearTimeout(stepsTypewriterRef.current);
       stepsTypewriterRef.current = null;
     }
+    if (stepsSafetyRef.current) {
+      clearTimeout(stepsSafetyRef.current);
+      stepsSafetyRef.current = null;
+    }
     setTyping(false);
     setTypingField(null);
   }, []);
 
   const stepsTypewriterRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** 과정 타자기 안전장치 — 아래 typewriteSteps에서 설정/해제한다 */
+  const stepsSafetyRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   /** step descriptions를 2개씩 점진적으로 추가 + 무지개 스윕 유지 */
   const typewriteSteps = useCallback((descriptions: string[]) => {
     if (typewriterRef.current) { clearTimeout(typewriterRef.current); typewriterRef.current = null; }
     if (stepsTypewriterRef.current) { clearTimeout(stepsTypewriterRef.current); stepsTypewriterRef.current = null; }
+    if (stepsSafetyRef.current) { clearTimeout(stepsSafetyRef.current); stepsSafetyRef.current = null; }
     if (descriptions.length === 0) return;
     setTyping(true);
     setTypingField('steps');
+    // 안전장치: 청크 타이머가 끊기면(화면 이동·인터럽트 등) typing이 true로 남아
+    // 입력 글자가 transparent인 채 무지개 오버레이도 없는 "빈 화면"이 된다.
+    // 예상 소요시간 + 여유 뒤에는 무조건 글을 노출시킨다.
+    const expectedMs = Math.ceil(descriptions.length / 2) * CHUNK_INTERVAL_MS + REVEAL_TAIL_MS + 2000;
+    stepsSafetyRef.current = setTimeout(() => {
+      setTyping(false);
+      setTypingField(null);
+      stepsSafetyRef.current = null;
+    }, expectedMs);
     // 시작: 빈 step만 남기기
     setStepGroups(prev => prev.map((g, gi) => gi === 0
       ? {...g, steps: []}
@@ -377,6 +462,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
         setTyping(false);
         setTypingField(null);
         stepsTypewriterRef.current = null;
+        if (stepsSafetyRef.current) { clearTimeout(stepsSafetyRef.current); stepsSafetyRef.current = null; }
       }, REVEAL_TAIL_MS);
     };
     const tick = () => {
@@ -434,12 +520,14 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
         id: genId(),
         title: g.title,
         tools: g.tools.map(t => ({id: genId(), name: t.name})),
+        bulkMode: false,
+        bulkText: '',
       }));
     }
     if (recipe?.tools) {
-      return [{id: genId(), title: '도구', tools: recipe.tools.map(t => ({id: genId(), name: t.name}))}];
+      return [{id: genId(), title: '도구', tools: recipe.tools.map(t => ({id: genId(), name: t.name})), bulkMode: false, bulkText: ''}];
     }
-    return [{id: genId(), title: '도구', tools: [{id: genId(), name: ''}]}];
+    return [{id: genId(), title: '도구', tools: [{id: genId(), name: ''}], bulkMode: true, bulkText: ''}];
   });
   const [stepGroups, setStepGroups] = useState<StepGroup[]>(() => {
     if (recipe?.stepGroups) {
@@ -453,12 +541,16 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           caution: s.caution,
           photos: normalizeStepPhotos(s.photos),
         })),
+        bulkMode: false,
+        bulkText: '',
       }));
     }
     if (recipe?.steps) {
       return [{
         id: genId(),
         title: '과정',
+        bulkMode: false,
+        bulkText: '',
         steps: recipe.steps.map(s => ({
           id: genId(),
           description: s.description,
@@ -468,7 +560,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
         })),
       }];
     }
-    return [{id: genId(), title: '과정', steps: [{id: genId(), description: ''}]}];
+    return [{id: genId(), title: '과정', steps: [{id: genId(), description: ''}], bulkMode: false, bulkText: ''}];
   });
   const [showMenu, setShowMenu] = useState(false);
   const [showCookbookMenu, setShowCookbookMenu] = useState(false);
@@ -491,29 +583,47 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   const [slashMenu, setSlashMenu] = useState<{groupId: string; stepId: string} | null>(null);
   // 과정 묶음 롱프레스 메뉴 (위/아래 이동) — 열린 묶음 id
   const [stepGroupMenu, setStepGroupMenu] = useState<string | null>(null);
+  // 재료·도구도 과정과 같은 방식 — 아이콘 버튼 탭으로 묶음 메뉴
+  const [ingGroupMenu, setIngGroupMenu] = useState<string | null>(null);
+  const [toolGroupMenu, setToolGroupMenu] = useState<string | null>(null);
+  const [ingAddMenu, setIngAddMenu] = useState<string | null>(null);
+  const [toolAddMenu, setToolAddMenu] = useState<string | null>(null);
+  // 과정 행 롱프레스 메뉴 — 여기서 나누기(묶음 만들기) 등 행 단위 조작
+  const [stepRowMenu, setStepRowMenu] = useState<{groupId: string; stepId: string} | null>(null);
+  // 재료·도구 행도 과정과 같은 조작 — 핸들 탭으로 위/아래 추가 메뉴
+  const [ingRowMenu, setIngRowMenu] = useState<{groupId: string; itemId: string} | null>(null);
+  const [toolRowMenu, setToolRowMenu] = useState<{groupId: string; itemId: string} | null>(null);
+  // 과정 헤더 + 버튼 아래 붙는 메뉴 (과정 추가 / 묶음 추가)
+  const [stepAddMenu, setStepAddMenu] = useState<string | null>(null);
+  // 한번에 쓰기 작성법 안내 툴팁 (열린 묶음 id)
+  const [bulkHelpFor, setBulkHelpFor] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(recipe?.imageUri ?? null);
-  const [toolsBulkMode, setToolsBulkMode] = useState(true);
-  const [toolsBulkText, setToolsBulkText] = useState(() => {
-    if (recipe?.toolGroups) return toolsToBulkText(recipe.toolGroups.flatMap(g => g.tools));
-    return toolsToBulkText(recipe?.tools ?? []);
-  });
   // 재료 bulk 상태는 그룹별(ingredientGroups[].bulkMode/bulkText)로 관리한다. 전역 상태 없음.
-  const [stepsBulkMode, setStepsBulkMode] = useState(false);
-  const [stepsBulkText, setStepsBulkText] = useState(() => {
-    if (recipe?.stepGroups) return stepsToBulkText(recipe.stepGroups.flatMap(g => g.steps));
-    if (recipe?.steps) return stepsToBulkText(recipe.steps);
-    return '';
-  });
   const [showPhotoMenu, setShowPhotoMenu] = useState(false);
   const [activeFieldIds, setActiveFieldIds] = useState<string[]>(
+    // 새 레시피는 모든 필드를 켠 상태로 시작한다 — 뭘 쓸 수 있는지 바로 보이게.
+    // (필요 없는 항목은 필드관리에서 끄면 된다)
     recipe?.activeFieldIds ?? [
       'info', 'photo', 'time', 'ingredients', 'tools', 'steps', 'servings',
-      'method', 'ratio', 'cookbook', 'review', 'origin',
+      'method', 'ratio', 'cookbook', 'advice', 'review', 'source', 'origin',
     ],
   );
   const isFieldActive = (id: string) => activeFieldIds.includes(id);
 
   // 재료 묶음 → 저장용 {name, amount}[] 변환. bulkMode면 bulkText 파싱, 아니면 개별 폼.
+  /** 도구 묶음 → 저장용 이름 배열. bulkMode면 bulkText 파싱, 아니면 개별 폼. */
+  const resolveGroupTools = (g: EditableToolGroup): {name: string}[] =>
+    g.bulkMode
+      ? bulkTextToToolNames(g.bulkText).map(name => ({name}))
+      : g.tools.filter(t => t.name.trim()).map(t => ({name: t.name}));
+
+  /** 과정 묶음 → 저장용 설명 배열. bulkMode면 bulkText 파싱, 아니면 개별 폼. */
+  const resolveGroupSteps = (g: StepGroup) =>
+    g.bulkMode
+      ? bulkTextToStepDescriptions(g.bulkText).map((description, idx) => ({step: idx + 1, description}))
+      : g.steps.filter(x => x.description.trim())
+          .map((x, idx) => ({step: idx + 1, description: x.description, tip: x.tip, caution: x.caution, photos: x.photos}));
+
   const resolveGroupIngredients = (g: IngredientGroup): {name: string; amount: string}[] => {
     if (g.bulkMode) {
       return bulkTextToIngredients(g.bulkText).map(i => ({
@@ -541,16 +651,9 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     })),
     toolGroups: toolGroups.map(g => ({
       title: g.title,
-      tools: g.tools.filter(t => t.name.trim()).map(t => ({name: t.name})),
+      tools: resolveGroupTools(g),
     })),
-    stepGroups: (stepGroups.length === 1 && stepsBulkMode)
-      ? [{title: stepGroups[0].title, steps: bulkTextToStepDescriptions(stepsBulkText).map((description, idx) => ({step: idx + 1, description}))}]
-      : stepGroups.map(g => ({
-          title: g.title,
-          steps: g.steps
-            .filter(s => s.description.trim())
-            .map((s, idx) => ({step: idx + 1, description: s.description, tip: s.tip, caution: s.caution, photos: s.photos?.length ? s.photos : undefined})),
-        })),
+    stepGroups: stepGroups.map(g => ({title: g.title, steps: resolveGroupSteps(g)})),
     activeFieldIds,
     reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
     advice: advice || undefined,
@@ -559,21 +662,56 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     sourceUrl: sourceUrl || undefined,
     // 비공개 토글도 변경 감지 대상 — 이게 빠지면 비공개만 바꿨을 때 isDirty가 안 잡혀 저장 불가.
     hidden: isExplore ? hidden : undefined,
-  }), [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, stepGroups, stepsBulkMode, stepsBulkText, activeFieldIds, reviews, advice, imageUri, referenceUrl, sourceUrl, isExplore, hidden]);
+  }), [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, imageUri, referenceUrl, sourceUrl, isExplore, hidden]);
   const initialSnapshotRef = useRef(currentSnapshot);
+
+  // ── 되돌리기/다시하기 ──────────────────────────────────────
+  // currentSnapshot은 "저장용 정규화 데이터"라(빈 항목이 필터링됨) 복원에 쓸 수 없다.
+  // 편집 상태 원본을 그대로 담는 별도 스냅샷을 쓴다.
+  const historySnapshot = useMemo(() => ({
+    title, cookbook, method, ratio, time, servings,
+    ingredientGroups, toolGroups, stepGroups,
+    activeFieldIds, reviews, advice, imageUri, referenceUrl, sourceUrl, hidden,
+  }), [title, cookbook, method, ratio, time, servings, ingredientGroups, toolGroups, stepGroups,
+    activeFieldIds, reviews, advice, imageUri, referenceUrl, sourceUrl, hidden]);
+
+  const applyHistory = useCallback((s: typeof historySnapshot) => {
+    setTitle(s.title);
+    setCookbook(s.cookbook);
+    setMethod(s.method);
+    setRatio(s.ratio);
+    setTime(s.time);
+    setServings(s.servings);
+    setIngredientGroups(s.ingredientGroups);
+    setToolGroups(s.toolGroups);
+    setStepGroups(s.stepGroups);
+    setActiveFieldIds(s.activeFieldIds);
+    setReviews(s.reviews);
+    setAdvice(s.advice);
+    setImageUri(s.imageUri);
+    setReferenceUrl(s.referenceUrl);
+    setSourceUrl(s.sourceUrl);
+    setHidden(s.hidden);
+  }, []);
+
+  const history = useEditHistory(historySnapshot, applyHistory);
   // 생성 모드(recipe 없음)는 항상 저장 가능, 편집 모드에서만 변경 여부 체크
   const isDirty = !recipe || currentSnapshot !== initialSnapshotRef.current;
   const hasTitle = title.trim().length > 0;
   const hasIngredient = ingredientGroups.some(g =>
     g.bulkMode ? g.bulkText.split(',').some(s => s.trim()) : g.ingredients.some(i => i.name.trim()),
   );
-  const hasStep = (stepGroups.length === 1 && stepsBulkMode)
-    ? bulkTextToStepDescriptions(stepsBulkText).length > 0
+  const hasStep = stepGroups.some(g => g.bulkMode)
+    ? stepGroups.some(g => resolveGroupSteps(g).length > 0)
     : stepGroups.some(g => g.steps.some(s => s.description.trim()));
   const canSave = isDirty && hasTitle && hasIngredient && hasStep;
   const [saving, setSaving] = useState(false);
   // 닫기 확인: 변경사항이 있고 실제 입력한 내용이 있을 때만(빈 폼은 그냥 닫음)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
+  // 닫기(X) 버튼의 실제 위치 — 팝오버를 이 버튼 아래에 붙인다.
+  // 하드코딩한 좌표는 노치 높이·화면 폭에 따라 어긋났다.
+  const [closeBtnRect, setCloseBtnRect] = useState<{x: number; y: number; height: number} | null>(null);
+  const closeBtnViewRef = useRef<View>(null);
   const requestClose = useCallback(() => {
     const hasContent = hasTitle || hasIngredient || hasStep || !!imageUri || !!sourceUrl;
     if (isDirty && hasContent) setShowDiscardConfirm(true);
@@ -597,8 +735,8 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
       setTimeout(() => sectionInputRefs.current['ingredients']?.focus(), 300);
       return;
     }
-    const hasStp = (stepGroups.length === 1 && stepsBulkMode)
-      ? bulkTextToStepDescriptions(stepsBulkText).length > 0
+    const hasStp = stepGroups.some(g => g.bulkMode)
+      ? stepGroups.some(g => resolveGroupSteps(g).length > 0)
       : stepGroups.some(g => g.steps.some(s => s.description.trim()));
     if (!hasStp) {
       const y = sectionPositions.current['steps'];
@@ -620,14 +758,10 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           title: g.title,
           ingredients: resolveGroupIngredients(g),
         })),
-        toolGroups: (toolGroups.length === 1 && toolsBulkMode)
-          ? [{title: toolGroups[0].title, tools: bulkTextToToolNames(toolsBulkText).map(name => ({name}))}]
-          : toolGroups.map(g => ({title: g.title, tools: g.tools.filter(tl => tl.name.trim()).map(tl => ({name: tl.name}))})),
-        stepGroups: (stepGroups.length === 1 && stepsBulkMode)
-          ? [{title: stepGroups[0].title, steps: bulkTextToStepDescriptions(stepsBulkText).map((description, idx) => ({step: idx + 1, description}))}]
-          : stepGroups.map(g => ({
+        toolGroups: toolGroups.map(g => ({title: g.title, tools: resolveGroupTools(g)})),
+        stepGroups: stepGroups.map(g => ({
               title: g.title,
-              steps: g.steps.filter(s => s.description.trim()).map((s, idx) => ({step: idx + 1, description: s.description, tip: s.tip, caution: s.caution, photos: s.photos?.length ? s.photos : undefined})),
+              steps: resolveGroupSteps(g),
             })),
         activeFieldIds,
         reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
@@ -640,7 +774,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     } finally {
       setSaving(false);
     }
-  }, [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, toolsBulkMode, toolsBulkText, stepGroups, stepsBulkMode, stepsBulkText, activeFieldIds, reviews, advice, imageUri, referenceUrl, sourceUrl, isExplore, hidden, onSave]);
+  }, [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, imageUri, referenceUrl, sourceUrl, isExplore, hidden, onSave]);
 
   const pickImage = async (source: 'camera' | 'gallery') => {
     if (source === 'camera') {
@@ -730,6 +864,8 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           id: genId(),
           title: '과정',
           steps: r.steps.map(s => ({id: genId(), description: s.description, photos: s.photo ? [{uri: s.photo}] : undefined})),
+          bulkMode: false,
+          bulkText: '',
         }]);
       }
       setSourceUrl(trimmed);
@@ -812,23 +948,68 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   const scrollViewRef = useRef<ScrollView>(null);
   const sectionPositions = useRef<Record<string, number>>({});
   const sectionInputRefs = useRef<Record<string, RNTextInput | null>>({});
+  // 행(재료/과정) 단위 입력 ref — 엔터로 새 행을 만든 뒤 그리로 포커스를 옮긴다
+  const rowInputRefs = useRef<Record<string, RNTextInput | null>>({});
+  // 과정 행별 커서 위치 — 맨 앞에서 백스페이스 시 이전 행과 병합하는 판단에 쓴다
+  const stepSelRef = useRef<Record<string, {start: number; end: number}>>({});
+  // 과정 행별 스크롤 y 위치 — 상세에서 특정 과정을 눌러 들어왔을 때 그 줄로 이동하는 데 쓴다
+  const stepRowY = useRef<Record<string, number>>({});
+  // 재료 행도 동일 (상세에서 특정 재료를 눌러 들어온 경우)
+  const ingRowY = useRef<Record<string, number>>({});
   const originInputRef = useRef<RNTextInput | null>(null);
 
   useEffect(() => {
     if (!initialSection) return;
     // 레이아웃 완료 직후 한 프레임만 기다린 뒤 즉시 점프 (애니메이션 없음)
     const timer = setTimeout(() => {
-      const y = sectionPositions.current[initialSection];
+      // 'steps:3' 처럼 인덱스가 붙어 오면 그 과정 줄로 이동한다
+      // (섹션만 넘기면 항상 과정 목록 맨 위로 가서 "누른 위치가 아니다"라는 문제가 됐다)
+      const [section, idxRaw] = initialSection.split(':');
+      const stepIndex = idxRaw != null ? parseInt(idxRaw, 10) : NaN;
+
+      if (section === 'steps' && !Number.isNaN(stepIndex)) {
+        const flat = stepGroups.flatMap(g => g.steps);
+        const target = flat[stepIndex];
+        // 위치는 각 행이 onLayout으로 미리 기록해둔 값을 쓴다.
+        // (measureLayout은 ScrollView 노드 핸들이 필요하고 렌더 타이밍도 타서 불안정)
+        const y = target ? stepRowY.current[target.id] : undefined;
+        if (target && y != null) {
+          scrollViewRef.current?.scrollTo({y: Math.max(0, y - 120), animated: false});
+          const node = rowInputRefs.current[target.id];
+          node?.focus();
+          setTimeout(() => (node as any)?.setSelection?.(99999, 99999), 30);
+          return;
+        }
+        // 아직 위치를 못 잡았으면 아래 섹션 스크롤로 폴백한다
+      }
+
+      if (section === 'ingredients' && !Number.isNaN(stepIndex)) {
+        const flat = ingredientGroups.flatMap(g => g.ingredients);
+        const target = flat[stepIndex];
+        const y = target ? ingRowY.current[target.id] : undefined;
+        if (target && y != null) {
+          scrollViewRef.current?.scrollTo({y: Math.max(0, y - 120), animated: false});
+          const node = rowInputRefs.current[target.id];
+          node?.focus();
+          setTimeout(() => (node as any)?.setSelection?.(99999, 99999), 30);
+          return;
+        }
+      }
+
+      const y = sectionPositions.current[section];
       if (y != null) {
         scrollViewRef.current?.scrollTo({y: y - 80, animated: false});
       }
-      const input = sectionInputRefs.current[initialSection];
+      const input = sectionInputRefs.current[section];
       if (input) {
         input.focus();
         setTimeout(() => (input as any).setSelection?.(99999, 99999), 30);
       }
     }, 50);
     return () => clearTimeout(timer);
+    // stepGroups는 진입 시점 값만 쓰면 되므로 의존성에 넣지 않는다
+    // (넣으면 편집할 때마다 스크롤이 다시 튄다)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [initialSection]);
 
   const drag = useDragReorder();
@@ -910,20 +1091,32 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     );
   };
 
-  const addIngredient = (groupId: string, position: 'top' | 'bottom' = 'top') => {
+  /**
+   * 재료 행 추가.
+   * afterId를 주면 그 행 "바로 다음"에 넣는다(엔터로 이어 입력할 때).
+   * @returns 새로 만든 행 id — 포커스를 옮기는 데 쓴다
+   */
+  const addIngredient = (groupId: string, position: 'top' | 'bottom' = 'top', afterId?: string) => {
+    const newId = genId();
     setIngredientGroups(prev =>
-      prev.map(g =>
-        g.id === groupId
-          ? {
-              ...g,
-              ingredients:
-                position === 'top'
-                  ? [{id: genId(), name: '', amount: '', unit: 'g'}, ...g.ingredients]
-                  : [...g.ingredients, {id: genId(), name: '', amount: '', unit: 'g'}],
-            }
-          : g,
-      ),
+      prev.map(g => {
+        if (g.id !== groupId) return g;
+        const row = {id: newId, name: '', amount: '', unit: 'g'};
+        if (afterId) {
+          const i = g.ingredients.findIndex(x => x.id === afterId);
+          if (i >= 0) {
+            const next = [...g.ingredients];
+            next.splice(i + 1, 0, row);
+            return {...g, ingredients: next};
+          }
+        }
+        return {
+          ...g,
+          ingredients: position === 'top' ? [row, ...g.ingredients] : [...g.ingredients, row],
+        };
+      }),
     );
+    return newId;
   };
 
   const removeIngredient = (groupId: string, ingredientId: string) => {
@@ -1008,7 +1201,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   // ---- Tool Group Handlers ----
 
   const addToolGroup = (afterGroupId?: string) => {
-    const newGroup: EditableToolGroup = {id: genId(), title: '도구', tools: [{id: genId(), name: ''}]};
+    const newGroup: EditableToolGroup = {id: genId(), title: '도구', tools: [{id: genId(), name: ''}], bulkMode: false, bulkText: ''};
     setToolGroups(prev => {
       if (afterGroupId) {
         const idx = prev.findIndex(g => g.id === afterGroupId);
@@ -1036,20 +1229,26 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     });
   };
 
-  const addTool = (groupId: string, position: 'top' | 'bottom' = 'top') => {
+  // 재료·과정의 add*와 같은 시그니처 — 특정 행 뒤 삽입과 새 id 반환을 지원한다
+  // (행 메뉴의 "위에 추가 / 아래에 추가"가 세 섹션에서 같게 동작해야 한다)
+  const addTool = (groupId: string, position: 'top' | 'bottom' = 'top', afterId?: string) => {
+    const newId = genId();
     setToolGroups(prev =>
-      prev.map(g =>
-        g.id === groupId
-          ? {
-              ...g,
-              tools:
-                position === 'top'
-                  ? [{id: genId(), name: ''}, ...g.tools]
-                  : [...g.tools, {id: genId(), name: ''}],
-            }
-          : g,
-      ),
+      prev.map(g => {
+        if (g.id !== groupId) return g;
+        const row = {id: newId, name: ''};
+        if (afterId) {
+          const i = g.tools.findIndex(x => x.id === afterId);
+          if (i >= 0) {
+            const next = [...g.tools];
+            next.splice(i + 1, 0, row);
+            return {...g, tools: next};
+          }
+        }
+        return {...g, tools: position === 'top' ? [row, ...g.tools] : [...g.tools, row]};
+      }),
     );
+    return newId;
   };
 
   const removeTool = (groupId: string, toolId: string) => {
@@ -1110,7 +1309,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   // ---- Step Group Handlers ----
 
   const addStepGroup = (afterGroupId?: string) => {
-    const newGroup = {id: genId(), title: '과정', steps: [{id: genId(), description: ''}]};
+    const newGroup = {id: genId(), title: '과정', steps: [{id: genId(), description: ''}], bulkMode: false, bulkText: ''};
     setStepGroups(prev => {
       if (afterGroupId) {
         const idx = prev.findIndex(g => g.id === afterGroupId);
@@ -1121,7 +1320,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   };
 
   const insertStepGroupAbove = (groupId: string) => {
-    const newGroup = {id: genId(), title: '과정', steps: [{id: genId(), description: ''}]};
+    const newGroup = {id: genId(), title: '과정', steps: [{id: genId(), description: ''}], bulkMode: false, bulkText: ''};
     setStepGroups(prev => {
       const idx = prev.findIndex(g => g.id === groupId);
       return [...prev.slice(0, idx), newGroup, ...prev.slice(idx)];
@@ -1136,6 +1335,28 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
   };
 
   // 과정 묶음 순서 이동 (박스 롱프레스 메뉴). dir: -1=위로, 1=아래로. 인접 묶음과 swap.
+  const moveIngredientGroup = (groupId: string, dir: -1 | 1) => {
+    setIngredientGroups(prev => {
+      const idx = prev.findIndex(g => g.id === groupId);
+      const to = idx + dir;
+      if (idx < 0 || to < 0 || to >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[to]] = [next[to], next[idx]];
+      return next;
+    });
+  };
+
+  const moveToolGroup = (groupId: string, dir: -1 | 1) => {
+    setToolGroups(prev => {
+      const idx = prev.findIndex(g => g.id === groupId);
+      const to = idx + dir;
+      if (idx < 0 || to < 0 || to >= prev.length) return prev;
+      const next = [...prev];
+      [next[idx], next[to]] = [next[to], next[idx]];
+      return next;
+    });
+  };
+
   const moveStepGroup = (groupId: string, dir: -1 | 1) => {
     setStepGroups(prev => {
       const idx = prev.findIndex(g => g.id === groupId);
@@ -1147,20 +1368,47 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
     });
   };
 
-  const addStep = (groupId: string, position: 'top' | 'bottom' = 'top') => {
+  /**
+   * 과정 묶음 나누기 — 지정한 행을 새 그룹의 제목(과정명)으로 올리고,
+   * 그 아래 과정들을 새 그룹으로 옮긴다. 해당 행 자체는 제목이 되므로 목록에서 빠진다.
+   * 행 롱프레스 메뉴와 키보드 툴바 버튼이 공유한다.
+   */
+  const splitStepGroupAt = useCallback((groupId: string, stepId: string) => {
+    setStepGroups(prev => {
+      const gi = prev.findIndex(g => g.id === groupId);
+      if (gi < 0) return prev;
+      const g = prev[gi];
+      const si = g.steps.findIndex(s => s.id === stepId);
+      if (si <= 0) return prev; // 첫 줄이면 나눌 게 없다
+      const title = g.steps[si].description.trim();
+      if (!title) return prev;
+      const next = [...prev];
+      next[gi] = {...g, steps: g.steps.slice(0, si)};
+      next.splice(gi + 1, 0, {id: genId(), title, steps: g.steps.slice(si + 1), bulkMode: false, bulkText: ''});
+      return next;
+    });
+    setFocusedStep(null);
+  }, []);
+
+  /** 과정 행 추가. afterId를 주면 그 행 바로 다음에 넣고, 새 행 id를 반환한다. */
+  const addStep = (groupId: string, position: 'top' | 'bottom' = 'top', afterId?: string) => {
+    const newId = genId();
     setStepGroups(prev =>
-      prev.map(g =>
-        g.id === groupId
-          ? {
-              ...g,
-              steps:
-                position === 'top'
-                  ? [{id: genId(), description: ''}, ...g.steps]
-                  : [...g.steps, {id: genId(), description: ''}],
-            }
-          : g,
-      ),
+      prev.map(g => {
+        if (g.id !== groupId) return g;
+        const row = {id: newId, description: ''};
+        if (afterId) {
+          const i = g.steps.findIndex(x => x.id === afterId);
+          if (i >= 0) {
+            const next = [...g.steps];
+            next.splice(i + 1, 0, row);
+            return {...g, steps: next};
+          }
+        }
+        return {...g, steps: position === 'top' ? [row, ...g.steps] : [...g.steps, row]};
+      }),
     );
+    return newId;
   };
 
   const removeStep = (groupId: string, stepId: string) => {
@@ -1358,6 +1606,9 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
         automaticallyAdjustKeyboardInsets
+        // 포커스된 입력이 키보드 바로 위에 딱 붙지 않도록 여유를 준다.
+        // (기본 0이면 커서 줄이 키보드에 닿아 답답하고, 다음 줄이 안 보인다)
+        keyboardDismissMode="none"
         scrollEnabled={drag.scrollEnabled}>
         {/* Spacer for nav bar */}
         <View style={{height: 72 + insets.top}} />
@@ -1369,8 +1620,13 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
             <View style={styles.titleRow}>
               <View style={[styles.titleInputWrap, titleError && {borderBottomColor: colors['foreground/negative'], borderBottomWidth: 2}]}>
                 <AutoGrowInput
-                  ref={titleInputRef}
-                  style={[styles.titleInput, noOutline, typing && typingField === 'title' && !!title && {color: 'transparent'}]}
+                  // 툴바의 영역이동(◀▶)이 sectionInputRefs를 보므로 여기에도 등록해야
+                  // '제목'으로 이동이 동작한다.
+                  ref={(node: any) => {
+                    titleInputRef.current = node;
+                    sectionInputRefs.current['title'] = node;
+                  }}
+                  style={[styles.cardFieldInput, noOutline, typing && typingField === 'title' && !!title && {color: 'transparent'}]}
                   placeholder={t('recipeEdit.titlePlaceholder')}
                   placeholderTextColor={titleError ? colors['foreground/negative'] : colors['foreground/on-surface-muted']}
                   value={title}
@@ -1387,7 +1643,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 {/* 타이핑 중 무지개 프리즘 오버레이 */}
                 {typing && typingField === 'title' && !!title && (
                   <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-                    <RainbowText style={styles.titleInput} animated onDone={finishTyping}>{title}</RainbowText>
+                    <RainbowText style={styles.cardFieldInput} animated onDone={finishTyping}>{title}</RainbowText>
                   </View>
                 )}
               </View>
@@ -1402,7 +1658,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                         <Pressable
                           style={styles.methodField}
                           onPress={() => setShowMethodMenu(prev => !prev)}>
-                          <Text style={[styles.methodFieldText, !method && {color: colors['foreground/on-surface-muted']}]} numberOfLines={1}>
+                          <Text style={[styles.cardFieldInput, !method && {color: colors['foreground/on-surface-muted']}]} numberOfLines={1}>
                             {method || t('recipeEdit.methodPlaceholder')}
                           </Text>
                           <IconChevronDown width={14} height={14} color={colors['foreground/on-surface-muted']} />
@@ -1424,7 +1680,9 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                     {isFieldActive('ratio') && (
                       <View style={styles.ratioField}>
                         <RNTextInput
-                          style={[styles.methodFieldText, noOutline, {flex: 1}]}
+                          // 비중은 원래 padding:0이 없던 필드 — 공통 스타일을 쓰되
+                          // 좌우 기본 여백은 되살려 다른 필드와 시작 위치를 맞춘다
+                          style={[styles.cardFieldInput, noOutline, {flex: 1, paddingHorizontal: Spacing.sm}]}
                           placeholder={t('recipeEdit.ratioPlaceholder')}
                           placeholderTextColor={colors['foreground/on-surface-muted']}
                           value={ratio}
@@ -1439,7 +1697,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
             <View style={styles.dividerFull} />
             <View style={styles.descriptionContainer}>
               <AutoGrowInput
-                style={[styles.descriptionInput, noOutline]}
+                style={[styles.cardFieldInput, noOutline]}
                 placeholder={t('recipeEdit.descriptionPlaceholder')}
                 value={description}
                 onChangeText={setDescription}
@@ -1490,39 +1748,24 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
         <ContentContainer style={styles.navItemGap}>
           <Card>
             <ListItem
-              leading={{type: 'icon', icon: IconLink}}
+              // 유튜브 주소면 유튜브 아이콘으로 — 무엇이 걸린 링크인지 한눈에 보이게
+              leading={{type: 'icon', icon: referenceYouTubeId ? IconYourubeColored : IconLink}}
               showDivider={false}
             >
-              {/^https?:\/\/.+/.test(referenceUrl.trim()) ? (
-                <View style={styles.referenceLinkRow}>
-                  <Pressable
-                    style={styles.referenceLinkChip}
-                    onPress={() => {
-                      if (referenceYouTubeId) {
-                        openYouTube(referenceYouTubeId);
-                      } else {
-                        Linking.openURL(referenceUrl.trim());
-                      }
-                    }}>
-                    <Text style={styles.referenceLinkText} numberOfLines={1}>{referenceUrl.trim()}</Text>
-                    <IconArrowTopRight width={16} height={16} color={colors['foreground/on-surface-muted']} />
-                  </Pressable>
+              <View style={styles.referenceLinkRow}>
+                <View style={{flex: 1, minWidth: 0}}>
+                  <UrlField
+                    value={referenceUrl}
+                    onChangeText={setReferenceUrl}
+                    placeholder={t('recipeEdit.referenceLinkPlaceholder')}
+                    // 유튜브면 앱 내 플레이어로, 아니면 기본 열기
+                    onOpen={referenceYouTubeId ? () => openYouTube(referenceYouTubeId) : undefined}
+                  />
+                </View>
+                {isUrlLike(referenceUrl) ? (
                   <IconButton icon={IconClose} size="small" variant="ghost-secondary" onPress={() => setReferenceUrl('')} />
-                </View>
-              ) : (
-                <View style={styles.referenceLinkRow}>
-                  <View style={{flex: 1}}>
-                    <TextInput
-                      style="ghost"
-                      value={referenceUrl}
-                      onChangeText={setReferenceUrl}
-                      placeholder={t('recipeEdit.referenceLinkPlaceholder')}
-                      keyboardType="url"
-                      autoCapitalize="none"
-                    />
-                  </View>
-                </View>
-              )}
+                ) : null}
+              </View>
             </ListItem>
           </Card>
         </ContentContainer>
@@ -1541,25 +1784,15 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
               {/* 한 줄 고정: [왼쪽 URL(입력/링크·말줄임)] [열기] [X] [가져오기]. 오른쪽 버튼은 항상 고정 → 이동 없음 */}
               <View style={styles.referenceLinkRow}>
                 <View style={{flex: 1, minWidth: 0}}>
-                  {/^https?:\/\/.+/.test(sourceUrl.trim()) ? (
-                    <Pressable style={styles.referenceLinkChip} onPress={() => Linking.openURL(sourceUrl.trim())}>
-                      <Text style={styles.referenceLinkText} numberOfLines={1}>{sourceUrl.trim()}</Text>
-                      <IconArrowTopRight width={16} height={16} color={colors['foreground/on-surface-muted']} />
-                    </Pressable>
-                  ) : (
-                    <TextInput
-                      ref={(node: any) => { originInputRef.current = node; }}
-                      style="ghost"
-                      value={sourceUrl}
-                      onChangeText={setSourceUrl}
-                      onSubmitEditing={() => runImportFromUrl(sourceUrl)}
-                      onBlur={() => runImportFromUrl(sourceUrl)}
-                      placeholder={t('recipeEdit.originLinkPlaceholder')}
-                      keyboardType="url"
-                      autoCapitalize="none"
-                      editable={!importing}
-                    />
-                  )}
+                  <UrlField
+                    inputRef={(node: any) => { originInputRef.current = node; }}
+                    value={sourceUrl}
+                    onChangeText={setSourceUrl}
+                    onSubmitEditing={() => runImportFromUrl(sourceUrl)}
+                    onBlur={() => runImportFromUrl(sourceUrl)}
+                    placeholder={t('recipeEdit.originLinkPlaceholder')}
+                    editable={!importing}
+                  />
                 </View>
                 <IconButton
                   icon={IconClose}
@@ -1588,20 +1821,21 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
         {ingredientGroups.map((group, groupIndex) => {
           const ingGroupHasDragging = drag.draggingId !== null && group.ingredients.some(i => i.id === drag.draggingId);
           return (
-          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(ingGroupHasDragging ? {zIndex: 100} : undefined)}}>
-            <Card style={ingGroupHasDragging ? {overflow: 'visible'} : undefined}>
-              {/* Group Header — editable when 2+ groups, non-first gets minus button */}
+          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(ingGroupMenu === group.id || ingAddMenu === group.id ? {zIndex: 9999} : ingGroupHasDragging ? {zIndex: 100} : undefined)}}>
+            <Card style={ingGroupHasDragging || ingGroupMenu === group.id || ingAddMenu === group.id
+              ? {overflow: 'visible'} : undefined}>
+              {/* Group Header — 메뉴가 헤더 바로 아래에 붙도록 relative 래퍼로 감싼다 */}
+              <View style={{position: 'relative', zIndex: (ingGroupMenu === group.id || ingAddMenu === group.id) ? 9999 : undefined}}>
               {ingredientGroups.length >= 2 ? (
                 <ListItem
-                  leading={groupIndex > 0
-                    ? {type: 'iconButton', icon: IconMinusCircleFilled, onPress: () => removeIngredientGroup(group.id), variant: 'ghost-secondary'}
-                    : {type: 'icon', icon: IconLeafFilled}}
+                  leading={{type: 'iconButton', icon: IconLeafFilled,
+                    onPress: () => setIngGroupMenu(group.id), variant: 'ghost-secondary'}}
                   trailing={{type: 'iconButton', icon: IconPlusCircleFilled, onPress: () => addIngredient(group.id), variant: 'ghost-secondary'}}>
                   <View style={styles.breadcrumbRow}>
                     <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.ingredientsLabel')}</Text>
                     <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
                     <AutoGrowInput
-                      style={[styles.editableRowInput, noOutline]}
+                      style={[styles.cardFieldInput, noOutline]}
                       value={group.title}
                       onChangeText={v => updateIngredientGroupTitle(group.id, v)}
                       placeholder={t('recipeEdit.groupNamePlaceholder')}
@@ -1610,9 +1844,23 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 </ListItem>
               ) : (
                 <ListItem
-                  leading={{type: 'icon', icon: IconLeafFilled}}
+                  leading={{type: 'iconButton', icon: IconLeafFilled, onPress: () => setIngAddMenu(group.id), variant: 'ghost-secondary'}}
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
+                      {/* 한번에 쓰기가 켜졌을 때만 작성법 안내 */}
+                      {group.bulkMode && (
+                        <Tooltip
+                          message={t('recipeEdit.bulkHelpIngredients')}
+                          visible={bulkHelpFor === group.id}
+                          onClose={() => setBulkHelpFor(null)}>
+                          <IconButton
+                            icon={IconCircleAlert}
+                            size="small"
+                            variant="ghost-secondary"
+                            onPress={() => setBulkHelpFor(bulkHelpFor === group.id ? null : group.id)}
+                          />
+                        </Tooltip>
+                      )}
                       {/* 묶음마다 개별 "한번에 쓰기" 토글 */}
                       <Switch
                         label={t('recipeEdit.bulkWrite')}
@@ -1647,12 +1895,43 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 </ListItem>
               )}
 
+              <Menu
+                items={[
+                  {id: 'up', label: t('recipeEdit.moveGroupUp'), disabled: groupIndex === 0},
+                  {id: 'down', label: t('recipeEdit.moveGroupDown'), disabled: groupIndex === ingredientGroups.length - 1},
+                  {id: 'delete', label: t('recipeEdit.deleteGroup'), destructive: true, disabled: ingredientGroups.length <= 1},
+                ]}
+                visible={ingGroupMenu === group.id}
+                onSelect={(id) => {
+                  if (id === 'delete') removeIngredientGroup(group.id);
+                  else moveIngredientGroup(group.id, id === 'up' ? -1 : 1);
+                  setIngGroupMenu(null);
+                }}
+                onClose={() => setIngGroupMenu(null)}
+                style={styles.anchoredMenuLeft}
+              />
+              <Menu
+                items={[
+                  {id: 'item', label: t('recipeEdit.addItem')},
+                  {id: 'group', label: t('recipeEdit.addGroup')},
+                ]}
+                visible={ingAddMenu === group.id}
+                onSelect={(id) => {
+                  if (id === 'item') addIngredient(group.id);
+                  else addIngredientGroup(group.id);
+                  setIngAddMenu(null);
+                }}
+                onClose={() => setIngAddMenu(null)}
+                style={styles.anchoredMenuLeft}
+              />
+              </View>
+
               {/* Ingredients */}
               {group.bulkMode ? (
                 <View style={styles.bulkToolInput}>
                   <AutoGrowInput
                     ref={(node: any) => { sectionInputRefs.current[`ingredients:${group.id}`] = node; }}
-                    style={[styles.editableRowInput, styles.bulkInput, noOutline, typing && typingField === 'ingredients' && ocrBulkGroupId === group.id && !!group.bulkText && {color: 'transparent'}]}
+                    style={[styles.cardFieldInput, styles.bulkInput, noOutline, typing && typingField === 'ingredients' && isOcrTypingTarget(group.id, ingredientGroups[0]?.id) && !!group.bulkText && {color: 'transparent'}]}
                     placeholder={t('recipeEdit.ingredientsBulkPlaceholder')}
                     value={group.bulkText}
                     onChangeText={(v: string) => setIngredientGroups(p => p.map(g => g.id === group.id ? {...g, bulkText: v} : g))}
@@ -1664,9 +1943,9 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                       <SkeletonLine lines={2} lineHeight={14} />
                     </View>
                   )}
-                  {typing && typingField === 'ingredients' && ocrBulkGroupId === group.id && !!group.bulkText && (
+                  {typing && typingField === 'ingredients' && isOcrTypingTarget(group.id, ingredientGroups[0]?.id) && !!group.bulkText && (
                     <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.bulkToolInput]}>
-                      <RainbowText style={styles.editableRowInput} animated onDone={finishTyping}>{group.bulkText}</RainbowText>
+                      <RainbowText style={styles.cardFieldInput} animated onDone={finishTyping}>{group.bulkText}</RainbowText>
                     </View>
                   )}
                 </View>
@@ -1692,7 +1971,12 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                     <View
                       key={ingredient.id}
                       ref={drag.createItemRef(ingredient.id)}
-                      onLayout={drag.handleItemLayout(ingredient.id)}
+                      onLayout={e => {
+                        drag.handleItemLayout(ingredient.id)();
+                        // 상세에서 특정 재료를 눌러 들어왔을 때 그 줄로 스크롤하기 위해 기록
+                        const sectionY = sectionPositions.current['ingredients'] ?? 0;
+                        ingRowY.current[ingredient.id] = sectionY + e.nativeEvent.layout.y;
+                      }}
                       style={isDragging ? {zIndex: 10} : undefined}>
                     <Animated.View
                       style={[
@@ -1707,7 +1991,13 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                       <ListItem
                         leading={{
                           type: 'custom',
-                          element: <DragHandle responder={responder} enabled={canDragIngredient} />,
+                          element: (
+                            <DragHandle
+                              responder={responder}
+                              enabled={canDragIngredient}
+                              onPress={() => { triggerHaptic('light'); setIngRowMenu({groupId: group.id, itemId: ingredient.id}); }}
+                            />
+                          ),
                         }}
                         trailing={{
                           type: 'iconButton',
@@ -1716,16 +2006,45 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                           disabled: !canDeleteIngredient,
                           variant: 'ghost-secondary',
                         }}
+                        // 과정 행과 같은 기준(위 정렬) — 여러 줄이 되어도 버튼이 첫 줄 옆에
+                        titleNumberOfLines={0}
                         showDivider={index < group.ingredients.length - 1}>
                         <View style={styles.editableRowContent}>
-                          <AutoGrowInput
-                            ref={groupIndex === 0 && index === 0 ? (node) => { sectionInputRefs.current['ingredients'] = node; } : undefined}
-                            style={[styles.editableRowInput, noOutline]}
+                          <RichEditor
+                            ref={(node: any) => {
+                              rowInputRefs.current[ingredient.id] = node;
+                              if (groupIndex === 0 && index === 0) sectionInputRefs.current['ingredients'] = node;
+                            }}
+                            style={styles.cardFieldInput}
                             placeholder={t('recipeEdit.ingredientNamePlaceholder')}
                             value={ingredient.name}
                             onChangeText={v => updateIngredient(group.id, ingredient.id, 'name', v)}
-                            onFocus={(e) => handleFieldFocus('ingredients', e.nativeEvent)}
+                            // 폼(개별) 입력에서도 대상 그룹을 기록해야 OCR 결과가
+                            // 엉뚱한 그룹(항상 첫 그룹)으로 들어가지 않는다
+                            onFocus={() => { setOcrBulkGroupId(group.id); handleFieldFocus('ingredients'); }}
                             onBlur={handleFieldBlur}
+                            // 엔터 = 다음 재료 행 (모바일엔 Shift+Enter가 없어 재료는 줄바꿈 대신 행 추가)
+                            onSubmit={() => {
+                              const newId = addIngredient(group.id, 'bottom', ingredient.id);
+                              // 새 행이 렌더된 뒤 포커스
+                              setTimeout(() => rowInputRefs.current[newId]?.focus(), 50);
+                            }}
+                            onSelectionChange={(sel, srcValue) => {
+                              // 툴바 링크 버튼이 볼 대상 — 쿠팡 링크의 주 용도가 재료다
+                              linkCtx?.report({
+                                getValue: () => srcValue,
+                                setValue: (v: string) => updateIngredient(group.id, ingredient.id, 'name', v),
+                                selection: sel,
+                              });
+                            }}
+                            onLinkTap={info => {
+                              applyLinkRef.current = (url, label) => {
+                                const src = ingredient.name;
+                                const range = expandToLink(src, {start: info.start, end: info.end});
+                                updateIngredient(group.id, ingredient.id, 'name', applyLink(src, range, url, label));
+                              };
+                              setLinkDialog({initial: info.url, label: info.label});
+                            }}
                           />
                           <Pressable
                             style={styles.amountInputContainer}
@@ -1739,6 +2058,23 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                         </View>
                       </ListItem>
                     </Animated.View>
+                    <Menu
+                      items={[
+                        {id: 'addAbove', label: t('recipeEdit.addStepAbove')},
+                        {id: 'addBelow', label: t('recipeEdit.addStepBelow')},
+                      ]}
+                      visible={ingRowMenu?.itemId === ingredient.id}
+                      onSelect={(id) => {
+                        const prevId = group.ingredients[index - 1]?.id;
+                        const newId = id === 'addAbove'
+                          ? addIngredient(group.id, prevId ? 'bottom' : 'top', prevId)
+                          : addIngredient(group.id, 'bottom', ingredient.id);
+                        setTimeout(() => rowInputRefs.current[newId]?.focus(), 50);
+                        setIngRowMenu(null);
+                      }}
+                      onClose={() => setIngRowMenu(null)}
+                      style={styles.anchoredMenuLeft}
+                    />
                     </View>
                   );
                 })}
@@ -1772,20 +2108,21 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
         {toolGroups.map((group, groupIndex) => {
           const toolGroupHasDragging = drag.draggingId !== null && group.tools.some(t => t.id === drag.draggingId);
           return (
-          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(toolGroupHasDragging ? {zIndex: 100} : undefined)}}>
-            <Card style={toolGroupHasDragging ? {overflow: 'visible'} : undefined}>
-              {/* Group Header */}
+          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(toolGroupMenu === group.id || toolAddMenu === group.id ? {zIndex: 9999} : toolGroupHasDragging ? {zIndex: 100} : undefined)}}>
+            <Card style={toolGroupHasDragging || toolGroupMenu === group.id || toolAddMenu === group.id
+              ? {overflow: 'visible'} : undefined}>
+              {/* Group Header — 메뉴가 헤더 바로 아래에 붙도록 relative 래퍼로 감싼다 */}
+              <View style={{position: 'relative', zIndex: (toolGroupMenu === group.id || toolAddMenu === group.id) ? 9999 : undefined}}>
               {toolGroups.length >= 2 ? (
                 <ListItem
-                  leading={groupIndex > 0
-                    ? {type: 'iconButton', icon: IconMinusCircleFilled, onPress: () => removeToolGroup(group.id), variant: 'ghost-secondary'}
-                    : {type: 'icon', icon: IconToolCaseFilled}}
+                  leading={{type: 'iconButton', icon: IconToolCaseFilled,
+                    onPress: () => setToolGroupMenu(group.id), variant: 'ghost-secondary'}}
                   trailing={{type: 'iconButton', icon: IconPlusCircleFilled, onPress: () => addTool(group.id), variant: 'ghost-secondary'}}>
                   <View style={styles.breadcrumbRow}>
                     <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.toolsLabel')}</Text>
                     <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
                     <AutoGrowInput
-                      style={[styles.editableRowInput, noOutline]}
+                      style={[styles.cardFieldInput, noOutline]}
                       value={group.title}
                       onChangeText={v => updateToolGroupTitle(group.id, v)}
                       placeholder={t('recipeEdit.groupNamePlaceholder')}
@@ -1794,28 +2131,41 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 </ListItem>
               ) : (
                 <ListItem
-                  leading={{type: 'icon', icon: IconToolCaseFilled}}
+                  leading={{type: 'iconButton', icon: IconToolCaseFilled, onPress: () => setToolAddMenu(group.id), variant: 'ghost-secondary'}}
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
-                      {toolGroups.length === 1 && (
-                        <Switch
-                          label={t('recipeEdit.bulkWrite')}
-                          value={toolsBulkMode}
-                          onValueChange={(v) => {
-                            if (!v) {
-                              const names = bulkTextToToolNames(toolsBulkText);
-                              if (names.length > 0) {
-                                setToolGroups(p => p.map(g => g.id === group.id ? {...g, tools: names.map(name => ({id: genId(), name}))} : g));
-                              } else {
-                                setToolGroups(p => p.map(g => g.id === group.id ? {...g, tools: []} : g));
-                              }
-                            } else {
-                              setToolsBulkText(toolsToBulkText(group.tools));
-                            }
-                            setToolsBulkMode(v);
-                          }}
-                        />
+                      {group.bulkMode && (
+                        <Tooltip
+                          message={t('recipeEdit.bulkHelpTools')}
+                          visible={bulkHelpFor === group.id}
+                          onClose={() => setBulkHelpFor(null)}>
+                          <IconButton
+                            icon={IconCircleAlert}
+                            size="small"
+                            variant="ghost-secondary"
+                            onPress={() => setBulkHelpFor(bulkHelpFor === group.id ? null : group.id)}
+                          />
+                        </Tooltip>
                       )}
+                      {/* 묶음마다 개별 "한번에 쓰기" 토글 (재료와 동일) */}
+                      <Switch
+                        label={t('recipeEdit.bulkWrite')}
+                        value={group.bulkMode}
+                        onValueChange={(v) => {
+                          if (!v) {
+                            // bulk → 폼: 이 묶음의 bulkText를 파싱해 개별 도구로
+                            const names = bulkTextToToolNames(group.bulkText);
+                            setToolGroups(p => p.map(g => g.id === group.id
+                              ? {...g, bulkMode: false, tools: names.map(name => ({id: genId(), name}))}
+                              : g));
+                          } else {
+                            // 폼 → bulk: 이 묶음 도구를 bulkText로
+                            setToolGroups(p => p.map(g => g.id === group.id
+                              ? {...g, bulkMode: true, bulkText: toolsToBulkText(group.tools)}
+                              : g));
+                          }
+                        }}
+                      />
                       <View style={styles.headerAddSlot}>
                         <IconButton icon={IconPlusCircleFilled} onPress={() => addTool(group.id)} variant="ghost-secondary" size="medium" />
                       </View>
@@ -1827,15 +2177,46 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 </ListItem>
               )}
 
+              <Menu
+                items={[
+                  {id: 'up', label: t('recipeEdit.moveGroupUp'), disabled: groupIndex === 0},
+                  {id: 'down', label: t('recipeEdit.moveGroupDown'), disabled: groupIndex === toolGroups.length - 1},
+                  {id: 'delete', label: t('recipeEdit.deleteGroup'), destructive: true, disabled: toolGroups.length <= 1},
+                ]}
+                visible={toolGroupMenu === group.id}
+                onSelect={(id) => {
+                  if (id === 'delete') removeToolGroup(group.id);
+                  else moveToolGroup(group.id, id === 'up' ? -1 : 1);
+                  setToolGroupMenu(null);
+                }}
+                onClose={() => setToolGroupMenu(null)}
+                style={styles.anchoredMenuLeft}
+              />
+              <Menu
+                items={[
+                  {id: 'item', label: t('recipeEdit.addItem')},
+                  {id: 'group', label: t('recipeEdit.addGroup')},
+                ]}
+                visible={toolAddMenu === group.id}
+                onSelect={(id) => {
+                  if (id === 'item') addTool(group.id);
+                  else addToolGroup(group.id);
+                  setToolAddMenu(null);
+                }}
+                onClose={() => setToolAddMenu(null)}
+                style={styles.anchoredMenuLeft}
+              />
+              </View>
+
               {/* Tools */}
-              {toolGroups.length === 1 && toolsBulkMode ? (
+              {group.bulkMode ? (
                 <View style={styles.bulkToolInput}>
                   <AutoGrowInput
                     ref={(node: any) => { sectionInputRefs.current['tools'] = node; }}
-                    style={[styles.editableRowInput, styles.bulkInput, noOutline, typing && typingField === 'tools' && !!toolsBulkText && {color: 'transparent'}]}
+                    style={[styles.cardFieldInput, styles.bulkInput, noOutline, typing && typingField === 'tools' && isOcrTypingTarget(group.id, toolGroups[0]?.id) && !!group.bulkText && {color: 'transparent'}]}
                     placeholder={t('recipeEdit.toolsBulkPlaceholder')}
-                    value={toolsBulkText}
-                    onChangeText={setToolsBulkText}
+                    value={group.bulkText}
+                    onChangeText={(v: string) => setToolGroups(p => p.map(g => g.id === group.id ? {...g, bulkText: v} : g))}
                     onFocus={(e) => handleFieldFocus('tools', e.nativeEvent)}
                     onBlur={handleFieldBlur}
                   />
@@ -1844,9 +2225,9 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                       <SkeletonLine lines={2} lineHeight={14} />
                     </View>
                   )}
-                  {typing && typingField === 'tools' && !!toolsBulkText && (
+                  {typing && typingField === 'tools' && isOcrTypingTarget(group.id, toolGroups[0]?.id) && !!group.bulkText && (
                     <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.bulkToolInput]}>
-                      <RainbowText style={styles.editableRowInput} animated onDone={finishTyping}>{toolsBulkText}</RainbowText>
+                      <RainbowText style={styles.cardFieldInput} animated onDone={finishTyping}>{group.bulkText}</RainbowText>
                     </View>
                   )}
                 </View>
@@ -1887,7 +2268,13 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                       <ListItem
                         leading={{
                           type: 'custom',
-                          element: <DragHandle responder={responder} enabled={canDrag} />,
+                          element: (
+                            <DragHandle
+                              responder={responder}
+                              enabled={canDrag}
+                              onPress={() => { triggerHaptic('light'); setToolRowMenu({groupId: group.id, itemId: tool.id}); }}
+                            />
+                          ),
                         }}
                         trailing={{
                           type: 'iconButton',
@@ -1896,18 +2283,59 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                           disabled: !canDeleteTool,
                           variant: 'ghost-secondary',
                         }}
+                        titleNumberOfLines={0}
                         showDivider={index < group.tools.length - 1}>
-                        <AutoGrowInput
-                          ref={groupIndex === 0 && index === 0 ? (node: any) => { sectionInputRefs.current['tools'] = node; } : undefined}
-                          style={[styles.editableRowInput, noOutline]}
+                        <RichEditor
+                          ref={(node: any) => {
+                            rowInputRefs.current[tool.id] = node;
+                            if (groupIndex === 0 && index === 0) sectionInputRefs.current['tools'] = node;
+                          }}
+                          style={styles.cardFieldInput}
                           placeholder={t('recipeEdit.toolNamePlaceholder')}
                           value={tool.name}
                           onChangeText={v => updateTool(group.id, tool.id, v)}
-                          onFocus={(e) => handleFieldFocus('tools', e.nativeEvent)}
+                          onFocus={() => handleFieldFocus('tools')}
                           onBlur={handleFieldBlur}
+                          // 엔터 = 다음 도구 행 (재료·과정과 같은 약속)
+                          onSubmit={() => {
+                            const newId = addTool(group.id, 'bottom', tool.id);
+                            setTimeout(() => rowInputRefs.current[newId]?.focus(), 50);
+                          }}
+                          onSelectionChange={(sel, srcValue) => {
+                            linkCtx?.report({
+                              getValue: () => srcValue,
+                              setValue: (v: string) => updateTool(group.id, tool.id, v),
+                              selection: sel,
+                            });
+                          }}
+                          onLinkTap={info => {
+                            applyLinkRef.current = (url, label) => {
+                              const src = tool.name;
+                              const range = expandToLink(src, {start: info.start, end: info.end});
+                              updateTool(group.id, tool.id, applyLink(src, range, url, label));
+                            };
+                            setLinkDialog({initial: info.url, label: info.label});
+                          }}
                         />
                       </ListItem>
                     </Animated.View>
+                    <Menu
+                      items={[
+                        {id: 'addAbove', label: t('recipeEdit.addStepAbove')},
+                        {id: 'addBelow', label: t('recipeEdit.addStepBelow')},
+                      ]}
+                      visible={toolRowMenu?.itemId === tool.id}
+                      onSelect={(id) => {
+                        const prevId = group.tools[index - 1]?.id;
+                        const newId = id === 'addAbove'
+                          ? addTool(group.id, prevId ? 'bottom' : 'top', prevId)
+                          : addTool(group.id, 'bottom', tool.id);
+                        setTimeout(() => rowInputRefs.current[newId]?.focus(), 50);
+                        setToolRowMenu(null);
+                      }}
+                      onClose={() => setToolRowMenu(null)}
+                      style={styles.anchoredMenuLeft}
+                    />
                     </View>
                   );
                 })}
@@ -1938,32 +2366,30 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
         {stepGroups.map((group, groupIndex) => {
           const groupHasDragging = drag.draggingId !== null && group.steps.some(s => s.id === drag.draggingId);
           return (
-          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(groupHasDragging ? {zIndex: 100} : undefined)}}>
-            <Card style={groupHasDragging ? {overflow: 'visible'} : undefined}>
+          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(stepAddMenu === group.id || stepGroupMenu === group.id || stepRowMenu?.groupId === group.id ? {zIndex: 9999} : groupHasDragging ? {zIndex: 100} : undefined)}}>
+            <Card style={groupHasDragging || stepAddMenu === group.id || stepGroupMenu === group.id
+              || stepRowMenu?.groupId === group.id
+              ? {overflow: 'visible'} : undefined}>
               {/* Group Header — editable when 2+ groups, non-first gets minus button */}
               {/* 묶음 헤더 박스 롱프레스 → 위/아래 이동 메뉴 (묶음 2개 이상일 때만 의미) */}
-              <View style={{position: 'relative', zIndex: stepGroupMenu === group.id ? 200 : undefined}}>
+              <View style={{position: 'relative', zIndex: (stepGroupMenu === group.id || stepAddMenu === group.id) ? 9999 : undefined}}>
               <Pressable
                 onLongPress={stepGroups.length >= 2 ? () => { triggerHaptic('light'); setStepGroupMenu(group.id); } : undefined}
                 delayLongPress={300}>
               {stepGroups.length >= 2 ? (
                 <ListItem
-                  leading={groupIndex > 0
-                    ? {type: 'iconButton', icon: IconMinusCircleFilled, onPress: () => removeStepGroup(group.id), variant: 'ghost-secondary'}
-                    : {type: 'icon', icon: IconProcess}}
-                  trailing={groupIndex === 0
-                    ? {type: 'custom', element: (
-                        <View style={{flexDirection: 'row', alignItems: 'center', gap: 12}}>
-                          <IconButton icon={IconBlockPlus} onPress={() => insertStepGroupAbove(group.id)} variant="ghost-secondary" size="medium" />
-                          <IconButton icon={IconPlusCircleFilled} onPress={() => addStep(group.id)} variant="ghost-secondary" size="medium" />
-                        </View>
-                      )}
-                    : {type: 'iconButton', icon: IconPlusCircleFilled, onPress: () => addStep(group.id), variant: 'ghost-secondary'}}>
+                  // 모든 묶음이 같은 아이콘 버튼 — 탭하면 이동/삭제 메뉴.
+                  // 예전엔 두 번째 묶음부터 '-' 버튼이라 조작이 갈렸다.
+                  leading={{type: 'iconButton', icon: IconProcess,
+                    onPress: () => setStepGroupMenu(group.id), variant: 'ghost-secondary'}}
+                  // 재료·도구 헤더와 같은 + 버튼. 누르면 아래에 "과정 추가 / 묶음 추가" 메뉴.
+                  trailing={{type: 'iconButton', icon: IconPlusCircleFilled,
+                    onPress: () => setStepAddMenu(group.id), variant: 'ghost-secondary'}}>
                   <View style={styles.breadcrumbRow}>
                     <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.stepsLabel')}</Text>
                     <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
                     <AutoGrowInput
-                      style={[styles.editableRowInput, noOutline]}
+                      style={[styles.cardFieldInput, noOutline]}
                       value={group.title}
                       onChangeText={v => updateStepGroupTitle(group.id, v)}
                       placeholder={t('recipeEdit.groupNamePlaceholder')}
@@ -1972,35 +2398,47 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                 </ListItem>
               ) : (
                 <ListItem
-                  leading={{type: 'icon', icon: IconProcess}}
+                  // 묶음이 하나면 이동할 곳이 없으므로, 아이콘 버튼엔 추가 메뉴를 붙인다
+                  leading={{type: 'iconButton', icon: IconProcess,
+                    onPress: () => setStepAddMenu(group.id), variant: 'ghost-secondary'}}
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
-                      {stepGroups.length === 1 && (
-                        <Switch
-                          label={t('recipeEdit.bulkWrite')}
-                          value={stepsBulkMode}
-                          onValueChange={(v) => {
-                            if (!v) {
-                              // 한번에 쓰기 해제: 줄 단위로 파싱해 개별 과정으로 변환
-                              const descs = bulkTextToStepDescriptions(stepsBulkText);
-                              setStepGroups(p => p.map(g => g.id === group.id
-                                ? {...g, steps: descs.length > 0
-                                    ? descs.map(description => ({id: genId(), description}))
-                                    : [{id: genId(), description: ''}]}
-                                : g));
-                            } else {
-                              // 한번에 쓰기 진입: 기존 과정 설명을 줄바꿈 텍스트로 직렬화
-                              setStepsBulkText(stepsToBulkText(group.steps));
-                            }
-                            setStepsBulkMode(v);
-                          }}
-                        />
+                      {group.bulkMode && (
+                        <Tooltip
+                          message={t('recipeEdit.bulkHelpSteps')}
+                          visible={bulkHelpFor === group.id}
+                          onClose={() => setBulkHelpFor(null)}>
+                          <IconButton
+                            icon={IconCircleAlert}
+                            size="small"
+                            variant="ghost-secondary"
+                            onPress={() => setBulkHelpFor(bulkHelpFor === group.id ? null : group.id)}
+                          />
+                        </Tooltip>
                       )}
-                      {!stepsBulkMode && (
-                        <View style={styles.headerAddSlot}>
-                          <IconButton icon={IconPlusCircleFilled} onPress={() => addStep(group.id)} variant="ghost-secondary" size="medium" />
-                        </View>
-                      )}
+                      {/* 묶음마다 개별 "한번에 쓰기" 토글 (재료·도구와 동일) */}
+                      <Switch
+                        label={t('recipeEdit.bulkWrite')}
+                        value={group.bulkMode}
+                        onValueChange={(v) => {
+                          if (!v) {
+                            // 한번에 쓰기 해제: 줄 단위로 파싱해 개별 과정으로 변환
+                            const descs = bulkTextToStepDescriptions(group.bulkText);
+                            setStepGroups(p => p.map(g => g.id === group.id
+                              ? {...g, bulkMode: false, steps: descs.length > 0
+                                  ? descs.map(description => ({id: genId(), description}))
+                                  : [{id: genId(), description: ''}]}
+                              : g));
+                          } else {
+                            // 한번에 쓰기 진입: 기존 과정 설명을 줄바꿈 텍스트로 직렬화
+                            setStepGroups(p => p.map(g => g.id === group.id
+                              ? {...g, bulkMode: true, bulkText: stepsToBulkText(group.steps)}
+                              : g));
+                          }
+                        }}
+                      />
+                      {/* 맨 위 추가 버튼 제거 — 행 드래그 핸들 롱프레스 메뉴의
+                          "위에 추가 / 아래에 추가"로 대체됐다 */}
                     </View>
                   )}}>
                   <View style={styles.breadcrumbRow}>
@@ -2011,25 +2449,49 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
               </Pressable>
               <Menu
                 items={[
+                  {id: 'step', label: t('recipeEdit.addItem')},
+                  {id: 'group', label: t('recipeEdit.addGroup')},
+                ]}
+                visible={stepAddMenu === group.id}
+                onSelect={(id) => {
+                  if (id === 'step') {
+                    const newId = addStep(group.id);
+                    setTimeout(() => rowInputRefs.current[newId]?.focus(), 50);
+                  } else {
+                    insertStepGroupAbove(group.id);
+                  }
+                  setStepAddMenu(null);
+                }}
+                onClose={() => setStepAddMenu(null)}
+                style={styles.anchoredMenuRight}
+              />
+              <Menu
+                items={[
                   {id: 'up', label: t('recipeEdit.moveGroupUp'), disabled: groupIndex === 0},
                   {id: 'down', label: t('recipeEdit.moveGroupDown'), disabled: groupIndex === stepGroups.length - 1},
+                  // 마지막 묶음은 지우면 과정이 통째로 사라지므로 막는다
+                  {id: 'delete', label: t('recipeEdit.deleteGroup'), destructive: true, disabled: stepGroups.length <= 1},
                 ]}
                 visible={stepGroupMenu === group.id}
-                onSelect={(id) => { moveStepGroup(group.id, id === 'up' ? -1 : 1); setStepGroupMenu(null); }}
+                onSelect={(id) => {
+                  if (id === 'delete') removeStepGroup(group.id);
+                  else moveStepGroup(group.id, id === 'up' ? -1 : 1);
+                  setStepGroupMenu(null);
+                }}
                 onClose={() => setStepGroupMenu(null)}
-                style={styles.stepGroupMoveMenu}
+                style={styles.anchoredMenuLeft}
               />
               </View>
 
               {/* Steps — 한번에 쓰기 모드면 줄바꿈 구분 일괄 입력 */}
-              {stepGroups.length === 1 && stepsBulkMode ? (
+              {group.bulkMode ? (
                 <View style={styles.bulkToolInput}>
                   <AutoGrowInput
                     ref={(node: any) => { sectionInputRefs.current['steps'] = node; }}
-                    style={[styles.editableRowInput, styles.bulkInput, noOutline, typing && typingField === 'steps' && !!stepsBulkText && {color: 'transparent'}]}
+                    style={[styles.cardFieldInput, styles.bulkInput, noOutline, typing && typingField === 'steps' && isOcrTypingTarget(group.id, stepGroups[0]?.id) && !!group.bulkText && {color: 'transparent'}]}
                     placeholder={t('recipeEdit.stepsBulkPlaceholder')}
-                    value={stepsBulkText}
-                    onChangeText={setStepsBulkText}
+                    value={group.bulkText}
+                    onChangeText={(v: string) => setStepGroups(p => p.map(g => g.id === group.id ? {...g, bulkText: v} : g))}
                     onFocus={(e) => handleFieldFocus('steps', e.nativeEvent)}
                     onBlur={handleFieldBlur}
                   />
@@ -2038,9 +2500,9 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                       <SkeletonLine lines={3} lineHeight={14} />
                     </View>
                   )}
-                  {typing && typingField === 'steps' && !!stepsBulkText && (
+                  {typing && typingField === 'steps' && isOcrTypingTarget(group.id, stepGroups[0]?.id) && !!group.bulkText && (
                     <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.bulkToolInput]}>
-                      <RainbowText style={styles.editableRowInput} animated onDone={finishTyping}>{stepsBulkText}</RainbowText>
+                      <RainbowText style={styles.cardFieldInput} animated onDone={finishTyping}>{group.bulkText}</RainbowText>
                     </View>
                   )}
                 </View>
@@ -2066,8 +2528,18 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                     <View
                       key={step.id}
                       ref={drag.createItemRef(step.id)}
-                      onLayout={drag.handleItemLayout(step.id)}
-                      style={isDragging ? {zIndex: 10} : undefined}>
+                      onLayout={e => {
+                        drag.handleItemLayout(step.id)();
+                        // 상세에서 특정 과정을 눌러 들어왔을 때 그 줄로 스크롤하기 위해
+                        // 화면 기준 y를 기록해 둔다(과정 섹션 시작 + 행의 상대 y).
+                        const sectionY = sectionPositions.current['steps'] ?? 0;
+                        stepRowY.current[step.id] = sectionY + e.nativeEvent.layout.y;
+                      }}
+                      style={
+                        stepRowMenu?.stepId === step.id
+                          ? {zIndex: 9999}
+                          : isDragging ? {zIndex: 10} : undefined
+                      }>
                     <Animated.View
                       style={[
                         isDragging ? {transform: [{translateY: drag.dragY}], opacity: 0.85} : undefined,
@@ -2081,7 +2553,13 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                       <ListItem
                         leading={{
                           type: 'custom',
-                          element: <DragHandle responder={responder} enabled={canDragStep} />,
+                          element: (
+                            <DragHandle
+                              responder={responder}
+                              enabled={canDragStep}
+                              onPress={() => { triggerHaptic('light'); setStepRowMenu({groupId: group.id, stepId: step.id}); }}
+                            />
+                          ),
                         }}
                         trailing={{
                           type: 'iconButton',
@@ -2092,18 +2570,59 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                         }}
                         titleNumberOfLines={0}
                         showDivider={index < group.steps.length - 1}>
-                        <TextInput
-                          ref={groupIndex === 0 && index === 0
-                            ? (node: any) => { sectionInputRefs.current['steps'] = node; }
-                            : undefined}
-                          style="ghost"
-                          multiline
+                        <RichEditor
+                          ref={(node: any) => {
+                            rowInputRefs.current[step.id] = node;
+                            if (groupIndex === 0 && index === 0) sectionInputRefs.current['steps'] = node;
+                          }}
+                          style={styles.cardFieldInput}
                           placeholder={t('recipeEdit.stepDescriptionPlaceholder')}
                           value={step.description}
                           onChangeText={v => { updateStep(group.id, step.id, v); }}
-                          onFocus={(e) => { handleFieldFocus('steps', e.nativeEvent); setFocusedStep({groupId: group.id, stepId: step.id}); }}
+                          onFocus={() => { handleFieldFocus('steps'); setFocusedStep({groupId: group.id, stepId: step.id}); }}
                           onBlur={handleFieldBlur}
-                          blurOnSubmit={false}
+                          // 엔터 = 다음 과정 행. 모바일엔 Shift+Enter가 없어
+                          // 줄바꿈보다 "다음 과정으로 넘어가기"를 우선한다.
+                          onSubmit={() => {
+                            const newId = addStep(group.id, 'bottom', step.id);
+                            setTimeout(() => rowInputRefs.current[newId]?.focus(), 50);
+                          }}
+                          // 커서가 맨 앞일 때 백스페이스 → 이전 행과 병합
+                          // (엔터로 잘못 나눈 걸 되돌리는 가장 자연스러운 조작)
+                          onBackspaceAtStart={() => {
+                            const prev = group.steps[index - 1];
+                            if (!prev) return; // 첫 행은 병합할 대상이 없다
+                            const mergedAt = prev.description.length;
+                            setStepGroups(p => p.map(g => g.id !== group.id ? g : {
+                              ...g,
+                              steps: g.steps
+                                .map(s => s.id === prev.id
+                                  ? {...s, description: s.description + step.description}
+                                  : s)
+                                .filter(s => s.id !== step.id),
+                            }));
+                            // 이전 행으로 포커스 이동 + 병합 지점에 커서
+                            // RichEditor.focus(caret) — ref 맵 타입은 RN TextInput 기준이라 캐스팅한다
+                            setTimeout(() => (rowInputRefs.current[prev.id] as any)?.focus(mergedAt), 50);
+                          }}
+                          onSelectionChange={(sel, srcValue) => {
+                            stepSelRef.current[step.id] = sel;
+                            // 툴바 링크 버튼이 볼 대상 — 저장값(마크다운) 기준으로 넘긴다
+                            linkCtx?.report({
+                              getValue: () => srcValue,
+                              setValue: (v: string) => updateStep(group.id, step.id, v),
+                              selection: sel,
+                            });
+                          }}
+                          onLinkTap={info => {
+                            // 링크 태그를 누르면 URL·표시 텍스트 편집 다이얼로그
+                            applyLinkRef.current = (url, label) => {
+                              const src = step.description;
+                              const range = expandToLink(src, {start: info.start, end: info.end});
+                              updateStep(group.id, step.id, applyLink(src, range, url, label));
+                            };
+                            setLinkDialog({initial: info.url, label: info.label});
+                          }}
                         />
                         {/* 슬래시/칩추가 메뉴는 이제 키보드 툴바 하위 뎁스(subView)로 통일 (인라인 제거) */}
                         {step.tip != null && (
@@ -2180,6 +2699,33 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
                         )}
                       </ListItem>
                     </Animated.View>
+                    {/* 행 롱프레스 메뉴 — 여기서 나누기(묶음 만들기), 위/아래 행 추가 */}
+                    <Menu
+                      items={[
+                        // 첫 줄은 위로 나눌 게 없고, 빈 줄은 제목이 될 수 없다.
+                        // 나눌 수 없으면 비활성으로 두지 않고 아예 감춘다.
+                        ...(index > 0 && step.description.trim()
+                          ? [{id: 'split', label: t('recipeEdit.splitGroupHere')}]
+                          : []),
+                        {id: 'addAbove', label: t('recipeEdit.addStepAbove')},
+                        {id: 'addBelow', label: t('recipeEdit.addStepBelow')},
+                      ]}
+                      visible={stepRowMenu?.stepId === step.id}
+                      onSelect={(id) => {
+                        if (id === 'split') splitStepGroupAt(group.id, step.id);
+                        else if (id === 'addAbove') {
+                          const prevId = group.steps[index - 1]?.id;
+                          const newId = addStep(group.id, prevId ? 'bottom' : 'top', prevId);
+                          setTimeout(() => rowInputRefs.current[newId]?.focus(), 50);
+                        } else if (id === 'addBelow') {
+                          const newId = addStep(group.id, 'bottom', step.id);
+                          setTimeout(() => rowInputRefs.current[newId]?.focus(), 50);
+                        }
+                        setStepRowMenu(null);
+                      }}
+                      onClose={() => setStepRowMenu(null)}
+                      style={styles.anchoredMenuLeft}
+                    />
                     </View>
                   );
                 })}
@@ -2237,7 +2783,9 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
             </Card>
           </ContentContainer>
         )}
-        {isExplore && isFieldActive('advice') && (
+        {/* 조언은 모든 레시피에서 사용 — 필드 추가 다이얼로그도 전체에 노출하므로
+            여기서 isExplore로 막으면 "추가했는데 안 뜨는" 불일치가 생긴다 */}
+        {isFieldActive('advice') && (
           <View onLayout={e => { sectionPositions.current['advice'] = e.nativeEvent.layout.y; }}>
           <ContentContainer style={isFieldActive('cookbook') ? styles.navItemGap : styles.section}>
             <Card variant="yellow">
@@ -2262,7 +2810,7 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
         )}
         {isFieldActive('review') && (
           <View onLayout={e => { sectionPositions.current['review'] = e.nativeEvent.layout.y; }}>
-          <ContentContainer style={(isFieldActive('cookbook') || (isExplore && isFieldActive('advice'))) ? styles.navItemGap : styles.section}>
+          <ContentContainer style={(isFieldActive('cookbook') || isFieldActive('advice')) ? styles.navItemGap : styles.section}>
             <Card>
               <ListItem
                 title={t('recipeEdit.review')}
@@ -2383,7 +2931,15 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
       <Popover
         visible={showDiscardConfirm}
         onClose={() => setShowDiscardConfirm(false)}
-        style={{position: 'absolute', top: insets.top + NAV_PILL_HEIGHT + 8, left: contentLeftEdge, zIndex: 100}}
+        style={{
+          position: 'absolute',
+          // 측정값(화면 절대좌표)이 있으면 X 버튼 바로 아래에, 없으면 기존 추정치로 폴백
+          top: closeBtnRect
+            ? closeBtnRect.y + closeBtnRect.height + 8
+            : insets.top + NAV_PILL_HEIGHT + 8,
+          left: closeBtnRect ? closeBtnRect.x : contentLeftEdge,
+          zIndex: 100,
+        }}
       >
         <View style={{gap: Spacing.xs}}>
           <Button
@@ -2422,6 +2978,15 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
         onConfirm={setTime}
       />
 
+      {/* 링크 입력 — 모든 플랫폼 공통 (웹 window.prompt는 차단·모양 제각각) */}
+      <LinkInputDialog
+        visible={!!linkDialog}
+        initialUrl={linkDialog?.initial ?? ''}
+        onClose={() => setLinkDialog(null)}
+        initialLabel={linkDialog?.label ?? ''}
+        onConfirm={(url, label) => { setLinkDialog(null); applyLinkRef.current?.(url, label); }}
+      />
+
       {/* 분량 다이얼로그 */}
       <ServingsDialog
         visible={showServingsDialog}
@@ -2456,7 +3021,18 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
       {/* Fixed Top Navigation Bar */}
       <FloatingNavBar
         left={
-          <NavPillButton icon={IconClose} onPress={requestClose} />
+          // 팝오버를 이 버튼 아래에 정확히 붙이기 위해 실제 위치를 측정한다
+          // (하드코딩한 top/left는 노치·화면폭에 따라 어긋났다)
+          <View
+            ref={closeBtnViewRef}
+            // onLayout은 부모 기준 좌표라 화면 절대 위치가 필요하면 measureInWindow를 쓴다
+            onLayout={() => {
+              closeBtnViewRef.current?.measureInWindow((x, y, _w, height) => {
+                setCloseBtnRect({x, y, height});
+              });
+            }}>
+            <NavPillButton icon={IconClose} onPress={requestClose} />
+          </View>
         }
         rightMenu={
           <Menu
@@ -2506,8 +3082,18 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
         // 영역이동(◀▶): 활성화된 입력 구역을 순서대로 이동
         const OCR_FIELD_ORDER: RecipeOcrField[] = ['title', 'ingredients', 'tools', 'steps'];
         const navFields = OCR_FIELD_ORDER.filter(f => f === 'title' || isFieldActive(f));
-        const curIdx = focusedOcrField ? navFields.indexOf(focusedOcrField) : -1;
-        const focusField = (f: RecipeOcrField) => { sectionInputRefs.current[f]?.focus(); };
+        // blur되면 focusedOcrField가 null이 되는데, 툴바 버튼을 누르는 순간이
+        // 바로 그 blur 시점이라 그대로 두면 ◀▶가 항상 비활성이 된다.
+        // 마지막으로 포커스했던 필드(ocrFieldRef)를 폴백으로 쓴다.
+        const navCurrent = focusedOcrField ?? ocrFieldRef.current;
+        const curIdx = navCurrent ? navFields.indexOf(navCurrent) : -1;
+        const focusField = (f: RecipeOcrField) => {
+          // 예약된 blur가 새 포커스를 지우지 않도록 취소한다
+          if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
+          sectionInputRefs.current[f]?.focus();
+          setFocusedOcrField(f);
+          ocrFieldRef.current = f;
+        };
         const canPrev = curIdx > 0;
         const canNext = curIdx >= 0 && curIdx < navFields.length - 1;
         // 칩 추가(+): 포커스된 과정에 팁/주의/사진 여유가 있을 때만 활성
@@ -2518,6 +3104,46 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           if (s) stepHasRoom = s.tip == null || s.caution == null || (s.photos?.length ?? 0) < 3;
         }
         const canAddChip = focusedOcrField === 'steps' && stepHasRoom;
+        // 묶음 나누기: 커서가 있는 과정 줄을 새 그룹의 제목(과정명)으로 올리고,
+        // 그 아래 과정들을 새 그룹으로 옮긴다. 해당 줄 자체는 제목이 되므로 목록에서 빠진다.
+        const canGroupSplit = focusedOcrField === 'steps' && !!focusedStep && (() => {
+          const g = stepGroups.find(gg => gg.id === focusedStep.groupId);
+          const s = g?.steps.find(ss => ss.id === focusedStep.stepId);
+          // 첫 줄이면 나눌 게 없고, 내용이 없으면 제목으로 쓸 수 없다
+          return !!s?.description.trim() && (g?.steps.findIndex(ss => ss.id === focusedStep.stepId) ?? 0) > 0;
+        })();
+        // 선택한 텍스트에 링크 — 모든 플랫폼 공통 다이얼로그
+        const handleLink = () => {
+          // 다이얼로그가 열리면 입력이 blur되어 targetRef가 비워진다.
+          // 그래서 "버튼을 누른 시점"의 대상과 선택 구간을 여기서 붙잡아 둔다.
+          const tgt = linkCtx?.targetRef.current;
+          const captured = tgt
+            ? {value: tgt.getValue(), setValue: tgt.setValue, selection: tgt.selection}
+            : null;
+          const existing = captured
+            ? (expandToLink(captured.value, captured.selection).url ?? '')
+            : '';
+
+          applyLinkRef.current = (url: string, label: string) => {
+            if (!captured) return;
+            // 링크 안을 선택했으면 링크 전체를 대상으로 (표시 텍스트만 골라도 수정되게)
+            const range = expandToLink(captured.value, captured.selection);
+            captured.setValue(applyLink(captured.value, range, url, label));
+          };
+          setLinkDialog({
+            initial: existing,
+            label: captured
+              ? stripRichText(captured.value.slice(
+                  expandToLink(captured.value, captured.selection).start,
+                  expandToLink(captured.value, captured.selection).end,
+                ))
+              : '',
+          });
+        };
+        const handleGroupSplit = () => {
+          if (!focusedStep) return;
+          splitStepGroupAt(focusedStep.groupId, focusedStep.stepId);
+        };
         // 칩추가(+) 툴바 뎁스: slashMenu 열리면 [←][사진][팁][주의] (여유 있는 것만)
         const chipSubView = slashMenu ? (() => {
           const g = stepGroups.find(gg => gg.id === slashMenu.groupId);
@@ -2546,7 +3172,16 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
           canNext={canNext}
           onAddChip={() => { if (focusedStep) setSlashMenu(focusedStep); }}
           canAddChip={canAddChip}
+          onUndo={history.undo}
+          canUndo={history.canUndo}
+          onRedo={history.redo}
+          canRedo={history.canRedo}
+          onGroupSplit={handleGroupSplit}
+          canGroupSplit={canGroupSplit}
+          onLink={handleLink}
+          canLink={isOcrField}
           subView={chipSubView}
+          onDone={handleSave}
           onOcrStart={() => setOcrLoading(true)}
           onOcrEnd={() => setOcrLoading(false)}
           externalBusy={typing || ocrLoading}
@@ -2557,16 +3192,29 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
             } else if (field === 'ingredients' && Array.isArray(value)) {
               const cleaned = value.map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
               if (cleaned.length === 0) return;
-              // OCR 대상 그룹: 마지막 포커스한 bulk 그룹, 없으면 첫 그룹.
+              // OCR 대상 그룹: 마지막 포커스한 그룹, 없으면 첫 그룹.
               const targetId = ocrBulkGroupId ?? ingredientGroups[0]?.id;
               if (!targetId) return;
               const target = ingredientGroups.find(g => g.id === targetId);
-              // 대상 그룹 bulk 모드 켜기(폼이었으면 기존 재료를 bulkText로 이어받아).
-              setIngredientGroups(p => p.map(g => g.id === targetId
-                ? {...g, bulkMode: true, bulkText: g.bulkMode ? g.bulkText : ingredientsToBulkText(g.ingredients)}
-                : g));
+              if (!target) return;
               setOcrBulkGroupId(targetId);
-              const existing = (target?.bulkMode ? target.bulkText : ingredientsToBulkText(target?.ingredients ?? [])).trim();
+
+              if (!target.bulkMode) {
+                // 폼 모드는 그대로 둔다 — OCR 한 번에 "한번에 쓰기"로 바뀌면
+                // 사용자가 쓰던 방식이 예고 없이 뒤집힌다. 개별 행으로 채운다.
+                const parsed = bulkTextToIngredients(cleaned.join(', '));
+                setIngredientGroups(p => p.map(g => g.id !== targetId ? g : {
+                  ...g,
+                  ingredients: [
+                    // 빈 행은 걷어내고 이어붙인다
+                    ...g.ingredients.filter(i => i.name.trim()),
+                    ...parsed.map(i => ({id: genId(), name: i.name, amount: i.amount, unit: i.unit})),
+                  ],
+                }));
+                return;
+              }
+
+              const existing = target.bulkText.trim();
               const prefix = existing ? existing + ', ' : '';
               // 그룹 bulkText setter
               const setGroupBulk = (v: string) => setIngredientGroups(p => p.map(g => g.id === targetId ? {...g, bulkText: v} : g));
@@ -2574,18 +3222,40 @@ export function RecipeEditScreen({onClose, onSave, recipe, cookbooks, cookbookCo
             } else if (field === 'tools' && Array.isArray(value)) {
               const cleaned = value.map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
               if (cleaned.length === 0) return;
-              if (!toolsBulkMode) setToolsBulkMode(true);
-              const existing = toolsBulkText.trim();
+              // 재료와 동일 — 포커스된 묶음(없으면 첫 묶음)에 넣는다. 모드는 유지한다.
+              const targetId = ocrBulkGroupId ?? toolGroups[0]?.id;
+              const target = toolGroups.find(g => g.id === targetId);
+              if (!target) return;
+              setOcrBulkGroupId(targetId);
+
+              if (!target.bulkMode) {
+                // 폼 모드 유지 — 개별 행으로 채운다
+                setToolGroups(p => p.map(g => g.id !== targetId ? g : {
+                  ...g,
+                  tools: [
+                    ...g.tools.filter(x => x.name.trim()),
+                    ...cleaned.map(name => ({id: genId(), name})),
+                  ],
+                }));
+                return;
+              }
+
+              const existing = target.bulkText.trim();
               const prefix = existing ? existing + ', ' : '';
-              typewriteAppendItems(cleaned, prefix, setToolsBulkText, 'tools');
+              const setGroupBulk = (v: string) => setToolGroups(p => p.map(g => g.id === targetId ? {...g, bulkText: v} : g));
+              typewriteAppendItems(cleaned, prefix, setGroupBulk, 'tools');
             } else if (field === 'steps' && Array.isArray(value)) {
               const cleaned = value.map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
               if (cleaned.length === 0) return;
-              // 한번에 쓰기 모드면 줄바꿈으로 이어붙이고, 아니면 기존 청크 애니메이션
-              if (stepGroups.length === 1 && stepsBulkMode) {
-                const existing = stepsBulkText.trim();
+              // 한번에 쓰기 묶음이면 줄바꿈으로 이어붙이고, 아니면 기존 청크 애니메이션
+              const targetId = ocrBulkGroupId ?? stepGroups[0]?.id;
+              const target = stepGroups.find(g => g.id === targetId);
+              if (target?.bulkMode) {
+                setOcrBulkGroupId(targetId);
+                const existing = target.bulkText.trim();
                 const prefix = existing ? existing + '\n' : '';
-                typewriteAppendItems(cleaned, prefix, setStepsBulkText, 'steps', '\n');
+                const setGroupBulk = (v: string) => setStepGroups(p => p.map(g => g.id === targetId ? {...g, bulkText: v} : g));
+                typewriteAppendItems(cleaned, prefix, setGroupBulk, 'steps', '\n');
               } else {
                 typewriteSteps(cleaned);
               }
@@ -2622,8 +3292,13 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flex: 1,
     width: '100%',
   },
+  // 과정 설명 에디터 — 기존 ghost 입력과 같은 본문 폰트
   scrollContent: {
     flexGrow: 1,
+    // 포커스된 입력이 키보드+툴바에 가리지 않도록 하단 여백.
+    // automaticallyAdjustKeyboardInsets는 키보드만 계산하고 그 위에 뜨는
+    // 입력 툴바(KEYBOARD_TOOLBAR_HEIGHT)는 모르기 때문에 직접 더한다.
+    paddingBottom: KEYBOARD_TOOLBAR_HEIGHT + Spacing.xxl,
   },
 
   // Title & Description
@@ -2681,24 +3356,12 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     gap: 8,
     paddingVertical: 10,
   },
-  methodFieldText: {
-    flex: 1,
-    fontFamily: Typography.body.medium.fontFamily,
-    fontSize: Typography.body.medium.fontSize,
-    fontWeight: Typography.body.medium.fontWeight as '500',
-    lineHeight: Typography.body.medium.lineHeight,
-    letterSpacing: Typography.body.medium.letterSpacing,
-    color: colors['foreground/on-surface'],
-    marginTop: FONT_BASELINE_OFFSET, // 다른 필드(titleInput)와 베이스라인 정렬 통일
-  },
-  methodMenu: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    marginTop: 4,
-    zIndex: 50,
-  },
-  titleInput: {
+  /**
+   * 카드 안 모든 입력의 공통 기준 — 제목·설명·별립법·행 입력이 전부 이 하나를 쓴다.
+   * 예전엔 네 스타일이 각자 marginTop/textAlignVertical/includeFontPadding을 조금씩
+   * 다르게 갖고 있어, 필드마다 글자가 미세하게 어긋났다. 여기서 한 곳으로 관리한다.
+   */
+  cardFieldInput: {
     flex: 1,
     minWidth: 0,
     fontFamily: Typography.body.medium.fontFamily,
@@ -2709,6 +3372,17 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     color: colors['foreground/on-surface'],
     padding: 0,
     marginTop: FONT_BASELINE_OFFSET,
+    // 세로 정렬은 입력이 아니라 컨테이너가 잡는다.
+    // 입력에 'center'를 주면 한 줄일 땐 맞지만 여러 줄로 늘어날 때 글이 뭉쳐 보인다.
+    textAlignVertical: 'top' as const,
+    // includeFontPadding은 끄지 않는다 — 폰트 위쪽 여백이 사라져 글자가 위로 붙는다.
+  },
+  methodMenu: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    marginTop: 4,
+    zIndex: 50,
   },
   titleMicButton: {
     width: 24,
@@ -2722,20 +3396,17 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     height: 1,
     backgroundColor: colors['surface/dim'],
   },
+  /**
+   * 카드 안 한 행의 공통 기준.
+   *
+   * 세로 여백을 "한 줄일 때의 여백"과 같은 값으로 직접 준다.
+   * justifyContent:center에만 기대면 한 줄일 땐 맞지만, 줄이 늘어나
+   * minHeight를 넘는 순간 중앙 정렬이 무력해져 위가 좁아 보인다.
+   * 패딩으로 잡으면 줄 수와 무관하게 위아래가 같다.
+   */
   descriptionContainer: {
     paddingHorizontal: Spacing.md,
-    minHeight: NAV_PILL_HEIGHT,
-    justifyContent: 'center',
-  },
-  descriptionInput: {
-    fontFamily: Typography.body.medium.fontFamily,
-    fontSize: Typography.body.medium.fontSize,
-    fontWeight: Typography.body.medium.fontWeight as '500',
-    lineHeight: Typography.body.medium.lineHeight,
-    letterSpacing: -0.25,
-    color: colors['foreground/on-surface'],
-    padding: 0,
-    marginTop: FONT_BASELINE_OFFSET,
+    paddingVertical: Math.round((NAV_PILL_HEIGHT - Typography.body.medium.lineHeight) / 2),
   },
 
   // Option Tiles
@@ -2759,12 +3430,27 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     zIndex: 20,
   },
   // 과정 묶음 롱프레스 이동 메뉴 — 헤더 좌측 아래에 뜸
-  stepGroupMoveMenu: {
+  // 헤더 + 버튼 바로 아래 (버튼이 오른쪽이므로 right 기준)
+  // 메뉴는 언제나 "기준 버튼 바로 아래 4px" — 이 규칙을 세 곳이 각자 두면 어긋난다.
+  // top:'100%'는 부모(=버튼을 감싼 relative 래퍼) 높이 기준이므로,
+  // 래퍼가 버튼 행과 같아야 위치가 맞는다.
+  // 왼쪽 아이콘 버튼 기준
+  anchoredMenuLeft: {
     position: 'absolute' as const,
     top: '100%' as any,
     left: Spacing.md,
-    marginTop: 4,
-    zIndex: 200,
+    marginTop: MENU_GAP,
+    zIndex: 9999,
+    elevation: 24,
+  },
+  // 오른쪽 + 버튼 기준
+  anchoredMenuRight: {
+    position: 'absolute' as const,
+    top: '100%' as any,
+    right: Spacing.md,
+    marginTop: MENU_GAP,
+    zIndex: 9999,
+    elevation: 24,
   },
   photoTileFilled: {
     flex: 1,
@@ -2804,19 +3490,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.sm,
-  },
-  editableRowInput: {
-    flex: 1,
-    fontFamily: Typography.body.medium.fontFamily,
-    fontSize: Typography.body.medium.fontSize,
-    fontWeight: Typography.body.medium.fontWeight as '500',
-    lineHeight: Typography.body.medium.lineHeight,
-    letterSpacing: -0.25,
-    color: colors['foreground/on-surface'],
-    padding: 0,
-    // 모든 인라인 입력 세로 중앙 정렬 (그룹 제목/항목 입력 공통) — 개별 override 금지, 여기서 한 곳 관리
-    textAlignVertical: 'center',
-    includeFontPadding: false,
   },
   amountInputContainer: {
     flexDirection: 'row',
@@ -2968,9 +3641,14 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   // bulk 멀티라인 입력: editableRowInput의 flex:1(가로 행용)이 AutoGrowInput의 자동
   // 높이를 무력화해 한 줄로 갇힌다. flex를 끄고 가로만 stretch → 세로 자동 확장 복구.
+  // bulk 멀티라인 입력 — 과정/재료 행과 같은 AutoGrowInput을 쓴다.
+  // 예전엔 flex:0으로 뒀는데, 그러면 자동 높이가 어긋나는 순간 내용이 잘린다
+  // (행 입력은 flex:1이라 부모가 높이를 채워줘서 증상이 안 보였을 뿐이다).
   bulkInput: {
-    flex: 0,
     alignSelf: 'stretch',
+    width: '100%',
+    // 여러 줄이므로 위 정렬 — editableRowInput의 'center'(가로 행용)를 덮는다
+    textAlignVertical: 'top',
   },
 
   // Overlay & Menu
@@ -3005,28 +3683,5 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.sm,
   },
-  referenceLinkChip: {
-    flexShrink: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  referenceLinkLabel: {
-    fontFamily: Typography.body.medium.fontFamily,
-    fontSize: Typography.body.medium.fontSize,
-    fontWeight: Typography.body.medium.fontWeight as '500',
-    lineHeight: Typography.body.medium.lineHeight,
-    letterSpacing: -0.25,
-    color: colors['foreground/on-surface'],
-    marginTop: FONT_BASELINE_OFFSET,
-  },
-  referenceLinkText: {
-    flexShrink: 1,
-    fontFamily: Typography.body.medium.fontFamily,
-    fontSize: Typography.body.medium.fontSize,
-    fontWeight: Typography.body.medium.fontWeight as '500',
-    lineHeight: Typography.body.medium.lineHeight,
-    color: colors['foreground/on-surface-muted'],
-    textDecorationLine: 'underline',
-  },
+  // 링크 칩/입력 스타일은 공통 UrlField로 이동
 });
