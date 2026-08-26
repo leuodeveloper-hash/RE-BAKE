@@ -4,6 +4,7 @@ export * from './FieldManageDialog';
 export * from './PdfPreviewDialog';
 export * from './TimeDialog';
 export * from './ServingsDialog';
+export * from './LinkInputDialog';
 export * from './ReviewDialog';
 export * from './IngredientAmountDialog';
 export * from './UnlockDialog';
