@@ -7,11 +7,13 @@ export function triggerHaptic(style: Style = 'light'): void {
   try {
     const Haptics = require('expo-haptics');
     switch (style) {
+      // iOS 시스템 UI 대비 약하게 느껴져 한 단계씩 올린다.
+      // (호출부는 그대로 두고 여기서만 매핑 — 강도 조정이 한 곳에 모인다)
       case 'light':
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
         break;
       case 'medium':
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
         break;
       case 'heavy':
         Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);

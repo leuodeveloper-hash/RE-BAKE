@@ -1,34 +1,28 @@
 import React from 'react';
-import Svg, {Path} from 'react-native-svg';
+import ArrowTop from '../../../assets/images/arrow_caption_top.svg';
+import ArrowBottom from '../../../assets/images/arrow_caption_bottom.svg';
 
 export interface PhotoCaptionArrowProps {
-  /** 'down' = 캡션→아래 사진을 가리킴, 'up' = 캡션→위 사진을 가리킴 */
+  /** 'down' = 위 캡션에서 아래 사진을 가리킴, 'up' = 아래 캡션에서 위 사진을 가리킴 */
   direction: 'down' | 'up';
-  color: string;
+  /** 화살표 색 — SVG fill(currentColor)을 덮어씀. muted 등 alpha 포함 색 권장 */
+  color?: string;
+  /** 세로 길이(px). 원본 27.68×49 비율 유지해 가로 자동. 기본 49(원본) */
   size?: number;
 }
 
-/**
- * 캡션이 사진을 가리키는 손그림 느낌의 곡선 화살표. (스크린샷 참고)
- * 캡션 텍스트 왼쪽에 놓여, 곡선으로 사진 모서리 방향으로 내려/올려꽂힌다.
- */
-export function PhotoCaptionArrow({direction, color, size = 28}: PhotoCaptionArrowProps) {
-  // 24x24 뷰박스 기준. down: 우상단에서 좌하단으로 곡선 + 좌하단 화살촉.
-  //                    up:   우하단에서 좌상단으로 곡선 + 좌상단 화살촉.
-  const isDown = direction === 'down';
-  // 곡선 path (2차 베지어)
-  const curve = isDown
-    ? 'M20 4 C 10 5, 5 10, 5 19'
-    : 'M20 20 C 10 19, 5 14, 5 5';
-  // 화살촉 (두 획)
-  const head = isDown
-    ? 'M5 19 L 9 15 M5 19 L 10 20'
-    : 'M5 5 L 9 9 M5 5 L 10 4';
+// Figma 원본 뷰박스 (둘 다 동일): 27.6816 × 49
+const W = 27.6816;
+const H = 49;
 
-  return (
-    <Svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <Path d={curve} stroke={color} strokeWidth={1.6} strokeLinecap="round" fill="none" />
-      <Path d={head} stroke={color} strokeWidth={1.6} strokeLinecap="round" strokeLinejoin="round" fill="none" />
-    </Svg>
-  );
+/**
+ * 캡션이 사진을 가리키는 곡선 화살표. Figma 원본 SVG(arrow_caption_top/bottom, 둘 다 27.68×49).
+ * - down(위 캡션): bottom SVG — 곡선이 아래쪽, 위에서 아래 사진으로 내려꽂힘.
+ * - up(아래 캡션): top SVG — 곡선이 위쪽, 아래에서 위 사진으로 올려꽂힘.
+ */
+export function PhotoCaptionArrow({direction, color, size = H}: PhotoCaptionArrowProps) {
+  const Arrow = direction === 'down' ? ArrowBottom : ArrowTop;
+  const height = size;
+  const width = Math.round((height * W) / H);
+  return <Arrow width={width} height={height} color={color} />;
 }

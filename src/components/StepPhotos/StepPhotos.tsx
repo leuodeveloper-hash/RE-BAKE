@@ -7,6 +7,7 @@ import {Typography} from '@constants/typography';
 import type {SemanticColors} from '@constants/tokens';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
+import {useTranslation} from '@contexts/LanguageContext';
 import type {StepPhoto} from '../../types/recipe';
 import {PhotoCaptionArrow} from './PhotoCaptionArrow';
 
@@ -55,6 +56,7 @@ export function StepPhotos({
 }: StepPhotosProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
+  const {t} = useTranslation();
   const editable = mode === 'edit';
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   // edit 모드는 이미 편집 중이므로 롱프레스 관리모드 없이 항상 캡션 입력칸·삭제(X) 노출.
@@ -107,12 +109,12 @@ export function StepPhotos({
             {/* 캡션 + 화살표: [화살표][텍스트] 가로 배치 */}
             {showCaptionRow && (
               <View style={[styles.captionRow, arrowDir === 'up' && styles.captionRowUp]}>
-                {showArrow && <PhotoCaptionArrow direction={arrowDir} color={varColor} size={24} />}
+                {showArrow && <PhotoCaptionArrow direction={arrowDir} color={varColor} />}
                 {editingThis || (editable && manage) ? (
                   <TextInput
                     style={[styles.captionText, styles.captionInput]}
                     value={editingThis ? draftCaption!.text : caption}
-                    placeholder="캡션"
+                    placeholder={t('cookingMode.captionPlaceholder')}
                     placeholderTextColor={colors['foreground/on-surface-muted']}
                     multiline
                     maxLength={60}

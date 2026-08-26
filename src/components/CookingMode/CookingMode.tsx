@@ -33,6 +33,8 @@ import {Menu, MenuItem, Subheader, type MenuItemData} from '@components/Menu';
 import {SearchCommandBar} from '@components/SearchCommandBar';
 import {Button} from '@components/Button';
 import {EditableChip} from '@components/EditableChip/EditableChip';
+import {DashedBorder} from '@components/DashedBorder/DashedBorder';
+import {RichText} from '@components/RichText/RichText';
 import {StepPhotos} from '@components/StepPhotos';
 import {PhotoCaptionArrow} from '@components/StepPhotos/PhotoCaptionArrow';
 import {normalizeStepPhotos} from '@utils/stepPhotos';
@@ -60,14 +62,14 @@ import {
   IconChevronLeft,
   IconChevronRight,
 } from '@components/Icon/IconIndex';
-import {KeyboardToolbar} from '@components/KeyboardToolbar';
+import {KEYBOARD_TOOLBAR_HEIGHT} from '@components/KeyboardToolbar';
 import {EditorToolbar} from '@components/EditorToolbar';
 import {useYouTubePlayer} from '@contexts/YouTubePlayerContext';
 import {parseYouTubeVideoId} from '@utils/youtube';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useKeyboardHeight} from '@hooks/useKeyboardHeight';
 import {useEscapeKey} from '@hooks/useEscapeKey';
-import {useColors} from '@contexts/ThemeContext';
+import {useColors, ForceDarkTheme} from '@contexts/ThemeContext';
 import {useAuthSheet} from '@contexts/AuthSheetContext';
 import {useAuth} from '@contexts/AuthContext';
 import {useTranslation} from '@contexts/LanguageContext';
@@ -279,6 +281,8 @@ export function CookingMode({
   const [showGroupMenu, setShowGroupMenu] = useState(false);
   const [showRecipeMenu, setShowRecipeMenu] = useState(false);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  // 방금 추가한 팁/주의 입력칸 → 마운트 시 자동 포커스 대상 (커서 바로 이동)
+  const [autoFocusField, setAutoFocusField] = useState<{globalIndex: number; field: 'tip' | 'caution'} | null>(null);
   const [showScanMenu, setShowScanMenu] = useState(false);
   const [ocrBusy, setOcrBusy] = useState(false);
   // 유튜브 PiP는 상세와 동일한 전역 인스턴스(videoId 공유 → 이어재생) 사용. 단, 요리모드는
@@ -308,10 +312,11 @@ export function CookingMode({
   const [photoExpanded, setPhotoExpanded] = useState(false);
   // 사진 전체보기 뷰어 (탭 시). editing = 편집모드(editCards 경로) 여부
   const [viewerPhoto, setViewerPhoto] = useState<{card: CookingCard; index: number; editing: boolean} | null>(null);
-  // 사진 관리모드 (썸네일 롱프레스 → X 삭제 노출, 탭=교체)
-  const [photoManage, setPhotoManage] = useState(false);
-  // 관리모드에서 롱프레스한 사진 index — 그 사진을 맨 앞(zIndex 최상단)으로 올려 X버튼이 안 가리게.
+  // 롱프레스로 선택된 사진 index — 그 사진 하나만 편집(X 삭제·캡션 입력)하고 맨 앞(zIndex 최상단)으로.
+  // null이면 편집 중인 사진 없음. 다시 롱프레스하면 해제.
   const [activePhotoIdx, setActivePhotoIdx] = useState<number | null>(null);
+  // 뷰어 좌우 스와이프 시작 x좌표
+  const viewerSwipeXRef = useRef(0);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [showInfoTooltip, setShowInfoTooltip] = useState(false);
@@ -385,7 +390,17 @@ export function CookingMode({
   // 좁은 화면에선 사진이 잘려 보이고 슬라이드로 노출, 넓은 화면이면 다 보임. 눈금은 스텝 단위 스냅.
   const PAD = 28;
   const PHOTO_W = 180;
-  const PHOTO_STEP = PHOTO_W * 0.6; // 사진 간 간격(많이 겹침)
+  // Figma 컬럼 = 198.21 × 440. 카드(180)보다 높이가 훨씬 커서 위/아래로 벌어진다.
+  // 높이를 카드 크기로만 주면 컬럼이 눌려 카드끼리 붙어 보인다.
+  const PHOTO_STEP_RATIO = 0.8; // 클수록 덜 겹침 (Figma 컬럼 step 110/198 기준 여유 있게)
+  const PHOTO_STEP = PHOTO_W * PHOTO_STEP_RATIO;
+  const PHOTO_COL_H = Math.round(PHOTO_W * (440 / 198.21)); // ≈400 (Figma 440/198 비율)
+  // 회전한 카드가 ScrollView 경계에서 잘리지 않게 확보하는 여유 폭.
+  // 8° 회전 시 튀어나오는 최대치 ≈ w*sin(8°)/2 ≈ 13 → 넉넉히 24.
+  const PHOTO_CLIP_PAD = 24;
+  // 하단 눈금바(FloatingNavBar, absolute) 실제 높이 = 세이프에리어 + 상하 패딩 + pill.
+  // 디바이스마다 insets.bottom이 달라지므로 반드시 이 값을 통해 계산할 것.
+  const RULER_BAR_H = insets.bottom + Spacing.md * 2 + 48;
   const MAX_TEXT_W = 380;
   const textColW = Math.max(180, Math.min(containerWidth - PAD * 2 - 48, MAX_TEXT_W));
   // 사진 카드 수 = 사진(최대3) + 추가카드(편집 가능 & 3장 미만)
@@ -765,12 +780,16 @@ export function CookingMode({
 
   // Editing
   const startEditing = useCallback(() => {
-    setEditCards(flatCards.map(c => ({...c, editIngredients: [...c.matchedIngredients]})));
+    const initialCards = flatCards.map(c => ({...c, editIngredients: [...c.matchedIngredients]}));
+    setEditCards(initialCards);
+    editCardsRef.current = initialCards;
     setEditAdvice(advice ?? '');
     setEditAdvicePhotos(advicePhotos ?? []);
     undoStackRef.current = [];
     redoStackRef.current = [];
-    savedSnapshotRef.current = null;
+    // 편집 진입 시점의 editCards를 기준(baseline)으로 잡는다. null로 두고 flatCards(구조가 다름:
+    // editIngredients 없음)와 비교하면 dirty 판정이 어긋나 편집해도 저장을 놓치는 버그가 있었음.
+    savedSnapshotRef.current = snapshotEditCards(initialCards);
     setHistoryVersion(0);
     setIsEditing(true);
     if (!isOnAdviceCard) {
@@ -791,7 +810,7 @@ export function CookingMode({
         }
       }, 100);
     }
-  }, [flatCards, currentIndex, advice, advicePhotos, isOnAdviceCard]);
+  }, [flatCards, currentIndex, advice, advicePhotos, isOnAdviceCard, snapshotEditCards]);
 
   const handleDoubleTap = useCallback(() => {
     if (!canEdit || isEditing) return;
@@ -1006,6 +1025,13 @@ export function CookingMode({
   ], [t]);
 
   // 메뉴 선택 핸들러
+  // autoFocus는 마운트 1회만 필요 → 한 프레임 뒤 플래그 해제 (재렌더마다 재포커스 방지)
+  useEffect(() => {
+    if (!autoFocusField) return;
+    const id = setTimeout(() => setAutoFocusField(null), 300);
+    return () => clearTimeout(id);
+  }, [autoFocusField]);
+
   const handleAddMenuSelect = useCallback((menuId: string) => {
     const card = editCards[currentIndex];
     if (!card) return;
@@ -1019,10 +1045,13 @@ export function CookingMode({
       updateEditCards(prev => prev.map(c =>
         c.globalIndex === card.globalIndex ? {...c, tip: c.tip ?? ''} : c,
       ));
+      // 방금 추가한 팁 입력칸으로 커서 이동 (EditableChip autoFocus)
+      setAutoFocusField({globalIndex: card.globalIndex, field: 'tip'});
     } else if (menuId === 'caution') {
       updateEditCards(prev => prev.map(c =>
         c.globalIndex === card.globalIndex ? {...c, caution: c.caution ?? ''} : c,
       ));
+      setAutoFocusField({globalIndex: card.globalIndex, field: 'caution'});
     } else if (menuId === 'camera' || menuId === 'gallery') {
       pickPhoto(menuId, card.globalIndex, card.photos);
     }
@@ -1179,9 +1208,13 @@ export function CookingMode({
   const renderPhotoStack = useCallback((item: CookingCard, editing: boolean) => {
     const photos = (item.photos ?? []).slice(0, 3);
     const photoW = isNarrow ? 96 : PHOTO_W;
-    const photoStep = isNarrow ? photoW - 12 : photoW * 0.6;
+    // 회전한 모서리가 안 잘리게 컬럼은 카드보다 넓게(Figma 198 : 카드 180).
+    const frameW = Math.round(photoW * 1.1);
+    // 좁은 화면은 겹침·기울임 없이 일렬(그리드)로 — 좁은데 겹쳐 쌓으면 안 보인다.
+    // 넓은 화면만 Figma 원본대로 겹치고 기울인다.
+    const stepAt = () => isNarrow ? photoW + Spacing.lg : photoW * PHOTO_STEP_RATIO;
     const tilts = [-8, 6, -6];
-    const lifts = isNarrow ? [0, 0, 0] : [-56, 56, -56];
+    const lifts = [0, 0, 0];
     // 권한(canEdit) 있을 때만 사진 추가(+) 버튼 노출 — 어드민/내 레시피 아니면 아예 안 보임.
     const showAdd = photos.length < 3 && canEdit;
     const onAdd = () => {
@@ -1217,78 +1250,151 @@ export function CookingMode({
         styles.photoRow,
         // 편집·좁은 화면은 세로 배치라 좌측 라인(본문·재료)에 맞춤(marginLeft 0).
         // 넓은 화면 보기 모드만 텍스트 옆 가로 배치라 간격 40.
+        // 높이는 Figma 컬럼(440)에 맞춘다. 카드 높이(180)로만 주면 컬럼이 눌려
+        // 카드가 위아래로 못 벌어지고 서로 붙어 보인다.
         (isNarrow || editing)
-          ? {marginLeft: 0, marginTop: Spacing.lg, height: photoW, alignSelf: 'flex-start'}
-          : {marginLeft: 40},
+          ? {
+              // 회전 모서리가 잘리지 않게 사방 여유(padding) + 왼쪽은 음수 마진으로
+              // 당겨 원래 시작선 유지.
+              // 기울기가 있으므로 회전 모서리용 여유 필요(좁은 화면도 동일).
+              marginLeft: -PHOTO_CLIP_PAD,
+              padding: PHOTO_CLIP_PAD,
+              // 높이는 내용(카드 + 캡션)에 맡긴다 — 고정하면 캡션이 밖으로 넘쳐
+              // 눈금바와 겹친다.
+              // 눈금바(absolute: safeBottom + 패딩 16*2 + pill 48)에 가리지 않게.
+              marginBottom: RULER_BAR_H,
+              alignSelf: 'flex-start',
+            }
+          : {marginLeft: 40, height: PHOTO_COL_H},
       ]}>
-        {photos.map((p, i) => (
+        {photos.map((p, i) => {
+          // 롱프레스로 선택된 그 사진만 편집(X·캡션·맨앞). canEdit 없으면 항상 false.
+          const manageThis = canEdit && activePhotoIdx === i;
+          const cap = p.caption ?? '';
+          // 캡션 행은 "항상" 렌더해 자리를 차지하고 보이기만 opacity로 토글한다.
+          // (조건부 렌더하면 롱프레스로 캡션이 생길 때 행 높이만큼 레이아웃이 밀려 내려감)
+          const showCap = manageThis || !!cap.trim();
+          // 짝수 사진 = 캡션 위(화살표 down), 홀수 = 캡션 아래(화살표 up). Figma 원본 교차 배치.
+          // 좁은 화면은 캡션을 모두 아래로 — 위/아래 교차하면 카드 상단이 어긋난다.
+          const captionAbove = isNarrow ? false : i % 2 === 0;
+
+          // 캡션 행: [화살표 27.68×49][gap 6][텍스트/입력 flex]. Figma 원본 구조 그대로(오버레이 아님).
+          const captionRow = (
+            <View
+              style={[
+                styles.photoCaptionRow,
+                {width: photoW},
+                // 좁은 화면은 화살표가 없어 2줄(24) 고정. 넓은 화면은 화살표(49) 기준.
+                isNarrow && {height: 24},
+                !showCap && {opacity: 0},
+              ]}
+              pointerEvents={showCap ? 'auto' : 'none'}>
+              {/* 좁은 화면은 캡션 폭(=사진 폭 96)이 좁아 화살표가 텍스트를 밀어낸다 → 생략 */}
+              {isNarrow ? null : (
+                <PhotoCaptionArrow direction={captionAbove ? 'down' : 'up'} color={colors['foreground/on-surface-muted']} />
+              )}
+              {manageThis ? (
+                <RNTextInput
+                  style={styles.photoCaptionInput}
+                  value={cap}
+                  placeholder={t('cookingMode.captionPlaceholder')}
+                  placeholderTextColor={colors['foreground/on-surface-muted']}
+                  multiline
+                  // 표시(Text)와 동일하게 최대 2줄 — 더 길어지면 사진 행이
+                  // 늘어나 눈금바와 겹친다.
+                  numberOfLines={2}
+                  maxLength={60}
+                  returnKeyType="done"
+                  blurOnSubmit
+                  onChangeText={(v) => onCaption(i, v)}
+                  onSubmitEditing={() => setActivePhotoIdx(null)}
+                />
+              ) : (
+                <Text style={styles.photoCaptionText} numberOfLines={2}>{cap}</Text>
+              )}
+            </View>
+          );
+
+          return (
           <View
             key={i}
-            style={[styles.photoCard, {
-              width: photoW, height: photoW,
-              marginLeft: i === 0 ? 0 : -(photoW - photoStep),
-              transform: [{translateY: lifts[i] ?? 0}, {rotate: `${tilts[i] ?? 0}deg`}],
-              // 관리모드에서 롱프레스한 사진은 맨 앞으로(X버튼 안 가리게)
-              zIndex: (photoManage && activePhotoIdx === i) ? 99 : i,
+            style={[styles.photoColumn, {
+              width: frameW,
+              // step은 카드 기준이므로 카드 폭에서 뺀다(컬럼 폭 아님).
+              marginLeft: i === 0 ? 0 : -(photoW - stepAt()) - (frameW - photoW),
+              // 좁은/편집은 부모 높이가 내용 기준이라 100%를 주면 캡션이 눌린다.
+              ...(isNarrow || editing ? null : {height: '100%' as const}),
+              // 캡션이 아래면 사진을 아래로 붙인다(캡션 없어도 자리는 유지되므로
+              // 사진 위치가 흔들리지 않음). 캡션이 위면 위 기준.
+              justifyContent: captionAbove ? 'flex-start' : 'flex-end',
+              // 회전은 사진 카드에만(Figma 구조) — 캡션 행은 수평 유지.
+              transform: [{translateY: lifts[i] ?? 0}],
+              zIndex: manageThis ? 99 : i,
+            }]}>
+            {/* 캡션 위 배치일 때만 여기 — 없어도 opacity 0으로 자리는 유지 */}
+            {captionAbove ? captionRow : null}
+            <View style={[styles.photoCard, {
+              width: photoW,
+              height: photoW,
+              transform: [{rotate: `${tilts[i] ?? 0}deg`}],
+            }]}>
+              <Pressable
+                style={{flex: 1}}
+                onPress={() => {
+                  if (manageThis) onReplace(i);
+                  else setViewerPhoto({card: item, index: i, editing});
+                }}
+                onLongPress={canEdit ? () => setActivePhotoIdx(prev => prev === i ? null : i) : undefined}
+                delayLongPress={300}>
+                <Image source={{uri: p.uri}} style={{flex: 1, borderRadius: 13}} resizeMode="cover" />
+              </Pressable>
+              {manageThis ? (
+                <Pressable style={styles.photoDeleteBtn} hitSlop={8} onPress={() => onDelete(i)}>
+                  <IconClose width={12} height={12} color={colors['foreground/on-surface-inverse']} />
+                </Pressable>
+              ) : null}
+            </View>
+            {!captionAbove ? captionRow : null}
+          </View>
+          );
+        })}
+        {showAdd ? (
+          // 추가 카드도 사진과 같은 [겉 프레임][회전 카드] 2중 구조 (Figma 3번째 컬럼).
+          <View
+            style={[styles.photoColumn, {
+              width: frameW,
+              marginLeft: photos.length === 0
+                ? 0
+                : -(photoW - stepAt()) - (frameW - photoW),
+              ...(isNarrow || editing ? null : {height: '100%' as const}),
+              // Figma 추가 카드는 위쪽 정렬(pt-48).
+              justifyContent: isNarrow ? 'flex-start' : (photos.length % 2 === 0 ? 'flex-start' : 'flex-end'),
+              zIndex: photos.length,
             }]}>
             <Pressable
-              style={{flex: 1}}
-              onPress={() => {
-                if (canEdit && photoManage) onReplace(i);
-                else setViewerPhoto({card: item, index: i, editing});
-              }}
-              onLongPress={canEdit ? () => { setActivePhotoIdx(i); setPhotoManage(m => !m); } : undefined}
-              delayLongPress={300}>
-              <Image source={{uri: p.uri}} style={{flex: 1, borderRadius: 11}} resizeMode="cover" />
+              onPress={onAdd}
+              style={[styles.emptyPack, {
+                width: photoW,
+                height: photoW,
+                transform: [{rotate: `${tilts[photos.length] ?? 4.16}deg`}],
+              }]}>
+              <DashedBorder
+                width={photoW}
+                radius={16}
+                strokeWidth={1}
+                dash={8}
+                gap={6}
+                color={colors['border/normal']}
+              />
+              <View style={styles.addCircle}>
+                <AppIcon icon={IconAdd} size="md" color={colors['foreground/on-surface-muted']} />
+              </View>
             </Pressable>
-            {canEdit && photoManage ? (
-              <Pressable style={styles.photoDeleteBtn} hitSlop={8} onPress={() => onDelete(i)}>
-                <IconClose width={12} height={12} color={colors['foreground/on-surface-inverse']} />
-              </Pressable>
-            ) : null}
-            {/* 캡션(설명): 관리모드면 입력칸, 아니면 있을 때만 표시. 짝수=위/홀수=아래로 교차, 화살표는 요리모드만. */}
-            {(() => {
-              const cap = p.caption ?? '';
-              const showCap = (canEdit && photoManage) || !!cap.trim();
-              if (!showCap) return null;
-              const up = i % 2 === 1;
-              return (
-                <View style={[styles.photoCaptionWrap, up ? styles.photoCaptionDown : styles.photoCaptionUp]}>
-                  <PhotoCaptionArrow direction={up ? 'up' : 'down'} color={colors['foreground/on-surface-var']} size={22} />
-                  {canEdit && photoManage ? (
-                    <RNTextInput
-                      style={styles.photoCaptionInput}
-                      value={cap}
-                      placeholder="캡션"
-                      placeholderTextColor={colors['foreground/on-surface-muted']}
-                      multiline
-                      maxLength={60}
-                      returnKeyType="done"
-                      blurOnSubmit
-                      onChangeText={(v) => onCaption(i, v)}
-                      // 완료(제출) 시 관리모드 종료 — "입력 끝내면 편집모드 빠져나오기"
-                      onSubmitEditing={() => setPhotoManage(false)}
-                    />
-                  ) : (
-                    <Text style={styles.photoCaptionText} numberOfLines={2}>{cap}</Text>
-                  )}
-                </View>
-              );
-            })()}
           </View>
-        ))}
-        {showAdd ? (
-          <Pressable
-            onPress={onAdd}
-            style={[styles.emptyPack, {width: photoW, height: photoW, marginLeft: photos.length === 0 ? 0 : -(photoW - photoStep), zIndex: photos.length}]}>
-            <View style={styles.addCircle}>
-              <AppIcon icon={IconAdd} size="md" color={colors['foreground/on-surface-muted']} />
-            </View>
-          </Pressable>
         ) : null}
       </View>
     );
-  }, [isNarrow, canEdit, user, photoManage, activePhotoIdx, openAuthSheet, pickPhoto, addStepPhoto, replacePhoto, replaceStepPhotoView, removePhoto, commitStepPhotos, updateCardPhotoCaption, showSnackbar, styles, colors, t]);
+  }, [isNarrow, canEdit, user, activePhotoIdx, insets.bottom, openAuthSheet, pickPhoto, addStepPhoto, replacePhoto, replaceStepPhotoView, removePhoto, commitStepPhotos, updateCardPhotoCaption, showSnackbar, styles, colors, t]);
 
   // 보기(요리) 스텝 — [텍스트 칼럼(좌)][사진 최대 3장 일렬·기울임 + 추가카드(우)].
   // 사진은 고정 크기, 좁으면 잘리고 슬라이드로 노출.
@@ -1301,18 +1407,28 @@ export function CookingMode({
       ]}>
         {/* 텍스트 칼럼 (넓을 땐 고정폭·좌측, 좁을 땐 전체폭·상단) */}
         <View style={isNarrow ? {flex: 1, width: '100%'} : {width: textColW, height: '100%'}}>
-          <ScrollView style={{flex: 1}} contentContainerStyle={styles.viewScrollContent} showsVerticalScrollIndicator={false}>
+          <ScrollView
+            style={{flex: 1}}
+            contentContainerStyle={[
+              styles.viewScrollContent,
+              // 편집과 동일 — 앱바·눈금바 자리를 콘텐츠 패딩으로 확보
+              {
+                paddingTop: insets.top + 54 + Spacing.md,
+                paddingBottom: RULER_BAR_H + 24,
+              },
+            ]}
+            showsVerticalScrollIndicator={false}>
             <Pressable onPress={canEdit ? handleDoubleTap : undefined}>
-              <Text style={[styles.descLarge, cookingBodyFont]}>{item.description}</Text>
+              <RichText style={[styles.descLarge, cookingBodyFont]}>{item.description}</RichText>
             </Pressable>
             {item.tip ? (
-              <View style={[styles.noteBlock, {borderLeftColor: colors['custom/grey-var']}]}>
-                <Text style={[styles.noteInlineText, cookingBodyFont, {marginTop: 0}]}>{item.tip}</Text>
+              <View style={[styles.noteBlock, {borderLeftColor: colors['foreground/on-surface-muted']}]}>
+                <RichText style={[styles.noteInlineText, cookingBodyFont, {marginTop: 0}]}>{item.tip}</RichText>
               </View>
             ) : null}
             {item.caution ? (
               <View style={[styles.noteBlock, {borderLeftColor: colors['custom/yellow-var']}]}>
-                <Text style={[styles.noteInlineText, cookingBodyFont, {color: colors['custom/yellow-var'], marginTop: 0}]}>{item.caution}</Text>
+                <RichText style={[styles.noteInlineText, cookingBodyFont, {color: colors['custom/yellow-var'], marginTop: 0}]}>{item.caution}</RichText>
               </View>
             ) : null}
             {item.matchedIngredients.length > 0 ? (
@@ -1330,9 +1446,11 @@ export function CookingMode({
                 })}
               </View>
             ) : null}
-            {/* 모바일: 사진을 글 밑에 붙여 flow (고정 X, 넘치면 함께 스크롤) */}
-            {isNarrow && renderPhotoStack(item, false)}
           </ScrollView>
+          {/* 사진 경계에서 본문이 딱 잘리지 않게 페이드 */}
+          {isNarrow ? <ContentMask topHeight={0} bottomHeight={40} /> : null}
+          {/* 모바일: 사진은 ScrollView 밖(아래 형제) — 본문만 스크롤되고 사진은 하단 고정 */}
+          {isNarrow && renderPhotoStack(item, false)}
         </View>
         {/* 태블릿/넓은 화면: 사진은 우측 컬럼에 고정 배치 */}
         {!isNarrow && renderPhotoStack(item, false)}
@@ -1346,9 +1464,20 @@ export function CookingMode({
     // 보기 모드(편집 아님)는 새 풀스크린 레이아웃
     if (!isCurrentEditing) return renderViewStep(item);
 
+    // 앱바/눈금바 자리는 상·하단 Pressable 스페이서가 이미 비워둔다(이 카드는 그 사이).
+    // 여기서 또 패딩을 주면 이중이 되어 본문이 과하게 눌린다.
+    // 카드 바깥 탭 — 사진 편집 중이면 해제, 아니면 편집 종료(=저장).
+    // (기존엔 상·하단 스페이서가 이 역할을 했는데 스페이서를 없애면서 여기로 옮김)
     return (
-      <View style={styles.cardOuter}>
-        <Card style={styles.mainCard}>
+      <View
+        style={styles.cardOuter}
+        onStartShouldSetResponder={() => activePhotoIdx !== null || isCurrentEditing}
+        onResponderRelease={() => {
+          if (activePhotoIdx !== null) setActivePhotoIdx(null);
+          else if (isCurrentEditing) exitEditing();
+        }}>
+        {/* clip=false — 회전한 사진 카드가 모서리에서 잘리지 않게 */}
+        <Card clip={false} style={styles.mainCard}>
           {/* Step count + actions — 편집 중엔 스텝 번호 줄 숨김(편집 대상 아님). 하단 눈금으로 위치 확인 */}
           {!isCurrentEditing && (
             <View style={styles.cardHeader}>
@@ -1367,10 +1496,26 @@ export function CookingMode({
             </View>
           )}
 
-          {/* Scrollable content: description + chips */}
+          {/* Scrollable content: description + chips
+              앱바(FloatingNavBar)·하단 눈금과 겹치지 않게 위아래를 비우고,
+              글이 길어지면 그 사이에서 스크롤된다.
+              ContentMask로 위/아래 페이드 → 내용이 더 있다는 걸 알 수 있게. */}
+          {/* 본문 스크롤 영역 — flex:1로 남은 공간을 채운다.
+              사진은 이 아래 형제로 놓여 하단에 고정된다. */}
+          <View style={{flex: 1, minHeight: 0}}>
           <ScrollView
-            style={{flex: 1}}
-            contentContainerStyle={styles.scrollContent}
+            // 회전한 사진 카드가 좌우 경계에서 잘리지 않게 클립 해제.
+            // 앱바/눈금바 겹침은 ContentMask 그라디언트가 덮는다.
+            style={{flex: 1, overflow: 'visible'}}
+            contentContainerStyle={[
+              styles.scrollContent,
+              {
+                // 앱바(absolute) 높이만큼 위를 비운다.
+                paddingTop: insets.top + 54 + Spacing.md,
+                // 편집 툴바(하단 고정)에 마지막 줄이 가리지 않게 그 높이만큼 비운다.
+                paddingBottom: KEYBOARD_TOOLBAR_HEIGHT + insets.bottom + Spacing.md,
+              },
+            ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             automaticallyAdjustKeyboardInsets>
@@ -1390,7 +1535,7 @@ export function CookingMode({
               />
             ) : (
               <Pressable onPress={canEdit ? handleDoubleTap : undefined}>
-                <Text style={styles.description}>{item.description}</Text>
+                <RichText style={styles.description}>{item.description}</RichText>
               </Pressable>
             )}
 
@@ -1401,6 +1546,7 @@ export function CookingMode({
                   label={item.tip}
                   variant="tip"
                   size="large"
+                  autoFocus={autoFocusField?.globalIndex === item.globalIndex && autoFocusField.field === 'tip'}
                   onChangeText={text => updateCardField(item.globalIndex, 'tip', text)}
                   onRemove={() => removeCardField(item.globalIndex, 'tip')}
                   placeholder={t('cookingMode.tipPlaceholder')}
@@ -1417,6 +1563,7 @@ export function CookingMode({
                   label={item.caution}
                   variant="yellow"
                   size="large"
+                  autoFocus={autoFocusField?.globalIndex === item.globalIndex && autoFocusField.field === 'caution'}
                   onChangeText={text => updateCardField(item.globalIndex, 'caution', text)}
                   onRemove={() => removeCardField(item.globalIndex, 'caution')}
                   placeholder={t('cookingMode.cautionPlaceholder')}
@@ -1426,9 +1573,12 @@ export function CookingMode({
               ) : null
             ) : null}
 
-            {/* Photos — 글 바로 밑에 붙여 flow (고정 X, 내용 넘치면 스크롤) */}
-            {renderPhotoStack(item, true)}
           </ScrollView>
+          {/* 사진 경계에서 본문이 딱 잘리지 않게 페이드 */}
+          <ContentMask topHeight={0} bottomHeight={40} />
+          </View>
+          {/* Photos — ScrollView(flex:1) 아래 형제. 본문이 길어도 여기 머문다. */}
+          {renderPhotoStack(item, true)}
 
           {isCurrentEditing ? (
             <Pressable style={styles.ingredientsSection} onPress={() => setShowIngredientPicker(true)}>
@@ -1472,7 +1622,7 @@ export function CookingMode({
         </Card>
       </View>
     );
-  }, [isEditing, renderViewStep, renderPhotoStack, styles, colors, updateCardField, totalCards, photoExpanded, checkedIngredients, toggleIngredient, undo, redo, canUndo, canRedo, showAddMenu, showPhotoSubmenu, addMenuItems, photoSubmenuItems, handleAddMenuSelect, removeCardField, canEdit, handleDoubleTap, showCardOverflow, cardOverflowItems, handleCardOverflowSelect, t]);
+  }, [isEditing, renderViewStep, renderPhotoStack, styles, colors, updateCardField, totalCards, photoExpanded, checkedIngredients, toggleIngredient, undo, redo, canUndo, canRedo, showAddMenu, showPhotoSubmenu, addMenuItems, photoSubmenuItems, handleAddMenuSelect, removeCardField, canEdit, handleDoubleTap, showCardOverflow, cardOverflowItems, handleCardOverflowSelect, activePhotoIdx, exitEditing, insets.top, insets.bottom, t]);
 
   return (
     <BottomSheet
@@ -1602,14 +1752,8 @@ export function CookingMode({
         <Animated.View
           style={{flex: 1, opacity: contentReady ? fadeAnim : 0}}
           onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
-          {/* 하단 마스크 그라디언트 (공통) — 상단은 FloatingNavBar가 자체 마스크 처리 */}
-          <ContentMask
-            topHeight={0}
-            bottomHeight={insets.bottom + Spacing.md * 2 + 48 + 24}
-          />
-          {/* FloatingNavBar 높이만큼만 비움 = safeTop(insets.top) + paddingTop(10) + pill(44) = insets.top + 54.
-              기존 +72는 18px 과다 → 앱바 위/아래에 빈 공간이 생겨 콘텐츠가 아래로 밀렸음. */}
-          <Pressable style={{height: insets.top + 54}} onPress={isEditing ? exitEditing : undefined} />
+          {/* 여백은 각 카드의 스크롤 콘텐츠가 패딩으로 갖는다(스페이서 없음) —
+              스크롤 영역이 화면 전체를 써야 마스크 그라디언트가 자연스럽게 걸린다. */}
           <Animated.ScrollView
             ref={scrollViewRef as any}
             horizontal
@@ -1627,7 +1771,7 @@ export function CookingMode({
             onScrollEndDrag={handleScrollEndDrag}
             onMomentumScrollEnd={handleScrollEnd}>
             {displayCards.map((card, index) => (
-              <View key={card.globalIndex} style={{width: pageWidths[index]}}>
+              <View key={card.globalIndex} style={{width: pageWidths[index], overflow: 'visible'}}>
                 {renderCard(card, index === currentIndex)}
               </View>
             ))}
@@ -1637,13 +1781,20 @@ export function CookingMode({
               return (
                 <View
                   key="advice"
-                  style={{width: pageWidths[adviceIdx]}}>
+                  // 카드 박스 자체가 앱바·눈금바 바깥 영역에 놓이게 한다.
+                  // (콘텐츠 패딩으로 밀면 카드 배경은 여전히 앱바 밑까지 깔린다)
+                  style={{
+                    width: pageWidths[adviceIdx],
+                    // 바에 딱 붙지 않게 여유를 더 준다 (다른 카드의 +24와 같은 기준)
+                    paddingTop: insets.top + 54 + Spacing.md + 24,
+                    paddingBottom: RULER_BAR_H + 24,
+                  }}>
                   <View style={styles.cardOuter}>
                     <Card variant="yellow" style={styles.adviceCard}>
                       {/* Header */}
                       <View style={styles.cardHeader}>
                         <View style={[styles.adviceTitleRow, {flex: 1}]}>
-                          <AppIcon icon={IconLogoSymbol} size="sm" color={colors['custom/yellow-var']} />
+                          <AppIcon icon={IconLogoSymbol} size="sm" color={colors['custom/yellow']} />
                           <Text style={styles.adviceTitle}>{t('cookingMode.bakeyAdvice')}</Text>
                         </View>
                         {/* + 버튼 제거 — 편집 시 하단 EditorToolbar의 추가 기능으로 통합 (중복 제거) */}
@@ -1663,7 +1814,7 @@ export function CookingMode({
                           />
                         ) : (
                           <Pressable onPress={canEdit ? handleDoubleTap : undefined}>
-                            <Text style={styles.adviceBody}>{advice}</Text>
+                            <RichText style={styles.adviceBody}>{advice}</RichText>
                           </Pressable>
                         )}
                       </ScrollView>
@@ -1711,7 +1862,13 @@ export function CookingMode({
               );
             })()}
           </Animated.ScrollView>
-          <Pressable style={{height: insets.bottom + Spacing.md * 2 + 48 + 24}} onPress={isEditing ? exitEditing : undefined} />
+          {/* 상·하단 마스크 그라디언트 — ScrollView "뒤"에 둬야 위에 그려진다.
+              앞에 두면 스크롤 내용에 가려 페이드가 안 보인다.
+              앱바/눈금바가 absolute라 스크롤한 글이 그 뒤를 지나가므로 양쪽 다 필요. */}
+          <ContentMask
+            topHeight={insets.top + 54}
+            bottomHeight={RULER_BAR_H + 24}
+          />
         </Animated.View>
 
         {/* 편집 키보드 툴바: 과정이동·실행취소/다시·추가·사진 + 완료 (우측 상단 편집 툴바 통합) */}
@@ -1864,47 +2021,77 @@ export function CookingMode({
 
         {/* 사진 전체보기 뷰어 — 탭하면 큰 이미지 풀스크린. 편집 가능하면 교체/삭제 */}
         {viewerPhoto && (() => {
-          const uri = viewerPhoto.card.photos?.[viewerPhoto.index]?.uri;
+          const photos = viewerPhoto.card.photos ?? [];
+          const uri = photos[viewerPhoto.index]?.uri;
           if (!uri) return null;
+          const total = photos.length;
+          const goNext = () => setViewerPhoto(v => v && total > 1
+            ? {...v, index: (v.index + 1) % total}
+            : v);
+          const goPrev = () => setViewerPhoto(v => v && total > 1
+            ? {...v, index: (v.index - 1 + total) % total}
+            : v);
+          const doReplace = () => {
+            const {card, index, editing} = viewerPhoto;
+            setViewerPhoto(null);
+            // 편집모드=editCards 경로, 뷰=onUpdate 경로 (경험 동일)
+            if (editing) replacePhoto(card.globalIndex, index, card.photos);
+            else replaceStepPhotoView(card, index);
+          };
+          const doDelete = () => {
+            const {card, index, editing} = viewerPhoto;
+            setViewerPhoto(null);
+            if (editing) {
+              removePhoto(card.globalIndex, index, card.photos);
+            } else {
+              const np = (card.photos ?? []).filter((_, k) => k !== index);
+              const ok = commitStepPhotos(card, np);
+              showSnackbar(ok ? t('cookingMode.photoDeleted') : t('cookingMode.photoDeleteFailed'));
+            }
+          };
           return (
             <Modal visible transparent animationType="fade" onRequestClose={() => setViewerPhoto(null)} statusBarTranslucent>
+              {/* 뷰어는 배경이 늘 검정 → 하위 컴포넌트(알약·아이콘)도 다크 고정 */}
+              <ForceDarkTheme>
               <View style={styles.viewerRoot}>
+                {/* 배경 탭 = 닫기 */}
                 <Pressable style={StyleSheet.absoluteFill} onPress={() => setViewerPhoto(null)} />
-                <Image source={{uri}} style={styles.viewerImage} resizeMode="contain" />
-                {canEdit ? (
-                  <View style={styles.viewerActionsWrap}>
-                    <BottomActionBar background="#000000">
-                      <Button
-                        label={t('cookingMode.replace')}
-                        variant="soft"
-                        onPress={() => {
-                          const {card, index, editing} = viewerPhoto;
-                          setViewerPhoto(null);
-                          // 편집모드=editCards 경로, 뷰=onUpdate 경로 (경험 동일)
-                          if (editing) replacePhoto(card.globalIndex, index, card.photos);
-                          else replaceStepPhotoView(card, index);
-                        }}
-                      />
-                      <Button
-                        label={t('cookingMode.delete')}
-                        variant="soft"
-                        destructive
-                        onPress={() => {
-                          const {card, index, editing} = viewerPhoto;
-                          setViewerPhoto(null);
-                          if (editing) {
-                            removePhoto(card.globalIndex, index, card.photos);
-                          } else {
-                            const np = (card.photos ?? []).filter((_, k) => k !== index);
-                            const ok = commitStepPhotos(card, np);
-                            showSnackbar(ok ? t('cookingMode.photoDeleted') : t('cookingMode.photoDeleteFailed'));
-                          }
-                        }}
-                      />
-                    </BottomActionBar>
-                  </View>
-                ) : null}
+                {/* 이미지 탭 = 다음 이미지로 순환 (여러 장일 때). 페이지처럼 최소 너비 확보. */}
+                {/* Pressable에 높이를 줘야 안쪽 Image의 height:'74%'가 기준을 갖는다
+                    (auto 높이면 퍼센트가 0으로 계산돼 이미지가 안 보인다) */}
+                <Pressable
+                  onPress={total > 1 ? undefined : goNext}
+                  style={{height: '74%', justifyContent: 'center'}}
+                  // 좌우 스와이프로 이전/다음 사진 (탭은 다음)
+                  onStartShouldSetResponder={() => total > 1}
+                  onResponderGrant={e => { viewerSwipeXRef.current = e.nativeEvent.pageX; }}
+                  onResponderRelease={e => {
+                    const dx = e.nativeEvent.pageX - viewerSwipeXRef.current;
+                    if (Math.abs(dx) < 40) { goNext(); return; } // 탭
+                    if (dx < 0) goNext(); else goPrev();
+                  }}>
+                  <Image
+                    source={{uri}}
+                    style={[styles.viewerImage, {width: Math.min(Math.max(containerWidth * 0.92, 280), MAX_CONTENT_WIDTH)}]}
+                    resizeMode="contain"
+                  />
+                </Pressable>
+                {/* 상단바 — AppBar 패턴: 좌측 닫기(X), 우측 교체/삭제 아이콘. 콘텐츠 너비 자동. */}
+                <FloatingNavBar
+                  tintColor="#000000"
+                  left={<NavPillButton icon={IconClose} onPress={() => setViewerPhoto(null)} />}
+                  center={total > 1 ? (
+                    <Text style={styles.viewerCounterText}>{viewerPhoto.index + 1} / {total}</Text>
+                  ) : undefined}
+                  right={canEdit ? (
+                    <GlassContainer contentStyle={navPillStyle}>
+                      <IconButton icon={IconPhoto} onPress={doReplace} variant="ghost-primary" size="medium" />
+                      <IconButton icon={IconTrash} onPress={doDelete} variant="ghost-primary" size="medium" />
+                    </GlassContainer>
+                  ) : undefined}
+                />
               </View>
+              </ForceDarkTheme>
             </Modal>
           );
         })()}
@@ -1940,11 +2127,14 @@ const createStyles = (colors: SemanticColors) =>
       maxWidth: MAX_CONTENT_WIDTH,
       padding: 28,
       gap: Spacing.smd,
+      // 회전한 사진 카드가 카드 경계에서 잘리지 않게 클립 해제.
+      // 앱바/눈금바 겹침은 ContentMask 그라디언트가 덮어 처리한다.
       overflow: 'visible',
       // 보기 페이지처럼 카드 프레임 없이 평평하게 (surface/dim 위에 그대로)
       backgroundColor: 'transparent',
       borderRadius: 0,
     },
+    // 앱바·눈금바 여백은 렌더에서 insets 기반 패딩으로 준다(스페이서 없음).
     scrollContent: {
       gap: Spacing.smd,
     },
@@ -1960,34 +2150,56 @@ const createStyles = (colors: SemanticColors) =>
       alignItems: 'center',
       height: '100%',
     },
+    // 컬럼마다 캡션이 위/아래로 갈리므로 center 정렬하면 카드가 서로 어긋난다.
+    // 컬럼 높이를 캡션 포함으로 통일하고 위 기준으로 맞춘다(Figma도 컬럼 높이 440 고정).
+    // stretch여야 컬럼이 행 높이(440)를 채우고, 그 안에서 카드가 위/아래로 갈린다.
     photoRow: {
       flexDirection: 'row',
-      alignItems: 'center',
-      height: '100%',
+      alignItems: 'stretch',
+      overflow: 'visible',
     },
+    // 사진 1장 = 세로 컬럼 [캡션행][썸네일] 또는 [썸네일][캡션행] (Figma 원본 구조).
+    // 컬럼 폭(198) > 카드 폭(180)이라 정렬을 안 주면 카드가 좌측에 붙어
+    // 카드끼리 실제 간격이 step보다 좁아진다(= 더 겹쳐 보임). Figma는 items-center.
+    // 카드는 왼쪽 기준. center로 두면 컬럼의 회전 여유(폭 10%)가 왼쪽에도 생겨
+    // 사진 전체가 오른쪽으로 밀린다.
+    // gap = 캡션 행과 사진 카드 사이 간격 (없으면 캡션이 사진에 붙는다)
+    photoColumn: {
+      flexDirection: 'column',
+      alignItems: 'flex-start',
+      overflow: 'visible',
+      gap: Spacing.sm,
+    },
+    // Figma: 3px solid surface/normal 보더 + radius 16 + heavy shadow.
     photoCard: {
-      backgroundColor: colors['surface/bright'],
+      backgroundColor: colors['surface/normal'],
       borderRadius: 16,
-      padding: 6,
+      borderWidth: 3,
+      borderColor: colors['surface/normal'],
+      padding: 0,
       boxShadow: '0px 10px 22px -6px rgba(14, 14, 13, 0.22)',
     },
-    // 캡션+화살표 오버레이 — 카드 바깥(위/아래)에 삐져나오게 절대배치.
-    photoCaptionWrap: {
-      position: 'absolute',
-      left: 6,
-      right: -60,
+    // 캡션 행: [화살표 27.68×49][gap 6][텍스트 flex]. Figma 원본 폭 160, 화살표 옆 세로중앙 텍스트.
+    // 폭은 렌더에서 사진 폭(photoW)에 맞춰 인라인으로 준다 —
+    // 고정값(160)이면 좁은 화면에서 사진보다 넓어 옆으로 삐져나온다.
+    photoCaptionRow: {
       flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 2,
+      alignItems: 'center',
+      gap: 6,
+      // 컬럼이 items-center라 160폭 캡션행은 이미 가운데. Figma 컬럼 내 x(19.1/16.2)는
+      // (198-160)/2 = 19 와 사실상 같으므로 추가 marginLeft 불필요(주면 이중으로 밀림).
     },
-    photoCaptionUp: { top: -34 },   // 짝수 사진: 카드 위
-    photoCaptionDown: { bottom: -34 }, // 홀수 사진: 카드 아래
+    // 캡션은 표시/편집 모두 최대 2줄(lineHeight 12 × 2 = 24)로 높이를 고정한다.
+    // 늘어나면 사진 행이 커져 눈금바와 겹친다.
     photoCaptionText: {
-      flexShrink: 1,
+      flex: 1, // 화살표 옆 남은 폭(≈126) 채움
+      // Figma caption-3: 10px / 400 / lh12 / ls0.2
       fontFamily: Typography.label.small.fontFamily,
-      fontSize: Typography.label.small.fontSize,
-      fontWeight: Typography.label.small.fontWeight as '500',
-      lineHeight: Typography.label.small.lineHeight,
+      fontSize: 10,
+      fontWeight: '400',
+      lineHeight: 12,
+      letterSpacing: 0.2,
+      maxHeight: 24,
       color: colors['foreground/on-surface-var'],
     },
     photoCaptionInput: {
@@ -1995,17 +2207,22 @@ const createStyles = (colors: SemanticColors) =>
       minWidth: 80,
       padding: 0,
       fontFamily: Typography.label.small.fontFamily,
-      fontSize: Typography.label.small.fontSize,
-      lineHeight: Typography.label.small.lineHeight,
+      fontSize: 10,
+      fontWeight: '400',
+      lineHeight: 12,
+      letterSpacing: 0.2,
+      maxHeight: 24,
       color: colors['foreground/on-surface-var'],
     },
-    // 추가(+) 카드: 점선 대신 배경(surface/container) + 실선 보더
+    // 추가(+) 카드 — Figma: 1px dashed border/normal + 배경 surface/dim, radius 16.
+    // 점선은 DashedBorder(SVG)로 그린다 — RN borderStyle:'dashed'는 대시 길이를 못 정해
+    // 플랫폼마다 너비가 달라져 Figma와 안 맞는다.
     emptyPack: {
-      padding: 6,
+      padding: 0,
       borderRadius: 16,
-      backgroundColor: colors['surface/container'],
-      borderWidth: 1,
-      borderColor: colors['border/normal'],
+      // Figma는 surface/dim이지만 그건 배경이 surface/normal일 때 기준.
+      // 요리모드 배경이 surface/dim이라 같은 색이면 묻혀서 한 단계 어두운 값으로.
+      backgroundColor: colors['surface/container-high'],
     },
     photoDeleteBtn: {
       position: 'absolute',
@@ -2029,14 +2246,22 @@ const createStyles = (colors: SemanticColors) =>
       justifyContent: 'center',
     },
     viewerImage: {
-      width: '92%',
-      height: '74%',
+      // 높이 기준은 감싼 Pressable(74%)이 갖는다 — 여기선 그 안을 채움
+      height: '100%',
+      // width는 렌더에서 인라인(containerWidth 의존) — 페이지 콘텐츠처럼 최대폭 캡+최소폭 보장
     },
-    viewerActionsWrap: {
-      position: 'absolute',
-      left: 0,
-      right: 0,
-      bottom: 0,
+    // 뷰어 상단바 좌측: 닫기(X) + 카운터 알약 나란히 (AppBar leftRow 패턴)
+    leftRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    // 뷰어 배경이 검정이므로 밝은 색 고정(테마 토큰은 라이트에서 안 보임)
+    viewerCounterText: {
+      color: '#FFFFFF',
+      fontFamily: Typography.label.small.fontFamily,
+      fontSize: Typography.label.small.fontSize,
+      fontWeight: Typography.label.small.fontWeight as '500',
     },
     addCircle: {
       flex: 1,
@@ -2045,15 +2270,15 @@ const createStyles = (colors: SemanticColors) =>
       alignItems: 'center',
       justifyContent: 'center',
     },
+    // 편집 입력칸 — 보기(description)와 완전히 동일한 타이포를 써야
+    // 편집/보기 전환 시 글자 크기가 달라 보이지 않는다(headline.small 22/28).
     descLarge: {
-      // Figma headline-medium/regular (24/30, -0.4, Medium 500)
-      fontFamily: 'Pretendard-Medium',
-      fontSize: 24,
-      lineHeight: 30,
-      fontWeight: '500',
-      letterSpacing: -0.4,
+      ...Typography.headline.small,
+      fontWeight: Typography.headline.small.fontWeight as '600',
+      lineHeight: Typography.headline.small.lineHeight,
       color: colors['foreground/on-surface'],
       textAlign: 'left',
+      marginTop: FONT_BASELINE_OFFSET,
     },
     // 참고사항(팁/주의) — 아이콘이 글줄 안에 인라인, 본문과 같은 크기, muted
     noteInlineText: {
@@ -2073,7 +2298,7 @@ const createStyles = (colors: SemanticColors) =>
     },
     // 참고/주의: PDF처럼 좌측 세로 라인(블록쿼트) — 색은 인라인으로 지정
     noteBlock: {
-      borderLeftWidth: 3,
+      borderLeftWidth: 2,
       paddingLeft: 12,
       marginTop: 12,
     },
@@ -2211,14 +2436,16 @@ const createStyles = (colors: SemanticColors) =>
     adviceTitle: {
       ...Typography.title.large,
       fontWeight: Typography.title.large.fontWeight as '700',
-      color: colors['custom/yellow-on-container'],
+      // 아이콘과 같은 색 — 한 카드 안에서 톤이 갈리지 않게
+      color: colors['custom/yellow'],
       marginTop: FONT_BASELINE_OFFSET,
     },
     adviceBody: {
       ...Typography.headline.small,
       lineHeight: 30,
-      fontWeight: Typography.headline.small.fontWeight as '600',
-      color: colors['custom/yellow-on-container'],
+      // 본문은 레귤러 — 제목만 굵게 두어 위계를 만든다
+      fontWeight: '400',
+      color: colors['custom/yellow'],
       marginTop: FONT_BASELINE_OFFSET,
     },
   });
