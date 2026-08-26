@@ -10,6 +10,8 @@ import {
   IconUndo,
   IconRedo,
   IconAdd,
+  IconSliceVertical,
+  IconLink,
   IconMic,
   IconScanText,
   IconTick,
@@ -60,6 +62,10 @@ export interface EditorToolbarProps {
   voice?: ToolbarAction;
   /** OCR 스캔 */
   scan?: ToolbarAction;
+  /** 커서가 있는 줄을 묶음(과정명)으로 — 과정 편집 전용 */
+  group?: ToolbarAction;
+  /** 선택한 텍스트에 링크 넣기 */
+  link?: ToolbarAction;
   /** 완료(✓) */
   onDone?: () => void;
   doneDisabled?: boolean;
@@ -81,6 +87,8 @@ export function EditorToolbar({
   add,
   voice,
   scan,
+  group,
+  link,
   onDone,
   doneDisabled,
   above,
@@ -118,6 +126,14 @@ export function EditorToolbar({
             <IconButton icon={IconAdd} onPress={add?.onPress} variant="ghost-primary" size="medium" disabled={isOff(add)} forcePressed={add?.active} />
             <IconButton icon={IconMic} onPress={voice?.onPress} variant="ghost-primary" size="medium" disabled={isOff(voice)} forcePressed={voice?.active} />
             <IconButton icon={IconScanText} onPress={scan?.onPress} variant="ghost-primary" size="medium" disabled={isOff(scan)} forcePressed={scan?.active} />
+            {/* 묶음 나누기 — group을 넘긴 화면(과정 편집)에서만 노출 */}
+            {group ? (
+              <IconButton icon={IconSliceVertical} onPress={group.onPress} variant="ghost-primary" size="medium" disabled={isOff(group)} forcePressed={group.active} />
+            ) : null}
+            {/* 선택 텍스트에 링크 — link를 넘긴 화면에서만 노출 */}
+            {link ? (
+              <IconButton icon={IconLink} onPress={link.onPress} variant="ghost-primary" size="medium" disabled={isOff(link)} forcePressed={link.active} />
+            ) : null}
           </>
         )
       }

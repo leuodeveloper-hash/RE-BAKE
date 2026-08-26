@@ -1,5 +1,6 @@
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
-import {StyleSheet, Text} from 'react-native';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {Linking, StyleSheet, Text} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useFocusEffect, useRouter} from 'expo-router';
 import {AppBar} from '@components/Navigation';
 import {Breadcrumb} from '@components/Navigation/Breadcrumb';
@@ -9,12 +10,15 @@ import {Dialog, PdfPreviewDialog} from '@components/Dialog';
 import {Button} from '@components/Button';
 import {EmptyState} from '@components/EmptyState';
 import {InlineBanner} from '@components/InlineBanner';
+import {useUpcomingExam} from '@hooks/useUpcomingExam';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import type {SemanticColors} from '@constants/tokens';
 import type {Recipe} from '../types/recipe';
 import {useTranslation} from '@contexts/LanguageContext';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
+import {useAuthSheet} from '@contexts/AuthSheetContext';
+import {CONTACT_URL} from '@constants/contact';
 import {useColors} from '@contexts/ThemeContext';
 import {useSubscription} from '@contexts/SubscriptionContext';
 import {useAuth} from '@contexts/AuthContext';
@@ -31,6 +35,7 @@ import {
   IconTrashTwotone,
   IconArrowDownToLine,
   IconCloudFilled,
+  IconClockFilled,
   IconClose,
 } from '@components/Icon/IconIndex';
 
@@ -77,6 +82,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
     ? Array.from(new Set(recipes.map(r => r.cookbook).filter(Boolean) as string[]))
     : myAvailableCookbooks;
   const isGuest = !user;
+  const {open: openAuthSheet} = useAuthSheet();
 
   // 앱바 작성자 칩: 작성자 홈이면 넘겨받은 배지. 내 홈에선 탭바에 이미 내 아바타가
   // 있어 중복·거슬림 → 앱바엔 내 아바타 배지를 넣지 않는다.
@@ -101,11 +107,22 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
 
   // 그룹화 축: 'all'이면 평면 리스트, 그 외엔 그룹 화면(GroupScreen) 호스팅
   const [groupAxis, setGroupAxis] = useState<GroupAxis>('all');
+  // 마지막 본 축 복원 (앱 재시작해도 유지). 저장 덮어쓰기 방지용 로드 플래그.
+  const axisLoaded = useRef(false);
+  useEffect(() => {
+    AsyncStorage.getItem('bakle_home_axis_v1').then(v => {
+      if (v) setGroupAxis(v as GroupAxis);
+      axisLoaded.current = true;
+    }).catch(() => { axisLoaded.current = true; });
+  }, []);
   const handleAxisChange = useCallback((a: GroupAxis) => {
     setGroupAxis(a);
+    if (axisLoaded.current) AsyncStorage.setItem('bakle_home_axis_v1', a).catch(() => {});
     if (a === 'all') { setSelectedCookbook(null); setSelectedMethod(null); }
   }, [setSelectedCookbook, setSelectedMethod]);
   const [guestBannerDismissed, setGuestBannerDismissed] = useState(false);
+  // 시험이 임박하면 홈 상단에 알린다 (알림 설정에서 고른 종목 기준)
+  const upcomingExam = useUpcomingExam();
 
   // 화면에 다시 진입할 때마다 게스트 배너 dismissal 초기화 → 재표시
   useFocusEffect(
@@ -347,12 +364,25 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   // 레시피 추가 — 레시피북 진입 중이면 해당 북으로 미리 지정
   const handleAddRecipe = useCallback(() => {
     if (!canAddRecipe()) {
-      showSnackbar(t('home.maxRecipesLimit'));
+      // 등급별 안내 — 게스트는 로그인, 무료는 한도 안내, Pro는 문의로 유도
+      if (isGuest) {
+        showSnackbar(t('home.guestRecipeLimit'), {
+          label: t('auth.signIn'),
+          onPress: () => openAuthSheet(),
+        });
+      } else if (isPro) {
+        showSnackbar(t('home.proRecipeLimit'), {
+          label: t('home.contact'),
+          onPress: () => { Linking.openURL(CONTACT_URL).catch(() => {}); },
+        });
+      } else {
+        showSnackbar(t('home.maxRecipesLimit'));
+      }
       return;
     }
     const params = selectedCookbook ? `?cookbook=${encodeURIComponent(selectedCookbook)}` : '';
     router.push(`/recipe/edit${params}` as any);
-  }, [canAddRecipe, showSnackbar, selectedCookbook, router, t]);
+  }, [canAddRecipe, isGuest, isPro, openAuthSheet, showSnackbar, selectedCookbook, router, t]);
 
   // ===== 그룹 모드 (axis !== 'all') 핸들러 =====
   const handleGroupComingSoon = useCallback(() => {
@@ -425,7 +455,23 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
       onOverlayPress={closeLocalMenus}
       extraOverlayVisible={showMoreMenu || crumbMenu !== null}
       onRefresh={reload}
-      listHeaderExtra={!isAuthorMode && isGuest && !guestBannerDismissed ? (
+      listHeaderExtra={
+        // 시험이 임박하면 그 배너를 먼저 — 기한이 있어 더 시급하다
+        upcomingExam ? (
+          <InlineBanner
+            icon={IconClockFilled}
+            label={upcomingExam.days === 0
+              ? t('home.examToday', {label: upcomingExam.label})
+              : t('home.examDday', {label: upcomingExam.label, days: upcomingExam.days})}
+            color="warning"
+            size="medium"
+            action={{
+              label: t('home.examSchedule'),
+              onPress: () => router.navigate('/exam-schedule' as any),
+            }}
+            style={styles.localBanner}
+          />
+        ) : !isAuthorMode && isGuest && !guestBannerDismissed ? (
         <InlineBanner
           icon={IconCloudFilled}
           label={t('home.guestBanner')}

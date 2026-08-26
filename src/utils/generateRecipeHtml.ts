@@ -1,3 +1,4 @@
+import {stripRichText} from './richText';
 /**
  * 레시피 데이터를 PDF용 HTML 문서로 변환
  */
@@ -93,7 +94,7 @@ function buildIngredientsHtml(data: RecipePdfData): string {
           const pct = baseAmount > 0 ? (amount / baseAmount) * 100 : 0;
           return `
           <div class="ingredient-row">
-            <span class="ingredient-name">${escapeHtml(ing.name)} ${escapeHtml(ing.amount)}</span>
+            <span class="ingredient-name">${escapeHtml(stripRichText(ing.name))} ${escapeHtml(ing.amount)}</span>
             <span class="ingredient-pct">${formatPercentage(pct)}</span>
           </div>`;
         })
@@ -121,7 +122,7 @@ function buildStepsHtml(steps: PdfStep[]): string {
       <div class="step-row">
         <div class="step-number">${step.step}</div>
         <div class="step-content">
-          <div class="step-desc">${escapeHtml(step.description)}</div>
+          <div class="step-desc">${escapeHtml(stripRichText(step.description))}</div>
           ${step.tip ? `<div class="step-tip">${escapeHtml(step.tip)}</div>` : ''}
           ${step.caution ? `<div class="step-caution">${escapeHtml(step.caution)}</div>` : ''}
         </div>
@@ -158,15 +159,36 @@ const PDF_CSS = `
   body {
     font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
     color: #1a1a1a;
-    padding: 40px 34px;
-    max-width: 640px;
-    margin: 0 auto;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;
   }
-  .recipe-page { padding-bottom: 8px; }
+  /* 여백은 body가 아니라 각 페이지가 갖는다 — 그래야 화면에서도 한 장씩 보인다 */
+  .recipe-page { padding: 40px 34px; max-width: 640px; margin: 0 auto; }
+  /* 레시피 하나 = 페이지 하나. 다음 레시피는 항상 새 페이지 처음부터 시작한다.
+     break-after(표준)와 page-break-after(구형)를 함께 줘야 렌더러를 가리지 않는다.
+     마지막 장 뒤에 빈 페이지가 생기지 않도록 :last-child는 제외한다. */
+  .recipe-page { break-after: page; page-break-after: always; }
+  .recipe-page:last-child { break-after: auto; page-break-after: auto; }
+  /* 제목·재료 표 등이 페이지 경계에서 잘리지 않게 */
+  .recipe-page .header { break-after: avoid; page-break-after: avoid; }
+  /* 화면 미리보기 — 인쇄 결과와 같은 "한 장씩" 구조로 보여준다.
+     페이지 나눔 CSS는 인쇄에만 적용되므로, 화면에서는 종이 모양을 직접 그린다. */
+  @media screen {
+    body { background: #e9eaec; padding: 24px 0; }
+    .recipe-page {
+      background: #fff;
+      min-height: 297mm;
+      width: 210mm;
+      max-width: 100%;
+      margin: 0 auto 24px;
+      padding: 20mm 16mm;
+      box-shadow: 0 1px 4px rgba(0,0,0,0.16);
+    }
+    .recipe-page:last-child { margin-bottom: 0; }
+  }
   .header { margin-bottom: 16px; }
-  .title { font-size: 26px; font-weight: 700; line-height: 1.25; margin-bottom: 6px; letter-spacing: -0.01em; }
+  /* A4 한 장 기준 — 본문 14px에 맞춘 위계. 26px은 종이에서 과하게 컸다. */
+  .title { font-size: 20px; font-weight: 700; line-height: 1.3; margin-bottom: 5px; letter-spacing: -0.01em; }
   .subtitle { font-size: 13px; color: #6b6f76; }
   .meta-row { font-size: 13px; color: #4a4d52; margin-bottom: 24px; text-align: right; }
   .meta-sep { color: #cfd2d6; margin: 0 6px; }
@@ -209,11 +231,10 @@ ${inner}
 
 export function generateRecipeListHtml(recipes: RecipePdfData[]): string {
   const recipeSections = recipes
-    .map((data, index) => {
+    .map(data => {
       const subtitle = buildSubtitle(data);
-      const isLast = index === recipes.length - 1;
       return `
-    <div class="recipe-page"${!isLast ? ' style="page-break-after: always;"' : ''}>
+    <div class="recipe-page">
       <div class="header">
         <div class="title">${escapeHtml(data.title)}</div>
         ${subtitle ? `<div class="subtitle">${escapeHtml(subtitle)}</div>` : ''}

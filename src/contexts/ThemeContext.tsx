@@ -52,6 +52,26 @@ export function ThemeProvider({children}: {children: React.ReactNode}) {
   );
 }
 
+/**
+ * 하위 트리를 항상 다크로 고정한다(앱 테마와 무관).
+ * 사진 뷰어처럼 배경이 늘 검정인 화면에서, 라이트 테마 토큰이 배경에 묻히는 걸 방지.
+ * appearanceMode/setAppearanceMode는 상위 값을 그대로 전달해 설정 변경 동작은 유지.
+ */
+export function ForceDarkTheme({children}: {children: React.ReactNode}) {
+  const parent = useContext(ThemeContext);
+  const value = useMemo<ThemeContextValue>(
+    () => ({
+      colors: SemanticColorsDark as unknown as SemanticColors,
+      elevation: ElevationDark,
+      isDark: true,
+      appearanceMode: parent?.appearanceMode ?? 'dark',
+      setAppearanceMode: parent?.setAppearanceMode ?? (() => {}),
+    }),
+    [parent?.appearanceMode, parent?.setAppearanceMode],
+  );
+  return <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>;
+}
+
 export function useTheme(): ThemeContextValue {
   const ctx = useContext(ThemeContext);
   if (!ctx) throw new Error('useTheme must be used within ThemeProvider');

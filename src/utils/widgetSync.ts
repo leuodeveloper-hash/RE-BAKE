@@ -26,10 +26,15 @@ async function downloadImageFor(recipe: Recipe, dir: Directory, seed: number): P
     // 파일명에 레시피 id까지 넣어야 함 — seed(날짜)만 쓰면 그날 배정 레시피가 바뀌어도
     // 같은 파일을 재사용해 "이미지 고정" 발생. id 포함 → 레시피 바뀌면 새 파일.
     const safeId = recipe.id.replace(/[^a-zA-Z0-9_-]/g, '');
-    const dest = new File(dir, `day-${seed}-${safeId}.jpg`);
-    if (dest.exists) return dest.uri.replace('file://', ''); // 같은 날+같은 레시피 → 재사용 OK
-    const file = await File.downloadFileAsync(url, dest);
-    return file.uri.replace('file://', '');
+    const name = `day-${seed}-${safeId}.jpg`;
+    const dest = new File(dir, name);
+    // 절대경로가 아니라 "파일명만" 반환한다. App Group 컨테이너의 절대경로는 UUID가 포함돼
+    // 앱 재설치/업데이트/프로세스에 따라 바뀔 수 있어, 앱이 저장한 절대경로를 위젯이 읽을 때
+    // 안 맞아 이미지가 안 뜨는 문제(특히 재설치·다른 기기)가 있었음. 위젯(Swift)이 런타임에
+    // 컨테이너 경로를 구해 파일명과 합쳐 읽는다 → UUID가 바뀌어도 항상 유효.
+    if (dest.exists) return name;
+    await File.downloadFileAsync(url, dest);
+    return name;
   } catch {
     return '';
   }

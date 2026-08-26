@@ -15,6 +15,8 @@ export interface FloatingNavBarProps {
   right?: React.ReactNode;
   /** 중앙 타이틀 (좌우 캡슐 사이 가운데 정렬, 아이콘 위치에 영향 없음) */
   title?: string;
+  /** 중앙 커스텀 노드 — title 대신 임의 요소를 정중앙에 둘 때 */
+  center?: React.ReactNode;
   /** 좌측 캡슐 아래에 표시할 메뉴 */
   leftMenu?: React.ReactNode;
   /** 우측 캡슐 아래에 표시할 메뉴 */
@@ -70,7 +72,7 @@ export const APPBAR_CONTENT_BOTTOM = Spacing.smd + NAV_PILL_HEIGHT; // 10 + 44 =
 // pill 바로 아래에서 짧게 페이드아웃 — 콘텐츠 침범 방지 (이전 66 → 24)
 const GRADIENT_EXTENSION = Spacing.lg; // 24
 
-export function FloatingNavBar({left, right, title, leftMenu, rightMenu, leftFull, tintColor, style}: FloatingNavBarProps) {
+export function FloatingNavBar({left, right, title, center, leftMenu, rightMenu, leftFull, tintColor, style}: FloatingNavBarProps) {
   const colors = useColors();
   const {isDark} = useTheme();
   const surfaceDim = colors['surface/normal'] as string;
@@ -137,6 +139,12 @@ export function FloatingNavBar({left, right, title, leftMenu, rightMenu, leftFul
           {title != null && (
             <View style={styles.titleCenter} pointerEvents="none">
               <Text style={[styles.title, {color: colors['foreground/on-surface']}]} numberOfLines={1}>{title}</Text>
+            </View>
+          )}
+          {/* absoluteFill이라 좌우 캡슐 폭과 무관하게 항상 화면 정중앙 */}
+          {center != null && (
+            <View style={styles.titleCenter} pointerEvents="box-none">
+              {center}
             </View>
           )}
           {left ? (

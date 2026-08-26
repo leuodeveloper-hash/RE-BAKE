@@ -1,11 +1,12 @@
 import React, {useState} from 'react';
-import {ActivityIndicator, Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
+import {Animated,ActivityIndicator, Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {useColors} from '@contexts/ThemeContext';
 import {triggerHaptic} from '@utils/haptics';
+import {usePressScale} from '@hooks/usePressScale';
 import {GradientGlow} from './GradientGlow';
 
 export type ButtonVariant = 'filled' | 'soft' | 'outlined' | 'ghost';
@@ -53,6 +54,7 @@ export function Button({
   trailingIcon: TrailingIcon,
 }: ButtonProps) {
   const colors = useColors();
+  const {pressHandlers, animatedStyle} = usePressScale();
   const sizeConfig = SIZE_CONFIG[size];
   const borderRadius = shape === 'square' ? Radius['radius-md'] : sizeConfig.borderRadius;
 
@@ -140,9 +142,11 @@ export function Button({
           triggerHaptic('light');
           onPress?.();
         }}
+        // 눌림 스케일 — 색 변화만으로는 반응이 약해 햅틱까지 약하게 느껴진다
+        {...(disabled || loading ? {} : pressHandlers)}
         disabled={disabled || loading}>
         {({pressed}: {pressed: boolean}) => (
-          <View style={[getContainerStyle(pressed), (Icon || TrailingIcon || loading) && {flexDirection: 'row' as const, gap: sizeConfig.gap}]}>
+          <Animated.View style={[getContainerStyle(pressed), animatedStyle, (Icon || TrailingIcon || loading) && {flexDirection: 'row' as const, gap: sizeConfig.gap}]}>
             {loading ? (
               <ActivityIndicator size="small" color={getTextColor()} />
             ) : (
@@ -150,7 +154,7 @@ export function Button({
             )}
             <Text style={[styles.label, {color: getTextColor()}]}>{label}</Text>
             {!loading && TrailingIcon && <TrailingIcon width={18} height={18} color={getTextColor()} />}
-          </View>
+          </Animated.View>
         )}
       </Pressable>
     </View>

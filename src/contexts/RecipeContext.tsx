@@ -5,6 +5,8 @@ import type {Recipe} from '../types/recipe';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 
 const COOKBOOK_COLORS_KEY = 'bakle_cookbook_colors_v1';
+// 홈/둘러보기 메뉴 선택 유지 (앱 재시작해도 마지막 본 페이지 유지)
+const SELECTION_KEY = 'bakle_home_selection_v1';
 export const DEFAULT_COOKBOOK_COLOR: AvatarColor = 'brown';
 
 interface RecipeContextValue {
@@ -48,11 +50,13 @@ const RecipeContext = createContext<RecipeContextValue | null>(null);
 
 export function RecipeProvider({children}: {children: React.ReactNode}) {
   const {recipes, setRecipes, exportRecipes, importRecipes, isLoading, lastSyncedAt, lastSyncedDevice, reload, canAddRecipe, migrationCount, confirmMigration, dismissMigration} = useRecipeStorage();
-  const [selectedCookbook, setSelectedCookbook] = useState<string | null>(null);
-  const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
-  const [selectedExploreCookbook, setSelectedExploreCookbook] = useState<string | null>(null);
+  const [selectedCookbook, setSelectedCookbookState] = useState<string | null>(null);
+  const [selectedMethod, setSelectedMethodState] = useState<string | null>(null);
+  const [selectedExploreCookbook, setSelectedExploreCookbookState] = useState<string | null>(null);
   const [cookbookColors, setCookbookColorsState] = useState<Record<string, AvatarColor>>({});
   const colorsLoaded = useRef(false);
+  // 저장된 선택을 덮어쓰지 않도록, 로드 완료 전엔 저장 스킵
+  const selectionLoaded = useRef(false);
 
   // AsyncStorage에서 색상 로드
   useEffect(() => {
@@ -63,6 +67,40 @@ export function RecipeProvider({children}: {children: React.ReactNode}) {
       colorsLoaded.current = true;
     });
   }, []);
+
+  // 홈/둘러보기 메뉴 선택 복원 (마지막 본 페이지 유지)
+  useEffect(() => {
+    AsyncStorage.getItem(SELECTION_KEY).then(stored => {
+      if (stored) {
+        try {
+          const s = JSON.parse(stored);
+          if (s.cookbook != null) setSelectedCookbookState(s.cookbook);
+          if (s.method != null) setSelectedMethodState(s.method);
+          if (s.exploreCookbook != null) setSelectedExploreCookbookState(s.exploreCookbook);
+        } catch {}
+      }
+      selectionLoaded.current = true;
+    });
+  }, []);
+
+  // 선택 변경 시 저장 (로드 완료 후에만)
+  const persistSelection = useCallback((cookbook: string | null, method: string | null, exploreCookbook: string | null) => {
+    if (!selectionLoaded.current) return;
+    AsyncStorage.setItem(SELECTION_KEY, JSON.stringify({cookbook, method, exploreCookbook})).catch(() => {});
+  }, []);
+
+  const setSelectedCookbook = useCallback((v: string | null) => {
+    setSelectedCookbookState(v);
+    persistSelection(v, selectedMethod, selectedExploreCookbook);
+  }, [persistSelection, selectedMethod, selectedExploreCookbook]);
+  const setSelectedMethod = useCallback((v: string | null) => {
+    setSelectedMethodState(v);
+    persistSelection(selectedCookbook, v, selectedExploreCookbook);
+  }, [persistSelection, selectedCookbook, selectedExploreCookbook]);
+  const setSelectedExploreCookbook = useCallback((v: string | null) => {
+    setSelectedExploreCookbookState(v);
+    persistSelection(selectedCookbook, selectedMethod, v);
+  }, [persistSelection, selectedCookbook, selectedMethod]);
 
   const setCookbookColor = useCallback((name: string, color: AvatarColor) => {
     setCookbookColorsState(prev => {

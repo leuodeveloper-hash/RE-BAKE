@@ -153,7 +153,9 @@ const styles = StyleSheet.create({
   closeBtnWrap: {
     position: 'absolute',
     top: 4,
-    right: 4,
+    // 좌측 상단 — 네이티브(closeBtn)와 동일. 유튜브 기본 툴바의 설정(⚙️)이
+    // 우측 상단이라 right로 두면 겹친다.
+    left: 4,
     zIndex: 6,
   },
 });

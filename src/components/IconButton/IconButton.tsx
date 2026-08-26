@@ -1,10 +1,11 @@
 import React from 'react';
-import {ActivityIndicator, Pressable, View, ViewStyle} from 'react-native';
+import {ActivityIndicator, Animated, Pressable, View, ViewStyle} from 'react-native';
 import {Radius} from '@constants/tokens';
 import {SvgProps} from 'react-native-svg';
 import {AppIcon, AppIconSize} from '@components/Icon/AppIcon';
 import {useColors} from '@contexts/ThemeContext';
 import {triggerHaptic} from '@utils/haptics';
+import {usePressScale} from '@hooks/usePressScale';
 
 export type IconButtonStyle =
   | 'filled'
@@ -53,6 +54,7 @@ export function IconButton({
   style,
 }: IconButtonProps) {
   const colors = useColors();
+  const {pressHandlers, animatedStyle} = usePressScale();
   const sizeConfig = SIZE_CONFIG[size];
 
   const getIconSize = (): AppIconSize => {
@@ -180,6 +182,8 @@ export function IconButton({
           triggerHaptic('light');
           onPress?.();
         }}
+        // 눌림 스케일 — 색 변화만으로는 반응이 약해 햅틱까지 약하게 느껴진다
+        {...(disabled || loading ? {} : pressHandlers)}
         disabled={disabled || loading}
         style={{
           width: sizeConfig.touchArea,
@@ -188,13 +192,13 @@ export function IconButton({
           justifyContent: 'center',
         }}>
         {({pressed, focused}: {pressed: boolean; focused: boolean}) => (
-          <View style={getContainerStyle(pressed || focused)}>
+          <Animated.View style={[getContainerStyle(pressed || focused), animatedStyle]}>
             {loading ? (
               <ActivityIndicator size="small" color={iconColor || getIconColor()} />
             ) : (
               <AppIcon icon={Icon} size={getIconSize()} color={iconColor || getIconColor()} />
             )}
-          </View>
+          </Animated.View>
         )}
       </Pressable>
     </View>

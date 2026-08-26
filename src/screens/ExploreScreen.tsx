@@ -26,6 +26,7 @@ import {axisLabel, useAxisMenuItems, type AxisOverrides, type GroupAxis} from '@
 import {IconExprolerBookFilled} from '@components/Icon/IconIndex';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import {resolveAuthorHandle} from '../types/author';
+import {ENTITLEMENTS} from '@constants/entitlements';
 
 // 둘러보기 노출 축: 회고 제외 (둘러보기 레시피엔 회고가 없음)
 const EXPLORE_AXES: GroupAxis[] = ['all', 'cookbook', 'method'];
@@ -34,7 +35,8 @@ const makeExploreAxisOverrides = (t: (key: string) => string): AxisOverrides => 
   cookbook: {label: t('explore.officialCookbook'), icon: IconExprolerBookFilled},
 });
 
-const FREE_RECIPE_COUNT = 3;
+/** 무료로 볼 수 있는 둘러보기 레시피 수 — 정책 단일 출처는 @constants/entitlements */
+const FREE_RECIPE_COUNT = ENTITLEMENTS.free.quota.exploreFree;
 
 const makeBaseCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string) =>
   getRecipeMenuItems({t, showImport: true});

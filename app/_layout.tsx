@@ -240,11 +240,17 @@ function NavigationContent() {
   const restoredRef = useRef(false);
   useEffect(() => {
     if (restoredRef.current) return;
+    // 웹은 주소창이 곧 사용자의 의도다. 복귀시키면 홈을 입력해도 상세로 튕기고,
+    // 개발 중엔 핫 리로드마다 되살아난다. 앱(네이티브)에서만 마지막 화면 복귀.
+    if (Platform.OS === 'web') { restoredRef.current = true; return; }
     // recipes/explore 둘 다 아직 안 채워졌으면 로딩 중일 수 있어 대기(deps로 재실행됨).
     if (recipes.length === 0 && exploreRecipesAll.length === 0) return;
     restoredRef.current = true;
     (async () => {
       try {
+        // 사용자가 특정 경로로 직접 들어온 경우엔 복귀시키지 않는다.
+        // (주소창에 홈을 쳐도 상세로 튕기던 문제 — pathname이 '/'가 아니면 의도된 진입)
+        if (pathname && pathname !== '/') return;
         const initialUrl = await Linking.getInitialURL();
         if (initialUrl && initialUrl.includes('/recipe/')) return;
         const lastId = await AsyncStorage.getItem('last_viewed_recipe_id');
@@ -451,13 +457,15 @@ function NavigationContent() {
         <Stack.Screen name="recipe/[id]" />
         <Stack.Screen name="u/[handle]" options={{animation: 'slide_from_right'}} />
         <Stack.Screen name="admin/submissions" options={{animation: 'slide_from_right'}} />
+        {/* 편집은 페이드 — 상세와 같은 자리에서 그대로 편집되는 것처럼 보이게.
+            slide_from_bottom은 화면이 위아래로 올라와 다른 화면으로 이동한 인상을 준다. */}
         <Stack.Screen
           name="recipe/edit"
-          options={{animation: 'slide_from_bottom', presentation: 'card'}}
+          options={{animation: 'fade', presentation: 'card'}}
         />
         <Stack.Screen
           name="recipe/edit/[id]"
-          options={{animation: 'slide_from_bottom', presentation: 'card'}}
+          options={{animation: 'fade', presentation: 'card'}}
         />
       </Stack>
 
@@ -527,22 +535,31 @@ function GlobalPlanSheet() {
   const {visible, open: openPlanSheet, close} = usePlanSheet();
   const {open: openAuthSheet} = useAuthSheet();
   const {user} = useAuth();
-  const {isPro} = useSubscription();
+  const {isPro, purchasePackage} = useSubscription();
   const {showSnackbar} = useSnackbar();
   const {t} = useTranslation();
 
-  const handleSubscribePress = useCallback(() => {
+  const handleSubscribePress = useCallback(async (pkg?: any) => {
     if (!user) {
       // 게스트: PlanSheet 닫고 → AuthSheet 열기 → 성공 시 PlanSheet 재오픈
       close();
       setTimeout(() => {
         openAuthSheet({onSuccess: () => setTimeout(openPlanSheet, 300)});
       }, 300);
-    } else {
-      // 로그인 상태: 실제 구독은 모바일 결제 SDK 필요 (미구현)
-      showSnackbar(t('layout.subscriptionComingSoon'));
+      return;
     }
-  }, [user, close, openAuthSheet, openPlanSheet, showSnackbar, t]);
+    // 상품을 못 불러온 경우(결제 비활성/스토어 미등록) — 구매를 시도하지 않는다
+    if (!pkg) {
+      showSnackbar(t('layout.subscriptionComingSoon'));
+      return;
+    }
+    const ok = await purchasePackage(pkg);
+    if (ok) {
+      close();
+      showSnackbar(t('layout.subscriptionThanks'));
+    }
+    // 실패·취소는 스토어가 자체 UI로 알리므로 별도 안내하지 않는다
+  }, [user, close, openAuthSheet, openPlanSheet, purchasePackage, showSnackbar, t]);
 
   return <PlanSheet visible={visible} onClose={close} isPro={isPro} onSubscribePress={handleSubscribePress} />;
 }

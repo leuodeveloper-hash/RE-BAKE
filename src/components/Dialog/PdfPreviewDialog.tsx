@@ -21,6 +21,8 @@ export interface PdfPreviewDialogProps {
   html?: string;
   /** 파일명 (html 직접 전달 시 사용, 기본값: 'recipes') */
   filename?: string;
+  /** 내보내기 완료 — 등급별 사용 횟수를 세는 데 쓴다 */
+  onExported?: () => void;
 }
 
 // Dialog content area = 312 - 16*2 = 280px
@@ -33,6 +35,7 @@ export function PdfPreviewDialog({
   data,
   html: htmlProp,
   filename: filenameProp,
+  onExported,
 }: PdfPreviewDialogProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
@@ -91,8 +94,9 @@ export function PdfPreviewDialog({
         UTI: 'com.adobe.pdf',
       });
     }
+    onExported?.();
     onClose();
-  }, [html, pdfFilename, onClose]);
+  }, [html, pdfFilename, onClose, onExported]);
 
   return (
     <Dialog

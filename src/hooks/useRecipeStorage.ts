@@ -18,6 +18,7 @@ import {addToQueue, hasPendingOps, processQueue} from '@utils/syncQueue';
 import {getDeviceName} from '@utils/deviceInfo';
 import {uploadRecipeImage, isLocalUri} from '@utils/imageUpload';
 import {useOnlineStatus} from './useOnlineStatus';
+import {ENTITLEMENTS, type Tier} from '@constants/entitlements';
 
 // 스텝 사진: string(uri) 또는 {uri, caption} 둘 다 지원.
 const photoUri = (p: any): string => (typeof p === 'string' ? p : p?.uri);
@@ -25,8 +26,8 @@ const hasLocalPhoto = (photos: any[] | undefined): boolean => !!photos?.some((p:
 
 const STORAGE_KEY = 'bakle_recipes_v4';
 
-/** 로그인 유저 최대 레시피 수 (클라우드 동기화 제한) */
-export const MAX_CLOUD_RECIPES = 30;
+/** 무료 등급 레시피 상한 — 정책 단일 출처는 @constants/entitlements */
+export const MAX_CLOUD_RECIPES = ENTITLEMENTS.free.quota.recipes;
 
 /** 기존 category 필드를 cookbook으로 마이그레이션 */
 function migrateRecipe(recipe: any): Recipe {
@@ -300,12 +301,6 @@ export function useRecipeStorage() {
         const hasChange = JSON.stringify(next) !== JSON.stringify(prev);
         if (!hasChange) return prev;
 
-        // Pro 유저: 레시피 추가 시 최대 개수 제한
-        if (cloudEnabled && next.length > prev.length && next.length > MAX_CLOUD_RECIPES) {
-          console.warn(`[Storage] 레시피 최대 ${MAX_CLOUD_RECIPES}개 제한 초과`);
-          return prev;
-        }
-
         if (cloudEnabled && user) {
           // Firestore에 동기화 (이미지 업로드 → 동기화)
           localWritePending.current = true;
@@ -495,10 +490,12 @@ export function useRecipeStorage() {
     }
   }, [cloudEnabled, user]);
 
+  // 등급별 개수 제한은 @constants/entitlements 한 곳에서 관리한다.
+  // (게스트=체험 3개 / 무료=로컬 무제한 / Pro=클라우드 상한)
   const canAddRecipe = useCallback(() => {
-    if (!cloudEnabled) return true; // 비Pro/비로그인은 로컬이라 제한 없음
-    return recipes.length < MAX_CLOUD_RECIPES;
-  }, [cloudEnabled, recipes.length]);
+    const tier: Tier = !user ? 'guest' : isPro ? 'pro' : 'free';
+    return recipes.length < ENTITLEMENTS[tier].quota.recipes;
+  }, [user, isPro, recipes.length]);
 
   // 확인 팝업 "올리기": 로컬 이미지 Storage 업로드 후 Firestore 동기화
   const confirmMigration = useCallback(async () => {

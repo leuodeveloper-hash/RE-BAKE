@@ -25,7 +25,15 @@ export function translate(
   key: string,
   params?: Record<string, string | number>,
 ): string {
-  let s = dictionaries[lang]?.[key] ?? dictionaries.ko?.[key] ?? key;
+  // 영문 단수/복수 — params.count가 1이면 `<key>_one` 키를 우선 사용한다.
+  // (한국어는 수 구분이 없어 그대로 두면 된다)
+  const count = params?.count;
+  const dict = dictionaries[lang];
+  let s: string | undefined;
+  if (lang === 'en' && typeof count === 'number' && Math.abs(count) === 1) {
+    s = dict?.[`${key}_one`];
+  }
+  s = s ?? dict?.[key] ?? dictionaries.ko?.[key] ?? key;
   if (params) {
     for (const k of Object.keys(params)) {
       s = s.replace(new RegExp(`{{\\s*${k}\\s*}}`, 'g'), String(params[k]));

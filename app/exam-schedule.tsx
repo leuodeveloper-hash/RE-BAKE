@@ -96,12 +96,10 @@ function gmtLabel(d: Date): string {
   return `GMT${sign}${h}${m ? ':' + String(m).padStart(2, '0') : ''}`;
 }
 
-/** 타임존 + 오늘 날짜/시간 라벨 (예: 'GMT+9 · Aug 20 2026 · 14:05') */
+/** 타임존 + 오늘 날짜 라벨 (예: 'GMT+9 · Aug 20 2026') — 시:분은 표시하지 않음 */
 function dateTimeLabel(d: Date): string {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const hh = String(d.getHours()).padStart(2, '0');
-  const mm = String(d.getMinutes()).padStart(2, '0');
-  return `${gmtLabel(d)}  ${months[d.getMonth()]} ${d.getDate()} ${d.getFullYear()}  ${hh}:${mm}`;
+  return `${gmtLabel(d)}  ${months[d.getMonth()]} ${d.getDate()} ${d.getFullYear()}`;
 }
 
 export default function ExamScheduleRoute() {
@@ -131,9 +129,9 @@ export default function ExamScheduleRoute() {
     setRefreshing(false);
   }, [loadSchedules]);
 
-  // 우측 상단 시계 (분 단위 갱신)
+  // 상단 날짜 갱신 — 시:분은 안 보이므로 자정 경계(날짜 바뀜)만 반영하면 됨. 1분 간격.
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 30000);
+    const id = setInterval(() => setNow(new Date()), 60000);
     return () => clearInterval(id);
   }, []);
 

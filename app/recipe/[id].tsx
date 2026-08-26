@@ -24,11 +24,13 @@ import {Dialog} from '@components/Dialog';
 import {Button} from '@components/Button';
 import {SUBSCRIPTION_ENABLED} from '@contexts/SubscriptionContext';
 import {usePlanSheet} from '@contexts/PlanSheetContext';
+import {usePdfExportQuota} from '@hooks/usePdfExportQuota';
+import {useEntitlement} from '@hooks/useEntitlement';
 import {useAuthSheet} from '@contexts/AuthSheetContext';
 import {useTranslation} from '@contexts/LanguageContext';
 
 export default function RecipeDetailRoute() {
-  const {id: routeId, from, locked: lockedParam} = useLocalSearchParams<{id: string; from?: string; locked?: string}>();
+  const {id: routeId, from, locked: lockedParam, cooking: cookingParam} = useLocalSearchParams<{id: string; from?: string; locked?: string; cooking?: string}>();
   // 회차 전환은 화면 이동 없이 제자리(setId)로 → RulerSlider 리마운트 없이 플립 유지
   const [id, setId] = useState(routeId);
   const router = useRouter();
@@ -46,6 +48,10 @@ export default function RecipeDetailRoute() {
   // 둘러보기 복사 확인 다이얼로그 대상 쿠북 (선택 후 확인받고 실제 복사)
   const [copyToExploreCookbook, setCopyToExploreCookbook] = useState<string | null>(null);
   const {open: openPlanSheet} = usePlanSheet();
+  // PDF 내보내기 등급별 횟수 제한
+  const {used: pdfUsed, increment: incrementPdf} = usePdfExportQuota();
+  const {limits} = useEntitlement();
+  const pdfLimit = limits.quota.pdfExports;
   const {t} = useTranslation();
   const isLocked = lockedParam === '1' && !unlocked;
 
@@ -59,6 +65,15 @@ export default function RecipeDetailRoute() {
   useEffect(() => {
     if (!id || !recipe) return;
     AsyncStorage.setItem('last_viewed_recipe_id', id);
+    // 최근 본 레시피 이력(검색바 첫 화면용) — 최신을 앞에, 중복 제거, 최대 20개.
+    (async () => {
+      try {
+        const raw = await AsyncStorage.getItem('recently_viewed_ids');
+        const prev: string[] = raw ? JSON.parse(raw) : [];
+        const next = [id, ...prev.filter(x => x !== id)].slice(0, 20);
+        await AsyncStorage.setItem('recently_viewed_ids', JSON.stringify(next));
+      } catch { /* 무시 */ }
+    })();
     // 위젯에 뜬 레시피를 봤으면 seen에 추가 → 위젯은 안 본 것부터 순환.
     (async () => {
       try {
@@ -87,8 +102,6 @@ export default function RecipeDetailRoute() {
   const isMyRecipe = recipes.some(r => r.id === id);
   const isExploreRecipe = !isMyRecipe && exploreRecipes.some(r => r.id === id);
   const alreadyImported = recipes.some(r => r.sourceId === id);
-  // 복사본(원본 그대로) — 내 목록에 있지만 작성자가 나(내 uid)가 아님. 편집 불가, 회차로만 내 것으로 만들 수 있다.
-  const isCopiedFromOthers = isMyRecipe && !!recipe?.authorId && recipe.authorId !== user?.uid;
 
   const exploreCookbookColorMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -139,6 +152,9 @@ export default function RecipeDetailRoute() {
   }, [isLocked, setHideContentMask]);
 
   const handleBack = useCallback(() => {
+    // 사용자가 상세를 닫으면 "마지막 본 레시피" 복귀 대상에서 제외
+    // (안 지우면 앱 재시작마다 이 상세가 계속 다시 열림).
+    AsyncStorage.removeItem('last_viewed_recipe_id').catch(() => {/* 무시 */});
     if (router.canGoBack()) {
       router.back();
     } else if (from) {
@@ -230,7 +246,6 @@ const handleDelete = useCallback(async () => {
       sourceHandle: recipe.authorHandle,
       sourceAuthorId: recipe.authorId,
       // 가져오면 내 콘텐츠가 된다 — 작성자를 나로 박제(원본 작성자 → 나). remake와 동일.
-      // 이렇게 해야 isCopiedFromOthers=false → 편집·요리모드 사진 추가가 가능해진다.
       // (출처 source*는 위에서 박제하므로 "원본: @작성자" 표시는 그대로 유지)
       authorId: user?.uid,
       authorHandle: handle ?? undefined,
@@ -488,8 +503,9 @@ const handleDelete = useCallback(async () => {
 
   if (!recipe) return null;
 
-  // 복사본(원본 그대로)은 편집 불가 — 회차를 만들어야 내 것이 되어 편집 가능. 삭제는 내 목록이므로 가능.
-  const canEdit = (isMyRecipe && !isCopiedFromOthers) || (isExploreRecipe && isAdmin);
+  // 내 목록에 있으면 복사본이어도 편집 가능(원본 출처는 sourceId 등으로 계속 표시된다).
+  // 기존엔 복사본을 막아 탭·롱프레스가 아무 반응 없이 먹통이었다.
+  const canEdit = isMyRecipe || (isExploreRecipe && isAdmin);
   const canDelete = isMyRecipe || (isExploreRecipe && isAdmin);
 
   // 레시피 로딩 중/무효 — 빈 배경만(위 effect가 무효면 홈으로 보냄). recipe.xxx 크래시 방지.
@@ -594,8 +610,23 @@ const handleDelete = useCallback(async () => {
             })();
           }
         } : undefined}
-        onCookingModeChange={setIsCookingMode}
+        initialCookingMode={cookingParam === '1'}
+        onCookingModeChange={(visible) => {
+          setIsCookingMode(visible);
+          // URL에 요리모드 상태 반영 → 웹 새로고침해도 요리모드 유지. (히스토리 안 쌓게 setParams)
+          router.setParams({cooking: visible ? '1' : undefined});
+        }}
         locked={isLocked}
+        canExportPdf={pdfUsed < pdfLimit}
+        onPdfExported={incrementPdf}
+        onPdfQuotaExceeded={() => {
+          // 게스트는 로그인, 그 외는 업그레이드로 유도
+          if (!user) {
+            showSnackbar(t('pdf.quotaGuest'), {label: t('auth.signIn'), onPress: () => openAuthSheet()});
+          } else {
+            showSnackbar(t('pdf.quotaFree'), {label: t('profile.subscribe'), onPress: openPlanSheet});
+          }
+        }}
         onUnlock={handleUnlock}
         adLoading={adLoading}
         onSubscribe={() => {

@@ -5,6 +5,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {useThemedStyles} from '@hooks/useThemedStyles';
+import {RichText} from '@components/RichText/RichText';
 
 export interface Ingredient {
   percentage: string;
@@ -29,7 +30,7 @@ export function IngredientRow({ingredient, isLast = false}: IngredientRowProps) 
     <View style={[styles.container, !isLast && styles.withBorder]}>
       <Text style={styles.percentage}>{ingredient.percentage}</Text>
       <Text style={styles.name}>
-        {ingredient.name} {ingredient.amount}
+        <RichText inline>{ingredient.name}</RichText> {ingredient.amount}
       </Text>
     </View>
   );

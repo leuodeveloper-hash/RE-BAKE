@@ -27,6 +27,7 @@ import {Selector} from '@components/Selector';
 import {ListItem} from '@components/ListItem';
 import {Menu} from '@components/Menu';
 import {Tabs} from '@components/Tabs';
+import {RichText} from '@components/RichText/RichText';
 import {EditableChip} from '@components/EditableChip';
 import {OptionTile} from '@components/OptionTile';
 import {Dialog, PdfPreviewDialog, TimeDialog, ServingsDialog, UnlockDialog} from '@components/Dialog';
@@ -44,6 +45,7 @@ import {useYouTubePlayer} from '@contexts/YouTubePlayerContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {parseYouTubeVideoId} from '@utils/youtube';
 import {parseSession} from '@utils/session';
+import {triggerHaptic} from '@utils/haptics';
 import {buildSessionDiff, type SessionBaseline} from '@utils/sessionDiff';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
@@ -152,6 +154,8 @@ export interface RecipeDetailScreenProps {
   onUpdate?: (data: Record<string, any>) => void;
   /** 쿠킹모드 표시 상태 변경 콜백 */
   onCookingModeChange?: (visible: boolean) => void;
+  /** 초기 쿠킹모드 진입 여부 (URL ?cooking=1 → 새로고침해도 요리모드 유지) */
+  initialCookingMode?: boolean;
   /** 회차 목록 (2개 이상일 때 Selector 표시) */
   sessionItems?: {id: string; label: string}[];
   /** 회차 선택 시 이동 */
@@ -168,6 +172,12 @@ export interface RecipeDetailScreenProps {
   cookbookColors?: Record<string, import('@components/Avatar/Avatar').AvatarColor>;
   /** 잠금 상태 (paywall): 스크롤 비활성 + 하단 잠금해제 버튼 */
   locked?: boolean;
+  /** PDF 내보내기 가능 여부 (등급별 횟수 한도) */
+  canExportPdf?: boolean;
+  /** PDF 한도 소진 시 — 로그인/업그레이드 유도 */
+  onPdfQuotaExceeded?: () => void;
+  /** PDF 내보내기 성공 시 — 사용 횟수 증가 */
+  onPdfExported?: () => void;
   /** 비공개(숨김) — 제목 뒤 자물쇠 (어드민 전용 공식 콘텐츠) */
   hidden?: boolean;
   /** 잠금 해제 요청 (광고 시청) */
@@ -330,6 +340,7 @@ export function RecipeDetailScreen({
   onImport,
   onUpdate,
   onCookingModeChange,
+  initialCookingMode,
   sessionItems,
   sessionReviews,
   compareBaseline,
@@ -338,6 +349,9 @@ export function RecipeDetailScreen({
   availableCookbooks,
   cookbookColors,
   locked = false,
+  canExportPdf = true,
+  onPdfQuotaExceeded,
+  onPdfExported,
   hidden = false,
   onUnlock,
   adLoading = false,
@@ -402,7 +416,7 @@ export function RecipeDetailScreen({
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [showTimeDialog, setShowTimeDialog] = useState(false);
   const [showServingsDialog, setShowServingsDialog] = useState(false);
-  const [showCookingMode, setShowCookingMode] = useState(false);
+  const [showCookingMode, setShowCookingMode] = useState(initialCookingMode ?? false);
   const [cookingModeInitialIndex, setCookingModeInitialIndex] = useState(0);
   const [cookingModeShowIngredients, setCookingModeShowIngredients] = useState(false);
   const hasMultipleSessions = sessionItems && sessionItems.length > 1;
@@ -523,9 +537,14 @@ export function RecipeDetailScreen({
     }
   }, []);
 
+  // 최신 콜백을 ref로 잡아, effect deps에서 콜백을 빼 무한루프 방지.
+  // (부모가 인라인 화살표로 onCookingModeChange를 넘기면 매 렌더 새 함수 → deps에 넣으면
+  //  setParams→리렌더→effect 재실행 무한루프로 크래시)
+  const onCookingModeChangeRef = useRef(onCookingModeChange);
+  onCookingModeChangeRef.current = onCookingModeChange;
   useEffect(() => {
-    onCookingModeChange?.(showCookingMode);
-  }, [showCookingMode, onCookingModeChange]);
+    onCookingModeChangeRef.current?.(showCookingMode);
+  }, [showCookingMode]);
 
   // ---- 기존 로직 ----
   const hasFlourBase = useMemo(() => hasFlour(ingredientGroups), [ingredientGroups]);
@@ -623,6 +642,9 @@ export function RecipeDetailScreen({
     } else if (id === 'download') {
       if (locked) {
         setShowUnlockDialog(true);
+      } else if (!canExportPdf) {
+        // 등급별 PDF 횟수 소진 — 게스트는 로그인, 무료는 업그레이드로 유도
+        onPdfQuotaExceeded?.();
       } else {
         setShowPdfPreview(true);
       }
@@ -868,9 +890,16 @@ export function RecipeDetailScreen({
                     <Card>
                       {group.ingredients.map((ingredient, index) => {
                         const d = diffOn ? diff!.ingredientStatus.get(ingredient.name.trim()) : undefined;
+                        // 편집 화면은 그룹 구분 없이 평탄한 인덱스를 쓰므로 앞 그룹 개수를 더한다
+                        const flatIndex = computedGroups
+                          .slice(0, groupIndex)
+                          .reduce((n, g) => n + g.ingredients.length, 0) + index;
                         return (
-                        <View
+                        <Pressable
                           key={index}
+                          // 롱프레스 = 그 재료 줄로 편집 진입
+                          onLongPress={onEdit ? () => { triggerHaptic('medium'); onEdit(`ingredients:${flatIndex}`); } : undefined}
+                          delayLongPress={400}
                           style={[
                             styles.ingredientRow,
                             index === group.ingredients.length - 1 && styles.ingredientRowLast,
@@ -886,13 +915,13 @@ export function RecipeDetailScreen({
                                 d?.status === 'added' && styles.hlAdded,
                                 d?.status === 'changed' && styles.hlChanged,
                               ]}>
-                              {ingredient.name}{/\d/.test(ingredient.amount) ? ` ${ingredient.amount}` : ''}
+                              <RichText inline>{ingredient.name}</RichText>{/\d/.test(ingredient.amount) ? ` ${ingredient.amount}` : ''}
                             </Text>
                             {d?.status === 'changed' && d.prevAmount ? (
                               <Text style={styles.prevAmount}> {d.prevAmount}</Text>
                             ) : null}
                           </Text>
-                        </View>
+                        </Pressable>
                         );
                       })}
                     </Card>
@@ -925,7 +954,7 @@ export function RecipeDetailScreen({
                       i === diff!.removed.length - 1 && styles.ingredientRowLast,
                     ]}>
                     <Text style={[styles.ingredientName, styles.removedText]}>
-                      {ing.name}{/\d/.test(ing.amount) ? ` ${ing.amount}` : ''}
+                      <RichText inline>{ing.name}</RichText>{/\d/.test(ing.amount) ? ` ${ing.amount}` : ''}
                     </Text>
                   </View>
                 ))}
@@ -1000,13 +1029,16 @@ export function RecipeDetailScreen({
                           setCookingModeInitialIndex(groupOffset + index);
                           setShowCookingMode(true);
                         }}
+                        // 롱프레스 = 이 과정을 편집 (탭은 요리모드)
+                        // 어느 과정을 눌렀는지까지 전달 — 편집에서 그 줄로 스크롤·포커스
+                        onLongPress={onEdit ? () => { triggerHaptic('medium'); onEdit(`steps:${groupOffset + index}`); } : undefined}
                       >
                         <Text style={styles.stepDescription}>
                           <Text
                             style={[
                               sd === 'added' && styles.hlAdded,
                               sd === 'changed' && styles.hlChanged,
-                            ]}>{step.description}</Text>
+                            ]}><RichText inline>{step.description}</RichText></Text>
                         </Text>
                         {step.tip && (
                           <View style={styles.tipChipInline}>
@@ -1052,7 +1084,7 @@ export function RecipeDetailScreen({
                         style={[
                           sd === 'added' && styles.hlAdded,
                           sd === 'changed' && styles.hlChanged,
-                        ]}>{step.description}</Text>
+                        ]}><RichText inline>{step.description}</RichText></Text>
                     </Text>
                     {step.tip && (
                       <View style={styles.tipChipInline}>
@@ -1086,7 +1118,7 @@ export function RecipeDetailScreen({
                 <ListItem
                   title={t('recipeDetail.bakeyAdvice')}
                   leading={{type: 'icon', icon: IconLogoSymbol}}
-                  trailing={onEdit ? {type: 'iconButton', icon: IconEditFilled, onPress: () => onEdit('advice'), variant: 'ghost-yellow'} : undefined}
+                  trailing={onEdit ? {type: 'iconButton', icon: IconEditFilled, onPress: () => onEdit('advice'), variant: 'ghost-yellow', size: 'small'} : undefined}
                 />
                 <ListItem
                   titleNumberOfLines={0}
@@ -1099,7 +1131,7 @@ export function RecipeDetailScreen({
                     setShowCookingMode(true);
                   }}
                 >
-                  <Text style={styles.adviceText}>{advice}</Text>
+                  <RichText style={styles.adviceText}>{advice}</RichText>
                 </ListItem>
               </Card>
             </ContentContainer>
@@ -1176,15 +1208,16 @@ export function RecipeDetailScreen({
           const n = recipeItems.length;
           const prev = recipeItems[(idx - 1 + n) % n];
           const next = recipeItems[(idx + 1) % n];
-          const isWide = windowWidth >= 480;
+          // 좁은 화면에서도 한 줄을 유지하려면 썸네일을 줄여야 한다
+          const navThumb = windowWidth >= 480 ? 40 : 32;
           return (
             <ContentContainer style={styles.recipeNav}>
-              <View style={[styles.recipeNavRow, !isWide && styles.recipeNavColumn]}>
+              <View style={styles.recipeNavRow}>
                 {prev ? (
                   <Pressable
                     style={({pressed}) => [styles.recipeNavCard, pressed && styles.recipeNavCardPressed]}
                     onPress={() => onRecipeSelect(prev.id)}>
-                    <Thumbnail size={40}>
+                    <Thumbnail size={navThumb}>
                       {prev.imageUrl && <Image source={{uri: prev.imageUrl}} style={StyleSheet.absoluteFill} resizeMode="cover" />}
                     </Thumbnail>
                     <View style={styles.recipeNavContent}>
@@ -1195,7 +1228,7 @@ export function RecipeDetailScreen({
                       </View>
                     </View>
                   </Pressable>
-                ) : isWide ? <View style={{flex: 1}} /> : null}
+                ) : <View style={{flex: 1}} />}
                 {next ? (
                   <Pressable
                     style={({pressed}) => [styles.recipeNavCard, styles.recipeNavCardRight, pressed && styles.recipeNavCardPressed]}
@@ -1207,11 +1240,11 @@ export function RecipeDetailScreen({
                         <View style={{width: 8}}><IconChevronRight width={12} height={12} color={colors['foreground/on-surface-muted']} /></View>
                       </View>
                     </View>
-                    <Thumbnail size={40}>
+                    <Thumbnail size={navThumb}>
                       {next.imageUrl && <Image source={{uri: next.imageUrl}} style={StyleSheet.absoluteFill} resizeMode="cover" />}
                     </Thumbnail>
                   </Pressable>
-                ) : isWide ? <View style={{flex: 1}} /> : null}
+                ) : <View style={{flex: 1}} />}
               </View>
             </ContentContainer>
           );
@@ -1259,6 +1292,9 @@ export function RecipeDetailScreen({
                   selectedId={activeTab}
                   onSelect={handleTabPress}
                   variant="text"
+                  // 각 탭이 제 글씨 폭만큼만 — 균등 너비면 가장 긴 탭 기준으로
+                  // 전체 알약이 불필요하게 길어진다.
+                  uniformWidth={false}
                   disabled={locked}
                 />
               </GlassContainer>
@@ -1306,6 +1342,7 @@ export function RecipeDetailScreen({
       <PdfPreviewDialog
         visible={showPdfPreview}
         onClose={() => setShowPdfPreview(false)}
+        onExported={onPdfExported}
         data={{
           title: title,
           cookbook,
@@ -1736,10 +1773,12 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   adviceText: {
     fontFamily: Typography.body.medium.fontFamily,
     fontSize: Typography.body.medium.fontSize,
-    fontWeight: Typography.body.medium.fontWeight as '500',
+    // 본문은 레귤러 — 제목만 굵게 두어 위계를 만든다
+    fontWeight: '400',
     lineHeight: Typography.body.medium.lineHeight,
     letterSpacing: -0.25,
-    color: colors['custom/yellow-var'],
+    // 같은 카드의 아이콘과 동일한 색
+    color: colors['custom/yellow'],
     paddingVertical: Spacing.sm,
   },
 
@@ -1756,19 +1795,19 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingTop: Spacing.sm,
     marginTop: 8,
   },
+  // 이전/다음은 항상 한 줄. 좁은 화면에서도 나란히 들어가도록 간격을 좁게 둔다.
   recipeNavRow: {
     flexDirection: 'row',
-    gap: Spacing.md,
-  },
-  recipeNavColumn: {
-    flexDirection: 'column',
+    gap: Spacing.sm,
   },
   recipeNavCard: {
     flex: 1,
+    // 좁은 화면에서 제목이 길어도 카드가 서로를 밀어내지 않게
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.smd,
-    padding: Spacing.smd,
+    gap: Spacing.sm,
+    padding: Spacing.sm,
     borderWidth: 1,
     borderColor: colors['border/muted'],
     borderRadius: Radius['radius-lg'],
@@ -1781,6 +1820,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   recipeNavContent: {
     flex: 1,
+    minWidth: 0,
     gap: 2,
   },
   recipeNavTitle: {

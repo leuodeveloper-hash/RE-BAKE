@@ -3,6 +3,7 @@ import {Pressable, StyleProp, StyleSheet, Text, View, ViewStyle} from 'react-nat
 import {SvgProps} from 'react-native-svg';
 import {IconAstriks, IconCircleAlertFilled, IconClose} from '@components/Icon/IconIndex';
 import {TextInput} from '@components/TextInput';
+import {RichText} from '@components/RichText/RichText';
 import {Radius} from '@constants/tokens';
 import {useColors} from '@contexts/ThemeContext';
 import {Spacing} from '@constants/spacing';
@@ -21,6 +22,8 @@ export interface EditableChipProps {
   style?: StyleProp<ViewStyle>;
   onRemove?: () => void;
   onChangeText?: (text: string) => void;
+  /** 편집 입력칸에 마운트 시 자동 포커스 (팁/주의 방금 추가 → 커서 바로 이동) */
+  autoFocus?: boolean;
 }
 
 const SIZE_CONFIG = {
@@ -65,6 +68,7 @@ export function EditableChip({
   style,
   onRemove,
   onChangeText,
+  autoFocus,
 }: EditableChipProps) {
   const {t} = useTranslation();
   const resolvedPlaceholder = placeholder ?? t('editableChip.tipPlaceholder');
@@ -124,6 +128,7 @@ export function EditableChip({
         <TextInput
           style="ghost"
           multiline
+          autoFocus={autoFocus}
           value={label}
           onChangeText={onChangeText}
           placeholder={resolvedPlaceholder}
@@ -133,7 +138,7 @@ export function EditableChip({
         />
       ) : (
         // 보기 모드: 아이콘 없이 텍스트만 (칩 타입 일관 — tip/주의 색만 다름)
-        <Text style={[styles.label, textStyle]}>{label}</Text>
+        <RichText style={[styles.label, textStyle]}>{label}</RichText>
       )}
       {onRemove && (
         <Pressable onPress={onRemove} hitSlop={4} style={[styles.iconWrap, {height: sizeConfig.lineHeight + FONT_BASELINE_OFFSET, marginLeft: 10}]}>
@@ -182,9 +187,10 @@ const styles = StyleSheet.create({
     marginTop: FONT_BASELINE_OFFSET,
     flexShrink: 1,
   },
-  // 공용 TextInput ghost 기본 marginTop 상쇄 (칩 아이콘과 baseline 맞춤)
+  // 보기(label)와 같은 baseline 오프셋을 써야 편집/보기 전환 시 글이 위아래로
+  // 어긋나지 않는다(같은 size인데 크기가 달라 보이던 원인).
   inputReset: {
-    marginTop: 0,
+    marginTop: FONT_BASELINE_OFFSET,
   },
   // 편집 모드: 내용에 쪼그라들지(flex-start) 않고 가로로 펴져 멀티라인이 자연 줄바꿈
   containerEditing: {

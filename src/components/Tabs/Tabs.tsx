@@ -33,6 +33,11 @@ export interface TabsProps {
   disabled?: boolean;
   /** filled 탭 높이 — 'large'면 메뉴 아이템(정렬 등)과 높이 통일 (기본: medium) */
   size?: 'medium' | 'large';
+  /**
+   * text variant에서 모든 탭을 가장 긴 레이블 폭으로 통일할지 (기본: true).
+   * false면 각 탭이 제 글씨 폭만큼만 차지해 전체 알약이 불필요하게 길어지지 않는다.
+   */
+  uniformWidth?: boolean;
 }
 
 const FILLED_TAB_HEIGHT = 32;
@@ -48,7 +53,7 @@ interface TabLayout {
   width: number;
 }
 
-export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'filled', disabled, size = 'medium'}: TabsProps) {
+export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'filled', disabled, size = 'medium', uniformWidth = true}: TabsProps) {
   const isText = variant === 'text';
   const isLarge = size === 'large';
   const filledTabHeight = isLarge ? FILLED_TAB_HEIGHT_LARGE : FILLED_TAB_HEIGHT;
@@ -79,7 +84,7 @@ export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'f
     const {x, width} = event.nativeEvent.layout;
     setTabLayouts(prev => ({...prev, [id]: {x, width}}));
 
-    if (isText && !hasComputedUniform.current) {
+    if (isText && uniformWidth && !hasComputedUniform.current) {
       tabWidthsRef.current[id] = width;
       if (Object.keys(tabWidthsRef.current).length === tabs.length) {
         hasComputedUniform.current = true;
@@ -87,7 +92,7 @@ export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'f
         setUniformTabWidth(maxW);
       }
     }
-  }, [isText, tabs.length]);
+  }, [isText, uniformWidth, tabs.length]);
 
   // uniformTabWidth가 결정되면 tabLayouts를 균등 너비 기준으로 즉시 재계산.
   // (두 번째 onLayout 호출이 일부 탭에서만 fire되거나 x값이 stale로 남는 문제 회피)

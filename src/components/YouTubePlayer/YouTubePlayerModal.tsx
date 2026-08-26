@@ -61,6 +61,8 @@ export function YouTubePlayerModal({visible, onClose, videoId, topInset, bottomI
 
   const pan = useRef(new Animated.ValueXY()).current;
   const value = useRef({x: 0, y: 0});
+  // 드래그 시작 시점의 위치 스냅샷 (release 판정용 — value.current 비동기 갱신 회피)
+  const dragStart = useRef({x: 0, y: 0});
   // 0 = 전체 크기, 1 = 최소화(손톱)
   const minim = useRef(new Animated.Value(0)).current;
   const [minimized, setMinimized] = useState(false);
@@ -175,6 +177,10 @@ export function YouTubePlayerModal({visible, onClose, videoId, topInset, bottomI
       onPanResponderTerminationRequest: () => false,
       onShouldBlockNativeResponder: () => true,
       onPanResponderGrant: () => {
+        // 드래그 시작 위치를 저장 — release 시 pan 리스너(value.current)는 비동기라
+        // 아직 갱신 전(드래그 전 값)일 수 있어, 위로 올려도 항상 아래로 도킹되는 버그가 있었음.
+        // → 시작 위치 + 제스처 이동량(g.dx/dy)으로 실제 최종 위치를 직접 계산한다.
+        dragStart.current = {x: value.current.x, y: value.current.y};
         pan.extractOffset();
       },
       onPanResponderMove: Animated.event([null, {dx: pan.x, dy: pan.y}], {useNativeDriver: false}),
@@ -182,8 +188,8 @@ export function YouTubePlayerModal({visible, onClose, videoId, topInset, bottomI
         pan.flattenOffset();
         // 던진 속도 반영 지점의 중심으로 가장 가까운 네 모서리 판정 → 그 코너에 축소 도킹 (상하좌우 어디든)
         const PROJECT = 90;
-        const projX = value.current.x + g.vx * PROJECT;
-        const projY = value.current.y + g.vy * PROJECT;
+        const projX = dragStart.current.x + g.dx + g.vx * PROJECT;
+        const projY = dragStart.current.y + g.dy + g.vy * PROJECT;
         const cx = projX + PLAYER_WIDTH / 2;
         const cy = projY + (PLAYER_HEIGHT + HANDLE_H) / 2;
         const minY = win.current.top + MARGIN;
@@ -249,11 +255,8 @@ export function YouTubePlayerModal({visible, onClose, videoId, topInset, bottomI
           <Pressable style={StyleSheet.absoluteFill} onPress={restore} />
         ) : (
           <>
-            {/* 유튜브에서 열기 — 임베드 거부(150/153) 영상도 빠져나갈 수 있는 상시 탈출구 */}
-            <View style={styles.openBtn}>
-              <IconButton icon={IconYoutube} onPress={openInYouTube} variant="soft" size="medium" onImage />
-            </View>
-
+            {/* 유튜브 이동 버튼 제거 — 유튜브 자체 툴바에 같은 기능이 있어 중복이고,
+                아이폰에서 그 툴바와 겹쳐 보였음. 닫기(X)만 남긴다. */}
             {/* 닫기 */}
             <View style={styles.closeBtn}>
               <IconButton icon={IconClose} onPress={onClose} variant="soft" size="medium" onImage />
@@ -338,12 +341,6 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: Spacing.xs,
     // 좌측 상단 — 유튜브 기본 툴바의 설정(⚙️)이 우측 상단이라 겹침 방지
-    left: Spacing.xs,
-    zIndex: 6,
-  },
-  openBtn: {
-    position: 'absolute',
-    top: Spacing.xs,
     left: Spacing.xs,
     zIndex: 6,
   },

@@ -1,5 +1,6 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, Easing, Modal, NativeSyntheticEvent, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput as RNTextInput, TextInputKeyPressEventData, View} from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import type {SvgProps} from 'react-native-svg';
 import type {SemanticColors} from '@constants/tokens';
@@ -90,6 +91,13 @@ export function SearchCommandBar({
   const [activeTabId, setActiveTabId] = useState<string | undefined>(tabs?.[0]?.id);
   const scrollRef = useRef<ScrollView>(null);
   const inputRef = useRef<RNTextInput>(null);
+  // 최근 본 레시피 id 목록 (검색어 없을 때 첫 화면 정렬·헤더용)
+  const [recentIds, setRecentIds] = useState<string[]>([]);
+  useEffect(() => {
+    AsyncStorage.getItem('recently_viewed_ids')
+      .then(raw => setRecentIds(raw ? JSON.parse(raw) : []))
+      .catch(() => setRecentIds([]));
+  }, []);
 
   // 활성 탭이 있으면 그 탭 설정을, 없으면 단일 items props를 사용 (하위호환)
   const activeTab = tabs?.find(tb => tb.id === activeTabId) ?? tabs?.[0];
@@ -111,13 +119,23 @@ export function SearchCommandBar({
         return true;
       });
     };
-    if (!searchQuery.trim()) return dedupe(activeItems).slice(-10);
+    if (!searchQuery.trim()) {
+      // 검색어 없음 → "최근 본 레시피": 조회 이력(recentIds) 순서로 정렬해 상위 10개.
+      // 이력에 있는 것만(그리고 현재 목록에 존재하는 것만) 노출. 이력 없으면 목록 끝 10개 폴백.
+      const byId = new Map(dedupe(activeItems).map(it => [it.id, it]));
+      const recent = recentIds.map(rid => byId.get(rid)).filter((x): x is SearchCommandBarItem => !!x);
+      if (recent.length > 0) return recent.slice(0, 10);
+      return dedupe(activeItems).slice(-10);
+    }
     const q = searchQuery.trim().toLowerCase();
     return dedupe(activeItems.filter(item =>
       item.label.toLowerCase().includes(q) ||
       item.searchableTexts?.some(txt => txt.toLowerCase().includes(q)),
     ));
-  }, [searchQuery, activeItems]);
+  }, [searchQuery, activeItems, recentIds]);
+
+  // 검색어 없을 때만 "최근 본 레시피" 헤더 노출 (레시피 카드 모드일 때만 의미 있음)
+  const showRecentHeader = !searchQuery.trim() && filteredItems.length > 0 && activeUseRecipeCards;
 
   // 검색어/탭 변경 시 포커스 인덱스 리셋
   useEffect(() => {
@@ -251,6 +269,9 @@ export function SearchCommandBar({
                 </View>
                 {filteredItems.length > 0 ? (
                   <ScrollView ref={scrollRef} bounces={false} showsVerticalScrollIndicator>
+                    {showRecentHeader && (
+                      <Text style={styles.recentHeader}>{t('searchCommandBar.recentSearches')}</Text>
+                    )}
                     {filteredItems.map((item, index) => (
                       <View key={item.id}>
                         {activeUseRecipeCards ? (
@@ -317,11 +338,13 @@ const createStyles = (colors: SemanticColors) =>
     },
     container: {
       width: '100%',
-      maxWidth: 480,
+      maxWidth: 640,
     },
     content: {
       padding: Spacing.xs,
-      height: 320,
+      // 높이는 내용에 맞춰 늘어나고 최대치만 제한한다.
+      // 고정(460)이면 결과가 1~2개일 때 아래가 크게 비어 보였다.
+      maxHeight: 460,
     },
     tabStrip: {
       flexDirection: 'row',
@@ -346,6 +369,15 @@ const createStyles = (colors: SemanticColors) =>
     tabLabelActive: {
       color: colors['foreground/on-surface'],
     },
+    recentHeader: {
+      paddingHorizontal: Spacing.sm,
+      paddingTop: Spacing.xs,
+      paddingBottom: Spacing.xs,
+      fontFamily: Typography.label.small.fontFamily,
+      fontSize: Typography.label.small.fontSize,
+      fontWeight: Typography.label.small.fontWeight as '500',
+      color: colors['foreground/on-surface-muted'],
+    },
     searchBar: {
       paddingHorizontal: Spacing.sm,
       marginBottom: 4,
@@ -361,8 +393,9 @@ const createStyles = (colors: SemanticColors) =>
       bottom: 0,
       justifyContent: 'center' as const,
     },
+    // 결과 없을 때 — flex:1로 늘리면 빈 공간이 과하다. 적당한 높이만 확보.
     emptyContainer: {
-      flex: 1,
+      paddingVertical: Spacing.xxl,
       alignItems: 'center',
       justifyContent: 'center',
       gap: Spacing.smd,

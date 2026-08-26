@@ -181,6 +181,7 @@ export {default as IconGoogle} from '../../../assets/icons/google.svg';
 export {default as IconToolFilled} from '../../../assets/icons/tool_filled.svg';
 export {default as IconToolCaseFilled} from '../../../assets/icons/tool-case_filled.svg';
 export {default as IconCakeSliceFilled} from '../../../assets/icons/cake-slice_filled.svg';
+export {default as IconSliceVertical} from '../../../assets/icons/slice-vertical.svg';
 export {default as IconCroissantFilled} from '../../../assets/icons/croissant_filled.svg';
 export {default as IconFiles} from '../../../assets/icons/files.svg';
 export {default as IconFilesFilled} from '../../../assets/icons/files_filled.svg';
