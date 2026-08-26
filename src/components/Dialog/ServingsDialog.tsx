@@ -37,8 +37,8 @@ function parseServings(value?: string): {spec: string; amount: string; unit: str
   const servingMatch = value.match(new RegExp(`(\\d+)\\s*${SERVING_UNIT}\\b`, 'i'));
   if (servingMatch) return {spec: '', amount: servingMatch[1], unit: 'serving'};
 
-  // "3호 4개", "1호 1개" 등 규격 + 수량
-  const specPieceMatch = value.match(new RegExp(`(.+?)\\s+(\\d+)\\s*${PIECE_UNIT}\\b`, 'i'));
+  // "200g, 8개" / "3호 4개" — 쉼표 구분이 현재 형식이고, 공백은 예전 저장값 호환
+  const specPieceMatch = value.match(new RegExp(`(.+?)\\s*[,،]?\\s+(\\d+)\\s*${PIECE_UNIT}\\b`, 'i'));
   if (specPieceMatch) return {spec: specPieceMatch[1], amount: specPieceMatch[2], unit: 'piece'};
 
   // "12개" / "12 pcs"
@@ -89,8 +89,9 @@ export function ServingsDialog({visible, onClose, value, onConfirm}: ServingsDia
     if (num > 0) {
       // 규격은 '개' 단위에서만 의미 있음 (인분엔 규격을 붙이지 않음)
       const specPart = unit === 'piece' ? spec.trim() : '';
+      // "200g, 8개" — 규격과 수량은 성격이 다른 값이라 쉼표로 끊어야 읽힌다
       const formatted = specPart
-        ? `${specPart} ${num}${UNIT_SUFFIX[unit]}`
+        ? `${specPart}, ${num}${UNIT_SUFFIX[unit]}`
         : `${num}${UNIT_SUFFIX[unit]}`;
       onConfirm(formatted);
     } else {
