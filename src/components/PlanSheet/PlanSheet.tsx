@@ -1,9 +1,10 @@
-import React from 'react';
+import React, {useEffect, useMemo, useState} from 'react';
 import {Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import {BlurView} from 'expo-blur';
 import {BottomSheet} from '@components/BottomSheet';
 import {Button} from '@components/Button';
+import {Tabs} from '@components/Tabs';
 import {IconButton} from '@components/IconButton';
 import {IconClose} from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
@@ -11,6 +12,8 @@ import {useColors} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useTranslation} from '@contexts/LanguageContext';
+import {useSubscription} from '@contexts/SubscriptionContext';
+import {toPlanPackages, savingsPercent} from '@utils/subscriptionPackages';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Radius} from '@constants/tokens';
@@ -22,7 +25,7 @@ export interface PlanSheetProps {
   /** Pro 구독 여부 */
   isPro?: boolean;
   /** 구독하기 버튼 클릭 — 게스트면 로그인 유도, 로그인이면 구매 흐름 */
-  onSubscribePress?: () => void;
+  onSubscribePress?: (pkg?: any) => void;
 }
 
 function PlanGradientBg() {
@@ -62,9 +65,20 @@ function PlanContent({styles, colors, isPro, onSubscribePress}: {
   styles: ReturnType<typeof createStyles>;
   colors: ReturnType<typeof useColors>;
   isPro: boolean;
-  onSubscribePress: () => void;
+  onSubscribePress: (pkg?: any) => void;
 }) {
   const {t} = useTranslation();
+  const {offerings, purchaseStore, canManageSubscription} = useSubscription();
+  const plans = useMemo(() => toPlanPackages(offerings), [offerings]);
+  // 기본 선택은 첫 상품(가장 긴 기간 = 가장 저렴) — 절약을 먼저 보여준다
+  const [selectedType, setSelectedType] = useState<string>('');
+  const selected = plans.find(p => p.type === selectedType) ?? plans[0];
+  useEffect(() => {
+    if (plans.length > 0 && !plans.some(p => p.type === selectedType)) {
+      setSelectedType(plans[0].type);
+    }
+  }, [plans, selectedType]);
+  const savedPercent = selected ? savingsPercent(selected, plans) : null;
   return (
     <View style={styles.planSheetContent}>
       <View style={styles.planHeader}>
@@ -73,20 +87,59 @@ function PlanContent({styles, colors, isPro, onSubscribePress}: {
         </Text>
       </View>
 
+      {/* Pro는 카드 하나 — 기간은 탭으로 고른다.
+          상품마다 카드를 만들면 시트가 길어지고 가격 비교도 어렵다.
+          가격/통화는 스토어(offerings)에서 오므로 앱에 하드코딩하지 않는다. */}
       <BlurView intensity={12} style={styles.planCardBlur}>
         <View style={styles.planCardInner}>
           <View style={styles.planCardInfoRow}>
             <Text style={styles.planCardTitle}>{t('plan.proTitle')}</Text>
+            {/* 상품을 못 불러왔을 때도 자리를 유지한다 — 값만 em dash로.
+                (숨기면 로딩/계약 대기 중에 카드가 들썩인다) */}
             <View style={styles.planPriceRow}>
-              <Text style={styles.planPrice}>USD 18</Text>
-              <Text style={styles.planPriceSuffixText}>{t('plan.perYear')}</Text>
+              <Text style={styles.planPrice}>{selected?.priceString ?? '—'}</Text>
+              <Text style={styles.planPriceSuffixText}>
+                {selected ? t(selected.periodKey) : '/—'}
+              </Text>
             </View>
           </View>
-          {isPro ? (
-            <Button label={t('plan.currentPlan')} variant="soft" disabled />
-          ) : (
-            <Button label={t('plan.subscribe')} onPress={onSubscribePress} />
+
+          {/* 기간 선택 — 상품이 2개 이상일 때만 */}
+          {plans.length > 1 && (
+            <Tabs
+              tabs={plans.map(p => ({
+                id: p.type,
+                label: t(p.periodKey).replace('/', ''),
+              }))}
+              selectedId={selectedType}
+              onSelect={setSelectedType}
+              fullWidth
+            />
           )}
+
+          {savedPercent != null && (
+            <Text style={styles.planSavingsText}>{t('plan.savings', {percent: savedPercent})}</Text>
+          )}
+
+          {isPro ? (
+            <>
+              <Button label={t('plan.currentPlan')} variant="soft" disabled />
+              {/* 어디서 결제했는지 — 다른 플랫폼 구독은 이 앱에서 변경할 수 없다 */}
+              {purchaseStore && (
+                <Text style={styles.planStoreNote}>
+                  {purchaseStore === 'APP_STORE' ? t('profile.managedOnIos') : t('profile.managedOnAndroid')}
+                </Text>
+              )}
+            </>
+          ) : (
+            // 웹은 스토어 인앱결제를 쓸 수 없다 — 버튼을 비활성하고 앱에서 하도록 안내
+            Platform.OS === 'web' ? (
+              <Button label={t('plan.subscribeOnApp')} variant="soft" disabled />
+            ) : (
+              <Button label={t('plan.subscribe')} onPress={() => onSubscribePress(selected?.raw)} />
+            )
+          )}
+
           <View style={styles.planFeatureList}>
             <PlanFeature text={t('plan.featureCloudSync')} styles={styles} dotColor={colors['custom/light-blue']} />
             <PlanFeature text={t('plan.featureUnlimitedExplore')} styles={styles} dotColor={colors['custom/light-blue']} />
@@ -102,7 +155,8 @@ function PlanContent({styles, colors, isPro, onSubscribePress}: {
             <Text style={styles.planPrice}>Free</Text>
           </View>
           {isPro ? (
-            <Button label={t('plan.downgradeFree')} variant="soft" />
+            // 다른 플랫폼에서 결제했으면 여기서 해지할 수 없다(안내는 Pro 카드에 있다)
+            <Button label={t('plan.downgradeFree')} variant="soft" disabled={!canManageSubscription} />
           ) : (
             <Button label={t('plan.currentPlan')} variant="soft" disabled />
           )}
@@ -175,6 +229,16 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   planSheetContent: {
     paddingVertical: 24,
     gap: Spacing.md,
+  },
+  planStoreNote: {
+    ...Typography.label.small,
+    color: colors['foreground/on-surface-muted'],
+    textAlign: 'center',
+  },
+  planSavingsText: {
+    ...Typography.label.small,
+    fontWeight: Typography.label.small.fontWeight as '500',
+    color: colors['foreground/accent'],
   },
   planHeader: {
     paddingVertical: Spacing.sm,

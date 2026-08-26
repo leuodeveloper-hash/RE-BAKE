@@ -9,6 +9,10 @@ interface SubscriptionContextValue {
   purchasePackage: (pkg: any) => Promise<boolean>;
   restorePurchases: () => Promise<boolean>;
   isLoading: boolean;
+  photoCloudBackup: boolean;
+  setPhotoCloudBackup: (v: boolean) => void;
+  purchaseStore: string | null;
+  canManageSubscription: boolean;
 }
 
 const SubscriptionContext = createContext<SubscriptionContextValue | null>(null);
@@ -18,8 +22,13 @@ export function SubscriptionProvider({children}: {children: React.ReactNode}) {
   const purchasePackage = useCallback(async (_pkg: any): Promise<boolean> => false, []);
   const restorePurchases = useCallback(async (): Promise<boolean> => false, []);
 
+  // 웹은 결제를 지원하지 않는다(스토어 인앱결제 전용) — 구독 관리도 앱에서만.
   const value = useMemo<SubscriptionContextValue>(() => ({
     isPro: isAdmin, offerings: null, purchasePackage, restorePurchases, isLoading: false,
+    photoCloudBackup: false,
+    setPhotoCloudBackup: () => {},
+    purchaseStore: null,
+    canManageSubscription: false,
   }), [isAdmin, purchasePackage, restorePurchases]);
 
   return (

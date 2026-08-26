@@ -15,6 +15,7 @@ import {Selector} from '@components/Selector';
 import {MenuItem} from '@components/Menu';
 import {TextInput} from '@components/TextInput';
 import {Button} from '@components/Button';
+import {PlanSheet} from '@components/PlanSheet';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {BottomSheet} from '@components/BottomSheet';
 import {useExamNotificationPrefs} from '@hooks/useExamNotificationPrefs';
@@ -27,7 +28,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {
-  IconArrowLeft,
+  IconClose,
   IconImport,
   IconExport,
   IconChevronRight,
@@ -77,6 +78,8 @@ export interface ProfileScreenProps {
   onWidgetGuidePress?: () => void;
   /** Pro 구독 여부 */
   isPro?: boolean;
+  /** 구독하기 — 없으면 시트만 닫힌다 */
+  onSubscribePress?: (pkg?: any) => void;
   /** 어드민 여부 (디버그 도구 노출) */
   isAdmin?: boolean;
   /** 고정 아바타 시드 (useAvatarSeed에서 가져온 값) */
@@ -162,6 +165,7 @@ export function ProfileScreen({
   onExamNotifPress,
   onWidgetGuidePress,
   isPro = false,
+  onSubscribePress,
   isAdmin = false,
   avatarSeed,
   openPlanSheetSignal = 0,
@@ -246,7 +250,7 @@ export function ProfileScreen({
           body: t('profile.pushTestBody'),
           data: {kind: 'debug_test'},
         },
-        trigger: {seconds: 3},
+        trigger: {type: 'timeInterval', seconds: 3, repeats: false},
       });
       showMessage(t('profile.pushTestScheduled'));
     } catch (err) {
@@ -276,7 +280,7 @@ export function ProfileScreen({
           body: t('profile.regBannerTestBody'),
           data: {kind: 'debug_test', subkind: 'registration_15min'},
         },
-        trigger: {seconds: 5},
+        trigger: {type: 'timeInterval', seconds: 5, repeats: false},
       });
       showMessage(t('profile.regBannerTestScheduled'));
     } catch (err) {
@@ -372,7 +376,7 @@ export function ProfileScreen({
       {/* 상단 네비게이션 */}
       <FloatingNavBar
         left={
-          <NavPillButton icon={IconArrowLeft} onPress={onBack} />
+          <NavPillButton icon={IconClose} onPress={onBack} />
         }
       />
 
@@ -663,66 +667,15 @@ export function ProfileScreen({
         </View>
       </BottomSheet>
 
-      {/* 플랜 바텀시트 */}
-      <BottomSheet
+      {/* 플랜 바텀시트 — 공통 PlanSheet 사용.
+          예전엔 여기에 같은 UI를 복사해 뒀는데, PlanSheet를 고쳐도 반영되지 않아
+          가격(USD 18 하드코딩)이 옛 값으로 남는 문제가 있었다. */}
+      <PlanSheet
         visible={showPlanSheet}
         onClose={() => setShowPlanSheet(false)}
-        maxWidth={380}
-        backgroundElement={
-          <PlanGradientBg />
-        }
-      >
-        <View style={styles.planSheetContent}>
-          <View style={styles.planHeader}>
-            <Text style={styles.planHeadline}>
-              {t('profile.planHeadline')}
-            </Text>
-          </View>
-
-          {/* 프로 플랜 */}
-          <BlurView intensity={12} style={styles.planCardBlur}>
-            <View style={styles.planCardInner}>
-              <View style={styles.planCardInfoRow}>
-                <Text style={styles.planCardTitle}>{t('profile.planPro')}</Text>
-                <View style={styles.planPriceRow}>
-                  <Text style={styles.planPrice}>USD 18</Text>
-                  <Text style={styles.planPriceSuffixText}>{t('profile.planPerYear')}</Text>
-                </View>
-              </View>
-              {isPro ? (
-                <Button label={t('profile.currentPlan')} variant="soft" disabled />
-              ) : (
-                <Button label={t('profile.subscribe')} disabled />
-              )}
-              <View style={styles.planFeatureList}>
-                <PlanFeature text={t('profile.featureCloudSync')} styles={styles} dotColor={colors['custom/light-blue']} />
-                <PlanFeature text={t('profile.featureUnlimitedExplore')} styles={styles} dotColor={colors['custom/light-blue']} />
-                <PlanFeature text={t('profile.featureAdFree')} styles={styles} dotColor={colors['custom/light-blue']} />
-              </View>
-            </View>
-          </BlurView>
-
-          {/* 무료 플랜 */}
-          <BlurView intensity={12} style={styles.planCardBlur}>
-            <View style={styles.planCardInner}>
-              <View style={styles.planCardInfoRow}>
-                <Text style={styles.planCardTitle}>{t('profile.planFree')}</Text>
-                <Text style={styles.planPrice}>Free</Text>
-              </View>
-              {isPro ? (
-                <Button label={t('profile.downgradeToFree')} variant="soft" />
-              ) : (
-                <Button label={t('profile.currentPlan')} variant="soft" disabled />
-              )}
-              <View style={styles.planFeatureList}>
-                <PlanFeature text={t('profile.featureLocalSave')} styles={styles} />
-                <PlanFeature text={t('profile.featureExplorePreview')} styles={styles} />
-                <PlanFeature text={t('profile.featureExportImport')} styles={styles} />
-              </View>
-            </View>
-          </BlurView>
-        </View>
-      </BottomSheet>
+        isPro={isPro}
+        onSubscribePress={pkg => { setShowPlanSheet(false); onSubscribePress?.(pkg); }}
+      />
 
       {/* 스낵바는 전역(_layout.tsx)에서 단일 렌더 — 페이지별 로컬 스낵바 제거됨 */}
     </View>
