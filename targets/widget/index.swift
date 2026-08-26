@@ -14,6 +14,46 @@ struct RecipeEntry: TimelineEntry {
   let date: Date
   let recipe: DailyRecipe?
   let imagePath: String?
+  /// 다가오는 시험 — 없으면 nil (배너를 그리지 않는다)
+  let exam: UpcomingExam?
+}
+
+/// 앱이 저장한 "다가오는 시험" 한 건.
+/// 날짜를 그대로 받아 위젯이 스스로 D-day를 계산한다 —
+/// 남은 일수를 앱에서 미리 계산해 넣으면 앱을 안 여는 동안 숫자가 멈춘다.
+struct UpcomingExam: Codable {
+  let examDate: String        // 'YYYY-MM-DD'
+  let label: String           // '제과 실기' 등
+  let round: String           // '2026년 1회' 등
+  let registrationStart: String
+}
+
+func readUpcomingExam() -> UpcomingExam? {
+  guard let defaults = UserDefaults(suiteName: appGroup),
+        let raw = defaults.string(forKey: "upcomingExam"),
+        !raw.isEmpty,
+        let data = raw.data(using: .utf8),
+        let exam = try? JSONDecoder().decode(UpcomingExam.self, from: data)
+  else { return nil }
+  return exam
+}
+
+/// 'YYYY-MM-DD' → 그날 00:00 (로컬 타임존)
+func parseExamDate(_ s: String) -> Date? {
+  let f = DateFormatter()
+  f.dateFormat = "yyyy-MM-dd"
+  f.timeZone = TimeZone.current
+  // ISO 문자열(시각 포함)이 올 수도 있으므로 앞 10자만 쓴다
+  return f.date(from: String(s.prefix(10)))
+}
+
+/// 오늘 기준 남은 일수. 지났으면 nil.
+func daysUntil(_ examDate: Date, from now: Date) -> Int? {
+  let cal = Calendar.current
+  let a = cal.startOfDay(for: now)
+  let b = cal.startOfDay(for: examDate)
+  guard let d = cal.dateComponents([.day], from: a, to: b).day, d >= 0 else { return nil }
+  return d
 }
 
 // 앱(JS)이 저장한 날짜별 세트: seed(YYYYMMDD)로 그날의 제목+북+이미지가 한 세트.
@@ -40,25 +80,39 @@ func seedFor(_ date: Date) -> Int {
   return (c.year ?? 0) * 10000 + (c.month ?? 0) * 100 + (c.day ?? 0)
 }
 
-func entryFor(date: Date, sets: [DailySet]) -> RecipeEntry {
+// 앱이 저장한 imagePath(파일명)를 런타임의 App Group 컨테이너 절대경로로 변환.
+// 앱은 파일명만 저장한다 — 컨테이너 절대경로는 UUID가 포함돼 앱 재설치/업데이트/기기마다
+// 달라, 저장된 절대경로를 위젯이 읽으면 안 맞아 이미지가 안 뜨는 문제가 있었음.
+// (하위호환: 예전 데이터가 절대경로('/'로 시작)면 그대로 사용)
+func resolveImagePath(_ stored: String?) -> String? {
+  guard let s = stored, !s.isEmpty else { return nil }
+  if s.hasPrefix("/") { return s } // 구버전 절대경로 호환
+  guard let container = FileManager.default
+    .containerURL(forSecurityApplicationGroupIdentifier: appGroup)
+  else { return nil }
+  return container.appendingPathComponent("widget").appendingPathComponent(s).path
+}
+
+func entryFor(date: Date, sets: [DailySet], exam: UpcomingExam?) -> RecipeEntry {
   let seed = seedFor(date)
   if let s = sets.first(where: { $0.seed == seed }) {
     return RecipeEntry(
       date: date,
       recipe: DailyRecipe(id: s.id, title: s.title, cookbook: s.cookbook),
-      imagePath: (s.imagePath?.isEmpty == false) ? s.imagePath : nil
+      imagePath: resolveImagePath(s.imagePath),
+      exam: exam
     )
   }
-  return RecipeEntry(date: date, recipe: nil, imagePath: nil)
+  return RecipeEntry(date: date, recipe: nil, imagePath: nil, exam: exam)
 }
 
 struct Provider: TimelineProvider {
   func placeholder(in context: Context) -> RecipeEntry {
-    RecipeEntry(date: Date(), recipe: DailyRecipe(id: "", title: "오늘의 레시피", cookbook: nil), imagePath: nil)
+    RecipeEntry(date: Date(), recipe: DailyRecipe(id: "", title: "오늘의 레시피", cookbook: nil), imagePath: nil, exam: nil)
   }
 
   func getSnapshot(in context: Context, completion: @escaping (RecipeEntry) -> Void) {
-    completion(entryFor(date: Date(), sets: readDailySets()))
+    completion(entryFor(date: Date(), sets: readDailySets(), exam: readUpcomingExam()))
   }
 
   func getTimeline(in context: Context, completion: @escaping (Timeline<RecipeEntry>) -> Void) {
@@ -66,10 +120,13 @@ struct Provider: TimelineProvider {
     let cal = Calendar.current
     let startOfToday = cal.startOfDay(for: Date())
     let sets = readDailySets()
+    // 시험 정보는 하루 단위로 D-day가 바뀐다. 엔트리마다 같은 값을 넣되,
+    // 각 엔트리의 date를 기준으로 뷰가 남은 일수를 다시 계산한다.
+    let exam = readUpcomingExam()
     var entries: [RecipeEntry] = []
     for dayOffset in 0..<14 {
       guard let day = cal.date(byAdding: .day, value: dayOffset, to: startOfToday) else { continue }
-      entries.append(entryFor(date: day, sets: sets))
+      entries.append(entryFor(date: day, sets: sets, exam: exam))
     }
     // 14일 뒤 갱신 요청 → 앱이 안 열렸어도 다시 준비된 만큼 순환.
     let refreshDate = cal.date(byAdding: .day, value: 14, to: startOfToday) ?? Date()
@@ -80,6 +137,66 @@ struct Provider: TimelineProvider {
 struct BakleWidgetEntryView: View {
   var entry: Provider.Entry
   @Environment(\.widgetFamily) var family
+
+  // 크기별 스케일 — 아이패드의 large/extraLarge에서 medium 값을 그대로 쓰면
+  // 로고·제목이 지나치게 작아 보인다.
+  private var logoSize: CGFloat {
+    switch family {
+    case .systemSmall: return 22
+    case .systemMedium: return 26
+    case .systemLarge: return 32
+    default: return 40 // extraLarge
+    }
+  }
+  private var contentPadding: CGFloat {
+    switch family {
+    case .systemSmall: return 12
+    case .systemMedium: return 16
+    case .systemLarge: return 20
+    default: return 24
+    }
+  }
+  private var titleFont: Font {
+    switch family {
+    case .systemSmall: return .subheadline
+    case .systemMedium: return .headline
+    case .systemLarge: return .title2
+    default: return .title
+    }
+  }
+
+  /// 시험 D-day 배너.
+  /// 시험 당일이 가까울수록 눈에 띄게 — D-1 이하는 강조색.
+  @ViewBuilder
+  private func examBanner(_ exam: UpcomingExam) -> some View {
+    if let examDate = parseExamDate(exam.examDate),
+       let days = daysUntil(examDate, from: entry.date) {
+      let isUrgent = days <= 1
+      HStack(spacing: 6) {
+        Text(days == 0 ? "오늘" : "D-\(days)")
+          .font(.caption).fontWeight(.heavy)
+          .foregroundColor(isUrgent ? .white : .white.opacity(0.95))
+        Text(exam.label)
+          .font(.caption2)
+          .foregroundColor(.white.opacity(0.85))
+          .lineLimit(1)
+        // 시험 당일은 남은 시간을 초 단위로 — OS가 앱 없이도 갱신한다
+        if days == 0 {
+          Text(examDate, style: .timer)
+            .font(.caption2).fontWeight(.semibold)
+            .foregroundColor(.white.opacity(0.9))
+            .monospacedDigit()
+        }
+      }
+      .padding(.horizontal, 8)
+      .padding(.vertical, 4)
+      .background(
+        Capsule().fill(isUrgent
+          ? Color(red: 0.84, green: 0.58, blue: 0.02)   // yellow/50 — 임박
+          : Color.black.opacity(0.35))
+      )
+    }
+  }
 
   var body: some View {
     let recipe = entry.recipe
@@ -93,17 +210,22 @@ struct BakleWidgetEntryView: View {
         Image("logo")
           .resizable()
           .aspectRatio(contentMode: .fit)
-          .frame(width: family == .systemSmall ? 22 : 26, height: family == .systemSmall ? 22 : 26)
+          .frame(width: logoSize, height: logoSize)
           .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-          .padding(family == .systemSmall ? 12 : 16)
-        // 하단 좌측: 제목만
-        Text(recipe.title)
-          .font(family == .systemSmall ? .subheadline : .headline)
-          .fontWeight(.bold)
-          .foregroundColor(.white)
-          .lineLimit(2)
-          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-          .padding(family == .systemSmall ? 12 : 16)
+          .padding(contentPadding)
+        // 하단 좌측: 시험 D-day 배너 + 제목
+        VStack(alignment: .leading, spacing: 6) {
+          if let exam = entry.exam {
+            examBanner(exam)
+          }
+          Text(recipe.title)
+            .font(titleFont)
+            .fontWeight(.bold)
+            .foregroundColor(.white)
+            .lineLimit(2)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+        .padding(contentPadding)
       } else {
         VStack(spacing: 6) {
           Text("🥐").font(.system(size: 36))
@@ -155,7 +277,9 @@ struct BakleWidget: Widget {
     }
     .configurationDisplayName("오늘의 레시피")
     .description("매일 새로운 오늘의 레시피를 추천해드려요.")
-    .supportedFamilies([.systemSmall, .systemMedium])
+    // 아이패드는 홈 화면 위젯이 large/extraLarge 중심이라 small/medium만 지원하면
+    // 선택지가 거의 없다. 큰 크기까지 지원해 아이패드에서도 정상 배치되게 한다.
+    .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge])
     // 시스템 기본 콘텐츠 여백 제거 → 이미지가 가장자리까지 차고, 텍스트 패딩은 body의 .padding만 적용
     // (시스템 여백 + 내 패딩이 겹쳐 "너무 넓게" 보이던 문제 해결)
     .contentMarginsDisabled()

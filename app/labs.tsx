@@ -47,7 +47,7 @@ export default function LabsRoute() {
           body: t('labs.pushTestBody'),
           data: {kind: 'debug_test'},
         },
-        trigger: {seconds: 3},
+        trigger: {type: 'timeInterval', seconds: 3, repeats: false},
       });
       showMessage(t('labs.pushTestScheduled'));
     } catch (err) {
@@ -77,7 +77,7 @@ export default function LabsRoute() {
           body: t('labs.registrationBannerBody'),
           data: {kind: 'debug_test', subkind: 'registration_15min'},
         },
-        trigger: {seconds: 5},
+        trigger: {type: 'timeInterval', seconds: 5, repeats: false},
       });
       showMessage(t('labs.registrationBannerScheduled'));
     } catch (err) {

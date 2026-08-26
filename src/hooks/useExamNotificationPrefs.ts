@@ -1,6 +1,8 @@
 import {useCallback, useEffect, useState} from 'react';
+import {AppState} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {fetchExamSchedules} from '@utils/examSchedules';
+import {syncExamWidget} from '@utils/examWidgetSync';
 import {cancelAllExamNotifications, scheduleExamNotifications} from '@utils/examNotifications';
 import {getExamTypes, type ExamType} from '@constants/examTypes';
 
@@ -52,9 +54,41 @@ export function useExamNotificationPrefs() {
   }, [reload]);
 
   // prefs 로드/변경될 때마다 알림 동기화 (idempotent — 기존 취소 후 재등록)
+  //
+  // 실패를 삼키지 않는다. 권한 거부·일정 조회 실패·trigger 오류가 조용히 묻히면
+  // 토글은 켜져 있는데 알림이 0건인 상태를 아무도 알 수 없다.
+  const [syncError, setSyncError] = useState<string | null>(null);
   useEffect(() => {
     if (!loaded) return;
-    syncNotifications(prefs).catch(() => {/* 무시 */});
+    let cancelled = false;
+    syncNotifications(prefs)
+      .then(() => { if (!cancelled) setSyncError(null); })
+      .then(() => syncExamWidget())
+      .catch((e: any) => {
+        if (cancelled) return;
+        const msg = e?.message ?? String(e);
+        console.warn('[examNotifications] 동기화 실패:', msg);
+        setSyncError(msg);
+      });
+    // 토글을 빠르게 여러 번 누르면 이전 sync의 "취소" 뒤에 다음 sync의 "등록"이
+    // 끼어들 수 있다. 마지막 요청만 반영되게 한다.
+    return () => { cancelled = true; };
+  }, [loaded, prefs]);
+
+  // 앱이 포그라운드로 돌아올 때 다시 동기화한다.
+  // prefs 변경 시점에만 등록하면, 서버 일정이 갱신되거나 지난 알림이 소진된 뒤에도
+  // 재등록될 기회가 없어 알림이 점점 비어간다.
+  useEffect(() => {
+    if (!loaded) return;
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state !== 'active') return;
+      syncNotifications(prefs)
+        .then(() => syncExamWidget())
+        .catch((e: any) => {
+          console.warn('[examNotifications] 복귀 동기화 실패:', e?.message ?? e);
+        });
+    });
+    return () => sub.remove();
   }, [loaded, prefs]);
 
   const update = useCallback((next: ExamNotificationPrefs) => {
@@ -81,5 +115,5 @@ export function useExamNotificationPrefs() {
     update({enabled: targets.length > 0, targets});
   }, [prefs, update]);
 
-  return {prefs, loaded, reload, setEnabled, toggleTarget, setTargetEnabled};
+  return {prefs, loaded, reload, setEnabled, toggleTarget, setTargetEnabled, syncError};
 }

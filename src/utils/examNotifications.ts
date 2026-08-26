@@ -25,7 +25,9 @@ export async function scheduleExamNotifications(schedules: ExamSchedule[]): Prom
   const settings = await Notifications.getPermissionsAsync();
   if (settings.status !== 'granted') {
     const req = await Notifications.requestPermissionsAsync();
-    if (req.status !== 'granted') return;
+    // 조용히 return하면 토글은 켜진 채 알림이 0건이 되어 사용자가 알 수 없다.
+    // 호출부가 안내할 수 있도록 알린다.
+    if (req.status !== 'granted') throw new Error('notification-permission-denied');
   }
 
   // 기존 시험 알림 모두 취소 (categoryIdentifier로 구분)
@@ -63,6 +65,16 @@ export async function scheduleExamNotifications(schedules: ExamSchedule[]): Prom
     const round = s.round ? ` (${s.round})` : '';
 
     const triggers: {date: Date; title: string; body: string}[] = [];
+
+    // 접수 전날 — 15분 전만으로는 준비할 시간이 없다. 시험 알림과 같은 09:00 기준.
+    const regMinus1 = at9am(s.registrationStart, -1);
+    if (regMinus1) {
+      triggers.push({
+        date: regMinus1,
+        title: t('examNotifications.registrationDayBeforeTitle', {label, round}),
+        body: t('examNotifications.registrationDayBeforeBody'),
+      });
+    }
 
     const reg15Before = minutesBeforeRegistration(s.registrationStart, 15);
     if (reg15Before) {
@@ -115,6 +127,9 @@ export async function scheduleExamNotifications(schedules: ExamSchedule[]): Prom
           title: t.title,
           body: t.body,
           data: {kind: 'exam_schedule', scheduleId: s.id, examType: s.examType},
+          // 안드로이드 채널 명시 — 미지정 시 기본 채널로 폴백되지만,
+          // 중요도(HIGH)가 확실히 적용되도록 앱이 등록한 채널을 직접 가리킨다.
+          ...(Platform.OS === 'android' ? {channelId: 'default'} : {}),
         },
         // expo-notifications(SDK54)는 trigger에 type이 없으면 거부한다.
         // Date를 그냥 넘기면 hasValidTriggerObject에서 TypeError → 스케줄 등록 실패.

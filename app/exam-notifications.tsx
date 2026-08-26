@@ -1,4 +1,4 @@
-import React, {useCallback} from 'react';
+import React, {useCallback, useEffect} from 'react';
 import {Alert, Linking, Platform, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useRouter} from 'expo-router';
@@ -21,11 +21,21 @@ import {IconArrowLeft, IconBellFilled, IconCircleInfo} from '@components/Icon/Ic
 export default function ExamNotificationsRoute() {
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
-  const {prefs, setTargetEnabled} = useExamNotificationPrefs();
+  const {prefs, setTargetEnabled, syncError} = useExamNotificationPrefs();
   const {user} = useAuth();
   const {open: openAuthSheet} = useAuthSheet();
   const {t} = useTranslation();
   const {showSnackbar} = useSnackbar();
+
+  // 알림 등록이 실패하면 알린다. 조용히 두면 토글만 켜진 채 알림이 오지 않는다.
+  useEffect(() => {
+    if (!syncError) return;
+    showSnackbar(
+      syncError === 'notification-permission-denied'
+        ? t('examNotifications.permissionDenied')
+        : t('examNotifications.syncFailed'),
+    );
+  }, [syncError, showSnackbar, t]);
   const isLoggedIn = !!user && !user.isAnonymous;
 
   // 전역 스낵바(_layout.tsx 단일 렌더) 사용 — 로컬 스낵바 중복 제거
