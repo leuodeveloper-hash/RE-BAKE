@@ -608,6 +608,9 @@ export const SemanticColorsLight = {
   'custom/yellow-subtle': withOpacityV2(P['yellow/50'], 0.16),
   'custom/yellow-border': withOpacityV2(P['yellow/50'], 0.12),
   'custom/yellow-on-container': P['yellow/70'],
+  // 옐로우 카드 배경 — 불투명 단색. 반투명(yellow-subtle)을 배경으로 쓰면
+  // 뒤 페이지 배경이 비쳐 탁해지고, 그 위 요소의 색도 흐려진다.
+  'custom/yellow-container': P['yellow/96'],
   'custom/burgundy': P['burgundy/20'],
   'custom/burgundy-var': withOpacityV2(P['burgundy/20'], 0.64),
   'custom/burgundy-subtle': withOpacityV2(P['burgundy/20'], 0.16),
@@ -753,6 +756,7 @@ export const SemanticColorsDark = {
   'custom/yellow-subtle': withOpacityV2(P['yellow/50'], 0.20),
   'custom/yellow-border': withOpacityV2(P['yellow/50'], 0.12),
   'custom/yellow-on-container': P['yellow/30'],
+  'custom/yellow-container': P['yellow/8'],
   'custom/burgundy': P['burgundy/20'],
   'custom/burgundy-var': withOpacityV2(P['burgundy/20'], 0.64),
   'custom/burgundy-subtle': withOpacityV2(P['burgundy/20'], 0.20),

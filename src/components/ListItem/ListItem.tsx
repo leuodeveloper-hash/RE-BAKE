@@ -18,7 +18,7 @@ export type ListItemElementType =
   | {type: 'icon'; icon: React.FC<SvgProps>}
   | {type: 'number'; value: number}
   | {type: 'checkbox'; checked: boolean}
-  | {type: 'iconButton'; icon: React.FC<SvgProps>; onPress?: () => void; variant?: 'filled' | 'tonal' | 'soft' | 'ghost-secondary' | 'ghost-yellow'; disabled?: boolean}
+  | {type: 'iconButton'; icon: React.FC<SvgProps>; onPress?: () => void; variant?: 'filled' | 'tonal' | 'soft' | 'ghost-secondary' | 'ghost-yellow'; disabled?: boolean; size?: 'small' | 'medium' | 'large'}
   | {type: 'custom'; element: React.ReactNode};
 
 // ---- ListItem Props ----
@@ -43,6 +43,8 @@ export interface ListItemProps {
   /** 컬러 배리언트 */
   variant?: ListItemVariant;
   onPress?: () => void;
+  /** 롱프레스 — 보기 화면에서 해당 행을 편집으로 넘기는 용도 등 */
+  onLongPress?: () => void;
   style?: ViewStyle;
 }
 
@@ -90,12 +92,16 @@ function renderSlotElement(
             icon={element.icon}
             onPress={element.onPress}
             variant={element.variant ?? 'tonal'}
-            size="medium"
+            // 호출부가 지정 가능. 예전엔 medium 고정이라, 크기를 바꾸려면
+            // type:'custom'으로 우회해야 했고 그래서 헤더마다 버튼 크기가 갈렸다.
+            size={element.size ?? 'medium'}
             disabled={element.disabled}
           />
         </View>
       );
     case 'custom':
+      // 슬롯으로 감싸지 않는다 — 28 고정 폭을 강제하면 안에 든 요소가 잘리고
+      // 옆 글씨가 밀린다. 크기는 호출부가 알아서 맞춘다.
       return <>{element.element}</>;
   }
 }
@@ -112,6 +118,7 @@ export function ListItem({
   disabled = false,
   variant,
   onPress,
+  onLongPress,
   style,
 }: ListItemProps) {
   const colors = useColors();
@@ -119,19 +126,22 @@ export function ListItem({
   const cardVariant = useCardVariant();
   const resolvedVariant = variant ?? cardVariant;
   const multiline = titleNumberOfLines === 0;
-  const isClickable = onPress && !disabled;
+  // 롱프레스만 있어도 Pressable이어야 한다(탭 없이 롱프레스만 쓰는 행 대응)
+  const isClickable = (onPress || onLongPress) && !disabled;
   const Wrapper = isClickable ? Pressable : View;
   const isYellow = resolvedVariant === 'yellow';
   const wrapperProps = isClickable
     ? {
-        onPress: () => { triggerHaptic('light'); onPress!(); },
+        onPress: onPress ? () => { triggerHaptic('light'); onPress(); } : undefined,
+        onLongPress: onLongPress ? () => { triggerHaptic('medium'); onLongPress(); } : undefined,
+        delayLongPress: 400,
         // 웹: 클릭 가능한 행 전체에 손가락 커서. 함수형 style에선 RN Web 자동 커서가
         // 안 붙는 경우가 있어 명시적으로 지정.
         style: ({pressed}: {pressed: boolean}) => [
           styles.stateLayer,
           Platform.OS === 'web' && ({cursor: 'pointer'} as any),
           multiline && styles.stateLayerTop,
-          pressed && styles.stateLayerPressed,
+          pressed && (isYellow ? styles.stateLayerPressedYellow : styles.stateLayerPressed),
           disabled && styles.disabled,
         ],
       }
@@ -152,7 +162,7 @@ export function ListItem({
       </Wrapper>
       {showDivider && (
         <View style={styles.dividerContainer}>
-          <View style={styles.divider} />
+          <View style={[styles.divider, isYellow && styles.dividerYellow]} />
         </View>
       )}
     </View>
@@ -173,12 +183,36 @@ const createStyles = (colors: SemanticColors) =>
       borderRadius: Radius['radius-md'],
       gap: 4,
     },
+    /**
+     * 여러 줄 항목.
+     *
+     * 한 줄일 땐 minHeight(48) 안에서 세로 중앙이라 위아래가 균등해 보이지만,
+     * 줄이 늘어나 minHeight를 넘어서면 중앙 정렬이 무력해지고 paddingVertical만
+     * 남는다. 그래서 "한 줄 = 넉넉 / 여러 줄 = 위가 좁음"으로 어긋나 보였다.
+     *
+     * → 여러 줄에서는 중앙 정렬에 기대지 않고, 한 줄일 때와 같은 여백
+     *   ((48 - lineHeight) / 2)을 패딩으로 직접 준다. 줄 수와 무관하게 동일하다.
+     *
+     * alignItems는 'flex-start' — 우측 버튼(삭제 등)이 첫 줄과 나란히 와야 한다.
+     * 여백은 위 패딩이 잡으므로, 한 줄일 때도 중앙 정렬과 같은 위치가 된다.
+     */
+    /**
+     * 여러 줄 항목 — 우측 버튼이 첫 줄과 나란히 오도록 위 정렬.
+     *
+     * 세로 패딩은 stateLayer(8)와 같게 둔다. 이보다 키우면
+     * 패딩(2배) + 슬롯(28)이 minHeight 48을 넘겨, 슬롯 없는 행보다 높아진다.
+     */
     stateLayerTop: {
       alignItems: 'flex-start',
+      paddingVertical: Spacing.sm,
     },
     stateLayerPressed: {
       backgroundColor:
         colors['fill/subtle'],
+    },
+    // 옐로우 카드 안에서는 누름 효과도 같은 계열로 — 회색이면 배경에서 튄다
+    stateLayerPressedYellow: {
+      backgroundColor: colors['custom/yellow-subtle'],
     },
     slotContainer: {
       width: 28,
@@ -207,10 +241,20 @@ const createStyles = (colors: SemanticColors) =>
       color: colors['foreground/on-surface-muted'],
       textAlign: 'center',
     },
+    /**
+     * 글줄 영역 — 글줄 높이만 차지한다.
+     *
+     * 슬롯(28)에 맞춰 minHeight를 키우면 행이 글보다 커져, 같은 카드의
+     * 팁·주의 칩 행보다 눈에 띄게 넓어진다. 여백은 stateLayer가 잡으므로
+     * 여기서는 글줄 그대로 둔다.
+     */
     content: {
       flex: 1,
       paddingHorizontal: Spacing.sm,
-      paddingVertical: 2,
+      // 글줄(20)을 좌우 슬롯(28) 중앙에 맞춘다 — 위 정렬(stateLayerTop) 행에서
+      // 패딩이 없으면 첫 줄이 슬롯보다 (28-20)/2 = 4px 위로 떠 보인다.
+      // 여러 줄로 늘어나도 첫 줄 기준은 그대로 유지된다.
+      paddingVertical: 4,
     },
     title: {
       fontFamily: Typography.body.medium.fontFamily,
@@ -228,8 +272,15 @@ const createStyles = (colors: SemanticColors) =>
       height: 1,
       backgroundColor: colors['surface/dim'],
     },
+    // 옐로우 카드 안에서는 구분선도 같은 계열로 — 기본 회색이면 카드에서 튄다.
+    // 카드 배경과 같은 yellow-subtle을 쓰면 묻혀서 안 보이므로,
+    // 한 단계 진한 yellow-border를 쓴다.
+    dividerYellow: {
+      backgroundColor: colors['custom/yellow-border'],
+    },
     titleYellow: {
-      color: colors['custom/yellow-var'],
+      // 같은 카드의 아이콘과 동일한 색 — 톤이 갈리지 않게
+      color: colors['custom/yellow'],
     },
     disabled: {
       opacity: 0.38,

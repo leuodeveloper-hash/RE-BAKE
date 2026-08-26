@@ -43,7 +43,10 @@ const FONT: Record<number, string> = {
 const BASE = {
   includeFontPadding: false,
   textTransform: 'none' as const,
-  textDecoration: 'none' as const,
+  // RN Web은 축약형 textDecoration을 거부한다 ("Please use long-form properties").
+  // 이 BASE는 모든 텍스트·입력이 쓰므로, 거부되면 스타일이 통째로 무시돼
+  // 입력이 화면에서 사라진다. 반드시 long-form으로 둘 것.
+  textDecorationLine: 'none' as const,
 };
 
 // Pretendard 는 정상 베이스라인 메트릭. 별도 보정 불필요.

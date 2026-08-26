@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useMemo, useRef} from 'react';
 import {
   View,
   TextInput as RNTextInput,
@@ -6,21 +6,22 @@ import {
   Pressable,
   StyleSheet,
   TextInputProps as RNTextInputProps,
-  NativeSyntheticEvent,
-  TextInputContentSizeChangeEventData,
-  Platform,
   StyleProp,
   TextStyle,
 } from 'react-native';
 import {IconCloseCircleFilled} from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
+import {useLinkTargetBinding} from '@hooks/useLinkTargetBinding';
+import {useAutoGrow} from '@hooks/useAutoGrow';
 import type {SemanticColors} from '@constants/tokens';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 
-export interface TextInputProps extends RNTextInputProps {
+// style을 배리언트 문자열로 재정의하므로 RN의 style은 제외한다
+// (Omit 없이 extends하면 타입이 충돌한다)
+export interface TextInputProps extends Omit<RNTextInputProps, 'style'> {
   label?: string;
   placeholder?: string;
   error?: boolean;
@@ -37,6 +38,11 @@ export interface TextInputProps extends RNTextInputProps {
   clearable?: boolean;
   /** 실제 입력 텍스트 스타일 오버라이드 (폰트 크기/색 등). variant 스타일 뒤에 병합되어 우선함 */
   inputStyle?: StyleProp<TextStyle>;
+  /**
+   * 라벨·아이콘·에러 등 껍데기를 렌더하지 않고 입력만 반환한다.
+   * 부모 레이아웃(행 정렬 등)을 컨테이너가 바꾸면 안 되는 인라인 입력용.
+   */
+  bare?: boolean;
 }
 
 export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
@@ -53,19 +59,26 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
   variant = 'default',
   clearable = false,
   inputStyle,
+  bare = false,
   value,
   onChangeText,
   onContentSizeChange,
+  onSelectionChange,
+  onBlur,
   ...props
 }, ref) => {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
+  // "선택한 텍스트에 링크" 배선.
+  // 링크 표시·URL 숨김은 RichEditor(contentEditable)가 전담한다.
+  // 여기서 마크다운을 변환하면 bulk 입력처럼 링크와 무관한 필드가 깨진다.
+  const {handleSelectionChange, handleBlur} = useLinkTargetBinding(
+    value, onChangeText, onSelectionChange, onBlur,
+  );
   const isGhost = style === 'ghost';
   const isSmall = size === 'small';
   const isYellow = variant === 'yellow';
-  const autoResize = multiline;
-
-  // Internal ref for web textarea resize
+  // 외부 ref와 내부 ref를 함께 채운다
   const internalRef = useRef<any>(null);
   const setRefs = useCallback((node: any) => {
     internalRef.current = node;
@@ -73,52 +86,48 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
     else if (ref) (ref as React.MutableRefObject<any>).current = node;
   }, [ref]);
 
-  // Ghost + multiline auto-resize
-  const [contentHeight, setContentHeight] = useState<number | undefined>(undefined);
+  // 여러 줄 자동 확장 — 네이티브/웹 처리는 useAutoGrow 한 곳에 있다
+  const {height, onTextChanged, onContentSize} = useAutoGrow(multiline, internalRef);
 
-  // Web: resize textarea by reading scrollHeight
-  const resizeWeb = useCallback(() => {
-    if (!autoResize || Platform.OS !== 'web') return;
-    const node = internalRef.current;
-    if (!node) return;
-    const el = (node as any)?._node ?? node;
-    const textarea = el?.tagName === 'TEXTAREA' ? el : el?.querySelector?.('textarea');
-    if (!textarea) return;
-    textarea.style.height = '0';
-    const h = textarea.scrollHeight;
-    textarea.style.height = h + 'px';
-    setContentHeight(h > 0 ? h : undefined);
-  }, [autoResize]);
+  const handleChangeText = useCallback((v: string) => {
+    onTextChanged();
+    onChangeText?.(v);
+  }, [onTextChanged, onChangeText]);
 
-  // Initial resize on mount (web)
-  useEffect(() => {
-    if (!autoResize || Platform.OS !== 'web') return;
-    const frame = requestAnimationFrame(resizeWeb);
-    return () => cancelAnimationFrame(frame);
-  }, [autoResize, resizeWeb]);
+  const handleContentSize = useCallback((e: any) => {
+    onContentSize(e);
+    onContentSizeChange?.(e);
+  }, [onContentSize, onContentSizeChange]);
 
-  const handleChangeText = useCallback((text: string) => {
-    onChangeText?.(text);
-    if (autoResize) {
-      if (Platform.OS === 'web') {
-        requestAnimationFrame(resizeWeb);
-      } else {
-        setContentHeight(undefined);
-      }
-    }
-  }, [onChangeText, autoResize, resizeWeb]);
-
-  // Native: use onContentSizeChange
-  const handleContentSizeChange = useCallback(
-    (e: NativeSyntheticEvent<TextInputContentSizeChangeEventData>) => {
-      if (autoResize && Platform.OS !== 'web') {
-        const h = e.nativeEvent.contentSize.height;
-        setContentHeight(h > 0 ? Math.ceil(h) : undefined);
-      }
-      onContentSizeChange?.(e);
-    },
-    [autoResize, onContentSizeChange],
+  const inputEl = (
+    <RNTextInput
+      ref={setRefs}
+      style={[
+        isGhost ? styles.inputGhost : (isSmall ? styles.inputSmall : styles.input),
+        multiline && !isGhost && styles.inputMultiline,
+        isYellow && styles.inputYellow,
+        inputStyle,
+        // 측정된 자동 높이는 호출부 스타일(minHeight 등)보다 뒤에 와야 이긴다.
+        // 앞에 두면 minHeight에 갇혀 내용이 길어져도 늘어나지 않는다.
+        height != null ? {height} : undefined,
+      ]}
+      placeholder={placeholder}
+      placeholderTextColor={isYellow ? colors['custom/yellow-var'] + '80' : colors['foreground/on-surface-muted']}
+      selectionColor={isYellow ? colors['custom/yellow-var'] : colors['foreground/on-surface']}
+      multiline={multiline}
+      textAlignVertical={multiline ? 'top' : undefined}
+      blurOnSubmit={multiline ? false : undefined}
+      value={value}
+      onChangeText={handleChangeText}
+      onContentSizeChange={handleContentSize}
+      {...props}
+      onSelectionChange={handleSelectionChange}
+      onBlur={handleBlur}
+    />
   );
+
+  // 껍데기 없이 입력만 — 부모 레이아웃을 컨테이너가 바꾸지 않는다
+  if (bare) return inputEl;
 
   return (
     <View style={isGhost ? styles.containerGhost : (isSmall ? styles.containerSmall : styles.container)}>
@@ -134,25 +143,7 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
         {leadingIcon && (
           <View style={styles.leadingIcon}>{leadingIcon}</View>
         )}
-        <RNTextInput
-          ref={setRefs}
-          style={[
-            isGhost ? styles.inputGhost : (isSmall ? styles.inputSmall : styles.input),
-            multiline && !isGhost && styles.inputMultiline,
-            isYellow && styles.inputYellow,
-            autoResize && contentHeight != null ? {height: contentHeight} : undefined,
-            inputStyle,
-          ]}
-          placeholder={placeholder}
-          placeholderTextColor={isYellow ? colors['custom/yellow-var'] + '80' : colors['foreground/on-surface-muted']}
-          selectionColor={isYellow ? colors['custom/yellow-var'] : colors['foreground/on-surface']}
-          multiline={multiline}
-          textAlignVertical={multiline ? 'top' : undefined}
-          value={value}
-          onChangeText={handleChangeText}
-          onContentSizeChange={handleContentSizeChange}
-          {...props}
-        />
+        {inputEl}
         {clearable && value && value.length > 0 ? (
           <Pressable onPress={() => onChangeText?.('')} hitSlop={8} style={styles.clearButton}>
             {React.createElement(IconCloseCircleFilled as any, {width: 16, height: 16, color: colors['foreground/on-surface-muted']})}
@@ -248,7 +239,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     textAlignVertical: 'top',
   },
   inputYellow: {
-    color: colors['custom/yellow-var'],
+    // 같은 카드의 아이콘과 동일한 색 — 톤이 갈리지 않게
+    color: colors['custom/yellow'],
   },
   leadingIcon: {
     marginRight: Spacing.sm,

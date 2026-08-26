@@ -1,11 +1,29 @@
 import React, {useEffect, useState} from 'react';
 import {Keyboard, Platform, ScrollView, StyleSheet, View, ViewStyle} from 'react-native';
+import {LinearGradient} from 'expo-linear-gradient';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {GlassContainer} from '@components/Container';
-import {MAX_CONTENT_WIDTH} from '@components/Container/ContentContainer';
+import {ContentContainer} from '@components/Container/ContentContainer';
+import {useColors} from '@contexts/ThemeContext';
 
-/** 바 대략 높이 — above 슬롯 위치 계산용 */
-const BAR_HEIGHT = 52;
+/**
+ * 바 대략 높이 — above 슬롯 위치 계산용.
+ * 툴바는 화면 하단에 고정(absolute)되므로, 툴바를 쓰는 화면은 콘텐츠 하단에
+ * 이 높이만큼 여백을 줘야 마지막 요소가 가려지지 않는다.
+ */
+export const KEYBOARD_TOOLBAR_HEIGHT = 52;
+const BAR_HEIGHT = KEYBOARD_TOOLBAR_HEIGHT;
+
+/** #RRGGBB → rgba(r,g,b,a). 안드로이드 그라디언트는 'transparent' 키워드가 검게 페이드되므로
+ *  같은 색의 alpha 0을 명시해야 자연스럽게 사라진다. */
+function withAlpha(hex: string, alpha: number): string {
+  const h = hex.replace('#', '');
+  const full = h.length === 3 ? h.split('').map(c => c + c).join('') : h;
+  const r = parseInt(full.slice(0, 2), 16) || 0;
+  const g = parseInt(full.slice(2, 4), 16) || 0;
+  const b = parseInt(full.slice(4, 6), 16) || 0;
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`;
+}
 
 export interface KeyboardToolbarProps {
   /** 좌측 버튼 그룹 (아이콘 버튼들) */
@@ -28,6 +46,8 @@ export interface KeyboardToolbarProps {
  */
 export function KeyboardToolbar({left, right, above, style}: KeyboardToolbarProps) {
   const insets = useSafeAreaInsets();
+  const colors = useColors();
+  const bg = colors['surface/normal'];
   // 재마운트(포커스 재진입) 시 이미 올라온 키보드 높이를 즉시 반영 → 키보드 뒤로 숨지 않게
   const [kbHeight, setKbHeight] = useState(
     () => (Platform.OS !== 'web' && Keyboard.metrics?.()?.height) || 0,
@@ -97,7 +117,20 @@ export function KeyboardToolbar({left, right, above, style}: KeyboardToolbarProp
           {above}
         </View>
       )}
+      {/* 마스크 그라디언트: 툴바 뒤 배경을 아래(불투명)→위(투명)로 페이드.
+          키보드가 있으면 그 상단까지만, 없으면 화면 바닥(0)까지 내린다 —
+          baseBottom에서 끊으면 홈 인디케이터(안전영역)가 뚫려 "구멍"처럼 보인다. */}
+      <LinearGradient
+        pointerEvents="none"
+        colors={[withAlpha(bg, 0), withAlpha(bg, 0.9), bg]}
+        locations={[0, 0.55, 1]}
+        style={[styles.maskGradient, {
+          bottom: kbHeight > 0 ? kbHeight : 0,
+          height: (kbHeight > 0 ? 0 : baseBottom) + BAR_HEIGHT + 8 + 40,
+        }]}
+      />
       <View style={[styles.container, {bottom}, style]} pointerEvents="box-none">
+        <ContentContainer>
         <GlassContainer style={styles.pill} contentStyle={styles.pillContent}>
           {/* 좌측 버튼 그룹: 넘치면 가로 스크롤 */}
           <ScrollView
@@ -112,6 +145,7 @@ export function KeyboardToolbar({left, right, above, style}: KeyboardToolbarProp
           {/* 우측 완료/저장: 고정 */}
           <View style={styles.rightFixed}>{right}</View>
         </GlassContainer>
+        </ContentContainer>
       </View>
     </>
   );
@@ -123,13 +157,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    paddingHorizontal: 12,
     // 콘텐츠(ContentContainer)와 동일하게 최대 너비 캡 + 중앙정렬
     alignItems: 'center',
   },
   pill: {
     width: '100%',
-    maxWidth: MAX_CONTENT_WIDTH,
   },
   pillContent: {
     flexDirection: 'row',
@@ -157,5 +189,11 @@ const styles = StyleSheet.create({
     left: 8,
     right: 8,
     alignItems: 'flex-start',
+  },
+  // 알약 뒤 배경 페이드. 풀폭(코너 틈까지 덮게) — 알약(maxWidth cap)보다 넓게 화면 전체.
+  maskGradient: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
   },
 });
