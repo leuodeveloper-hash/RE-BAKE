@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 /**
- * 버전 올리기 — app.json + iOS(pbxproj) + Android(build.gradle)를 한 번에 맞춘다.
+ * 버전 올리기 — package.json + app.json + iOS(pbxproj) + Android(build.gradle)를
+ * 한 번에 맞춘다.
  *
  * 버전이 네 곳에 흩어져 있어(app.json / MARKETING_VERSION / CURRENT_PROJECT_VERSION /
  * versionName / versionCode) 손으로 올리면 반드시 어긋난다. 특히 iOS는 Xcode 수동
@@ -23,6 +24,7 @@ import {fileURLToPath} from 'node:url';
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const P = {
   appJson: resolve(root, 'app.json'),
+  pkgJson: resolve(root, 'package.json'),
   pbxproj: resolve(root, 'ios/Bakle.xcodeproj/project.pbxproj'),
   gradle: resolve(root, 'android/app/build.gradle'),
 };
@@ -45,6 +47,15 @@ const curVersion = appJson.expo.version;
 const version = nextVersion(curVersion, arg);
 appJson.expo.version = version;
 writeFileSync(P.appJson, JSON.stringify(appJson, null, 2) + '\n');
+
+// ---- package.json ----------------------------------------------------------
+// 앱이 읽는 값은 아니지만 어긋나 있으면 어느 쪽이 맞는지 헷갈린다.
+try {
+  const pkgRaw = readFileSync(P.pkgJson, 'utf8');
+  writeFileSync(P.pkgJson, pkgRaw.replace(/("version":\s*)"[^"]+"/, `$1"${version}"`));
+} catch (e) {
+  console.warn(`⚠️  package.json 건너뜀: ${e.message}`);
+}
 
 // ---- iOS: pbxproj ----------------------------------------------------------
 // MARKETING_VERSION(표시 버전) / CURRENT_PROJECT_VERSION(빌드번호)이 Debug·Release
