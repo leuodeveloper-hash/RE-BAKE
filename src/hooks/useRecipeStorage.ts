@@ -15,6 +15,7 @@ import {useAuth} from '@contexts/AuthContext';
 import {useSubscription} from '@contexts/SubscriptionContext';
 import type {Recipe, RecipeExportData} from '../types/recipe';
 import {addToQueue, hasPendingOps, processQueue} from '@utils/syncQueue';
+import {stableStringify} from '@utils/stableStringify';
 import {getDeviceName} from '@utils/deviceInfo';
 import {uploadRecipeImage, isLocalUri} from '@utils/imageUpload';
 import {useOnlineStatus} from './useOnlineStatus';
@@ -297,8 +298,11 @@ export function useRecipeStorage() {
         const next =
           typeof updater === 'function' ? updater(prev) : updater;
 
-        // 실제 변경이 없으면 저장소 동기화 스킵
-        const hasChange = JSON.stringify(next) !== JSON.stringify(prev);
+        // 실제 변경이 없으면 저장소 동기화 스킵.
+        // stableStringify를 쓰는 이유: JSON.stringify는 undefined 키를 통째로 버려
+        // {uri, caption: undefined}와 {uri}가 같아진다 → 실제 변경이 "변경 없음"으로
+        // 판정돼 저장이 스킵됐다(요리모드 수정이 반영 안 되던 문제).
+        const hasChange = stableStringify(next) !== stableStringify(prev);
         if (!hasChange) return prev;
 
         if (cloudEnabled && user) {

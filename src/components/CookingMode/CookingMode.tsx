@@ -4,7 +4,6 @@ import {
   Dimensions,
   Image,
   Linking,
-  Modal,
   NativeScrollEvent,
   NativeSyntheticEvent,
   Platform,
@@ -23,6 +22,8 @@ import * as VideoThumbnails from 'expo-video-thumbnails';
 import {getPersistentUri} from '@utils/imageUpload';
 import {ensureImagePermission} from '@utils/imagePermission';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {PhotoViewer} from '@components/PhotoViewer';
+import {stableStringify} from '@utils/stableStringify';
 import {GlassContainer, Card, MAX_CONTENT_WIDTH, ContentMask} from '@components/Container';
 import {BottomSheet} from '@components/BottomSheet';
 import {Snackbar} from '@components/Snackbar';
@@ -69,7 +70,7 @@ import {parseYouTubeVideoId} from '@utils/youtube';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useKeyboardHeight} from '@hooks/useKeyboardHeight';
 import {useEscapeKey} from '@hooks/useEscapeKey';
-import {useColors, ForceDarkTheme} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
 import {useAuthSheet} from '@contexts/AuthSheetContext';
 import {useAuth} from '@contexts/AuthContext';
 import {useTranslation} from '@contexts/LanguageContext';
@@ -316,7 +317,6 @@ export function CookingMode({
   // null이면 편집 중인 사진 없음. 다시 롱프레스하면 해제.
   const [activePhotoIdx, setActivePhotoIdx] = useState<number | null>(null);
   // 뷰어 좌우 스와이프 시작 x좌표
-  const viewerSwipeXRef = useRef(0);
   const [checkedIngredients, setCheckedIngredients] = useState<Set<string>>(new Set());
   const [lastSavedAt, setLastSavedAt] = useState<Date | null>(null);
   const [showInfoTooltip, setShowInfoTooltip] = useState(false);
@@ -560,7 +560,8 @@ export function CookingMode({
 
   // editCards → 비교용 스냅샷 문자열
   const snapshotEditCards = useCallback((cards: CookingCard[]) => {
-    return JSON.stringify(cards.map(c => ({
+    // stableStringify: JSON.stringify는 undefined 키를 버려 캡션 삭제 등이 "변경 없음"이 된다
+    return stableStringify(cards.map(c => ({
       d: c.description, t: c.tip, ca: c.caution,
       p: c.photos, ei: c.editIngredients,
     })));
@@ -577,14 +578,14 @@ export function CookingMode({
       const orig = flatCards[i];
       if (!orig) return true;
       return card.description !== orig.description || card.tip !== orig.tip || card.caution !== orig.caution
-        || JSON.stringify(card.photos) !== JSON.stringify(orig.photos)
-        || JSON.stringify(card.editIngredients) !== JSON.stringify(orig.matchedIngredients);
+        || stableStringify(card.photos) !== stableStringify(orig.photos)
+        || stableStringify(card.editIngredients) !== stableStringify(orig.matchedIngredients);
     });
   }, [flatCards, snapshotEditCards]);
 
   const saveEdits = useCallback(() => {
     if (!onUpdate) return;
-    const adviceDirty = editAdvice !== (advice ?? '') || JSON.stringify(editAdvicePhotos) !== JSON.stringify(advicePhotos ?? []);
+    const adviceDirty = editAdvice !== (advice ?? '') || stableStringify(editAdvicePhotos) !== stableStringify(advicePhotos ?? []);
     if (!computeIsDirty() && !adviceDirty) return;
 
     const cards = editCardsRef.current;
@@ -2018,19 +2019,9 @@ export function CookingMode({
 
         {/* YouTube PiP: 요리모드는 hostAsView로 일반 RN 계층에 있어(네이티브 Modal 아님) 루트
             전역 PiP(GlobalYouTubePlayer)가 요리모드 위에 그대로 뜬다 → 여기서 별도 렌더 불필요. */}
-
-        {/* 사진 전체보기 뷰어 — 탭하면 큰 이미지 풀스크린. 편집 가능하면 교체/삭제 */}
+        {/* 사진 전체보기 — 상세와 같은 공통 뷰어. 편집 가능하면 교체/삭제 버튼이 붙는다 */}
         {viewerPhoto && (() => {
           const photos = viewerPhoto.card.photos ?? [];
-          const uri = photos[viewerPhoto.index]?.uri;
-          if (!uri) return null;
-          const total = photos.length;
-          const goNext = () => setViewerPhoto(v => v && total > 1
-            ? {...v, index: (v.index + 1) % total}
-            : v);
-          const goPrev = () => setViewerPhoto(v => v && total > 1
-            ? {...v, index: (v.index - 1 + total) % total}
-            : v);
           const doReplace = () => {
             const {card, index, editing} = viewerPhoto;
             setViewerPhoto(null);
@@ -2050,49 +2041,14 @@ export function CookingMode({
             }
           };
           return (
-            <Modal visible transparent animationType="fade" onRequestClose={() => setViewerPhoto(null)} statusBarTranslucent>
-              {/* 뷰어는 배경이 늘 검정 → 하위 컴포넌트(알약·아이콘)도 다크 고정 */}
-              <ForceDarkTheme>
-              <View style={styles.viewerRoot}>
-                {/* 배경 탭 = 닫기 */}
-                <Pressable style={StyleSheet.absoluteFill} onPress={() => setViewerPhoto(null)} />
-                {/* 이미지 탭 = 다음 이미지로 순환 (여러 장일 때). 페이지처럼 최소 너비 확보. */}
-                {/* Pressable에 높이를 줘야 안쪽 Image의 height:'74%'가 기준을 갖는다
-                    (auto 높이면 퍼센트가 0으로 계산돼 이미지가 안 보인다) */}
-                <Pressable
-                  onPress={total > 1 ? undefined : goNext}
-                  style={{height: '74%', justifyContent: 'center'}}
-                  // 좌우 스와이프로 이전/다음 사진 (탭은 다음)
-                  onStartShouldSetResponder={() => total > 1}
-                  onResponderGrant={e => { viewerSwipeXRef.current = e.nativeEvent.pageX; }}
-                  onResponderRelease={e => {
-                    const dx = e.nativeEvent.pageX - viewerSwipeXRef.current;
-                    if (Math.abs(dx) < 40) { goNext(); return; } // 탭
-                    if (dx < 0) goNext(); else goPrev();
-                  }}>
-                  <Image
-                    source={{uri}}
-                    style={[styles.viewerImage, {width: Math.min(Math.max(containerWidth * 0.92, 280), MAX_CONTENT_WIDTH)}]}
-                    resizeMode="contain"
-                  />
-                </Pressable>
-                {/* 상단바 — AppBar 패턴: 좌측 닫기(X), 우측 교체/삭제 아이콘. 콘텐츠 너비 자동. */}
-                <FloatingNavBar
-                  tintColor="#000000"
-                  left={<NavPillButton icon={IconClose} onPress={() => setViewerPhoto(null)} />}
-                  center={total > 1 ? (
-                    <Text style={styles.viewerCounterText}>{viewerPhoto.index + 1} / {total}</Text>
-                  ) : undefined}
-                  right={canEdit ? (
-                    <GlassContainer contentStyle={navPillStyle}>
-                      <IconButton icon={IconPhoto} onPress={doReplace} variant="ghost-primary" size="medium" />
-                      <IconButton icon={IconTrash} onPress={doDelete} variant="ghost-primary" size="medium" />
-                    </GlassContainer>
-                  ) : undefined}
-                />
-              </View>
-              </ForceDarkTheme>
-            </Modal>
+            <PhotoViewer
+              photos={photos}
+              index={viewerPhoto.index}
+              onIndexChange={i => setViewerPhoto(v => (v ? {...v, index: i} : v))}
+              onClose={() => setViewerPhoto(null)}
+              onReplace={canEdit ? doReplace : undefined}
+              onDelete={canEdit ? doDelete : undefined}
+            />
           );
         })()}
     </BottomSheet>
@@ -2239,17 +2195,6 @@ const createStyles = (colors: SemanticColors) =>
       justifyContent: 'center',
       zIndex: 20,
     },
-    viewerRoot: {
-      flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.92)',
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    viewerImage: {
-      // 높이 기준은 감싼 Pressable(74%)이 갖는다 — 여기선 그 안을 채움
-      height: '100%',
-      // width는 렌더에서 인라인(containerWidth 의존) — 페이지 콘텐츠처럼 최대폭 캡+최소폭 보장
-    },
     // 뷰어 상단바 좌측: 닫기(X) + 카운터 알약 나란히 (AppBar leftRow 패턴)
     leftRow: {
       flexDirection: 'row',
@@ -2257,12 +2202,6 @@ const createStyles = (colors: SemanticColors) =>
       gap: 8,
     },
     // 뷰어 배경이 검정이므로 밝은 색 고정(테마 토큰은 라이트에서 안 보임)
-    viewerCounterText: {
-      color: '#FFFFFF',
-      fontFamily: Typography.label.small.fontFamily,
-      fontSize: Typography.label.small.fontSize,
-      fontWeight: Typography.label.small.fontWeight as '500',
-    },
     addCircle: {
       flex: 1,
       alignSelf: 'stretch',
