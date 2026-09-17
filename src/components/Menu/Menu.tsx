@@ -1,5 +1,5 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
-import {Animated, Easing, Pressable, ScrollView, StyleSheet, View, ViewStyle} from 'react-native';
+import {Animated, Dimensions, Easing, Pressable, ScrollView, StyleSheet, View, ViewStyle} from 'react-native';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {SvgProps} from 'react-native-svg';
@@ -146,7 +146,9 @@ export function Menu({
           },
         ]}
         pointerEvents={visible ? 'auto' : 'none'}>
-        <GlassContainer borderRadius="lg" contentStyle={{padding: Spacing.xs, minWidth: 200, ...(maxHeight ? {maxHeight} : {})}}>
+        {/* 메뉴는 목록 위에 겹쳐 뜨므로 배경이 불투명해야 한다 — blur만으로는
+            뒤 텍스트가 그대로 비쳐 읽을 수 없다(안드로이드는 blur가 더 약하다). */}
+        <GlassContainer borderRadius="lg" contentStyle={{padding: Spacing.xs, minWidth: 200, backgroundColor: colors['surface/normal'], ...(maxHeight ? {maxHeight} : {})}}>
           {headerNode}
           {searchable && (
             <View style={styles.searchBar}>
@@ -213,13 +215,20 @@ export function Menu({
   );
 }
 
+// 바깥 탭 영역이 조상의 overflow:hidden에 잘려도 화면을 덮도록, 화면 대각선만큼 넓힌다.
+const {width: SCREEN_W, height: SCREEN_H} = Dimensions.get('window');
+const BACKDROP_SPREAD = Math.round(Math.sqrt(SCREEN_W * SCREEN_W + SCREEN_H * SCREEN_H));
+
 const createStyles = (_colors: SemanticColors) => StyleSheet.create({
+  // 바깥 탭 닫기 영역. absolute + 큰 음수 오프셋은 조상의 overflow:hidden에 잘려
+  // 카드 바깥/다른 묶음을 탭해도 안 닫히는 문제가 있었다. 화면 대각선 길이만큼
+  // 사방으로 넓혀 어느 조상에 클립되더라도 보이는 영역 전체를 덮게 한다.
   backdrop: {
     position: 'absolute' as const,
-    top: -9999,
-    left: -9999,
-    right: -9999,
-    bottom: -9999,
+    top: -BACKDROP_SPREAD,
+    left: -BACKDROP_SPREAD,
+    right: -BACKDROP_SPREAD,
+    bottom: -BACKDROP_SPREAD,
   },
   searchBar: {
     paddingHorizontal: Spacing.smd,
