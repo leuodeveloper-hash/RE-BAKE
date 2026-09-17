@@ -1,5 +1,6 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, Easing, Image, StyleSheet, Text, View, ViewStyle} from 'react-native';
+import {Image as ExpoImage} from 'expo-image';
 import {Radius, BaseColors, withOpacity} from '@constants/tokens';
 import {getRandomAvatar, getGradientAvatar} from './avatars';
 import {SvgProps} from 'react-native-svg';
@@ -138,6 +139,8 @@ export function Avatar({
 
   // 이미지 로딩 스켈레톤
   const [imageLoaded, setImageLoaded] = useState(false);
+  // 로드 실패 — 스켈레톤을 무한히 돌리지 않고 모노그램 폴백으로 넘어간다
+  const [imageFailed, setImageFailed] = useState(false);
   const needsSkeleton = type === 'image' && !!imageUrl;
   const pulseOpacity = useRef(new Animated.Value(0.3)).current;
 
@@ -154,6 +157,9 @@ export function Avatar({
   }, [needsSkeleton, imageLoaded, pulseOpacity]);
 
   const handleImageLoad = useCallback(() => setImageLoaded(true), []);
+  const handleImageError = useCallback(() => { setImageFailed(true); setImageLoaded(true); }, []);
+  // 아바타 URL이 바뀌면(다른 사용자로 교체 등) 로딩/실패 상태를 다시 시작한다
+  useEffect(() => { setImageLoaded(false); setImageFailed(false); }, [imageUrl]);
 
   const containerStyle: ViewStyle = {
     width: config.container,
@@ -164,6 +170,21 @@ export function Avatar({
     alignItems: 'center',
     justifyContent: 'center',
   };
+
+  // 이미지가 없거나 로드 실패했을 때의 공통 폴백
+  const renderMonogram = () => (
+    <Text
+      style={[
+        styles.monogram,
+        {
+          fontSize: config.fontSize,
+          lineHeight: config.lineHeight,
+          color: foregroundColor,
+        },
+      ]}>
+      {monogram.charAt(0).toUpperCase()}
+    </Text>
+  );
 
   const renderContent = () => {
     switch (type) {
@@ -203,22 +224,29 @@ export function Avatar({
         );
 
       case 'image':
-        if (imageUrl) {
+        // 실패했거나 URL이 없으면 모노그램으로 폴백 — 빈 칸/무한 스켈레톤을 남기지 않는다
+        if (imageUrl && !imageFailed) {
           return (
             <>
               {!imageLoaded && (
                 <Animated.View style={[StyleSheet.absoluteFill, {backgroundColor: colors['surface/container'], opacity: pulseOpacity}]} />
               )}
-              <Image
+              {/* RN Image의 onLoad는 웹에서 발화가 불안정해 스켈레톤이 안 걷힌다.
+                  expo-image의 cachePolicy+transition을 쓴다(RecipeCard FadeInImage와 동일 기조). */}
+              <ExpoImage
                 source={{uri: imageUrl}}
                 style={styles.image}
-                resizeMode="cover"
+                contentFit="cover"
+                cachePolicy="memory-disk"
+                transition={200}
+                recyclingKey={imageUrl}
                 onLoad={handleImageLoad}
+                onError={handleImageError}
               />
             </>
           );
         }
-        return null;
+        return renderMonogram();
 
       case 'icon':
         if (IconComponent) {
@@ -236,19 +264,7 @@ export function Avatar({
 
       case 'monogram':
       default:
-        return (
-          <Text
-            style={[
-              styles.monogram,
-              {
-                fontSize: config.fontSize,
-                lineHeight: config.lineHeight,
-                color: foregroundColor,
-              },
-            ]}>
-            {monogram.charAt(0).toUpperCase()}
-          </Text>
-        );
+        return renderMonogram();
     }
   };
 
