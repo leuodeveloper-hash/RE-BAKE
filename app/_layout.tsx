@@ -23,6 +23,7 @@ import {AuthSheetProvider, useAuthSheet} from '@contexts/AuthSheetContext';
 import {PlanSheet} from '@components/PlanSheet';
 import {AuthSheet} from '@components/AuthSheet';
 import {ExploreRecipeProvider, useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
+import {UpdateDialog} from '@components/Dialog';
 import {migrateExploreCategoryToCookbook} from '@hooks/useExploreRecipes';
 import {migrateStorageKeys} from '@utils/migrateStorageKeys';
 import {LanguageProvider, useTranslation} from '@contexts/LanguageContext';
@@ -233,6 +234,8 @@ function NavigationContent() {
   const {recipes, setRecipes, lastSyncedAt, setCookbookColor, renameCookbookColor, migrationCount, confirmMigration, dismissMigration} = useRecipes();
   const {reload: exploreReload, exploreCookbooks, recipes: exploreRecipesAll} = useExploreRecipeContext();
   const [migrating, setMigrating] = useState(false);
+  // 강제 업데이트 — 권장(스낵바)은 아래 checkForUpdate에서 처리한다
+  const [forcedUpdate, setForcedUpdate] = useState<(() => void) | null>(null);
 
   // 앱 재시작 시 마지막으로 본 레시피로 복귀 (한 번만).
   // NavigationContent는 Stack 하위 + router 보유라 navigate 안전(RootLayout에선 크래시).
@@ -273,6 +276,11 @@ function NavigationContent() {
   useEffect(() => {
     checkForUpdate().then(res => {
       if (!res) return;
+      if (res.required) {
+        // 강제 — 스낵바로는 지나칠 수 있어 닫을 수 없는 모달로 막는다
+        setForcedUpdate(() => res.onUpdate);
+        return;
+      }
       showSnackbar(t('layout.updateAvailable'), {
         label: t('layout.updateAction'),
         onPress: res.onUpdate,
@@ -479,6 +487,9 @@ function NavigationContent() {
           onClose={clearSnackbar}
         />
       </View>
+
+      {/* 강제 업데이트 — 닫을 수 없다. 스토어로만 나갈 수 있다 */}
+      <UpdateDialog visible={!!forcedUpdate} onUpdate={() => forcedUpdate?.()} />
 
       {/* 레시피 북 추가/편집 다이얼로그 */}
       <CookbookDialog

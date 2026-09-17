@@ -12,6 +12,8 @@ export const CURRENT_VERSION = Constants.expoConfig?.version ?? '0.0.0';
  */
 interface AppConfig {
   latestVersion?: string;
+  /** 이 버전 미만은 강제 업데이트(닫을 수 없는 모달). 없으면 강제 없음 */
+  minVersion?: string;
   iosAppStoreUrl?: string;
   androidStoreUrl?: string;
 }
@@ -32,13 +34,21 @@ function compareVersions(a: string, b: string): number {
  * 최신 버전이 현재보다 높은지 확인. 높으면 업데이트 액션(웹=새로고침, 앱=스토어)까지 반환.
  * 실패/동일 버전이면 null.
  */
-export async function checkForUpdate(): Promise<{latestVersion: string; onUpdate: () => void} | null> {
+export async function checkForUpdate(): Promise<{
+  latestVersion: string;
+  /** minVersion 미만 — 권장이 아니라 강제. 호출부는 닫을 수 없는 모달을 띄운다 */
+  required: boolean;
+  onUpdate: () => void;
+} | null> {
   try {
     const snap = await getDoc(doc(db, 'config', 'app'));
     if (!snap.exists()) return null;
     const cfg = snap.data() as AppConfig;
     const latest = cfg.latestVersion;
-    if (!latest || compareVersions(latest, CURRENT_VERSION) <= 0) return null;
+    // 강제는 minVersion 기준 — latestVersion이 없어도 강제는 걸릴 수 있다
+    const required = !!cfg.minVersion && compareVersions(cfg.minVersion, CURRENT_VERSION) > 0;
+    const hasNewer = !!latest && compareVersions(latest, CURRENT_VERSION) > 0;
+    if (!required && !hasNewer) return null;
 
     const onUpdate = () => {
       if (Platform.OS === 'web') {
@@ -53,7 +63,7 @@ export async function checkForUpdate(): Promise<{latestVersion: string; onUpdate
       Linking.openURL(url).catch(() => {});
     };
 
-    return {latestVersion: latest, onUpdate};
+    return {latestVersion: latest ?? cfg.minVersion ?? CURRENT_VERSION, required, onUpdate};
   } catch {
     return null;
   }

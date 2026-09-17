@@ -8,3 +8,4 @@ export * from './LinkInputDialog';
 export * from './ReviewDialog';
 export * from './IngredientAmountDialog';
 export * from './UnlockDialog';
+export * from './UpdateDialog';
