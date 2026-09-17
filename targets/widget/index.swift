@@ -269,11 +269,15 @@ struct BakleWidgetEntryView: View {
               .fixedSize()
           }
         }
-        Text(days == 0 ? "오늘" : "D-\(days)")
+        // 당일은 "D-day". 숫자와 같은 표기 체계라 D-2 → D-1 → D-day로 이어진다.
+        Text(days == 0 ? "D-day" : "D-\(days)")
           // 시안: Pretendard Regular(400) 36pt. Bold로 하면 시안보다 훨씬 굵어진다.
           .font(WidgetFont.pretendard("Pretendard-Regular", size: 36, relativeTo: .largeTitle))
           .foregroundColor(.white)
-          .fixedSize()
+          // "D-day"는 "D-3"보다 훨씬 넓어 작은 위젯에서 넘친다.
+          // fixedSize로 밀어내지 말고 한 줄 유지하며 필요한 만큼만 줄인다.
+          .lineLimit(1)
+          .minimumScaleFactor(0.6)
       }
       // 시안: 0 2px 20px rgba(0,0,0,0.54).
       // SwiftUI radius는 CSS blur의 약 절반이라 20px → radius 10.
