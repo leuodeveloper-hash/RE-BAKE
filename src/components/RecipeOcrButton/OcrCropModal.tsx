@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useState} from 'react';
 import {LayoutChangeEvent, Modal, StyleSheet, View} from 'react-native';
 import {GestureHandlerRootView, Gesture, GestureDetector} from 'react-native-gesture-handler';
 import Animated, {useAnimatedStyle, useSharedValue} from 'react-native-reanimated';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
 import {Image} from 'expo-image';
 import {ImageManipulator, SaveFormat} from 'expo-image-manipulator';
 import {Button} from '@components/Button';
@@ -217,6 +217,9 @@ export function OcrCropModal({
       transparent={false}
       statusBarTranslucent
       onRequestClose={onCancel}>
+      {/* 네이티브 Modal은 별도 뷰 계층이라 앱 루트의 SafeAreaProvider가 닿지 않는다.
+          없으면 SafeAreaView가 inset을 0으로 읽어 statusBarTranslucent와 겹친다. */}
+      <SafeAreaProvider>
       <GestureHandlerRootView style={styles.root}>
         <SafeAreaView style={styles.safe} edges={['top']}>
           <View style={styles.stage} onLayout={onLayout}>
@@ -258,6 +261,7 @@ export function OcrCropModal({
           </BottomActionBar>
         </SafeAreaView>
       </GestureHandlerRootView>
+      </SafeAreaProvider>
     </Modal>
   );
 }

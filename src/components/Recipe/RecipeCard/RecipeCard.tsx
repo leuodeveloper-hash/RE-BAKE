@@ -504,13 +504,14 @@ export function RecipeCard({
   const renderMeta = (textStyle: any) =>
     metaSegments.map((seg, i) => (
       <React.Fragment key={seg.key}>
-        {i > 0 && <Text style={textStyle}>·</Text>}
         {seg.onPress ? (
-          <Pressable onPress={seg.onPress} hitSlop={2}>
-            <Text style={textStyle} numberOfLines={1}>{seg.text}</Text>
+          // flexShrink: 폭이 모자라면 이 조각이 줄어들며 말줄임(…)이 나온다.
+          // Pressable에 주지 않으면 자식 Text가 폭을 몰라 잘리지 않고 넘친다.
+          <Pressable onPress={seg.onPress} hitSlop={2} style={styles.metaSegment}>
+            <Text style={textStyle} numberOfLines={1} ellipsizeMode="tail">{seg.text}</Text>
           </Pressable>
         ) : (
-          <Text style={textStyle} numberOfLines={1}>{seg.text}</Text>
+          <Text style={[textStyle, styles.metaSegment]} numberOfLines={1} ellipsizeMode="tail">{seg.text}</Text>
         )}
       </React.Fragment>
     ));
@@ -614,9 +615,6 @@ export function RecipeCard({
               <View style={styles.listSubtitleRow}>
                 {renderMeta(styles.listSubtitle)}
                 <MetaLinkIcon show={hasReference} size={12} color={colors['foreground/on-surface-muted']} />
-                {reviewCount > 0 && (hasMeta || hasReference) && (
-                  <Text style={styles.listSubtitle}>·</Text>
-                )}
                 {reviewCount > 0 && (
                   <View style={styles.reviewBadge}>
                     <IconChartNoAxesGantt width={12} height={12} color={colors['foreground/on-surface-muted']} />
@@ -700,7 +698,6 @@ export function RecipeCard({
           <View style={styles.gridSubtitleRow}>
             {renderMeta(styles.photoListSubtitle)}
             <MetaLinkIcon show={hasReference} size={10} color="rgba(255,255,255,0.7)" />
-            {reviewCount > 0 && (hasMeta || hasReference) && <Text style={styles.photoListSubtitle}>·</Text>}
             {reviewCount > 0 && (
               <View style={styles.gridReviewBadge}>
                 <IconChartNoAxesGantt width={10} height={10} color="rgba(255,255,255,0.7)" />
@@ -742,11 +739,10 @@ export function RecipeCard({
           )}
           {(hasMeta || reviewCount > 0 || hasReference) && (
             <View style={styles.gridSubtitleRow}>
-              {renderMeta(styles.gridSubtitle)}
-              <MetaLinkIcon show={hasReference} size={12} color={colors['foreground/on-surface-muted']} />
-              {reviewCount > 0 && (hasMeta || hasReference) && (
-                <Text style={styles.gridSubtitle}>·</Text>
-              )}
+              <View style={styles.gridMetaGroup}>
+                {renderMeta(styles.gridSubtitle)}
+                <MetaLinkIcon show={hasReference} size={12} color={colors['foreground/on-surface-muted']} />
+              </View>
               {reviewCount > 0 && (
                 <View style={styles.gridReviewBadge}>
                   <IconChartNoAxesGantt width={12} height={12} color={colors['foreground/on-surface-muted']} />
@@ -943,7 +939,24 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   gridSubtitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 2,
+    gap: Spacing.smd,
+    // 2단 그리드는 폭이 좁아 메타(작성자·북·제법·비중)가 여러 개면 줄바꿈되고,
+    // 그만큼 행이 높아져 우측 메뉴 버튼이 아래로 밀렸다. 한 줄로 고정한다.
+    flexWrap: 'nowrap',
+  },
+  /** 메타 조각 하나 — 좁아지면 이 조각이 줄어들며 말줄임 처리된다 */
+  metaSegment: {
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  /** 메타 묶음 — 좁으면 이쪽이 먼저 줄어들며 말줄임(리뷰 배지는 그대로 보이게) */
+  gridMetaGroup: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    // 구분점(·)을 없앴으므로 간격이 구분 역할을 한다
+    gap: Spacing.smd,
+    flexShrink: 1,
+    minWidth: 0,
   },
   gridReviewBadge: {
     flexDirection: 'row',
@@ -1049,7 +1062,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   listSubtitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
+    gap: Spacing.smd,
   },
   listSubtitle: {
     fontFamily: Typography.label.medium.fontFamily,
