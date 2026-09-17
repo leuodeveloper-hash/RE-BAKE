@@ -28,8 +28,14 @@ export const EDITOR_MSG = {
 export interface EditorTheme {
   text: string;
   placeholder: string;
+  /** 에디터 배경 — 투명 웹뷰(opaque=false)는 iOS에서 컨텐츠가 안 그려져 쓰지 않는다 */
+  surface: string;
   /** 링크 태그 배경 */
   linkBg: string;
+  /** 링크 글자색 — 상세(RichText)와 동일한 표현 */
+  linkColor: string;
+  /** 링크 밑줄색 — 상세(RichText)와 동일한 표현 */
+  linkUnderline: string;
   caret: string;
   selection: string;
   fontSize: number;
@@ -37,7 +43,21 @@ export interface EditorTheme {
   fontFamily: string;
 }
 
-export function buildEditorHtml(theme: EditorTheme, placeholder: string): string {
+/** 초기값을 마크다운 → HTML로 변환 (문서에 직접 심어 브릿지 없이도 글자가 보이게) */
+function initialHtml(src: string): string {
+  const esc = (t: string) => t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  const re = /\[([^\]]+)\]\(([^)\s]+)\)/g;
+  let out = '', last = 0, m: RegExpExecArray | null;
+  while ((m = re.exec(src)) !== null) {
+    if (m.index > last) out += esc(src.slice(last, m.index));
+    out += '<a href="' + escapeAttr(m[2]) + '" data-url="' + escapeAttr(m[2]) + '">' + esc(m[1]) + '</a>';
+    last = m.index + m[0].length;
+  }
+  if (last < src.length) out += esc(src.slice(last));
+  return out;
+}
+
+export function buildEditorHtml(theme: EditorTheme, placeholder: string, initialValue = ''): string {
   return `<!doctype html>
 <html>
 <head>
@@ -45,9 +65,12 @@ export function buildEditorHtml(theme: EditorTheme, placeholder: string): string
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { background: transparent; }
+  html, body { background: ${theme.surface}; }
   #editor {
-    font-family: ${theme.fontFamily};
+    /* RN 폰트명(Pretendard-Regular 등)은 웹뷰에 등록돼 있지 않다. iOS WKWebView는
+       없는 폰트를 만나면 글자를 못 그리고 높이도 어긋난다(칸이 빈 채 늘어남).
+       반드시 시스템 폰트 폴백을 함께 준다. */
+    font-family: '${theme.fontFamily}', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', Roboto, sans-serif;
     font-size: ${theme.fontSize}px;
     line-height: ${theme.lineHeight}px;
     letter-spacing: -0.25px;
@@ -62,8 +85,9 @@ export function buildEditorHtml(theme: EditorTheme, placeholder: string): string
   /* 링크 = 글 사이에 섞인 태그. 실제 DOM 노드라 글이 자연스럽게 감싸 흐른다. */
   #editor a {
     background: ${theme.linkBg};
-    color: ${theme.text};
-    text-decoration: none;
+    color: ${theme.linkColor};
+    text-decoration: underline;
+    text-decoration-color: ${theme.linkUnderline};
     border-radius: 3px;
     padding: 1px 2px;
     cursor: pointer;
@@ -76,7 +100,7 @@ export function buildEditorHtml(theme: EditorTheme, placeholder: string): string
 </style>
 </head>
 <body>
-<div id="editor" contenteditable="true" data-placeholder="${escapeAttr(placeholder)}"></div>
+<div id="editor" contenteditable="true" data-placeholder="${escapeAttr(placeholder)}">${initialHtml(initialValue)}</div>
 <script>
 (function () {
   var el = document.getElementById('editor');

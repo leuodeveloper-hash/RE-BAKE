@@ -149,7 +149,9 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
     [data-rich="${scopeId}"] { outline: none; white-space: pre-wrap; word-break: break-word; }
     [data-rich="${scopeId}"] a {
       background: ${colors['custom/yellow-var']}33;
-      color: inherit;
+      color: ${colors['custom/yellow-var']};
+      text-decoration: underline;
+      text-decoration-color: ${colors['border/normal']};
       border-radius: 3px;
       padding: 1px 2px;
       cursor: pointer;

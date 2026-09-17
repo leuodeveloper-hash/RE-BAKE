@@ -56,12 +56,25 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   const pendingRef = useRef<string[]>([]);
   // 되먹임 방지 — 웹뷰가 올려보낸 값을 다시 내려보내지 않는다
   const lastFromWebRef = useRef<string | null>(null);
+  // ready 시점에 넣을 값은 항상 "지금" 값이어야 한다. handleMessage가 캡처한 value는
+  // 웹뷰 마운트 당시 값(대개 빈 문자열)이라, 데이터가 늦게 도착하면 영영 반영되지 않는다.
+  const valueRef = useRef(value);
+  valueRef.current = value;
 
   const flat = StyleSheet.flatten(style) as TextStyle | undefined;
+  // 호출부가 준 레이아웃 속성만 컨테이너로 넘긴다(폰트·색은 웹뷰 CSS가 처리).
+  const layoutStyle = useMemo(() => {
+    if (!flat) return undefined;
+    const {flex, flexGrow, flexShrink, flexBasis, alignSelf, minWidth, maxWidth, width, marginTop, marginBottom, marginLeft, marginRight} = flat as any;
+    return {flex, flexGrow, flexShrink, flexBasis, alignSelf, minWidth, maxWidth, width, marginTop, marginBottom, marginLeft, marginRight};
+  }, [flat]);
   const theme: EditorTheme = useMemo(() => ({
     text: (flat?.color as string) ?? colors['foreground/on-surface'],
     placeholder: colors['foreground/on-surface-muted'],
+    surface: colors['surface/bright'],
     linkBg: colors['custom/yellow-var'] + '33',
+    linkColor: colors['custom/yellow-var'],
+    linkUnderline: colors['border/normal'],
     caret: colors['foreground/on-surface'],
     selection: colors['custom/yellow-var'] + '40',
     fontSize: (flat?.fontSize as number) ?? Typography.body.medium.fontSize,
@@ -71,12 +84,22 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
 
   // 테마·폰트가 바뀌면 문서를 다시 만든다. value는 브릿지로 넣으므로 여기 넣지 않는다
   // (넣으면 타이핑마다 웹뷰가 새로 로드된다).
-  const html = useMemo(() => buildEditorHtml(theme, placeholder), [theme, placeholder]);
+  // 초기값은 문서에 직접 심는다 — ready/setValue 브릿지에만 의존하면 그 경로가 한 번이라도
+  // 어긋날 때 칸이 빈 채로 남는다(iOS에서 재료 이름이 안 보이던 회귀).
+  // 마운트 시점 값만 고정해 쓰므로 타이핑마다 문서가 다시 만들어지지 않는다.
+  const initialValueRef = useRef(value);
+  const html = useMemo(
+    () => buildEditorHtml(theme, placeholder, initialValueRef.current),
+    [theme, placeholder],
+  );
 
   const send = useCallback((type: string, payload: object) => {
     const msg = JSON.stringify({type, payload});
     if (!readyRef.current) { pendingRef.current.push(msg); return; }
-    webRef.current?.injectJavaScript(`window.__editorApply(${JSON.stringify(msg)}); true;`);
+    // 객체 리터럴로 주입한다. 예전엔 JSON 문자열을 다시 stringify해 넘겼는데(이중 인코딩),
+    // 값에 따옴표·개행·유니코드가 섞이면 iOS WKWebView에서 주입 스크립트가 깨져
+    // setValue가 통째로 씹혔다(재료 이름이 빈 칸으로 남는 회귀).
+    webRef.current?.injectJavaScript(`window.__editorApply(${msg}); true;`);
   }, []);
 
   useImperativeHandle(ref, () => ({
@@ -100,9 +123,10 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
     switch (type) {
       case EDITOR_MSG.ready:
         readyRef.current = true;
-        send(EDITOR_MSG.setValue, {value});
+        console.log('[RichEditor] ready, value=', JSON.stringify(valueRef.current));
+        send(EDITOR_MSG.setValue, {value: valueRef.current});
         pendingRef.current.forEach(m =>
-          webRef.current?.injectJavaScript(`window.__editorApply(${JSON.stringify(m)}); true;`));
+          webRef.current?.injectJavaScript(`window.__editorApply(${m}); true;`));
         pendingRef.current = [];
         break;
       case EDITOR_MSG.change:
@@ -120,22 +144,52 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   }, [value, send, onChangeText, onSubmit, onBackspaceAtStart, onFocus, onBlur, onSelectionChange, onLinkTap, theme.lineHeight]);
 
   return (
-    <View style={{height}}>
+    // style은 폰트 계산에만 쓰고 컨테이너엔 적용하지 않았다 → 호출부의 flex:1이 사라져
+    // row 레이아웃(재료 행: 이름 + 분량)에서 폭이 0이 되어 글자가 통째로 안 보였다.
+    // (도구·과정은 세로 레이아웃이라 폭이 자동으로 채워져 증상이 없었다.)
+    // 레이아웃 속성만 넘긴다 — 폰트/색은 웹뷰 안 CSS가 담당한다.
+    <View style={[{height}, layoutStyle]}>
       <WebView
         ref={webRef}
         source={{html}}
         onMessage={handleMessage}
-        style={styles.web}
+        style={[styles.web, {backgroundColor: colors['surface/bright']}]}
+        // 로드 실패를 조용히 넘기면 ready가 안 와 setValue도 못 하고 칸이 통째로 빈다.
+        // (iOS에서 재료 이름만 안 보이던 회귀) — 원인을 남기고, 프로세스가 죽으면 되살린다.
+        // ready 메시지가 유실돼도(iOS에서 문서 로드 직후 postMessage가 묻히는 경우가 있다)
+        // 값이 안 들어가면 칸이 빈 채로 남는다. 문서 로드가 끝나면 한 번 더 밀어넣는다.
+        onLoadEnd={() => {
+          readyRef.current = true;
+          const msg = JSON.stringify({type: EDITOR_MSG.setValue, payload: {value: valueRef.current}});
+          webRef.current?.injectJavaScript(`window.__editorApply && window.__editorApply(${msg}); true;`);
+        }}
+        onError={e => console.warn('[RichEditor] load error', e.nativeEvent)}
+        onHttpError={e => console.warn('[RichEditor] http error', e.nativeEvent)}
+        onContentProcessDidTerminate={() => {
+          readyRef.current = false;
+          webRef.current?.reload();
+        }}
         // iOS 전용 props — 타입 정의에 없어 캐스팅으로 넘긴다.
         // opaque=false: 배경을 비워 앱 테마가 그대로 비치게 (없으면 흰 판이 깔린다)
         // hideKeyboardAccessoryView: 웹뷰 기본 완료 바를 숨겨 앱 키보드 툴바와 겹치지 않게
-        {...({opaque: false, hideKeyboardAccessoryView: true} as any)}
+        // opaque=false(투명 웹뷰)는 iOS에서 컨텐츠가 아예 안 그려지는 경우가 있어
+        // 재료 칸이 빈 채 높이만 남았다. 불투명으로 두고 배경색을 앱 테마와 맞춘다.
+        {...({hideKeyboardAccessoryView: true} as any)}
         scrollEnabled={false}
         keyboardDisplayRequiresUserAction={false}
         automaticallyAdjustContentInsets={false}
-        // 문서 안에서만 동작한다 — 바깥으로 나가는 이동은 막는다
-        originWhitelist={['about:*']}
-        onShouldStartLoadWithRequest={req => req.url === 'about:blank' || req.url.startsWith('data:')}
+        // 문서 안에서만 동작한다 — 바깥으로 나가는 "이동"만 막는다.
+        //
+        // 주의: originWhitelist로 origin을 통째로 막으면 iOS는 source={{html}}의 메인
+        // 문서 로드까지 차단해 웹뷰가 통째로 빈다(안드로이드는 통과). 그러면 ready가
+        // 안 와 setValue도 못 하고, 재료 이름 칸이 전부 빈 채로 남는다.
+        // navigationType으로 최초 로드를 구분하는 것도 기기/버전마다 값이 달라 위험하다.
+        // 링크 탭은 JS에서 linkTap 메시지로 처리하므로(브라우저 이동을 쓰지 않는다),
+        // 여기서는 http(s) 같은 바깥 스킴만 거르면 충분하다.
+        originWhitelist={['*']}
+        onShouldStartLoadWithRequest={req =>
+          !/^https?:/i.test(req.url)
+        }
       />
     </View>
   );
@@ -144,7 +198,6 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
 const styles = StyleSheet.create({
   web: {
     flex: 1,
-    backgroundColor: 'transparent',
   },
 });
 
