@@ -9,6 +9,8 @@ import {
   IconBookFilled,
   IconExprolerBookFilled,
   IconShare,
+  IconPin,
+  IconPinFilled,
 } from '@components/Icon/IconIndex';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import type {SemanticColors} from '@constants/tokens';
@@ -19,6 +21,9 @@ type TFunction = (key: string, params?: Record<string, unknown>) => string;
 interface RecipeMenuOptions {
   t: TFunction;
   session?: string;
+  /** 목록 상단 고정 — 이미 고정돼 있으면 해제 항목으로 바뀐다 */
+  showPin?: boolean;
+  isPinned?: boolean;
   showImport?: boolean;
   showRemake?: boolean;
   showEdit?: boolean;
@@ -39,6 +44,11 @@ interface RecipeMenuOptions {
 export function getRecipeMenuItems(options: RecipeMenuOptions): MenuItemData[] {
   const {t} = options;
   const items: MenuItemData[] = [];
+  if (options.showPin) {
+    items.push(options.isPinned
+      ? {id: 'unpin', label: t('recipeMenuItems.unpin'), icon: IconPinFilled}
+      : {id: 'pin', label: t('recipeMenuItems.pin'), icon: IconPin});
+  }
   if (options.showImport) items.push({id: 'save', label: t('recipeMenuItems.copyToMyRecipes'), icon: IconFilesFilled});
   if (options.showRemake) {
     const {total} = parseSession(options.session);

@@ -40,6 +40,11 @@ export interface Recipe {
   reviewCount: number;
   /** 이미지 URI (Firebase Storage URL 또는 로컬 URI) */
   imageUri?: string;
+  /**
+   * 목록 상단 고정 시각(ISO). 불린이 아니라 시각인 이유 — 여러 개를 고정했을 때
+   * "핀한 순서"를 유지해야 하기 때문(먼저 고정한 것이 위).
+   */
+  pinnedAt?: string;
   time?: string;
   servings?: string;
   session?: string;

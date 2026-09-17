@@ -34,6 +34,8 @@ export {default as IconBook} from '../../../assets/icons/book.svg';
 export {default as IconBookFilled} from '../../../assets/icons/book-filled.svg';
 export {default as IconRecipe} from '../../../assets/icons/recipe.svg';
 export {default as IconRecipeFilled} from '../../../assets/icons/recipe_filled.svg';
+export {default as IconPin} from '../../../assets/icons/pin.svg';
+export {default as IconPinFilled} from '../../../assets/icons/pin-filled.svg';
 export {default as IconStar} from '../../../assets/icons/star.svg';
 export {default as IconStarFilled} from '../../../assets/icons/star_filled.svg';
 export {default as IconChat} from '../../../assets/icons/chat.svg';

@@ -46,7 +46,13 @@ const makeMoreMenuItems = (t: (key: string) => string) => [
 ];
 
 const getDefaultCardMenuItems = (recipe: Recipe, t: (key: string, params?: Record<string, unknown>) => string) =>
-  getRecipeMenuItems({t, session: recipe.session, showRemake: true, showEdit: true, showDelete: true, showCookbook: true});
+  getRecipeMenuItems({
+    t,
+    session: recipe.session,
+    showPin: true,
+    isPinned: !!recipe.pinnedAt,
+    showRemake: true, showEdit: true, showDelete: true, showCookbook: true,
+  });
 
 export interface HomeScreenProps {
   /** 작성자 홈 모드: 이 authorId로 필터된 둘러보기 레시피를 표시(내 레시피 대신) */
@@ -256,6 +262,13 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   }, [recipes, setRecipes, showSnackbar, t]);
 
   const handleCardMenuSelect = useCallback((id: string, recipe: Recipe): void => {
+    if (id === 'pin' || id === 'unpin') {
+      // pinnedAt에 시각을 남긴다 — 여러 개를 고정했을 때 핀한 순서대로 위에 쌓인다
+      const pinnedAt = id === 'pin' ? new Date().toISOString() : undefined;
+      setRecipes(prev => prev.map(r => (r.id === recipe.id ? {...r, pinnedAt} : r)));
+      showSnackbar(t(id === 'pin' ? 'home.pinned' : 'home.unpinned'));
+      return;
+    }
     if (id === 'cookbook') {
       setCookbookSheetRecipe(recipe);
       return;

@@ -431,12 +431,21 @@ export function RecipeListTemplate({
     }
   }, [closeMenus, onOverlayPress]);
 
-  // 정렬된 데이터 — 잠금 여부를 1차 키로 (잠금 해제된 것 먼저), 2차 정렬은 사용자 선택
+  // 정렬된 데이터 — 고정(핀)을 1차 키, 잠금 여부를 2차 키(잠금 해제된 것 먼저),
+  // 3차 정렬은 사용자 선택. 고정끼리는 "먼저 고정한 것이 위"(pinnedAt 오름차순).
   const sortedData = useMemo(() => {
     const sorted = [...data];
     const lockRank = (r: Recipe) => (lockedRecipeIds?.has(r.id) ? 1 : 0);
+    const comparePin = (a: Recipe, b: Recipe) => {
+      if (a.pinnedAt && b.pinnedAt) return a.pinnedAt.localeCompare(b.pinnedAt);
+      if (a.pinnedAt) return -1;
+      if (b.pinnedAt) return 1;
+      return 0;
+    };
     if (sortId === 'default') {
       sorted.sort((a, b) => {
+        const pinDiff = comparePin(a, b);
+        if (pinDiff !== 0) return pinDiff;
         const lockDiff = lockRank(a) - lockRank(b);
         if (lockDiff !== 0) return lockDiff;
         return (b.createdAt ?? '').localeCompare(a.createdAt ?? '');
@@ -444,6 +453,8 @@ export function RecipeListTemplate({
       return sorted;
     }
     sorted.sort((a, b) => {
+      const pinDiff = comparePin(a, b);
+      if (pinDiff !== 0) return pinDiff;
       const lockDiff = lockRank(a) - lockRank(b);
       if (lockDiff !== 0) return lockDiff;
       return (a.title ?? '').localeCompare(b.title ?? '', 'ko');
