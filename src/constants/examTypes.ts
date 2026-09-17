@@ -29,6 +29,16 @@ export const SCHEDULE_TYPES_FOR: Record<ExamType, ScheduleExamType[]> = {
   written: ['baking_written', 'pastry_written'],
 };
 
+/**
+ * Firestore examType → 종목까지 포함한 표시 라벨 ("제과 실기" 등).
+ * toExamType은 종목(제과/제빵)을 버리고 실기/필기만 남기므로,
+ * 위젯·알림처럼 어떤 시험인지 밝혀야 하는 곳에서는 이걸 쓴다.
+ */
+export function scheduleExamLabel(scheduleType: string, t: (key: string) => string): string {
+  const known = (SCHEDULE_EXAM_TYPE_IDS as string[]).includes(scheduleType);
+  return known ? t(`examTypes.${scheduleType}`) : '';
+}
+
 /** Firestore examType → 알림 유형(실기/필기) */
 export function toExamType(scheduleType: string): ExamType {
   return scheduleType.endsWith('practical') ? 'practical' : 'written';

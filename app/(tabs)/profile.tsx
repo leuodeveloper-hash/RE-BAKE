@@ -65,6 +65,7 @@ export default function ProfileRoute() {
         onTermsPress={() => router.push('/terms')}
         onPrivacyPress={() => router.push('/privacy')}
         onLabsPress={() => router.push('/labs' as any)}
+        onWidgetPreviewPress={() => router.push('/widget-preview' as any)}
         onSubmissionsPress={() => router.push('/admin/submissions' as any)}
         onExamNotifPress={() => router.push('/exam-notifications' as any)}
         onWidgetGuidePress={() => router.push('/widget-guide' as any)}

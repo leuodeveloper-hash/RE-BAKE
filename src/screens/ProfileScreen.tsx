@@ -43,6 +43,7 @@ import {
   IconCloudFilled,
   IconTicketFilled,
   IconGlobeFilled,
+  IconClockFilled,
 } from '@components/Icon/IconIndex';
 
 import Constants from 'expo-constants';
@@ -70,6 +71,7 @@ export interface ProfileScreenProps {
   onPrivacyPress: () => void;
   /** Labs(디버그) 화면 진입 */
   onLabsPress?: () => void;
+  onWidgetPreviewPress?: () => void;
   /** 둘러보기 신청 검토 화면 진입 (어드민) */
   onSubmissionsPress?: () => void;
   /** 시험 일정 알림 설정 화면 진입 */
@@ -161,6 +163,7 @@ export function ProfileScreen({
   onTermsPress,
   onPrivacyPress,
   onLabsPress,
+  onWidgetPreviewPress,
   onSubmissionsPress,
   onExamNotifPress,
   onWidgetGuidePress,
@@ -570,6 +573,13 @@ export function ProfileScreen({
                   leading={{type: 'icon', icon: IconBellFilled}}
                   trailing={{type: 'icon', icon: IconChevronRight}}
                   onPress={() => onLabsPress?.()}
+                  showDivider
+                />
+                <ListItem
+                  title={t('widgetPreview.title')}
+                  leading={{type: 'icon', icon: IconClockFilled}}
+                  trailing={{type: 'icon', icon: IconChevronRight}}
+                  onPress={() => onWidgetPreviewPress?.()}
                   showDivider={false}
                 />
               </Card>
