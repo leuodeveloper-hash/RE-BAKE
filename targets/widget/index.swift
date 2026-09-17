@@ -191,6 +191,12 @@ struct Provider: TimelineProvider {
        let horizon = cal.date(byAdding: .day, value: 14, to: startOfToday),
        regStart < horizon {
       entries.append(entryFor(date: regStart, sets: sets, exam: exam))
+      // 카운트다운이 시작되는 24시간 전 엔트리도 함께. 자정 단위 엔트리만 있으면
+      // 전날 09:00에 타이머가 떠야 하는데 다음 자정까지 안 뜬다.
+      let countdownStart = regStart.addingTimeInterval(-24 * 60 * 60)
+      if countdownStart > Date() {
+        entries.append(entryFor(date: countdownStart, sets: sets, exam: exam))
+      }
       entries.sort { $0.date < $1.date }
     }
     // 14일 뒤 갱신 요청 → 앱이 안 열렸어도 다시 준비된 만큼 순환.
@@ -260,7 +266,11 @@ struct BakleWidgetEntryView: View {
             .foregroundColor(.white)
             .lineLimit(1)
           // 접수 시작까지 남은 시간을 초 단위로 — OS가 앱 없이도 갱신한다.
-          if days == 0, let countdownDate, countdownDate > entry.date {
+          // 시작 24시간 전부터. 당일(days == 0)로 제한하면 자정~09:00의 9시간만
+          // 남아 정작 사람이 보는 시간대엔 안 뜬다.
+          if let countdownDate,
+             countdownDate > entry.date,
+             countdownDate.timeIntervalSince(entry.date) <= 24 * 60 * 60 {
             Text(countdownDate, style: .timer)
               // 매초 바뀌므로 고정폭 숫자 — 안 그러면 폭이 흔들린다
               .font(WidgetFont.pretendard("Pretendard-Medium", size: 10,
