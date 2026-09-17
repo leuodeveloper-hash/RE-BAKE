@@ -192,6 +192,7 @@ export interface RecipeEditScreenProps {
     cookbook?: string;
     method?: string;
     specificGravity?: string;
+    ingredients?: {name: string; amount: string}[];
     ingredientGroups?: {title: string; ingredients: {name: string; amount: string}[]}[];
     tools?: {name: string}[];
     toolGroups?: {title: string; tools: {name: string}[]}[];
@@ -292,6 +293,18 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
   const {showSnackbar} = useSnackbar();
   const nextIdRef = useRef(100);
   const genId = () => String(nextIdRef.current++);
+
+  const emptyIngredient = (): EditableIngredient => ({id: genId(), name: '', amount: '', unit: 'g'});
+
+  /** 저장형 재료({name, amount}) → 편집형({amount, unit}). "600g" → {amount:'600', unit:'g'}, "약간" → {amount:'', unit:'약간'} */
+  const toEditableIngredient = (i: {name: string; amount: string}): EditableIngredient => {
+    const amount = i.amount ?? '';
+    const numUnit = amount.match(/^([\d.]+)\s*([a-zA-Z\u3131-\u314e\uac00-\ud7a3]+)/);
+    if (numUnit) return {id: genId(), name: i.name, amount: numUnit[1], unit: numUnit[2]};
+    const textOnly = amount.match(/^([a-zA-Z\u3131-\u314e\uac00-\ud7a3]+)$/);
+    if (textOnly) return {id: genId(), name: i.name, amount: '', unit: textOnly[1]};
+    return {id: genId(), name: i.name, amount: amount.replace(/[^0-9.]/g, ''), unit: 'g'};
+  };
 
   // State — recipe prop이 있으면 편집 모드, 없으면 빈 생성 모드
   const [title, setTitle] = useState(() => recipe?.title ?? '');
@@ -492,27 +505,30 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
   const [amountDialogTarget, setAmountDialogTarget] = useState<{groupId: string; ingredientId: string} | null>(null);
   const [description, setDescription] = useState('');
   const [ingredientGroups, setIngredientGroups] = useState<IngredientGroup[]>(() => {
-    if (recipe?.ingredientGroups) {
+    if (recipe?.ingredientGroups?.length) {
       return recipe.ingredientGroups.map(g => {
-        const ingredients = g.ingredients.map(i => {
-          // "600g" → {amount:"600", unit:"g"}, "약간" → {amount:"", unit:"약간"}
-          const numUnit = i.amount.match(/^([\d.]+)\s*([a-zA-Zㄱ-ㅎ가-힣]+)/);
-          if (numUnit) return {id: genId(), name: i.name, amount: numUnit[1], unit: numUnit[2]};
-          const textOnly = i.amount.match(/^([a-zA-Zㄱ-ㅎ가-힣]+)$/);
-          if (textOnly) return {id: genId(), name: i.name, amount: '', unit: textOnly[1]};
-          // 숫자만 있거나 기타
-          return {id: genId(), name: i.name, amount: i.amount.replace(/[^0-9.]/g, ''), unit: 'g'};
-        });
+        const ingredients = g.ingredients.map(toEditableIngredient);
         return {
           id: genId(),
           title: g.title,
-          ingredients,
+          ingredients: ingredients.length ? ingredients : [emptyIngredient()],
           bulkMode: false,
           bulkText: ingredientsToBulkText(ingredients),
         };
       });
     }
-    return [{id: genId(), title: '재료', ingredients: [{id: genId(), name: '', amount: '', unit: 'g'}], bulkMode: false, bulkText: ''}];
+    // 구버전 데이터: ingredientGroups 없이 ingredients만 있는 레시피(도구의 recipe.tools 폴백과 동일)
+    if (recipe?.ingredients?.length) {
+      const ingredients = recipe.ingredients.map(toEditableIngredient);
+      return [{
+        id: genId(),
+        title: '재료',
+        ingredients,
+        bulkMode: false,
+        bulkText: ingredientsToBulkText(ingredients),
+      }];
+    }
+    return [{id: genId(), title: '재료', ingredients: [emptyIngredient()], bulkMode: false, bulkText: ''}];
   });
   const [toolGroups, setToolGroups] = useState<EditableToolGroup[]>(() => {
     if (recipe?.toolGroups) {
@@ -1821,8 +1837,9 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
         {ingredientGroups.map((group, groupIndex) => {
           const ingGroupHasDragging = drag.draggingId !== null && group.ingredients.some(i => i.id === drag.draggingId);
           return (
-          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(ingGroupMenu === group.id || ingAddMenu === group.id ? {zIndex: 9999} : ingGroupHasDragging ? {zIndex: 100} : undefined)}}>
+          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(ingGroupMenu === group.id || ingAddMenu === group.id || ingRowMenu?.groupId === group.id ? {zIndex: 9999} : ingGroupHasDragging ? {zIndex: 100} : undefined)}}>
             <Card style={ingGroupHasDragging || ingGroupMenu === group.id || ingAddMenu === group.id
+              || ingRowMenu?.groupId === group.id
               ? {overflow: 'visible'} : undefined}>
               {/* Group Header — 메뉴가 헤더 바로 아래에 붙도록 relative 래퍼로 감싼다 */}
               <View style={{position: 'relative', zIndex: (ingGroupMenu === group.id || ingAddMenu === group.id) ? 9999 : undefined}}>
@@ -1870,13 +1887,14 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
                             // bulk → 폼: 이 그룹 bulkText를 파싱해 개별 재료로. 기존 값(양·단위) 최대 보존.
                             const parsed = bulkTextToIngredients(group.bulkText);
                             const existingByName = new Map(group.ingredients.map(i => [i.name, i]));
+                            // 파싱 결과가 비어도 최소 1행은 남긴다 — 0행이면 재료가 안 보이고 카드 높이가 무너진다
                             const nextIngredients = parsed.length > 0 ? parsed.map(item => {
                               const existing = existingByName.get(item.name);
                               if (existing && !item.amount && existing.unit === item.unit) {
                                 return {...existing, id: genId(), name: item.name};
                               }
                               return {id: genId(), name: item.name, amount: item.amount, unit: item.unit};
-                            }) : [];
+                            }) : [emptyIngredient()];
                             setIngredientGroups(p => p.map(g => g.id === group.id ? {...g, bulkMode: false, ingredients: nextIngredients} : g));
                           } else {
                             // 폼 → bulk: 이 그룹 재료를 bulkText로.
@@ -2029,6 +2047,16 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
                               // 새 행이 렌더된 뒤 포커스
                               setTimeout(() => rowInputRefs.current[newId]?.focus(), 50);
                             }}
+                            onBackspaceAtStart={() => {
+                              // 빈 칸에서 백스페이스 = 그 행 삭제 (과정과 같은 약속).
+                              // 재료는 이름·분량이 따로라 과정처럼 이전 행과 "병합"하면
+                              // 분량이 어디로 갈지 모호하다 → 빈 칸일 때만 지운다.
+                              if (ingredient.name || ingredient.amount) return;
+                              const prev = group.ingredients[index - 1];
+                              if (!prev) return; // 첫 행은 지우지 않는다(최소 1행 유지)
+                              removeIngredient(group.id, ingredient.id);
+                              setTimeout(() => (rowInputRefs.current[prev.id] as any)?.focus(Number.MAX_SAFE_INTEGER), 50);
+                            }}
                             onSelectionChange={(sel, srcValue) => {
                               // 툴바 링크 버튼이 볼 대상 — 쿠팡 링크의 주 용도가 재료다
                               linkCtx?.report({
@@ -2108,8 +2136,9 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
         {toolGroups.map((group, groupIndex) => {
           const toolGroupHasDragging = drag.draggingId !== null && group.tools.some(t => t.id === drag.draggingId);
           return (
-          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(toolGroupMenu === group.id || toolAddMenu === group.id ? {zIndex: 9999} : toolGroupHasDragging ? {zIndex: 100} : undefined)}}>
+          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(toolGroupMenu === group.id || toolAddMenu === group.id || toolRowMenu?.groupId === group.id ? {zIndex: 9999} : toolGroupHasDragging ? {zIndex: 100} : undefined)}}>
             <Card style={toolGroupHasDragging || toolGroupMenu === group.id || toolAddMenu === group.id
+              || toolRowMenu?.groupId === group.id
               ? {overflow: 'visible'} : undefined}>
               {/* Group Header — 메뉴가 헤더 바로 아래에 붙도록 relative 래퍼로 감싼다 */}
               <View style={{position: 'relative', zIndex: (toolGroupMenu === group.id || toolAddMenu === group.id) ? 9999 : undefined}}>
@@ -2300,6 +2329,14 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
                           onSubmit={() => {
                             const newId = addTool(group.id, 'bottom', tool.id);
                             setTimeout(() => rowInputRefs.current[newId]?.focus(), 50);
+                          }}
+                          onBackspaceAtStart={() => {
+                            // 빈 칸에서 백스페이스 = 그 행 삭제 (재료·과정과 같은 약속)
+                            if (tool.name) return;
+                            const prev = group.tools[index - 1];
+                            if (!prev) return; // 첫 행은 지우지 않는다(최소 1행 유지)
+                            removeTool(group.id, tool.id);
+                            setTimeout(() => (rowInputRefs.current[prev.id] as any)?.focus(Number.MAX_SAFE_INTEGER), 50);
                           }}
                           onSelectionChange={(sel, srcValue) => {
                             linkCtx?.report({
@@ -3603,7 +3640,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 단일 그룹 헤더 + 버튼을 하단 행의 - 버튼(ListItem iconButton 슬롯 28)과 동일 슬롯에 배치해 정렬 맞춤
   // 헤더 +/- 버튼: 아이템 행 trailing 버튼과 우측 정렬이 맞도록 고정 28 슬롯 제거.
   // (28 슬롯에 medium 버튼을 가두면 아이템 버튼보다 안쪽으로 들어가 보였음)
+  // 행의 +/- 버튼(ListItem iconButtonSlot)과 같은 28 슬롯 기준 — 크기를 안 주면
+  // 버튼 실제 크기(40)만큼 벌어져 헤더 +와 행 -의 중심선이 세로로 어긋난다.
   headerAddSlot: {
+    width: 28,
+    height: 28,
     alignItems: 'center',
     justifyContent: 'center',
   },
