@@ -7,5 +7,13 @@
       <key>NSExtensionPointIdentifier</key>
       <string>com.apple.widgetkit-extension</string>
     </dict>
+    <!-- 위젯은 앱과 별개 번들이라 앱에 등록된 폰트를 쓸 수 없다.
+         배너에 쓰는 웨이트만 위젯 번들에 따로 포함한다(위젯 메모리 한도가 빡빡하다). -->
+    <key>UIAppFonts</key>
+    <array>
+      <string>Pretendard-Regular.otf</string>
+      <string>Pretendard-Medium.otf</string>
+      <string>Pretendard-Bold.otf</string>
+    </array>
   </dict>
 </plist>

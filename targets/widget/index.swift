@@ -1,5 +1,6 @@
 import WidgetKit
 import SwiftUI
+import UIKit   // UIFontDescriptor — OpenType feature(tnum/ss01) 활성화용
 
 // App Group으로 앱↔위젯 데이터 공유
 let appGroup = "group.com.bakle.app"
@@ -45,6 +46,60 @@ func parseExamDate(_ s: String) -> Date? {
   f.timeZone = TimeZone.current
   // ISO 문자열(시각 포함)이 올 수도 있으므로 앞 10자만 쓴다
   return f.date(from: String(s.prefix(10)))
+}
+
+// MARK: - 서체
+//
+// 위젯은 앱과 별개 번들이라 앱에 등록된 폰트를 쓸 수 없다 → Info.plist(UIAppFonts)로
+// 위젯 번들에도 Pretendard를 포함했다.
+//
+// SwiftUI의 .custom()은 OpenType feature를 켜지 못하므로, UIFontDescriptor로
+// 직접 활성화한다.
+// - salt(stylistic alternates): 디자인 시안이 지정한 대체 글리프.
+//   Pretendard에서 salt는 숫자 1·3·4·6·9의 모양을 바꾼다(ss01은 이 숫자들을
+//   건드리지 않으므로 시안과 달라진다 — 둘은 별개 피처다).
+// - tnum(고정폭 숫자): 타이머가 1초마다 덜덜 떨리는 걸 막는다. .monospacedDigit()은
+//   시스템 폰트용이라 커스텀 폰트에는 듣지 않는다.
+enum WidgetFont {
+  /// Pretendard + salt + tabular figures. relativeTo로 손쉬운 사용의 글자 크기를 따른다.
+  ///
+  /// - Parameter tabularNumbers: 고정폭 숫자. 타이머처럼 매초 바뀌는 곳에만 켠다.
+  ///   D-day처럼 고정된 숫자엔 자간이 어색해질 수 있어 기본은 끔.
+  static func pretendard(
+    _ name: String,
+    size: CGFloat,
+    relativeTo textStyle: Font.TextStyle,
+    tabularNumbers: Bool = false
+  ) -> Font {
+    guard let base = UIFont(name: name, size: size) else {
+      // 폰트가 번들에 없으면 조용히 시스템 폰트로 — 위젯이 빈 화면이 되는 것보다 낫다
+      return .system(size: size, weight: .semibold).monospacedDigit()
+    }
+    // salt → kStylisticAlternativesType / kStylisticAltOneOnSelector(=2).
+    // ssNN과 달리 salt는 "대체 글리프 켜기" 하나뿐이다.
+    var settings: [[UIFontDescriptor.FeatureKey: Int]] = [
+      [.type: kStylisticAlternativesType, .selector: kStylisticAltOneOnSelector],
+    ]
+    if tabularNumbers {
+      // 고정폭 숫자 (kNumberSpacingType / kMonospacedNumbersSelector)
+      settings.append([.type: kNumberSpacingType, .selector: kMonospacedNumbersSelector])
+    }
+    let descriptor = base.fontDescriptor.addingAttributes([.featureSettings: settings])
+    return Font(UIFont(descriptor: descriptor, size: size)).leading(.tight)
+  }
+}
+
+/// 접수 시작 시각. 날짜만 오면 09:00으로 본다 —
+/// 앱의 알림 로직(examNotifications.ts)과 같은 규칙이라야 안내가 어긋나지 않는다.
+func parseRegistrationStart(_ s: String) -> Date? {
+  guard !s.isEmpty else { return nil }
+  let cal = Calendar.current
+  // 시각이 포함된 ISO면 그대로, 날짜만이면 09:00
+  let iso = ISO8601DateFormatter()
+  iso.formatOptions = [.withInternetDateTime]
+  if s.count > 10, let d = iso.date(from: s) { return d }
+  guard let day = parseExamDate(s) else { return nil }
+  return cal.date(bySettingHour: 9, minute: 0, second: 0, of: day)
 }
 
 /// 오늘 기준 남은 일수. 지났으면 nil.
@@ -128,6 +183,16 @@ struct Provider: TimelineProvider {
       guard let day = cal.date(byAdding: .day, value: dayOffset, to: startOfToday) else { continue }
       entries.append(entryFor(date: day, sets: sets, exam: exam))
     }
+    // 접수 시작 시각(보통 09:00) 엔트리를 끼워 넣는다. 자정 단위 엔트리만 있으면
+    // 접수가 시작돼도 그날 저녁까지 배너가 "접수 D-0"에 머문다.
+    if let exam,
+       let regStart = parseRegistrationStart(exam.registrationStart),
+       regStart > Date(),
+       let horizon = cal.date(byAdding: .day, value: 14, to: startOfToday),
+       regStart < horizon {
+      entries.append(entryFor(date: regStart, sets: sets, exam: exam))
+      entries.sort { $0.date < $1.date }
+    }
     // 14일 뒤 갱신 요청 → 앱이 안 열렸어도 다시 준비된 만큼 순환.
     let refreshDate = cal.date(byAdding: .day, value: 14, to: startOfToday) ?? Date()
     completion(Timeline(entries: entries, policy: .after(refreshDate)))
@@ -156,45 +221,63 @@ struct BakleWidgetEntryView: View {
     default: return 24
     }
   }
+  /// 제목 서체 — 배너와 같은 Pretendard로 통일한다(하나만 시스템 폰트면 어색하다)
   private var titleFont: Font {
     switch family {
-    case .systemSmall: return .subheadline
-    case .systemMedium: return .headline
-    case .systemLarge: return .title2
-    default: return .title
+    case .systemSmall:  return WidgetFont.pretendard("Pretendard-Bold", size: 15, relativeTo: .subheadline)
+    case .systemMedium: return WidgetFont.pretendard("Pretendard-Bold", size: 17, relativeTo: .headline)
+    case .systemLarge:  return WidgetFont.pretendard("Pretendard-Bold", size: 22, relativeTo: .title2)
+    default:            return WidgetFont.pretendard("Pretendard-Bold", size: 28, relativeTo: .title)
     }
   }
 
-  /// 시험 D-day 배너.
-  /// 시험 당일이 가까울수록 눈에 띄게 — D-1 이하는 강조색.
+  /// 접수·시험 D-day 배너.
+  /// 접수 전이면 접수 기준, 접수가 시작됐으면 시험 기준. D-1 이하는 강조색.
   @ViewBuilder
   private func examBanner(_ exam: UpcomingExam) -> some View {
-    if let examDate = parseExamDate(exam.examDate),
-       let days = daysUntil(examDate, from: entry.date) {
-      let isUrgent = days <= 1
-      HStack(spacing: 6) {
-        Text(days == 0 ? "오늘" : "D-\(days)")
-          .font(.caption).fontWeight(.heavy)
-          .foregroundColor(isUrgent ? .white : .white.opacity(0.95))
-        Text(exam.label)
-          .font(.caption2)
-          .foregroundColor(.white.opacity(0.85))
-          .lineLimit(1)
-        // 시험 당일은 남은 시간을 초 단위로 — OS가 앱 없이도 갱신한다
-        if days == 0 {
-          Text(examDate, style: .timer)
-            .font(.caption2).fontWeight(.semibold)
-            .foregroundColor(.white.opacity(0.9))
-            .monospacedDigit()
+    // 접수가 아직이면 접수 기준, 접수가 시작됐으면 시험 기준으로 안내한다.
+    // (접수 마감을 놓치면 시험 자체를 못 보므로 접수가 먼저다)
+    let regStart = parseRegistrationStart(exam.registrationStart)
+    let regPending = regStart.map { $0 > entry.date } ?? false
+    let targetDate = regPending ? regStart : parseExamDate(exam.examDate)
+
+    // 카운트다운은 "아직 오지 않은 시각"이 있어야 성립한다.
+    // 접수는 시작 시각(보통 09:00)이 있어 그때까지 셀 수 있지만,
+    // 시험은 데이터에 날짜만 있어(examDate='YYYY-MM-DD' → 자정) 당일 낮에는
+    // 이미 지난 시각이라 타이머가 0:00에 멈춘다. → 접수일 때만 타이머를 쓴다.
+    let countdownDate: Date? = regPending ? regStart : nil
+
+    if let targetDate,
+       let days = daysUntil(targetDate, from: entry.date) {
+      let prefix = regPending ? "접수" : exam.label
+      // 라벨(작게) 위, D-day(크게) 아래. 36pt는 캡슐 배경에 어울리지 않아
+      // 배경 없이 이미지 위에 바로 얹고, 가독성은 그림자로 확보한다.
+      VStack(alignment: .leading, spacing: -2) {
+        HStack(spacing: 4) {
+          Text(prefix)
+            // 시안: Pretendard 500 10pt
+            .font(WidgetFont.pretendard("Pretendard-Medium", size: 10, relativeTo: .caption2))
+            .foregroundColor(.white)
+            .lineLimit(1)
+          // 접수 시작까지 남은 시간을 초 단위로 — OS가 앱 없이도 갱신한다.
+          if days == 0, let countdownDate, countdownDate > entry.date {
+            Text(countdownDate, style: .timer)
+              // 매초 바뀌므로 고정폭 숫자 — 안 그러면 폭이 흔들린다
+              .font(WidgetFont.pretendard("Pretendard-Medium", size: 10,
+                                          relativeTo: .caption2, tabularNumbers: true))
+              .foregroundColor(.white)
+              .fixedSize()
+          }
         }
+        Text(days == 0 ? "오늘" : "D-\(days)")
+          // 시안: Pretendard Regular(400) 36pt. Bold로 하면 시안보다 훨씬 굵어진다.
+          .font(WidgetFont.pretendard("Pretendard-Regular", size: 36, relativeTo: .largeTitle))
+          .foregroundColor(.white)
+          .fixedSize()
       }
-      .padding(.horizontal, 8)
-      .padding(.vertical, 4)
-      .background(
-        Capsule().fill(isUrgent
-          ? Color(red: 0.84, green: 0.58, blue: 0.02)   // yellow/50 — 임박
-          : Color.black.opacity(0.35))
-      )
+      // 시안: 0 2px 20px rgba(0,0,0,0.54).
+      // SwiftUI radius는 CSS blur의 약 절반이라 20px → radius 10.
+      .shadow(color: .black.opacity(0.54), radius: 10, y: 2)
     }
   }
 
@@ -206,23 +289,24 @@ struct BakleWidgetEntryView: View {
 
     ZStack(alignment: .bottomLeading) {
       if hasRecipe, let recipe = recipe {
-        // 좌측 상단 흰색 로고
+        // 우측 상단 흰색 로고
         Image("logo")
           .resizable()
           .aspectRatio(contentMode: .fit)
           .frame(width: logoSize, height: logoSize)
-          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+          .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
           .padding(contentPadding)
-        // 하단 좌측: 시험 D-day 배너 + 제목
-        VStack(alignment: .leading, spacing: 6) {
+        // 하단 좌측: 시험이 있으면 D-day, 없으면 레시피 제목.
+        // (둘을 같이 쌓으면 작은 위젯에서 자리가 모자라 D-day가 잘린다)
+        Group {
           if let exam = entry.exam {
             examBanner(exam)
+          } else {
+            Text(recipe.title)
+              .font(titleFont)
+              .foregroundColor(.white)
+              .lineLimit(2)
           }
-          Text(recipe.title)
-            .font(titleFont)
-            .fontWeight(.bold)
-            .foregroundColor(.white)
-            .lineLimit(2)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
         .padding(contentPadding)
@@ -285,3 +369,83 @@ struct BakleWidget: Widget {
     .contentMarginsDisabled()
   }
 }
+
+// MARK: - Xcode Canvas 프리뷰
+//
+// 접수/시험 단계는 실제 날짜가 와야 보이므로, 날짜를 고정한 가짜 엔트리로 각 상태를 만든다.
+// Xcode에서 이 파일을 열고 Canvas(⌥⌘↩)를 켜면 아래 상태들이 한 번에 렌더된다.
+#if DEBUG
+private func previewEntry(
+  now: Date,
+  examDate: String,
+  registrationStart: String,
+  label: String = "제과 실기"
+) -> RecipeEntry {
+  RecipeEntry(
+    date: now,
+    recipe: DailyRecipe(id: "preview", title: "통밀 캉파뉴", cookbook: "나의 레시피"),
+    imagePath: nil,
+    exam: UpcomingExam(
+      examDate: examDate,
+      label: label,
+      round: "2026년 1회",
+      registrationStart: registrationStart
+    )
+  )
+}
+
+/// 특정 날짜/시각을 만든다 (프리뷰 전용)
+private func previewDate(_ y: Int, _ m: Int, _ d: Int, _ h: Int = 12, _ min: Int = 0) -> Date {
+  var c = DateComponents()
+  c.year = y; c.month = m; c.day = d; c.hour = h; c.minute = min
+  return Calendar.current.date(from: c) ?? Date()
+}
+
+#Preview("접수 D-5", as: .systemMedium) {
+  BakleWidget()
+} timeline: {
+  previewEntry(now: previewDate(2026, 3, 1), examDate: "2026-04-10", registrationStart: "2026-03-06")
+}
+
+#Preview("접수 당일(타이머)", as: .systemMedium) {
+  BakleWidget()
+} timeline: {
+  // 09:00 접수 시작 2시간 전 → 카운트다운이 보인다
+  previewEntry(now: previewDate(2026, 3, 6, 7, 0), examDate: "2026-04-10", registrationStart: "2026-03-06")
+}
+
+#Preview("시험 D-30(접수 후)", as: .systemMedium) {
+  BakleWidget()
+} timeline: {
+  previewEntry(now: previewDate(2026, 3, 11), examDate: "2026-04-10", registrationStart: "2026-03-06")
+}
+
+#Preview("시험 D-1(강조)", as: .systemMedium) {
+  BakleWidget()
+} timeline: {
+  previewEntry(now: previewDate(2026, 4, 9), examDate: "2026-04-10", registrationStart: "2026-03-06")
+}
+
+#Preview("시험 당일(타이머)", as: .systemMedium) {
+  BakleWidget()
+} timeline: {
+  previewEntry(now: previewDate(2026, 4, 10, 6, 0), examDate: "2026-04-10", registrationStart: "2026-03-06")
+}
+
+#Preview("배너 없음", as: .systemMedium) {
+  BakleWidget()
+} timeline: {
+  RecipeEntry(
+    date: Date(),
+    recipe: DailyRecipe(id: "preview", title: "통밀 캉파뉴", cookbook: "나의 레시피"),
+    imagePath: nil,
+    exam: nil
+  )
+}
+
+#Preview("작은 위젯", as: .systemSmall) {
+  BakleWidget()
+} timeline: {
+  previewEntry(now: previewDate(2026, 4, 9), examDate: "2026-04-10", registrationStart: "2026-03-06")
+}
+#endif
