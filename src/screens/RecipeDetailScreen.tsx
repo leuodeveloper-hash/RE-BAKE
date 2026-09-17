@@ -37,6 +37,7 @@ import {CookingMode} from '@components/CookingMode';
 import {ReviewLogSheet} from '@components/BottomSheet';
 import {Thumbnail} from '@components/Thumbnail';
 import {StepPhotos} from '@components/StepPhotos';
+import {PhotoViewer} from '@components/PhotoViewer';
 import {normalizeStepPhotos} from '@utils/stepPhotos';
 import type {StepPhoto} from '../types/recipe';
 import {EmptyState} from '@components/EmptyState';
@@ -442,6 +443,14 @@ export function RecipeDetailScreen({
       Linking.openURL(referenceUrl);
     }
   }, [referenceUrl, referenceYouTubeId, openYouTube]);
+  // 스텝 사진 전체보기 — 어떤 스텝의 사진 묶음인지와 그 안의 인덱스
+  const [viewerPhotos, setViewerPhotos] = useState<{uri: string}[]>([]);
+  const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  const openPhotoViewer = useCallback((photos: {uri: string}[], index: number) => {
+    setViewerPhotos(photos);
+    setViewerIndex(index);
+  }, []);
+
   const [searchFilter, setSearchFilter] = useState<'cookbook' | 'method' | null>(null);
   const [showReviewSheet, setShowReviewSheet] = useState(false);
 
@@ -791,7 +800,6 @@ export function RecipeDetailScreen({
                     <Pressable onPress={onAuthorPress} disabled={!onAuthorPress}>
                       <Text style={styles.heroDescription} numberOfLines={1}>{authorHandle}</Text>
                     </Pressable>
-                    <Text style={styles.heroDescription}> · </Text>
                   </>
                 )}
                 {recipeItems ? (
@@ -804,7 +812,6 @@ export function RecipeDetailScreen({
                 )}
                 {method && isFieldActive('method') && (
                   <>
-                    <Text style={styles.heroDescription}> · </Text>
                     {recipeItems ? (
                       <Pressable style={styles.heroDescriptionTappable} onPress={() => setSearchFilter('method')}>
                         <Text style={[styles.heroDescription, diffOn && diff!.methodChanged && styles.hlChanged, {flexShrink: 1}]} numberOfLines={1}>{method}</Text>
@@ -816,11 +823,10 @@ export function RecipeDetailScreen({
                   </>
                 )}
                 {ratio && isFieldActive('ratio') && (
-                  <Text numberOfLines={1} style={[styles.heroDescription, diffOn && diff!.specificGravityChanged && styles.hlChanged]}> · {t('recipeDetail.specificGravity', {ratio})}</Text>
+                  <Text numberOfLines={1} style={[styles.heroDescription, diffOn && diff!.specificGravityChanged && styles.hlChanged]}>{t('recipeDetail.specificGravity', {ratio})}</Text>
                 )}
                 {totalReviewCount > 0 && (
                   <>
-                    <Text style={styles.heroDescription}> · </Text>
                     <Pressable style={styles.reviewBadge} onPress={sessionReviews ? handleOpenReviewSheet : undefined}>
                       <IconChartNoAxesGantt width={12} height={12} color={colors['foreground/on-surface-inverse']} />
                       <Text style={styles.heroDescription}>{reviewLabel}</Text>
@@ -832,7 +838,6 @@ export function RecipeDetailScreen({
                   const referenceOpen = !!referenceYouTubeId && ytVideoId === referenceYouTubeId;
                   return (
                   <>
-                    <Text style={styles.heroDescription}> · </Text>
                     <Pressable
                       style={[styles.reviewBadge, referenceOpen && {opacity: 0.4}]}
                       onPress={referenceOpen ? undefined : handleOpenReference}
@@ -1051,7 +1056,11 @@ export function RecipeDetailScreen({
                           </View>
                         )}
                         {step.photos && step.photos.length > 0 && (
-                          <StepPhotos photos={normalizeStepPhotos(step.photos)} mode="view" />
+                          <StepPhotos
+                            photos={normalizeStepPhotos(step.photos)}
+                            mode="view"
+                            onPhotoPress={i => openPhotoViewer(normalizeStepPhotos(step.photos!), i)}
+                          />
                         )}
                       </ListItem>
                       );
@@ -1097,7 +1106,11 @@ export function RecipeDetailScreen({
                       </View>
                     )}
                     {step.photos && step.photos.length > 0 && (
-                      <StepPhotos photos={normalizeStepPhotos(step.photos)} mode="view" />
+                      <StepPhotos
+                        photos={normalizeStepPhotos(step.photos)}
+                        mode="view"
+                        onPhotoPress={i => openPhotoViewer(normalizeStepPhotos(step.photos!), i)}
+                      />
                     )}
                   </ListItem>
                   );
@@ -1374,6 +1387,14 @@ export function RecipeDetailScreen({
         onConfirm={v => onUpdate?.({servings: v})}
       />
 
+      {/* 스텝 사진 전체보기 (읽기 전용 — 편집은 편집화면/요리모드에서) */}
+      <PhotoViewer
+        photos={viewerPhotos}
+        index={viewerIndex}
+        onIndexChange={setViewerIndex}
+        onClose={() => setViewerIndex(null)}
+      />
+
       <CookingMode
         visible={showCookingMode}
         onClose={() => { setShowCookingMode(false); setCookingModeShowIngredients(false); }}
@@ -1625,7 +1646,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'wrap',
     rowGap: 2,
-    gap: Spacing.xs,
+    // 구분점(·)을 없앴으므로 간격이 구분 역할을 한다 (카드 메타와 동일 기준)
+    gap: Spacing.smd,
   },
   reviewBadge: {
     flexDirection: 'row',

@@ -33,6 +33,11 @@ export interface StepPhotosProps {
   onCaptionChange?: (index: number, caption: string) => void;
   /** 캡션 옆 곡선 화살표 표시 여부. 요리모드에서만 true(상세/편집은 화살표 없이 캡션만). 기본 false */
   showArrow?: boolean;
+  /**
+   * 사진 탭 시 호출 (읽기 전용일 때). 주면 인라인 확대 대신 이 콜백이 불린다
+   * — 상세에서 풀스크린 PhotoViewer를 띄우는 용도.
+   */
+  onPhotoPress?: (index: number) => void;
 }
 
 const DEFAULT_SIZE = 56;
@@ -46,6 +51,7 @@ const DEFAULT_SIZE = 56;
 export function StepPhotos({
   photos,
   mode,
+  onPhotoPress,
   size = DEFAULT_SIZE,
   gap = Spacing.xs,
   paddingTop = true,
@@ -87,6 +93,9 @@ export function StepPhotos({
                 onPress={() => {
                   if (editable && manage) {
                     onReplace?.(i);
+                  } else if (onPhotoPress) {
+                    // 풀스크린 뷰어를 쓰는 화면에서는 인라인 확대 대신 위임
+                    onPhotoPress(i);
                   } else {
                     setExpandedIdx(prev => (prev === i ? null : i));
                   }
