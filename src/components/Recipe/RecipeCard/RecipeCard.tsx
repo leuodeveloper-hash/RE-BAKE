@@ -1085,9 +1085,12 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   listSubtitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.smd,
     // 조각을 줄이지 않고 다음 줄로 넘긴다(말줄임으로 다 잘려 보이던 문제)
     flexWrap: 'wrap',
+    // gap 하나로 주면 줄바꿈된 행 사이도 12가 돼 한 덩어리로 안 읽힌다.
+    // 가로는 구분용으로 넓게, 세로는 좁게 분리한다.
+    columnGap: Spacing.smd,
+    rowGap: Spacing.xs,
   },
   listSubtitle: {
     fontFamily: Typography.label.medium.fontFamily,
