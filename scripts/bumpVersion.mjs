@@ -26,6 +26,7 @@ const P = {
   appJson: resolve(root, 'app.json'),
   pkgJson: resolve(root, 'package.json'),
   pbxproj: resolve(root, 'ios/Bakle.xcodeproj/project.pbxproj'),
+  iosPlist: resolve(root, 'ios/Bakle/Info.plist'),
   gradle: resolve(root, 'android/app/build.gradle'),
 };
 
@@ -71,6 +72,26 @@ try {
   writeFileSync(P.pbxproj, pbx);
 } catch (e) {
   console.warn(`⚠️  iOS 건너뜀: ${e.message}`);
+}
+
+// ---- iOS: Info.plist -------------------------------------------------------
+// plist에 숫자가 박혀 있으면 pbxproj를 올려도 앱은 옛 버전으로 뜬다(실제로 그랬다).
+// 빌드 설정을 따라가도록 $(MARKETING_VERSION)/$(CURRENT_PROJECT_VERSION)로 되돌린다
+// — expo prebuild가 숫자를 다시 박아넣을 수 있어 bump마다 확인한다.
+try {
+  let plist = readFileSync(P.iosPlist, 'utf8');
+  const before = plist;
+  plist = plist
+    .replace(/(<key>CFBundleShortVersionString<\/key>\s*<string>)[^<]*(<\/string>)/,
+             '$1$(MARKETING_VERSION)$2')
+    .replace(/(<key>CFBundleVersion<\/key>\s*<string>)[^<]*(<\/string>)/,
+             '$1$(CURRENT_PROJECT_VERSION)$2');
+  if (plist !== before) {
+    writeFileSync(P.iosPlist, plist);
+    console.log('   ℹ️  Info.plist의 하드코딩된 버전을 빌드 설정 참조로 되돌렸습니다.');
+  }
+} catch (e) {
+  console.warn(`⚠️  Info.plist 건너뜀: ${e.message}`);
 }
 
 // ---- Android: build.gradle -------------------------------------------------
