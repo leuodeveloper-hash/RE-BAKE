@@ -588,6 +588,7 @@ export function RecipeListTemplate({
         layout={activeLayout}
         locked={isLocked}
         pinned={!!(pinnedMap?.[item.id] ?? item.pinnedAt)}
+        selected={cardMenuTarget?.id === item.id}
         hidden={item.hidden}
         hasReference={!!item.referenceUrl}
         paperPreview={paperPreview}
@@ -607,7 +608,7 @@ export function RecipeListTemplate({
         ) : card}
       </View>
     );
-  }, [activeLayout, styles, onRecipePress, cardMenuItems, handleCardMenuPress, lockedRecipeIds, pinnedMap, authorHandle, onAuthorPress, onCookbookPress, onMethodPress]);
+  }, [activeLayout, styles, onRecipePress, cardMenuItems, handleCardMenuPress, lockedRecipeIds, pinnedMap, cardMenuTarget, authorHandle, onAuthorPress, onCookbookPress, onMethodPress]);
 
   return (
     <>

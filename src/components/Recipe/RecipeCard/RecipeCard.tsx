@@ -27,7 +27,7 @@ import {triggerHaptic} from '@utils/haptics';
 import {useColors, useTheme} from '@contexts/ThemeContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {SvgProps} from 'react-native-svg';
-import {IconArrowTopRight, IconChartNoAxesGantt, IconEllipsisVertical, IconLockFilled, IconEyeClosed, IconPhoto, IconPinFilled} from '@components/Icon/IconIndex';
+import {IconArrowTopRight, IconChartNoAxesGantt, IconEllipsisVertical, IconLockFilled, IconEyeClosed, IconPhoto, IconPinFilled, IconDotFilled} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
 import {Thumbnail} from '@components/Thumbnail';
 
@@ -420,6 +420,8 @@ export interface RecipeCardProps {
   hidden?: boolean;
   /** 상단 고정됨 — 제목 앞에 핀 아이콘 */
   pinned?: boolean;
+  /** 선택됨(이 카드의 메뉴가 열려 있음) — trailing이 ⋯ 대신 점으로 바뀐다 */
+  selected?: boolean;
   /** list 레이아웃 크기 (기본: 'default', 'small': 44px 썸네일) */
   size?: 'default' | 'small';
   /** list 레이아웃 썸네일 앞 번호 */
@@ -474,6 +476,7 @@ export function RecipeCard({
   locked = false,
   hidden = false,
   pinned,
+  selected,
   size = 'default',
   leadingNumber,
   customSubtitle,
@@ -540,6 +543,14 @@ export function RecipeCard({
     });
   }, [onMenuPress]);
 
+  // 카드 롱프레스로도 같은 메뉴를 연다 — 작은 ⋯ 버튼을 정확히 누르지 않아도 되도록.
+  // 위치는 ⋯ 버튼 기준 그대로라 어느 쪽으로 열든 메뉴가 같은 자리에 뜬다.
+  const handleLongPress = useCallback(() => {
+    if (!onMenuPress) return;
+    triggerHaptic('medium');
+    handleMenuPress();
+  }, [onMenuPress, handleMenuPress]);
+
   // List 레이아웃
   if (layout === 'list') {
     const isSmall = size === 'small';
@@ -551,7 +562,8 @@ export function RecipeCard({
             isSmall && styles.listContainerSmall,
             (pressed || focused) && styles.listContainerPressed,
           ]}
-          onPress={handlePress}>
+          onPress={handlePress}
+          onLongPress={onMenuPress ? handleLongPress : undefined}>
           {/* 번호 */}
           {leadingNumber != null && (
             <Text style={styles.leadingNumber}>{leadingNumber}</Text>
@@ -645,7 +657,8 @@ export function RecipeCard({
           {(onMenuPress || trailingIcon) ? (
             <View ref={menuButtonRef}>
               <IconButton
-                icon={trailingIcon || IconEllipsisVertical}
+                // 메뉴가 열린 카드는 점으로 — 어느 카드의 메뉴인지 보이게 한다
+                icon={trailingIcon || (selected ? IconDotFilled : IconEllipsisVertical)}
                 iconColor={trailingIconColor}
                 onPress={handleMenuPress}
                 variant="ghost-secondary"
@@ -665,6 +678,7 @@ export function RecipeCard({
       <TouchableOpacity
         style={[styles.gridContainer, styles.photoListContainer]}
         onPress={handlePress}
+        onLongPress={onMenuPress ? handleLongPress : undefined}
         activeOpacity={0.8}>
         {!hasImage && (
           <View style={styles.emptyState}>
@@ -693,7 +707,7 @@ export function RecipeCard({
         {onMenuPress ? (
           <View ref={menuButtonRef} style={styles.gridMenuButton}>
             <IconButton
-              icon={IconEllipsisVertical}
+              icon={selected ? IconDotFilled : IconEllipsisVertical}
               onPress={handleMenuPress}
               variant="ghost-inverse"
               size="medium"
@@ -734,6 +748,7 @@ export function RecipeCard({
     <TouchableOpacity
       style={styles.gridCard}
       onPress={handlePress}
+      onLongPress={onMenuPress ? handleLongPress : undefined}
       activeOpacity={0.8}>
       <GridThumbnail
         styles={styles}
@@ -779,7 +794,7 @@ export function RecipeCard({
         {onMenuPress ? (
           <View ref={menuButtonRef}>
             <IconButton
-              icon={IconEllipsisVertical}
+              icon={selected ? IconDotFilled : IconEllipsisVertical}
               onPress={handleMenuPress}
               variant="ghost-secondary"
               size="medium"
