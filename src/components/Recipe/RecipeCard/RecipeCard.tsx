@@ -501,20 +501,29 @@ export function RecipeCard({
   const hasMeta = metaSegments.length > 0;
 
   // 세그먼트 렌더 — textStyle(레이아웃별 서브타이틀 스타일) 위에 링크 여부만 구분.
-  const renderMeta = (textStyle: any) =>
-    metaSegments.map((seg, i) => (
+  //
+  // limit: 2열 그리드처럼 폭이 좁은 곳에서 쓴다. 모든 조각에 flexShrink가 걸려 있어
+  // 항목이 많으면 저마다 조금씩 줄어들어 전부 잘려 읽을 수 없게 된다. 다 우겨넣지 말고
+  // 앞쪽(작성자·레시피북)만 남기는 편이 낫다.
+  const renderMeta = (textStyle: any, opts?: {limit?: number; wrap?: boolean}) => {
+    const {limit, wrap} = opts ?? {};
+    // wrap이면 줄이지도 자르지도 않는다 — 줄바꿈으로 넘긴다(리스트뷰).
+    const segStyle = wrap ? undefined : styles.metaSegment;
+    const lineProps = wrap ? {} : {numberOfLines: 1, ellipsizeMode: 'tail' as const};
+    return (limit ? metaSegments.slice(0, limit) : metaSegments).map(seg => (
       <React.Fragment key={seg.key}>
         {seg.onPress ? (
           // flexShrink: 폭이 모자라면 이 조각이 줄어들며 말줄임(…)이 나온다.
           // Pressable에 주지 않으면 자식 Text가 폭을 몰라 잘리지 않고 넘친다.
-          <Pressable onPress={seg.onPress} hitSlop={2} style={styles.metaSegment}>
-            <Text style={textStyle} numberOfLines={1} ellipsizeMode="tail">{seg.text}</Text>
+          <Pressable onPress={seg.onPress} hitSlop={2} style={segStyle}>
+            <Text style={textStyle} {...lineProps}>{seg.text}</Text>
           </Pressable>
         ) : (
-          <Text style={[textStyle, styles.metaSegment]} numberOfLines={1} ellipsizeMode="tail">{seg.text}</Text>
+          <Text style={[textStyle, segStyle]} {...lineProps}>{seg.text}</Text>
         )}
       </React.Fragment>
     ));
+  };
 
   const handlePress = useCallback(() => {
     if (!onPress) return;
@@ -613,7 +622,8 @@ export function RecipeCard({
               </View>
             ) : (hasMeta || reviewCount > 0 || hasReference) && (
               <View style={styles.listSubtitleRow}>
-                {renderMeta(styles.listSubtitle)}
+                {/* 리스트는 폭이 넉넉하다 — 말줄임 대신 줄바꿈으로 전부 보여준다 */}
+                {renderMeta(styles.listSubtitle, {wrap: true})}
                 <MetaLinkIcon show={hasReference} size={12} color={colors['foreground/on-surface-muted']} />
                 {reviewCount > 0 && (
                   <View style={styles.reviewBadge}>
@@ -740,7 +750,8 @@ export function RecipeCard({
           {(hasMeta || reviewCount > 0 || hasReference) && (
             <View style={styles.gridSubtitleRow}>
               <View style={styles.gridMetaGroup}>
-                {renderMeta(styles.gridSubtitle)}
+                {/* 2열은 폭이 좁아 앞의 두 개(작성자·레시피북)만 */}
+                {renderMeta(styles.gridSubtitle, {limit: 2})}
                 <MetaLinkIcon show={hasReference} size={12} color={colors['foreground/on-surface-muted']} />
               </View>
               {reviewCount > 0 && (
@@ -1063,6 +1074,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.smd,
+    // 조각을 줄이지 않고 다음 줄로 넘긴다(말줄임으로 다 잘려 보이던 문제)
+    flexWrap: 'wrap',
   },
   listSubtitle: {
     fontFamily: Typography.label.medium.fontFamily,
