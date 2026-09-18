@@ -148,7 +148,11 @@ export function Menu({
         pointerEvents={visible ? 'auto' : 'none'}>
         {/* 메뉴는 목록 위에 겹쳐 뜨므로 배경이 불투명해야 한다 — blur만으로는
             뒤 텍스트가 그대로 비쳐 읽을 수 없다(안드로이드는 blur가 더 약하다). */}
-        <GlassContainer borderRadius="lg" contentStyle={{padding: Spacing.xs, minWidth: 200, backgroundColor: colors['surface/normal'], ...(maxHeight ? {maxHeight} : {})}}>
+        <GlassContainer
+          borderRadius="lg"
+          // 목록 위에 떠 있으므로 한 단계 짙게 — normal은 배경과 잘 분리되지 않는다
+          elevation="strong"
+          contentStyle={{padding: Spacing.xs, minWidth: 200, backgroundColor: colors['surface/normal'], ...(maxHeight ? {maxHeight} : {})}}>
           {headerNode}
           {searchable && (
             <View style={styles.searchBar}>

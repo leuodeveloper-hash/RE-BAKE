@@ -29,6 +29,11 @@ export interface GlassContainerProps {
   contentStyle?: StyleProp<ViewStyle>;
   /** blur intensity (기본: 64 — 기존 호환) */
   intensity?: number;
+  /**
+   * 그림자 단계 (기본: normal).
+   * 목록 위에 떠서 더 분리돼 보여야 하는 메뉴/팝오버는 strong.
+   */
+  elevation?: 'normal' | 'strong';
 }
 
 export function GlassContainer({
@@ -37,6 +42,7 @@ export function GlassContainer({
   style,
   contentStyle,
   intensity = 64,
+  elevation = 'normal',
 }: GlassContainerProps) {
   const {isDark} = useTheme();
   const radiusValue =
@@ -45,7 +51,7 @@ export function GlassContainer({
       : borderRadius === 'xl'
       ? Radius['radius-xl']
       : Radius['radius-lg'];
-  const shadow = isDark ? ElevationDark.normal : ElevationLight.normal;
+  const shadow = isDark ? ElevationDark[elevation] : ElevationLight[elevation];
 
   return (
     <View style={[styles.shadowWrap, {borderRadius: radiusValue}, shadow, style]}>
