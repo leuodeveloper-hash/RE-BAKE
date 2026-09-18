@@ -977,6 +977,28 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
   useEffect(() => {
     if (!initialSection) return;
     // 레이아웃 완료 직후 한 프레임만 기다린 뒤 즉시 점프 (애니메이션 없음)
+    /**
+     * 포커스 + 커서를 문장 끝으로.
+     *
+     * 입력이 두 종류라 한쪽만 다루면 안 된다:
+     *  - RichEditor(재료 이름·과정 설명): setSelection이 없다. focus(caret)으로 함께 처리.
+     *    기존 코드가 setSelection만 불러 커서가 늘 맨 앞에 있었다.
+     *  - TextInput(제목·한번에 쓰기): focus() 후 setSelection.
+     * 길이를 넘는 값(99999)은 무시되거나 0으로 되돌아가므로 실제 글자 수를 쓴다.
+     */
+    const focusAtEnd = (node: any, text: string) => {
+      if (!node) return;
+      const end = (text ?? '').length;
+      if (typeof node.setSelection !== 'function') {
+        // RichEditor — caret을 함께 넘긴다
+        node.focus?.(end);
+        return;
+      }
+      node.focus?.();
+      // 포커스 직후엔 네이티브가 아직 값을 반영하기 전이라 한 틱 늦춘다
+      setTimeout(() => node.setSelection?.(end, end), 30);
+    };
+
     const timer = setTimeout(() => {
       // 'steps:3' 처럼 인덱스가 붙어 오면 그 과정 줄로 이동한다
       // (섹션만 넘기면 항상 과정 목록 맨 위로 가서 "누른 위치가 아니다"라는 문제가 됐다)
@@ -991,9 +1013,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
         const y = target ? stepRowY.current[target.id] : undefined;
         if (target && y != null) {
           scrollViewRef.current?.scrollTo({y: Math.max(0, y - 120), animated: false});
-          const node = rowInputRefs.current[target.id];
-          node?.focus();
-          setTimeout(() => (node as any)?.setSelection?.(99999, 99999), 30);
+          focusAtEnd(rowInputRefs.current[target.id], (target as any).description ?? '');
           return;
         }
         // 아직 위치를 못 잡았으면 아래 섹션 스크롤로 폴백한다
@@ -1005,9 +1025,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
         const y = target ? ingRowY.current[target.id] : undefined;
         if (target && y != null) {
           scrollViewRef.current?.scrollTo({y: Math.max(0, y - 120), animated: false});
-          const node = rowInputRefs.current[target.id];
-          node?.focus();
-          setTimeout(() => (node as any)?.setSelection?.(99999, 99999), 30);
+          focusAtEnd(rowInputRefs.current[target.id], (target as any).name ?? '');
           return;
         }
       }
@@ -1018,8 +1036,14 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
       }
       const input = sectionInputRefs.current[section];
       if (input) {
-        input.focus();
-        setTimeout(() => (input as any).setSelection?.(99999, 99999), 30);
+        // 섹션 입력은 제목/한번에쓰기 등 종류가 달라 현재 값을 직접 찾아 쓴다
+        const text = section === 'title'
+          ? title
+          : (section === 'ingredients' ? ingredientGroups[0]?.bulkText
+            : section === 'tools' ? toolGroups[0]?.bulkText
+            : section === 'steps' ? stepGroups[0]?.bulkText
+            : '') ?? '';
+        focusAtEnd(input, text);
       }
     }, 50);
     return () => clearTimeout(timer);
