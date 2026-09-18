@@ -46,7 +46,7 @@ import {LinkInputDialog} from '@components/Dialog';
 import {Tooltip} from '@components/Tooltip';
 import {getColorVarKey} from '@components/ColorPicker';
 import type {AvatarColor} from '@components/Avatar/Avatar';
-import {RainbowText} from '@components/RainbowText';
+import {RainbowText, BulkTypingOverlay} from '@components/RainbowText';
 import {SkeletonLine} from '@components/SkeletonLine';
 import {useYouTubePlayer} from '@contexts/YouTubePlayerContext';
 import {parseYouTubeVideoId} from '@utils/youtube';
@@ -1962,9 +1962,12 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
                     </View>
                   )}
                   {typing && typingField === 'ingredients' && isOcrTypingTarget(group.id, ingredientGroups[0]?.id) && !!group.bulkText && (
-                    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.bulkToolInput]}>
-                      <RainbowText style={styles.cardFieldInput} animated onDone={finishTyping}>{group.bulkText}</RainbowText>
-                    </View>
+                    <BulkTypingOverlay
+                      text={group.bulkText}
+                      textStyle={styles.cardFieldInput}
+                      containerStyle={styles.bulkToolInput}
+                      onDone={finishTyping}
+                    />
                   )}
                 </View>
               ) : (
@@ -2255,9 +2258,12 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
                     </View>
                   )}
                   {typing && typingField === 'tools' && isOcrTypingTarget(group.id, toolGroups[0]?.id) && !!group.bulkText && (
-                    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.bulkToolInput]}>
-                      <RainbowText style={styles.cardFieldInput} animated onDone={finishTyping}>{group.bulkText}</RainbowText>
-                    </View>
+                    <BulkTypingOverlay
+                      text={group.bulkText}
+                      textStyle={styles.cardFieldInput}
+                      containerStyle={styles.bulkToolInput}
+                      onDone={finishTyping}
+                    />
                   )}
                 </View>
               ) : (
@@ -2538,9 +2544,12 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
                     </View>
                   )}
                   {typing && typingField === 'steps' && isOcrTypingTarget(group.id, stepGroups[0]?.id) && !!group.bulkText && (
-                    <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.bulkToolInput]}>
-                      <RainbowText style={styles.cardFieldInput} animated onDone={finishTyping}>{group.bulkText}</RainbowText>
-                    </View>
+                    <BulkTypingOverlay
+                      text={group.bulkText}
+                      textStyle={styles.cardFieldInput}
+                      containerStyle={styles.bulkToolInput}
+                      onDone={finishTyping}
+                    />
                   )}
                 </View>
               ) : (
