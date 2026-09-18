@@ -283,6 +283,11 @@ export interface RecipeListTemplateProps {
   scrollEnabled?: boolean;
   /** 잠금 표시할 레시피 ID 목록 (paywall용) */
   lockedRecipeIds?: Set<string>;
+  /**
+   * 레시피 바깥에 보관되는 고정 정보({id: 고정시각}). 둘러보기처럼 공용 데이터라
+   * recipe.pinnedAt을 쓸 수 없는 목록에서 쓴다. 주면 이쪽이 우선.
+   */
+  pinnedMap?: Record<string, string>;
   /** FlatList 헤더 영역에 추가 콘텐츠 (인라인 배너 등) */
   listHeaderExtra?: React.ReactNode;
   /** 카드 메타 줄 맨 앞에 표시할 작성자 핸들. 둘러보기는 공식이라 'bakey' 고정.
@@ -313,6 +318,7 @@ export function RecipeListTemplate({
   onRefresh,
   scrollEnabled,
   lockedRecipeIds,
+  pinnedMap,
   listHeaderExtra,
   authorHandle,
   onAuthorPress,
@@ -436,10 +442,12 @@ export function RecipeListTemplate({
   const sortedData = useMemo(() => {
     const sorted = [...data];
     const lockRank = (r: Recipe) => (lockedRecipeIds?.has(r.id) ? 1 : 0);
+    const pinnedAtOf = (r: Recipe) => pinnedMap?.[r.id] ?? r.pinnedAt;
     const comparePin = (a: Recipe, b: Recipe) => {
-      if (a.pinnedAt && b.pinnedAt) return a.pinnedAt.localeCompare(b.pinnedAt);
-      if (a.pinnedAt) return -1;
-      if (b.pinnedAt) return 1;
+      const pa = pinnedAtOf(a), pb = pinnedAtOf(b);
+      if (pa && pb) return pa.localeCompare(pb);
+      if (pa) return -1;
+      if (pb) return 1;
       return 0;
     };
     if (sortId === 'default') {
@@ -460,7 +468,7 @@ export function RecipeListTemplate({
       return (a.title ?? '').localeCompare(b.title ?? '', 'ko');
     });
     return sorted;
-  }, [data, sortId, lockedRecipeIds]);
+  }, [data, sortId, lockedRecipeIds, pinnedMap]);
 
   // Paginated display data (리프레시 중에는 스켈레톤 표시하지 않음)
   const displayData = useMemo(() => {
@@ -579,6 +587,7 @@ export function RecipeListTemplate({
         imageUrl={item.imageUri}
         layout={activeLayout}
         locked={isLocked}
+        pinned={!!(pinnedMap?.[item.id] ?? item.pinnedAt)}
         hidden={item.hidden}
         hasReference={!!item.referenceUrl}
         paperPreview={paperPreview}
@@ -598,7 +607,7 @@ export function RecipeListTemplate({
         ) : card}
       </View>
     );
-  }, [activeLayout, styles, onRecipePress, cardMenuItems, handleCardMenuPress, lockedRecipeIds, authorHandle, onAuthorPress, onCookbookPress, onMethodPress]);
+  }, [activeLayout, styles, onRecipePress, cardMenuItems, handleCardMenuPress, lockedRecipeIds, pinnedMap, authorHandle, onAuthorPress, onCookbookPress, onMethodPress]);
 
   return (
     <>

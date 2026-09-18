@@ -27,7 +27,7 @@ import {triggerHaptic} from '@utils/haptics';
 import {useColors, useTheme} from '@contexts/ThemeContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {SvgProps} from 'react-native-svg';
-import {IconArrowTopRight, IconChartNoAxesGantt, IconEllipsisVertical, IconLockFilled, IconEyeClosed, IconPhoto} from '@components/Icon/IconIndex';
+import {IconArrowTopRight, IconChartNoAxesGantt, IconEllipsisVertical, IconLockFilled, IconEyeClosed, IconPhoto, IconPinFilled} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
 import {Thumbnail} from '@components/Thumbnail';
 
@@ -418,6 +418,8 @@ export interface RecipeCardProps {
   locked?: boolean;
   /** 비공개(숨김) — 제목 뒤에 자물쇠 표시 (어드민 전용 공식 콘텐츠 표시) */
   hidden?: boolean;
+  /** 상단 고정됨 — 제목 앞에 핀 아이콘 */
+  pinned?: boolean;
   /** list 레이아웃 크기 (기본: 'default', 'small': 44px 썸네일) */
   size?: 'default' | 'small';
   /** list 레이아웃 썸네일 앞 번호 */
@@ -471,6 +473,7 @@ export function RecipeCard({
   trailingIconColor,
   locked = false,
   hidden = false,
+  pinned,
   size = 'default',
   leadingNumber,
   customSubtitle,
@@ -600,6 +603,9 @@ export function RecipeCard({
           <View style={isSmall ? styles.listContentSmall : styles.listContent}>
             {!!title && (
               <View style={styles.gridTitleRow}>
+                {pinned && (
+                  <IconPinFilled width={14} height={14} color={colors['foreground/on-surface-muted']} />
+                )}
                 {locked && (
                   <IconLockFilled width={16} height={16} color={colors['foreground/on-surface-muted']} />
                 )}
@@ -697,6 +703,9 @@ export function RecipeCard({
 
         <View style={styles.photoListContent}>
           <View style={styles.gridTitleRow}>
+            {pinned && (
+              <IconPinFilled width={14} height={14} color="rgba(255,255,255,0.9)" />
+            )}
             {locked && (
               <IconLockFilled width={16} height={16} color="rgba(255,255,255,0.9)" />
             )}
@@ -738,6 +747,9 @@ export function RecipeCard({
         <View style={styles.gridTextColumn}>
           {!!title && (
             <View style={styles.gridTitleRow}>
+              {pinned && (
+                <IconPinFilled width={14} height={14} color={colors['foreground/on-surface-muted']} />
+              )}
               {locked && (
                 <IconLockFilled width={16} height={16} color={colors['foreground/on-surface-muted']} />
               )}

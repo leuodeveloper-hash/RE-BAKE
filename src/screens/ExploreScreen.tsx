@@ -13,6 +13,8 @@ import {useTranslation} from '@contexts/LanguageContext';
 import {useRecipes} from '@contexts/RecipeContext';
 import type {Recipe} from '../types/recipe';
 import {getRecipeMenuItems} from '@utils/recipeMenuItems';
+import {useExplorePins} from '@hooks/useExplorePins';
+import {useSnackbar} from '@contexts/SnackbarContext';
 import {
   IconNoteFilled,
   IconTrashTwotone,
@@ -38,10 +40,10 @@ const makeExploreAxisOverrides = (t: (key: string) => string): AxisOverrides => 
 /** 무료로 볼 수 있는 둘러보기 레시피 수 — 정책 단일 출처는 @constants/entitlements */
 const FREE_RECIPE_COUNT = ENTITLEMENTS.free.quota.exploreFree;
 
-const makeBaseCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string) =>
-  getRecipeMenuItems({t, showImport: true});
-const makeAdminCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string) =>
-  getRecipeMenuItems({t, showImport: true, showEdit: true, showDelete: true});
+const makeBaseCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string, isPinned: boolean) =>
+  getRecipeMenuItems({t, showPin: true, isPinned, showImport: true});
+const makeAdminCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string, isPinned: boolean) =>
+  getRecipeMenuItems({t, showPin: true, isPinned, showImport: true, showEdit: true, showDelete: true});
 
 export interface ExploreScreenProps {
   data: Recipe[];
@@ -86,6 +88,8 @@ export function ExploreScreen({
   const colors = useColors();
   const {t} = useTranslation();
   const router = useRouter();
+  const {showSnackbar} = useSnackbar();
+  const {pins: explorePins, togglePin, isPinned} = useExplorePins();
   const EXPLORE_AXIS_OVERRIDES = useMemo(() => makeExploreAxisOverrides(t), [t]);
   const {selectedExploreCookbook, setSelectedExploreCookbook} = useRecipes();
   // 홈과 동일한 그룹화 축 (전체/레시피북/공법). 'all'=평면 리스트, 그 외=GroupScreen.
@@ -110,9 +114,12 @@ export function ExploreScreen({
   const [pdfRecipe, setPdfRecipe] = useState<Recipe | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
 
-  const cardMenuItems = useMemo(
-    () => isAdmin ? makeAdminCardMenuItems(t) : makeBaseCardMenuItems(t),
-    [isAdmin, t],
+  // 핀 상태가 레시피마다 달라 함수 형태로 넘긴다(고정/해제 라벨이 바뀐다)
+  const cardMenuItems = useCallback(
+    (recipe: Recipe) => isAdmin
+      ? makeAdminCardMenuItems(t, isPinned(recipe.id))
+      : makeBaseCardMenuItems(t, isPinned(recipe.id)),
+    [isAdmin, t, isPinned],
   );
 
   const exploreCookbookMap = useMemo(() => {
@@ -210,6 +217,11 @@ export function ExploreScreen({
   }, [data, t]);
 
   const handleCardMenuSelect = useCallback((id: string, recipe: Recipe) => {
+    if (id === 'pin' || id === 'unpin') {
+      togglePin(recipe.id);
+      showSnackbar(t(id === 'pin' ? 'home.pinned' : 'home.unpinned'));
+      return;
+    }
     if (id === 'save') {
       onImportRecipe(recipe);
     } else if (id === 'download') {
@@ -221,7 +233,7 @@ export function ExploreScreen({
     } else {
       onComingSoon();
     }
-  }, [onImportRecipe, onEditRecipe, onDeleteRecipe, onComingSoon]);
+  }, [onImportRecipe, onEditRecipe, onDeleteRecipe, onComingSoon, togglePin, showSnackbar, t]);
 
   const handleGroupRecipePress = useCallback((id: string) => {
     const r = data.find(x => x.id === id);
@@ -307,6 +319,7 @@ export function ExploreScreen({
       extraOverlayVisible={showCategoryMenu || showItemMenu || showFlatMoreMenu}
       scrollEnabled
       lockedRecipeIds={lockedRecipeIds}
+      pinnedMap={explorePins}
       listEmptyComponent={
         !isOnline && data.length === 0 ? (
           <EmptyState
