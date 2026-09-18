@@ -39,7 +39,7 @@ export default function RecipeDetailRoute() {
   const {showSnackbar} = useSnackbar();
   const {isAdmin, user, handle, displayName, avatarSeed} = useAuth();
   const {open: openAuthSheet} = useAuthSheet();
-  const {recipes: exploreRecipes, exploreCookbooks} = useExploreRecipeContext();
+  const {recipes: exploreRecipes, exploreCookbooks, reload: exploreReload} = useExploreRecipeContext();
   const {setHideTabBar, setHideContentMask} = useAddSheet();
   const {isLoaded: adLoaded, isLoading: adLoading, show: showAd} = useRewardedAd();
   const [isCookingMode, setIsCookingMode] = useState(false);
@@ -603,6 +603,10 @@ const handleDelete = useCallback(async () => {
                 // updateDoc은 문서가 없으면(not-found) 실패한다. setDoc merge는 없으면 만들고
                 // 있으면 부분 병합 → 요리모드 사진 추가가 안정적으로 저장됨(편집화면과 동일 톤).
                 await setDoc(doc(db, 'explore_recipes', id!), stripUndefined(uploaded), {merge: true});
+                // 저장 후 다시 불러온다. 내 레시피는 setRecipes로 화면이 바로 갱신되지만
+                // 둘러보기는 갱신 수단이 없어, 저장돼도 화면·요리모드가 옛 데이터를 그대로
+                // 들고 있었다("저장이 안 된다"의 실제 원인).
+                await exploreReload();
               } catch (e: any) {
                 console.warn('[explore update] 실패 code=', e?.code, 'msg=', e?.message, e);
                 showSnackbar(t('id.updateFailed') + (e?.code ? ` (${e.code})` : ''));
