@@ -16,6 +16,7 @@ import {MenuItem} from '@components/Menu';
 import {TextInput} from '@components/TextInput';
 import {Button} from '@components/Button';
 import {PlanSheet} from '@components/PlanSheet';
+import {getInstalledWidgetCount} from '@utils/examWidgetSync';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {BottomSheet} from '@components/BottomSheet';
 import {useExamNotificationPrefs} from '@hooks/useExamNotificationPrefs';
@@ -186,9 +187,16 @@ export function ProfileScreen({
   const {prefs: examPrefs, reload: reloadExamPrefs} = useExamNotificationPrefs();
 
   // 알림 설정 화면에서 돌아오면 요약 표시 갱신
+  // 위젯 개수. null = 알 수 없음(조회 실패·구버전) — 0과 구분해 아무것도 표시하지 않는다.
+  const [widgetCount, setWidgetCount] = useState<number | null>(null);
+
   useFocusEffect(
     useCallback(() => {
       reloadExamPrefs();
+      // 위젯 추가는 앱 밖(홈 화면)에서 하므로, 돌아올 때마다 다시 확인해야 한다.
+      let alive = true;
+      getInstalledWidgetCount().then(n => { if (alive) setWidgetCount(n); });
+      return () => { alive = false; };
     }, [reloadExamPrefs]),
   );
 
@@ -549,7 +557,27 @@ export function ProfileScreen({
               <ListItem
                 title={t('profile.widgetGuide')}
                 leading={{type: 'icon', icon: IconHomeFilled}}
-                trailing={{type: 'icon', icon: IconChevronRight}}
+                trailing={{
+                  type: 'custom',
+                  element: (
+                    <View style={styles.examNotifTrailing}>
+                      {/* 알 수 없을 때(null)는 비워 둔다 — 이미 쓰는 사람에게
+                          "추가 안 함"으로 잘못 보이는 편이 더 나쁘다 */}
+                      {widgetCount !== null && (
+                        <Text style={styles.examNotifStatus}>
+                          {widgetCount > 0
+                            ? t('profile.widgetAddedCount', {count: widgetCount})
+                            : t('profile.widgetNotAdded')}
+                        </Text>
+                      )}
+                      <IconChevronRight
+                        width={20}
+                        height={20}
+                        color={colors['foreground/on-surface-muted']}
+                      />
+                    </View>
+                  ),
+                }}
                 showDivider={false}
                 onPress={() => onWidgetGuidePress?.()}
               />

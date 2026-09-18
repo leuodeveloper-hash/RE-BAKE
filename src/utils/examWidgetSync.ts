@@ -151,3 +151,26 @@ export function previewExamWidget(
 export async function restoreExamWidget(): Promise<void> {
   await syncExamWidget();
 }
+
+// ---------------------------------------------------------------------------
+// 위젯 설치 여부
+// ---------------------------------------------------------------------------
+
+/**
+ * 설치된 우리 위젯 개수. **null은 "알 수 없음"** — 0과 구분할 것.
+ * 설치 안내·상태 표시에 쓴다.
+ */
+export async function getInstalledWidgetCount(): Promise<number | null> {
+  if (Platform.OS !== 'ios') return 0;
+  try {
+    const WidgetStorage = require('../../modules/widget-storage').default;
+    const res = await WidgetStorage.getInstalledWidgets();
+    if (!res?.supported) return 0;
+    if (res.installed === null) return null;  // 조회 실패 — 모른다
+    return res.widgets.filter((w: {kind: string}) => w.kind === WIDGET_NAME).length;
+  } catch (e) {
+    // 네이티브 모듈 없음(구버전 앱·웹) 또는 조회 실패 — 0으로 단정하지 않는다
+    console.warn('[examWidgetSync] 위젯 개수 확인 실패:', e);
+    return null;
+  }
+}
