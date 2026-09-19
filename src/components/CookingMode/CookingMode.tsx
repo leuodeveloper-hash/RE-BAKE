@@ -374,7 +374,29 @@ export function CookingMode({
   }, [steps, stepGroups, ingredientGroups, photoOverrides]);
 
   // props가 실제로 갱신되면 오버라이드 초기화(중복/스테일 방지).
-  useEffect(() => { setPhotoOverrides({}); }, [steps, stepGroups]);
+  //
+  // 참조가 바뀌었다고 통째로 비우면 안 된다. 사진을 저장하면 onUpdate로 부모가
+  // 새 배열을 내려주므로 저장 직후 이 effect가 곧바로 돈다 — 부모 반영이 늦거나
+  // (둘러보기는 이미지 업로드 + Firestore 왕복) 실패하면 방금 넣은 사진이 도로
+  // 사라졌다("되는 듯하다 안 됨"). 내용이 실제로 반영된 키만 지운다.
+  useEffect(() => {
+    setPhotoOverrides(prev => {
+      const keys = Object.keys(prev);
+      if (keys.length === 0) return prev;
+      const cards = buildCards(steps, stepGroups, ingredientGroups);
+      const byKey = new Map(cards.map(c => [`${c.groupIndex}:${c.stepIndex}`, c.photos]));
+      const next: typeof prev = {};
+      for (const k of keys) {
+        // props가 아직 이 오버라이드를 못 따라잡았으면 유지한다
+        if (!byKey.has(k)) { next[k] = prev[k]; continue; }
+        const applied = stableStringify(byKey.get(k) ?? undefined) === stableStringify(prev[k] ?? undefined);
+        if (!applied) next[k] = prev[k];
+      }
+      return Object.keys(next).length === keys.length ? prev : next;
+    });
+    // ingredientGroups는 사진과 무관 — 넣으면 불필요하게 자주 돈다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [steps, stepGroups]);
 
   const hasAdvice = !!advice?.trim();
   const totalCards = flatCards.length + (hasAdvice ? 1 : 0);
