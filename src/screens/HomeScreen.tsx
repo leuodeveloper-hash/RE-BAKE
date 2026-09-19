@@ -528,8 +528,10 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
       renderAppBar={({handleFilterPress, showLayoutMenu, closeMenus, layoutMenu, filterIcon}) => (
         <AppBar
           filterIcon={filterIcon}
-          leftIcon={onBack ? IconClose : undefined}
-          onLeftPress={onBack}
+          // 2뎁스(레시피북·공법)에 들어가면 Breadcrumb이 자체 뒤로가기(‹)를 그린다.
+          // 그때 X까지 두면 앱바 왼쪽에 버튼이 둘 붙는다 → 뒤로가기 하나만 남긴다.
+          leftIcon={onBack && !crumbItemLabel ? IconClose : undefined}
+          onLeftPress={onBack && !crumbItemLabel ? onBack : undefined}
           titleNode={
             <Breadcrumb
               leadingNode={resolvedBadge}
