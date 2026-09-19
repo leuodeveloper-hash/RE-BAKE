@@ -1032,6 +1032,68 @@ export function CookingMode({
     setEditAdvicePhotos(prev => prev.filter((_, i) => i !== photoIndex));
   }, []);
 
+  // ---- 보기 모드에서 조언 사진 바로 등록/삭제 (편집 진입 없이) ----
+  // 스텝 사진(addStepPhoto)과 같은 흐름. 조언은 편집 모드에서만 사진을 넣을 수
+  // 있어 "이미지 등록이 안 된다"고 느껴졌다.
+  // 낙관적 반영: onUpdate는 부모 상태/Firestore 비동기라 props(advicePhotos)
+  // 갱신이 늦다 → 로컬 오버라이드로 즉시 보여준다.
+  const [advicePhotoOverride, setAdvicePhotoOverride] = useState<string[] | null>(null);
+  const viewAdvicePhotos = advicePhotoOverride ?? advicePhotos ?? [];
+
+  // props가 오버라이드를 따라잡으면 해제 (스텝 사진과 같은 규칙 — 참조만 바뀌었다고
+  // 비우면 저장 직후 방금 넣은 사진이 사라진다)
+  useEffect(() => {
+    setAdvicePhotoOverride(prev => {
+      if (prev == null) return prev;
+      return stableStringify(advicePhotos ?? []) === stableStringify(prev) ? null : prev;
+    });
+  }, [advicePhotos]);
+
+  const commitAdvicePhotos = useCallback((next: string[]): boolean => {
+    if (!onUpdate) return false;
+    setAdvicePhotoOverride(next);
+    onUpdate({advicePhotos: next.length > 0 ? next : undefined});
+    return true;
+  }, [onUpdate]);
+
+  const addAdvicePhotoView = useCallback(async (source: 'camera' | 'gallery' = 'gallery') => {
+    if (viewAdvicePhotos.length >= MAX_PHOTOS) return;
+    const permOk = source === 'camera'
+      ? await ensureImagePermission('camera', {
+          deniedMessage: t('cookingMode.cameraPermission'),
+          showSnackbar,
+          settingsTitle: t('permission.cameraTitle'),
+          settingsBody: t('permission.cameraBody'),
+          settingsConfirmLabel: t('permission.openSettings'),
+          settingsCancelLabel: t('permission.cancel'),
+        })
+      : await ensureImagePermission('mediaLibrary', {
+          deniedMessage: t('cookingMode.photoPermission'),
+          showSnackbar,
+          settingsTitle: t('permission.photoTitle'),
+          settingsBody: t('permission.photoBody'),
+          settingsConfirmLabel: t('permission.openSettings'),
+          settingsCancelLabel: t('permission.cancel'),
+        });
+    if (!permOk) return;
+    const options: ImagePicker.ImagePickerOptions = {
+      mediaTypes: ['images'],
+      quality: 0.8,
+      base64: Platform.OS === 'web',
+    };
+    const result = source === 'camera'
+      ? await ImagePicker.launchCameraAsync(options)
+      : await ImagePicker.launchImageLibraryAsync(options);
+    if (result.canceled || result.assets.length === 0) return;
+    const uris = await Promise.all(result.assets.map(a => getPersistentUri(a.uri, a.base64)));
+    const ok = commitAdvicePhotos([...viewAdvicePhotos, ...uris].slice(0, MAX_PHOTOS));
+    showSnackbar(ok ? t('cookingMode.photoAdded') : t('cookingMode.photoAddFailed'));
+  }, [viewAdvicePhotos, commitAdvicePhotos, showSnackbar, t]);
+
+  const removeAdvicePhotoView = useCallback((photoIndex: number) => {
+    commitAdvicePhotos(viewAdvicePhotos.filter((_, i) => i !== photoIndex));
+  }, [viewAdvicePhotos, commitAdvicePhotos]);
+
   // 메뉴 아이템
   const addMenuItems = useMemo((): MenuItemData[] => {
     const card = editCards[currentIndex];
@@ -1843,20 +1905,33 @@ export function CookingMode({
                       </ScrollView>
                       {/* Photos */}
                       {(() => {
-                        const photos = isEditing ? editAdvicePhotos : (advicePhotos ?? []);
+                        const editingAdvice = isEditing && isOnAdviceCard;
+                        const photos = isEditing ? editAdvicePhotos : viewAdvicePhotos;
+                        // 보기 모드에서도 권한이 있으면 추가(+) 버튼을 띄운다 —
+                        // 편집에 들어가야만 사진을 넣을 수 있어 "등록이 안 된다"고 느껴졌다.
                         if (photos.length === 0) return null;
                         return (
                           <StepPhotos
                             photos={normalizeStepPhotos(photos)}
-                            mode={(isEditing && isOnAdviceCard) ? 'edit' : 'view'}
+                            mode={editingAdvice ? 'edit' : 'view'}
                             size={containerWidth >= 600 ? 140 : 96}
                             gap={Spacing.sm}
                             paddingTop={false}
                             showArrow
-                            onRemove={(pIdx) => removeAdvicePhoto(pIdx)}
+                            onRemove={(pIdx) => (editingAdvice ? removeAdvicePhoto(pIdx) : removeAdvicePhotoView(pIdx))}
                           />
                         );
                       })()}
+                      {/* 보기 모드 사진 추가 — 편집에 들어가야만 넣을 수 있어
+                          "이미지 등록이 안 된다"고 느껴졌다. 스텝 카드와 같은 흐름. */}
+                      {!isEditing && canEdit && !!onUpdate && viewAdvicePhotos.length < MAX_PHOTOS && (
+                        <Pressable
+                          onPress={() => addAdvicePhotoView('gallery')}
+                          style={styles.adviceAddPhoto}>
+                          <AppIcon icon={IconAdd} size="sm" color={colors['foreground/on-surface-muted']} />
+                          <Text style={styles.adviceAddPhotoText}>{t('cookingMode.photo')}</Text>
+                        </Pressable>
+                      )}
                       {/* Add menu */}
                       {isEditing && isOnAdviceCard && (
                         <Menu
@@ -2408,5 +2483,24 @@ const createStyles = (colors: SemanticColors) =>
       fontWeight: '400',
       color: colors['custom/yellow'],
       marginTop: FONT_BASELINE_OFFSET,
+    },
+    // 보기 모드 사진 추가 버튼 (조언 카드) — 점선 테두리의 조용한 액션
+    adviceAddPhoto: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: Spacing.xs,
+      marginTop: Spacing.sm,
+      paddingVertical: Spacing.xs,
+      paddingHorizontal: Spacing.smd,
+      // 이 파일은 숫자 반경을 그대로 쓴다(Radius 토큰 미사용) — 알약 형태
+      borderRadius: 999,
+      borderWidth: 1,
+      borderStyle: 'dashed',
+      borderColor: colors['border/normal'],
+    },
+    adviceAddPhotoText: {
+      ...Typography.label.medium,
+      color: colors['foreground/on-surface-muted'],
     },
   });
