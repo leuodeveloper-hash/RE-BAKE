@@ -530,18 +530,25 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
     }
     return [{id: genId(), title: '재료', ingredients: [emptyIngredient()], bulkMode: false, bulkText: ''}];
   });
+  // 도구는 항상 "한번에 쓰기"로 연다 — 이름만 나열하면 되는 짧은 항목이라
+  // 행을 하나씩 추가하는 폼보다 쉼표로 이어 쓰는 편이 빠르다(새 레시피는 원래 그랬고,
+  // 기존 레시피 편집만 폼으로 열려 방식이 갈렸다).
   const [toolGroups, setToolGroups] = useState<EditableToolGroup[]>(() => {
     if (recipe?.toolGroups) {
-      return recipe.toolGroups.map(g => ({
-        id: genId(),
-        title: g.title,
-        tools: g.tools.map(t => ({id: genId(), name: t.name})),
-        bulkMode: false,
-        bulkText: '',
-      }));
+      return recipe.toolGroups.map(g => {
+        const tools = g.tools.map(t => ({id: genId(), name: t.name}));
+        return {
+          id: genId(),
+          title: g.title,
+          tools,
+          bulkMode: true,
+          bulkText: toolsToBulkText(tools),
+        };
+      });
     }
     if (recipe?.tools) {
-      return [{id: genId(), title: '도구', tools: recipe.tools.map(t => ({id: genId(), name: t.name})), bulkMode: false, bulkText: ''}];
+      const tools = recipe.tools.map(t => ({id: genId(), name: t.name}));
+      return [{id: genId(), title: '도구', tools, bulkMode: true, bulkText: toolsToBulkText(tools)}];
     }
     return [{id: genId(), title: '도구', tools: [{id: genId(), name: ''}], bulkMode: true, bulkText: ''}];
   });
