@@ -750,6 +750,15 @@ export function RecipeDetailScreen({
                 cachePolicy="memory-disk"
                 transition={200}
               />
+              {/* 탭하면 전체보기 — 스텝 사진과 같은 뷰어.
+                  이미지를 Pressable로 감싸면 heroImage의 position:absolute 기준이
+                  바뀌어 레이아웃이 깨진다 → 같은 자리에 투명 탭 영역만 겹친다.
+                  PanResponder는 onMoveShouldSetPanResponder만 써서 "움직일 때"만
+                  가로채므로 제자리 탭은 여기로 들어온다(좌우 스와이프와 공존). */}
+              <Pressable
+                style={styles.heroImage}
+                onPress={() => openPhotoViewer([{uri: imageUri}], 0)}
+              />
               <View style={styles.heroTextOverlay} />
               {/* 좌우 페이드는 화면이 이미지 최대폭(1000)보다 넓어 이미지 양옆에 빈 배경이
                   실제로 생길 때만 — 좁은(모바일) 화면에선 이미지가 꽉 차 페이드가 이미지 양옆을
