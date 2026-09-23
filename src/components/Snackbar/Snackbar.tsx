@@ -31,7 +31,7 @@ export function Snackbar({message, icon = IconCircleInfoFilled1, action, onClose
   const opacity = useRef(new Animated.Value(0)).current;
   const translateY = useRef(new Animated.Value(8)).current;
   const isVisible = useRef(false);
-  const timerRef = useRef<ReturnType<typeof setTimeout>>();
+  const timerRef = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     if (visible && !isVisible.current) {

@@ -1,5 +1,5 @@
 import React, {createContext, useContext} from 'react';
-import {StyleSheet, View, ViewStyle} from 'react-native';
+import {StyleProp, StyleSheet, View, ViewStyle} from 'react-native';
 import {Radius} from '@constants/tokens';
 import type {SemanticColors} from '@constants/tokens';
 import {useThemedStyles} from '@hooks/useThemedStyles';
@@ -12,7 +12,7 @@ export const useCardVariant = () => useContext(CardVariantContext);
 export interface CardProps {
   children: React.ReactNode;
   /** 추가 스타일 */
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   /** 컬러 배리언트 */
   variant?: CardVariant;
   /**

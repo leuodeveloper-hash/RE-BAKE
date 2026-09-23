@@ -86,7 +86,8 @@ export interface ProfileScreenProps {
   /** 어드민 여부 (디버그 도구 노출) */
   isAdmin?: boolean;
   /** 고정 아바타 시드 (useAvatarSeed에서 가져온 값) */
-  avatarSeed?: number | null;
+  // 로그인하면 uid(문자열), 게스트는 숫자 — Avatar도 둘 다 받는다
+  avatarSeed?: string | number | null;
   /** 값이 변할 때마다 플랜 바텀시트를 자동 오픈하는 신호 (둘러보기 다운로드 차단 등에서 사용) */
   openPlanSheetSignal?: number;
 }

@@ -804,7 +804,14 @@ export const SemanticColorsDark = {
 } as const;
 
 export type SemanticV2DarkKey = keyof typeof SemanticColorsDark;
-export type SemanticColors = typeof SemanticColorsLight;
+/**
+ * 시맨틱 색 키 → 색 값.
+ *
+ * typeof SemanticColorsLight을 그대로 쓰면 각 값이 리터럴("#FAF9F7")로 고정돼
+ * 다크 팔레트가 "겹치지 않는 타입"으로 거부된다. 키 목록은 라이트에서 가져오되
+ * 값은 string으로 둔다(색 값은 어차피 문자열이다).
+ */
+export type SemanticColors = Record<keyof typeof SemanticColorsLight, string>;
 
 // ---- Radius ----
 

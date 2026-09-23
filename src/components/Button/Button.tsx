@@ -29,7 +29,8 @@ export interface ButtonProps {
   /** 그라디언트 그림자 (플로팅 CTA용) */
   gradientShadow?: boolean;
   style?: ViewStyle;
-  icon?: React.FC<SvgProps>;
+  // ComponentType — SVG 컴포넌트가 FC가 아닐 수도 있어 더 넓은 쪽으로 받는다
+  icon?: React.ComponentType<SvgProps>;
   trailingIcon?: React.FC<SvgProps>;
 }
 
@@ -130,12 +131,9 @@ export function Button({
         setLayoutSize({w: width, h: height});
       } : undefined}
     >
+      {/* borderRadius는 glow가 쓰지 않는다(이미지 자체가 부드러운 광) */}
       {showGlow && layoutSize && (
-        <GradientGlow
-          width={layoutSize.w}
-          height={layoutSize.h}
-          borderRadius={borderRadius}
-        />
+        <GradientGlow width={layoutSize.w} height={layoutSize.h} />
       )}
       <Pressable
         onPress={() => {
