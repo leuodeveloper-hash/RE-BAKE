@@ -1006,7 +1006,12 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
       setTimeout(() => node.setSelection?.(end, end), 30);
     };
 
-    const timer = setTimeout(() => {
+    // 행 좌표(stepRowY/ingRowY)는 각 행의 onLayout에서 채워진다. 한 번만 재보고
+    // 없으면 섹션 맨 위로 폴백했는데, 목록이 길면 레이아웃이 아직 안 끝나 늘 폴백으로
+    // 빠졌다 → "누른 항목이 아니라 섹션 처음으로 간다". 좌표가 잡힐 때까지 몇 번 더 본다.
+    let tries = 0;
+    let timer: ReturnType<typeof setTimeout>;
+    const run = () => {
       // 'steps:3' 처럼 인덱스가 붙어 오면 그 과정 줄로 이동한다
       // (섹션만 넘기면 항상 과정 목록 맨 위로 가서 "누른 위치가 아니다"라는 문제가 됐다)
       const [section, idxRaw] = initialSection.split(':');
@@ -1023,7 +1028,8 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
           focusAtEnd(rowInputRefs.current[target.id], (target as any).description ?? '');
           return;
         }
-        // 아직 위치를 못 잡았으면 아래 섹션 스크롤로 폴백한다
+        // 아직 레이아웃 전이면 잠시 뒤 다시 본다(최대 ~1초). 그래도 없으면 섹션 폴백.
+        if (target && tries < 20) { tries++; timer = setTimeout(run, 50); return; }
       }
 
       if (section === 'ingredients' && !Number.isNaN(stepIndex)) {
@@ -1035,6 +1041,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
           focusAtEnd(rowInputRefs.current[target.id], (target as any).name ?? '');
           return;
         }
+        if (target && tries < 20) { tries++; timer = setTimeout(run, 50); return; }
       }
 
       const y = sectionPositions.current[section];
@@ -1052,7 +1059,8 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
             : '') ?? '';
         focusAtEnd(input, text);
       }
-    }, 50);
+    };
+    timer = setTimeout(run, 50);
     return () => clearTimeout(timer);
     // stepGroups는 진입 시점 값만 쓰면 되므로 의존성에 넣지 않는다
     // (넣으면 편집할 때마다 스크롤이 다시 튄다)
