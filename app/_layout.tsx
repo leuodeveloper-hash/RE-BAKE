@@ -237,6 +237,33 @@ function NavigationContent() {
   // 강제 업데이트 — 권장(스낵바)은 아래 checkForUpdate에서 처리한다
   const [forcedUpdate, setForcedUpdate] = useState<(() => void) | null>(null);
 
+  // 설치 후 최초 1회는 둘러보기로 시작한다.
+  // 내 레시피가 하나도 없는 첫 화면은 보여줄 게 없어, 무엇을 하는 앱인지 알기 어렵다.
+  //
+  // 아래 "마지막 화면 복귀"와 분리한 이유:
+  //  - 그쪽은 웹을 건너뛰지만 첫 접속 안내는 웹에도 필요하다
+  //  - 그쪽은 레시피 로딩을 기다리는데, 첫 설치는 내 레시피가 0개라 그동안 홈이 보인다
+  const firstLaunchRef = useRef(false);
+  useEffect(() => {
+    if (firstLaunchRef.current) return;
+    firstLaunchRef.current = true;
+    (async () => {
+      try {
+        // 딥링크(위젯·공유 링크)나 특정 경로로 들어왔으면 그 의도를 존중한다
+        if (pathname && pathname !== '/') return;
+        const initialUrl = await Linking.getInitialURL();
+        if (initialUrl && initialUrl.includes('/recipe/')) return;
+        const seen = await AsyncStorage.getItem('has_launched');
+        if (seen) return;
+        // 플래그를 먼저 남긴다 — 이동이 실패해도 다음 실행에서 또 튀지 않게
+        await AsyncStorage.setItem('has_launched', '1');
+        router.replace('/(tabs)/explore' as any);
+      } catch { /* 무시 — 홈 유지 */ }
+    })();
+    // 최초 1회만 — pathname 변화로 다시 돌면 안 된다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // 앱 재시작 시 마지막으로 본 레시피로 복귀 (한 번만).
   // NavigationContent는 Stack 하위 + router 보유라 navigate 안전(RootLayout에선 크래시).
   // 딥링크(위젯 등)로 이미 /recipe/로 열렸거나, 저장된 레시피가 없거나 무효면 홈 유지.
@@ -256,6 +283,7 @@ function NavigationContent() {
         if (pathname && pathname !== '/') return;
         const initialUrl = await Linking.getInitialURL();
         if (initialUrl && initialUrl.includes('/recipe/')) return;
+
         const lastId = await AsyncStorage.getItem('last_viewed_recipe_id');
         if (!lastId) return;
         const exists = recipes.some(r => r.id === lastId) || exploreRecipesAll.some(r => r.id === lastId);
