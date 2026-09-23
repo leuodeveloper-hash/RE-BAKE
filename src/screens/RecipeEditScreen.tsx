@@ -1149,14 +1149,16 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
   /**
    * 재료 행 추가.
    * afterId를 주면 그 행 "바로 다음"에 넣는다(엔터로 이어 입력할 때).
+   * initialName을 주면 그 값으로 시작한다 — 문단 중간 엔터로 넘어온 뒷글자.
    * @returns 새로 만든 행 id — 포커스를 옮기는 데 쓴다
    */
-  const addIngredient = (groupId: string, position: 'top' | 'bottom' = 'top', afterId?: string) => {
+  const addIngredient = (groupId: string, position: 'top' | 'bottom' = 'top', afterId?: string, initialName = '') => {
     const newId = genId();
     setIngredientGroups(prev =>
       prev.map(g => {
         if (g.id !== groupId) return g;
-        const row = {id: newId, name: '', amount: '', unit: 'g'};
+        // initialName: 문단 중간에서 엔터를 눌렀을 때 커서 뒤에 있던 글자
+        const row = {id: newId, name: initialName, amount: '', unit: 'g'};
         if (afterId) {
           const i = g.ingredients.findIndex(x => x.id === afterId);
           if (i >= 0) {
@@ -1424,8 +1426,10 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
   };
 
   /**
-   * 과정 묶음 나누기 — 지정한 행을 새 그룹의 제목(과정명)으로 올리고,
-   * 그 아래 과정들을 새 그룹으로 옮긴다. 해당 행 자체는 제목이 되므로 목록에서 빠진다.
+   * 과정 묶음 나누기 — 지정한 행부터 아래를 새 그룹으로 옮긴다.
+   * 그 행은 새 그룹의 "첫 과정"으로 남는다. 제목으로 올려버리면 내용이 목록에서
+   * 사라져, 끊으려던 갈래가 통째로 없어진 것처럼 보였다. 제목은 임의로 붙이고
+   * 사용자가 필요하면 고친다.
    * 행 롱프레스 메뉴와 키보드 툴바 버튼이 공유한다.
    */
   const splitStepGroupAt = useCallback((groupId: string, stepId: string) => {
@@ -1435,23 +1439,24 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
       const g = prev[gi];
       const si = g.steps.findIndex(s => s.id === stepId);
       if (si <= 0) return prev; // 첫 줄이면 나눌 게 없다
-      const title = g.steps[si].description.trim();
-      if (!title) return prev;
       const next = [...prev];
       next[gi] = {...g, steps: g.steps.slice(0, si)};
-      next.splice(gi + 1, 0, {id: genId(), title, steps: g.steps.slice(si + 1), bulkMode: false, bulkText: ''});
+      // 기본 제목: 묶음이 여러 개면 구분되도록 번호를 붙인다
+      const title = `과정 ${prev.length + 1}`;
+      next.splice(gi + 1, 0, {id: genId(), title, steps: g.steps.slice(si), bulkMode: false, bulkText: ''});
       return next;
     });
     setFocusedStep(null);
   }, []);
 
   /** 과정 행 추가. afterId를 주면 그 행 바로 다음에 넣고, 새 행 id를 반환한다. */
-  const addStep = (groupId: string, position: 'top' | 'bottom' = 'top', afterId?: string) => {
+  const addStep = (groupId: string, position: 'top' | 'bottom' = 'top', afterId?: string, initialDescription = '') => {
     const newId = genId();
     setStepGroups(prev =>
       prev.map(g => {
         if (g.id !== groupId) return g;
-        const row = {id: newId, description: ''};
+        // initialDescription: 문단 중간에서 엔터를 눌렀을 때 커서 뒤에 있던 글자
+        const row = {id: newId, description: initialDescription};
         if (afterId) {
           const i = g.steps.findIndex(x => x.id === afterId);
           if (i >= 0) {
@@ -2084,10 +2089,12 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
                             onFocus={() => { setOcrBulkGroupId(group.id); handleFieldFocus('ingredients'); }}
                             onBlur={handleFieldBlur}
                             // 엔터 = 다음 재료 행 (모바일엔 Shift+Enter가 없어 재료는 줄바꿈 대신 행 추가)
-                            onSubmit={() => {
-                              const newId = addIngredient(group.id, 'bottom', ingredient.id);
-                              // 새 행이 렌더된 뒤 포커스
-                              setTimeout(() => rowInputRefs.current[newId]?.focus(), 50);
+                            onSubmit={(rest) => {
+                              // 문단 중간이면 커서 뒤 글자를 새 행으로 가져간다
+                              const newId = addIngredient(group.id, 'bottom', ingredient.id, rest ?? '');
+                              // 새 행이 렌더된 뒤 포커스 — 넘어온 글자가 있으면 그 맨 앞에 커서
+                              // rowInputRefs는 RNTextInput 타입이라 RichEditor의 focus(caret)을 모른다
+                              setTimeout(() => (rowInputRefs.current[newId] as any)?.focus?.(0), 50);
                             }}
                             onBackspaceAtStart={() => {
                               // 빈 칸에서 백스페이스 = 그 행 삭제 (과정과 같은 약속).
@@ -2668,9 +2675,11 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
                           onBlur={handleFieldBlur}
                           // 엔터 = 다음 과정 행. 모바일엔 Shift+Enter가 없어
                           // 줄바꿈보다 "다음 과정으로 넘어가기"를 우선한다.
-                          onSubmit={() => {
-                            const newId = addStep(group.id, 'bottom', step.id);
-                            setTimeout(() => rowInputRefs.current[newId]?.focus(), 50);
+                          onSubmit={(rest) => {
+                            // 문단 중간이면 커서 뒤 글자를 새 과정으로 가져간다
+                            const newId = addStep(group.id, 'bottom', step.id, rest ?? '');
+                            // 넘어온 글자가 있으면 그 맨 앞에 커서
+                            setTimeout(() => (rowInputRefs.current[newId] as any)?.focus?.(0), 50);
                           }}
                           // 커서가 맨 앞일 때 백스페이스 → 이전 행과 병합
                           // (엔터로 잘못 나눈 걸 되돌리는 가장 자연스러운 조작)
@@ -2787,9 +2796,10 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
                     {/* 행 롱프레스 메뉴 — 여기서 나누기(묶음 만들기), 위/아래 행 추가 */}
                     <Menu
                       items={[
-                        // 첫 줄은 위로 나눌 게 없고, 빈 줄은 제목이 될 수 없다.
+                        // 첫 줄은 위로 나눌 게 없다. (이 행은 새 묶음의 첫 과정으로
+                        // 남으므로 빈 줄이어도 나눌 수 있다 — 제목으로 쓰지 않는다)
                         // 나눌 수 없으면 비활성으로 두지 않고 아예 감춘다.
-                        ...(index > 0 && step.description.trim()
+                        ...(index > 0
                           ? [{id: 'split', label: t('recipeEdit.splitGroupHere')}]
                           : []),
                         {id: 'addAbove', label: t('recipeEdit.addStepAbove')},
