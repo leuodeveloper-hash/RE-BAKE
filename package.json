@@ -12,7 +12,6 @@
     "bump": "node scripts/bumpVersion.mjs",
     "test": "jest",
     "lint": "eslint .",
-    "figma:fetch": "ts-node scripts/fetchFigmaTokens.ts",
     "storybook-generate": "sb-rn-get-stories",
     "storybook": "node scripts/start-storybook.js"
   },
