@@ -982,6 +982,15 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
     });
   };
 
+  /** 해당 그룹 "위에" 새 그룹 — 첫 그룹 위로는 다른 방법이 없다(추가는 항상 아래로 들어간다) */
+  const insertIngredientGroupAbove = (groupId: string) => {
+    const newGroup = {id: genId(), title: '재료', ingredients: [{id: genId(), name: '', amount: '', unit: 'g'}], bulkMode: false, bulkText: ''};
+    setIngredientGroups(prev => {
+      const idx = prev.findIndex(g => g.id === groupId);
+      return [...prev.slice(0, idx), newGroup, ...prev.slice(idx)];
+    });
+  };
+
   const updateIngredientGroupTitle = (groupId: string, newTitle: string) => {
     setIngredientGroups(prev =>
       prev.map(g => (g.id === groupId ? {...g, title: newTitle} : g)),
@@ -1107,6 +1116,15 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
         return [...prev.slice(0, idx + 1), newGroup, ...prev.slice(idx + 1)];
       }
       return [...prev, newGroup];
+    });
+  };
+
+  /** 해당 그룹 "위에" 새 그룹 (재료와 같은 이유) */
+  const insertToolGroupAbove = (groupId: string) => {
+    const newGroup: EditableToolGroup = {id: genId(), title: '도구', tools: [{id: genId(), name: ''}], bulkMode: false, bulkText: ''};
+    setToolGroups(prev => {
+      const idx = prev.findIndex(g => g.id === groupId);
+      return [...prev.slice(0, idx), newGroup, ...prev.slice(idx)];
     });
   };
 
@@ -1819,13 +1837,15 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
 
               <Menu
                 items={[
+                  {id: 'addAbove', label: t('recipeEdit.addGroupAbove')},
                   {id: 'up', label: t('recipeEdit.moveGroupUp'), disabled: groupIndex === 0},
                   {id: 'down', label: t('recipeEdit.moveGroupDown'), disabled: groupIndex === ingredientGroups.length - 1},
                   {id: 'delete', label: t('recipeEdit.deleteGroup'), destructive: true, disabled: ingredientGroups.length <= 1},
                 ]}
                 visible={ingGroupMenu === group.id}
                 onSelect={(id) => {
-                  if (id === 'delete') removeIngredientGroup(group.id);
+                  if (id === 'addAbove') insertIngredientGroupAbove(group.id);
+                  else if (id === 'delete') removeIngredientGroup(group.id);
                   else moveIngredientGroup(group.id, id === 'up' ? -1 : 1);
                   setIngGroupMenu(null);
                 }}
@@ -2117,13 +2137,15 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
 
               <Menu
                 items={[
+                  {id: 'addAbove', label: t('recipeEdit.addGroupAbove')},
                   {id: 'up', label: t('recipeEdit.moveGroupUp'), disabled: groupIndex === 0},
                   {id: 'down', label: t('recipeEdit.moveGroupDown'), disabled: groupIndex === toolGroups.length - 1},
                   {id: 'delete', label: t('recipeEdit.deleteGroup'), destructive: true, disabled: toolGroups.length <= 1},
                 ]}
                 visible={toolGroupMenu === group.id}
                 onSelect={(id) => {
-                  if (id === 'delete') removeToolGroup(group.id);
+                  if (id === 'addAbove') insertToolGroupAbove(group.id);
+                  else if (id === 'delete') removeToolGroup(group.id);
                   else moveToolGroup(group.id, id === 'up' ? -1 : 1);
                   setToolGroupMenu(null);
                 }}
@@ -2416,6 +2438,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
               />
               <Menu
                 items={[
+                  {id: 'addAbove', label: t('recipeEdit.addGroupAbove')},
                   {id: 'up', label: t('recipeEdit.moveGroupUp'), disabled: groupIndex === 0},
                   {id: 'down', label: t('recipeEdit.moveGroupDown'), disabled: groupIndex === stepGroups.length - 1},
                   // 마지막 묶음은 지우면 과정이 통째로 사라지므로 막는다
@@ -2423,7 +2446,8 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
                 ]}
                 visible={stepGroupMenu === group.id}
                 onSelect={(id) => {
-                  if (id === 'delete') removeStepGroup(group.id);
+                  if (id === 'addAbove') insertStepGroupAbove(group.id);
+                  else if (id === 'delete') removeStepGroup(group.id);
                   else moveStepGroup(group.id, id === 'up' ? -1 : 1);
                   setStepGroupMenu(null);
                 }}
