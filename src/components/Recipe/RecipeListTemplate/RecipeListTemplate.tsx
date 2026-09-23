@@ -335,8 +335,13 @@ export function RecipeListTemplate({
   const [sortId, setSortIdState] = useState('default');
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
 
-  // AsyncStorage에서 마지막 레이아웃/정렬 복원
-  const layoutLoadedRef = useRef(false);
+  // AsyncStorage에서 마지막 레이아웃/정렬 복원.
+  //
+  // 읽기가 비동기라 첫 프레임은 기본값(grid)으로 그려진다. 저장값이 list인
+  // 사용자는 앱을 켤 때마다 그리드가 잠깐 보였다 바뀌는 깜빡임을 겪었다.
+  // 불러오기 전까지는 스켈레톤을 보여주고(layoutLoaded), 값이 정해진 뒤
+  // 목록을 그린다.
+  const [layoutLoaded, setLayoutLoaded] = useState(false);
   useEffect(() => {
     Promise.all([
       AsyncStorage.getItem('recipe_list_layout'),
@@ -346,8 +351,10 @@ export function RecipeListTemplate({
         setLayoutState(savedLayout);
       }
       if (savedSort) setSortIdState(savedSort);
-      layoutLoadedRef.current = true;
-    });
+    })
+      // 읽기에 실패해도 기본값으로 계속 진행한다 — 목록이 영영 안 뜨면 안 된다
+      .catch(() => {})
+      .finally(() => setLayoutLoaded(true));
   }, []);
 
   const setLayout = useCallback((l: RecipeCardLayout) => {
@@ -472,7 +479,8 @@ export function RecipeListTemplate({
 
   // Paginated display data (리프레시 중에는 스켈레톤 표시하지 않음)
   const displayData = useMemo(() => {
-    if (loading && !isRefreshing) {
+    // 저장된 보기 방식을 읽기 전에 그리면 기본값(grid)으로 한 번 깜빡인다
+    if ((loading || !layoutLoaded) && !isRefreshing) {
       return SKELETON_DATA;
     }
     const sliced = sortedData.slice(0, visibleCount);
@@ -480,7 +488,7 @@ export function RecipeListTemplate({
       return [...sliced, {id: '__placeholder__'} as Recipe];
     }
     return sliced;
-  }, [loading, isRefreshing, sortedData, visibleCount, activeLayout]);
+  }, [loading, layoutLoaded, isRefreshing, sortedData, visibleCount, activeLayout]);
 
   const hasMore = !loading && visibleCount < sortedData.length;
 
@@ -617,12 +625,12 @@ export function RecipeListTemplate({
           // 팩뷰: 콘텐츠 너비(maxWidth 800)·패딩 제약 밖에서 전체 너비로 로밍
           <View style={styles.packFull}>
             <PullIndicator progress={pullProgress} isRefreshing={isRefreshing} refreshStripProgress={refreshStripProgress} refreshOpacity={refreshOpacity} />
-            {!loading && sortedData.length === 0 && listEmptyComponent ? (
+            {!loading && layoutLoaded && sortedData.length === 0 && listEmptyComponent ? (
               // 팩뷰에서도 레시피가 없으면 빈 상태 표시 (FlatList 경로와 동일)
               <View style={styles.packEmpty}>{listEmptyComponent}</View>
             ) : (
               <RecipePackView
-                recipes={loading ? [] : sortedData}
+                recipes={loading || !layoutLoaded ? [] : sortedData}
                 lockedRecipeIds={lockedRecipeIds}
                 onRecipePress={(id) => {
                   const r = sortedData.find(x => x.id === id) ?? ({id} as Recipe);
@@ -653,7 +661,7 @@ export function RecipeListTemplate({
               onEndReached={handleEndReached}
               onEndReachedThreshold={0.5}
               ListHeaderComponent={<>{<RefreshGap height={refreshGapHeight} />}{listHeaderExtra}</>}
-              ListEmptyComponent={loading && !isRefreshing ? undefined : listEmptyComponent}
+              ListEmptyComponent={(loading || !layoutLoaded) && !isRefreshing ? undefined : listEmptyComponent}
               ListFooterComponent={loadingMore ? <SkeletonFooter layout={activeLayout} /> : undefined}
               renderItem={renderItem}
             />
