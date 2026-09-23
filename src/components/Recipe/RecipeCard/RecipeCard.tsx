@@ -27,7 +27,7 @@ import {triggerHaptic} from '@utils/haptics';
 import {useColors, useTheme} from '@contexts/ThemeContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {SvgProps} from 'react-native-svg';
-import {IconArrowTopRight, IconChartNoAxesGantt, IconEllipsisVertical, IconLockFilled, IconEyeClosed, IconPhoto, IconPinFilled, IconDotFilled} from '@components/Icon/IconIndex';
+import {IconArrowTopRight, IconChartNoAxesGantt, IconEllipsisVertical, IconLockFilled, IconEyeClosed, IconPhoto, IconPinFilled} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
 import {Thumbnail} from '@components/Thumbnail';
 
@@ -420,8 +420,11 @@ export interface RecipeCardProps {
   hidden?: boolean;
   /** 상단 고정됨 — 제목 앞에 핀 아이콘 */
   pinned?: boolean;
-  /** 선택됨(이 카드의 메뉴가 열려 있음) — trailing이 ⋯ 대신 점으로 바뀐다 */
-  selected?: boolean;
+  /**
+   * 이 카드의 메뉴가 열려 있음 — 눌린 것과 같은 배경으로 계속 강조한다.
+   * 롱프레스로 열면 손을 떼는 순간 pressed가 풀려 어느 카드의 메뉴인지 알 수 없었다.
+   */
+  menuOpen?: boolean;
   /** list 레이아웃 크기 (기본: 'default', 'small': 44px 썸네일) */
   size?: 'default' | 'small';
   /** list 레이아웃 썸네일 앞 번호 */
@@ -476,7 +479,7 @@ export function RecipeCard({
   locked = false,
   hidden = false,
   pinned,
-  selected,
+  menuOpen,
   size = 'default',
   leadingNumber,
   customSubtitle,
@@ -560,7 +563,7 @@ export function RecipeCard({
           style={({pressed, focused}: {pressed: boolean; focused: boolean}) => [
             styles.listContainer,
             isSmall && styles.listContainerSmall,
-            (pressed || focused) && styles.listContainerPressed,
+            (pressed || focused || menuOpen) && styles.listContainerPressed,
           ]}
           onPress={handlePress}
           onLongPress={onMenuPress ? handleLongPress : undefined}>
@@ -657,8 +660,7 @@ export function RecipeCard({
           {(onMenuPress || trailingIcon) ? (
             <View ref={menuButtonRef}>
               <IconButton
-                // 메뉴가 열린 카드는 점으로 — 어느 카드의 메뉴인지 보이게 한다
-                icon={trailingIcon || (selected ? IconDotFilled : IconEllipsisVertical)}
+                icon={trailingIcon || IconEllipsisVertical}
                 iconColor={trailingIconColor}
                 onPress={handleMenuPress}
                 variant="ghost-secondary"
@@ -707,7 +709,7 @@ export function RecipeCard({
         {onMenuPress ? (
           <View ref={menuButtonRef} style={styles.gridMenuButton}>
             <IconButton
-              icon={selected ? IconDotFilled : IconEllipsisVertical}
+              icon={IconEllipsisVertical}
               onPress={handleMenuPress}
               variant="ghost-inverse"
               size="medium"
@@ -777,8 +779,8 @@ export function RecipeCard({
           {(hasMeta || reviewCount > 0 || hasReference) && (
             <View style={styles.gridSubtitleRow}>
               <View style={styles.gridMetaGroup}>
-                {/* 2열은 폭이 좁아 앞의 두 개(작성자·레시피북)만 */}
-                {renderMeta(styles.gridSubtitle, {limit: 2})}
+                {/* 2열도 말줄임 없이 전부 — 좁으면 다음 줄로 넘긴다 */}
+                {renderMeta(styles.gridSubtitle, {wrap: true})}
                 <MetaLinkIcon show={hasReference} size={12} color={colors['foreground/on-surface-muted']} />
               </View>
               {reviewCount > 0 && (
@@ -794,7 +796,7 @@ export function RecipeCard({
         {onMenuPress ? (
           <View ref={menuButtonRef}>
             <IconButton
-              icon={selected ? IconDotFilled : IconEllipsisVertical}
+              icon={IconEllipsisVertical}
               onPress={handleMenuPress}
               variant="ghost-secondary"
               size="medium"
@@ -978,9 +980,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.smd,
-    // 2단 그리드는 폭이 좁아 메타(작성자·북·제법·비중)가 여러 개면 줄바꿈되고,
-    // 그만큼 행이 높아져 우측 메뉴 버튼이 아래로 밀렸다. 한 줄로 고정한다.
-    flexWrap: 'nowrap',
   },
   /** 메타 조각 하나 — 좁아지면 이 조각이 줄어들며 말줄임 처리된다 */
   metaSegment: {
@@ -991,8 +990,12 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   gridMetaGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    // 구분점(·)을 없앴으므로 간격이 구분 역할을 한다
-    gap: Spacing.smd,
+    // 구분점(·)을 없앴으므로 간격이 구분 역할을 한다.
+    // 조각을 줄여 말줄임하지 않고 다음 줄로 넘긴다(다 잘려 읽을 수 없던 문제).
+    // 가로는 구분용으로 넓게, 세로는 좁게.
+    columnGap: Spacing.smd,
+    rowGap: Spacing.xs,
+    flexWrap: 'wrap',
     flexShrink: 1,
     minWidth: 0,
   },

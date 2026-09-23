@@ -588,7 +588,7 @@ export function RecipeListTemplate({
         layout={activeLayout}
         locked={isLocked}
         pinned={!!(pinnedMap?.[item.id] ?? item.pinnedAt)}
-        selected={cardMenuTarget?.id === item.id}
+        menuOpen={cardMenuTarget?.id === item.id}
         hidden={item.hidden}
         hasReference={!!item.referenceUrl}
         paperPreview={paperPreview}
