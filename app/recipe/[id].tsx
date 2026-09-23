@@ -169,8 +169,11 @@ export default function RecipeDetailRoute() {
   const handleDownloadPhoto = useCallback((uri: string) => {
     if (!uri) return;
     if (tier !== 'pro') {
-      if (!user) showSnackbar(t('photoSave.guest'), {label: t('auth.signIn'), onPress: () => openAuthSheet()});
-      else showSnackbar(t('photoSave.free'), {label: t('profile.subscribe'), onPress: openPlanSheet});
+      // 플랜 시트를 바로 띄운다 — 스낵바로 한 번 더 누르게 하면 흐름이 끊긴다.
+      // 게스트는 로그인이 먼저(구독하려면 계정이 있어야 한다) → 성공 후 플랜.
+      // 대기 시간은 onSubscribe(잠금 해제)와 같은 값으로 맞춘다.
+      if (!user) openAuthSheet({onSuccess: () => setTimeout(openPlanSheet, 300)});
+      else openPlanSheet();
       return;
     }
     savePhoto(uri).then(ok => { if (!ok) showSnackbar(t('photoSave.failed')); });
