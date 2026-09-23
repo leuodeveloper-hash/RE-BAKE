@@ -24,6 +24,7 @@ import {Dialog} from '@components/Dialog';
 import {Button} from '@components/Button';
 import {SUBSCRIPTION_ENABLED} from '@contexts/SubscriptionContext';
 import {usePlanSheet} from '@contexts/PlanSheetContext';
+import {savePhoto} from '@utils/savePhoto';
 import {usePdfExportQuota} from '@hooks/usePdfExportQuota';
 import {useEntitlement} from '@hooks/useEntitlement';
 import {useAuthSheet} from '@contexts/AuthSheetContext';
@@ -50,7 +51,7 @@ export default function RecipeDetailRoute() {
   const {open: openPlanSheet} = usePlanSheet();
   // PDF 내보내기 등급별 횟수 제한
   const {used: pdfUsed, increment: incrementPdf} = usePdfExportQuota();
-  const {limits} = useEntitlement();
+  const {limits, tier} = useEntitlement();
   const pdfLimit = limits.quota.pdfExports;
   const {t} = useTranslation();
   const isLocked = lockedParam === '1' && !unlocked;
@@ -163,6 +164,17 @@ export default function RecipeDetailRoute() {
       router.replace('/');
     }
   }, [router, from]);
+
+  // 사진 저장은 유료 기능 — 무료/게스트는 기존 PDF 할당량과 같은 방식으로 유도한다.
+  const handleDownloadPhoto = useCallback((uri: string) => {
+    if (!uri) return;
+    if (tier !== 'pro') {
+      if (!user) showSnackbar(t('photoSave.guest'), {label: t('auth.signIn'), onPress: () => openAuthSheet()});
+      else showSnackbar(t('photoSave.free'), {label: t('profile.subscribe'), onPress: openPlanSheet});
+      return;
+    }
+    savePhoto(uri).then(ok => { if (!ok) showSnackbar(t('photoSave.failed')); });
+  }, [tier, user, showSnackbar, t, openAuthSheet, openPlanSheet]);
 
   const handleEdit = useCallback((section?: string) => {
     const params = new URLSearchParams();
@@ -539,6 +551,7 @@ const handleDelete = useCallback(async () => {
         onBack={handleBack}
         onComingSoon={handleComingSoon}
         onEdit={canEdit ? handleEdit : undefined}
+        onDownloadPhoto={handleDownloadPhoto}
         onDelete={canDelete ? handleDelete : undefined}
         onRemake={isMyRecipe ? handleRemake : undefined}
         onImport={!isMyRecipe && !alreadyImported ? handleImport : undefined}

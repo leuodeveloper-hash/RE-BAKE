@@ -143,6 +143,12 @@ export interface RecipeDetailScreenProps {
   stepGroups?: ProcessStepGroup[];
   activeFieldIds?: string[];
   onBack?: () => void;
+  /**
+   * 사진 전체보기에서 저장 버튼을 눌렀을 때. 유료 판단·유도는 호출부가 한다
+   * (이 화면은 구독 상태를 모른다 — 다른 props와 같은 방식).
+   * 주지 않으면 버튼이 보이지 않는다.
+   */
+  onDownloadPhoto?: (uri: string) => void;
   onAddPress?: () => void;
   onMenuPress?: () => void;
   onComingSoon?: () => void;
@@ -333,6 +339,7 @@ export function RecipeDetailScreen({
   stepGroups,
   activeFieldIds,
   onBack,
+  onDownloadPhoto,
   onAddPress,
   onComingSoon,
   onEdit,
@@ -1402,6 +1409,9 @@ export function RecipeDetailScreen({
         index={viewerIndex}
         onIndexChange={setViewerIndex}
         onClose={() => setViewerIndex(null)}
+        onDownload={onDownloadPhoto && viewerIndex !== null
+          ? () => onDownloadPhoto(viewerPhotos[viewerIndex]?.uri ?? '')
+          : undefined}
       />
 
       <CookingMode

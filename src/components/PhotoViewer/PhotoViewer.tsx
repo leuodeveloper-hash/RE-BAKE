@@ -4,7 +4,7 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {FloatingNavBar, navPillStyle, NavPillButton} from '@components/Navigation';
 import {GlassContainer} from '@components/Container';
 import {IconButton} from '@components/IconButton';
-import {IconClose, IconPhoto, IconTrash} from '@components/Icon/IconIndex';
+import {IconClose, IconPhoto, IconTrash, IconArrowDownToLine} from '@components/Icon/IconIndex';
 import {ForceDarkTheme} from '@contexts/ThemeContext';
 import {Typography} from '@constants/typography';
 
@@ -20,12 +20,18 @@ export interface PhotoViewerProps {
   /** 편집 가능하면 우측 상단에 교체·삭제 버튼 (없으면 읽기 전용) */
   onReplace?: () => void;
   onDelete?: () => void;
+  /**
+   * 우측 상단 다운로드 버튼. 주면 보이고, 없으면 감춘다.
+   * 유료 여부 판단·유도는 호출부가 한다 — 공통 뷰어가 구독을 알 필요는 없다.
+   */
+  onDownload?: () => void;
 }
 
 /**
  * 사진 전체보기 뷰어. 상세·요리모드 공용.
  *
- * - 배경 탭 = 닫기, 이미지 탭 = 다음 사진, 좌우 스와이프 = 이전/다음
+ * - 배경 탭 = 닫기, 좌우 스와이프 = 이전/다음(여러 장일 때)
+ * - 여러 장이면 이미지 탭도 다음 사진, 한 장뿐이면 탭해도 닫힌다
  * - 배경이 늘 검정이라 하위 컴포넌트를 ForceDarkTheme으로 고정한다
  *   (라이트 테마 토큰이 검정 배경에 묻힌다)
  * - 네이티브 Modal은 별도 뷰 계층이라 앱 루트의 SafeAreaProvider가 닿지 않는다.
@@ -38,12 +44,14 @@ export function PhotoViewer({
   onClose,
   onReplace,
   onDelete,
+  onDownload,
 }: PhotoViewerProps) {
   const {width: containerWidth} = useWindowDimensions();
   const swipeXRef = useRef(0);
 
   const total = photos.length;
   const canEdit = !!onReplace || !!onDelete;
+  const hasRightActions = canEdit || !!onDownload;
 
   const goNext = useCallback(() => {
     if (index === null || total <= 1) return;
@@ -69,7 +77,8 @@ export function PhotoViewer({
             {/* Pressable에 높이를 줘야 안쪽 Image의 height:'100%'가 기준을 갖는다
                 (auto 높이면 퍼센트가 0으로 계산돼 이미지가 안 보인다) */}
             <Pressable
-              onPress={total > 1 ? undefined : goNext}
+              // 한 장뿐이면 "다음"이 없다 → 배경과 같이 탭하면 닫힌다
+              onPress={total > 1 ? undefined : onClose}
               style={styles.imageFrame}
               onStartShouldSetResponder={() => total > 1}
               onResponderGrant={e => { swipeXRef.current = e.nativeEvent.pageX; }}
@@ -87,16 +96,19 @@ export function PhotoViewer({
             <FloatingNavBar
               tintColor="#000000"
               left={<NavPillButton icon={IconClose} onPress={onClose} />}
-              center={total > 1 ? (
-                <Text style={styles.counter}>{index + 1} / {total}</Text>
-              ) : undefined}
-              right={canEdit ? (
+              // 한 장이어도 표시한다 — 몇 번째를 보고 있는지 늘 같은 자리에 있어야
+              // 여러 장일 때와 상단바 구성이 흔들리지 않는다.
+              center={<Text style={styles.counter}>{index + 1} / {total}</Text>}
+              right={hasRightActions ? (
                 <GlassContainer contentStyle={navPillStyle}>
                   {onReplace && (
                     <IconButton icon={IconPhoto} onPress={onReplace} variant="ghost-primary" size="medium" />
                   )}
                   {onDelete && (
                     <IconButton icon={IconTrash} onPress={onDelete} variant="ghost-primary" size="medium" />
+                  )}
+                  {onDownload && (
+                    <IconButton icon={IconArrowDownToLine} onPress={onDownload} variant="ghost-primary" size="medium" />
                   )}
                 </GlassContainer>
               ) : undefined}
