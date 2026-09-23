@@ -1,4 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {triggerHaptic} from '@utils/haptics';
 import {
   Animated,
   Dimensions,
@@ -1429,7 +1430,7 @@ export function CookingMode({
                   if (manageThis) onReplace(i);
                   else setViewerPhoto({card: item, index: i, editing});
                 }}
-                onLongPress={canEdit ? () => setActivePhotoIdx(prev => prev === i ? null : i) : undefined}
+                onLongPress={canEdit ? () => { triggerHaptic('medium'); setActivePhotoIdx(prev => prev === i ? null : i); } : undefined}
                 delayLongPress={300}>
                 <Image source={{uri: p.uri}} style={{flex: 1, borderRadius: 13}} resizeMode="cover" />
               </Pressable>

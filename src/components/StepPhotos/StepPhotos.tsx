@@ -1,4 +1,5 @@
 import React, {useState} from 'react';
+import {triggerHaptic} from '@utils/haptics';
 import {Image, Pressable, StyleSheet, Text, TextInput, View} from 'react-native';
 import {IconClose} from '@components/Icon/IconIndex';
 import {Radius} from '@constants/tokens';
@@ -100,7 +101,7 @@ export function StepPhotos({
                     setExpandedIdx(prev => (prev === i ? null : i));
                   }
                 }}
-                onLongPress={editable ? () => setManage(m => !m) : undefined}
+                onLongPress={editable ? () => { triggerHaptic('medium'); setManage(m => !m); } : undefined}
                 delayLongPress={300}>
                 <Image
                   source={{uri: photo.uri}}
