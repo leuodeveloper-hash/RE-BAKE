@@ -38,6 +38,7 @@ import {ReviewLogSheet} from '@components/BottomSheet';
 import {Thumbnail} from '@components/Thumbnail';
 import {StepPhotos} from '@components/StepPhotos';
 import {PhotoViewer} from '@components/PhotoViewer';
+import {AppIcon} from '@components/Icon/AppIcon';
 import {normalizeStepPhotos} from '@utils/stepPhotos';
 import type {StepPhoto} from '../types/recipe';
 import {EmptyState} from '@components/EmptyState';
@@ -75,6 +76,7 @@ import {
   IconToolCaseFilled,
   IconSearch,
   IconSparkle,
+  IconFilesFilled,
   IconEyeClosed,
 } from '@components/Icon/IconIndex';
 
@@ -133,6 +135,8 @@ export interface RecipeDetailScreenProps {
   advice?: string;
   advicePhotos?: string[];
   imageUri?: string;
+  /** 추가 상단 이미지(대표 imageUri 뒤로 최대 2장) */
+  imageUris?: string[];
   time?: string;
   servings?: string;
   session?: string;
@@ -205,6 +209,10 @@ export interface RecipeDetailScreenProps {
   showDeleteConfirm?: boolean;
   /** 참고 링크 URL */
   referenceUrl?: string;
+  /** 이미 "만들었어요"로 표시된 레시피인지 */
+  isMade?: boolean;
+  /** 요리모드 마지막 카드 확인 시트에서 밀어서 확정 */
+  onMadeChange?: (made: boolean) => void;
   /** 원본 출처 URL — 외부 사이트(만개의레시피 등)에서 가져온 경우 */
   sourceUrl?: string;
   /** 둘러보기에서 복사한 경우 원본 작성자 핸들 (from @핸들 표시) */
@@ -329,6 +337,7 @@ export function RecipeDetailScreen({
   advice,
   advicePhotos,
   imageUri,
+  imageUris,
   time,
   servings,
   session,
@@ -371,6 +380,8 @@ export function RecipeDetailScreen({
   onSubmitToExplore,
   showDeleteConfirm = false,
   referenceUrl,
+  isMade,
+  onMadeChange,
   sourceUrl,
   sourceHandle,
   onSourcePress,
@@ -453,6 +464,12 @@ export function RecipeDetailScreen({
   // 스텝 사진 전체보기 — 어떤 스텝의 사진 묶음인지와 그 안의 인덱스
   const [viewerPhotos, setViewerPhotos] = useState<{uri: string}[]>([]);
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
+  // 상단은 대표 1장만 보여주고, 뷰어에선 추가 이미지까지 스와이프로 넘긴다
+  const heroPhotos = useMemo(
+    () => [imageUri, ...(imageUris ?? [])].filter((u): u is string => !!u).map(uri => ({uri})),
+    [imageUri, imageUris],
+  );
+
   const openPhotoViewer = useCallback((photos: {uri: string}[], index: number) => {
     setViewerPhotos(photos);
     setViewerIndex(index);
@@ -764,9 +781,17 @@ export function RecipeDetailScreen({
                   기준이 바뀌어 레이아웃이 깨진다. 같은 자리에 투명 영역만 겹친다. */}
               <Pressable
                 style={styles.heroImage}
-                onLongPress={() => { triggerHaptic('medium'); openPhotoViewer([{uri: imageUri}], 0); }}
+                onLongPress={() => { triggerHaptic('medium'); openPhotoViewer(heroPhotos, 0); }}
               />
               <View style={styles.heroTextOverlay} />
+              {/* 여러 장이면 장수 배지 — 롱프레스 뷰어에서 스와이프로 넘길 수 있음을 알린다
+                  (배지가 없으면 추가 이미지가 있는지 알 방법이 없다) */}
+              {heroPhotos.length > 1 && (
+                <View style={styles.heroCountBadge} pointerEvents="none">
+                  <AppIcon icon={IconFilesFilled} size="xs" color={colors['foreground/on-accent']} />
+                  <Text style={styles.heroCountText}>{heroPhotos.length}</Text>
+                </View>
+              )}
               {/* 좌우 페이드는 화면이 이미지 최대폭(1000)보다 넓어 이미지 양옆에 빈 배경이
                   실제로 생길 때만 — 좁은(모바일) 화면에선 이미지가 꽉 차 페이드가 이미지 양옆을
                   갉아먹어 어색하므로 숨긴다. */}
@@ -1431,6 +1456,8 @@ export function RecipeDetailScreen({
         advice={advice}
         advicePhotos={advicePhotos}
         referenceUrl={referenceUrl}
+        isMade={isMade}
+        onMadeChange={onMadeChange}
       />
 
       {/* 회차 슬라이더: 하단 탭바 자리에서 좌우 슬라이드/스냅으로 회차 전환.
@@ -1588,6 +1615,22 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 좌우 페이드 — heroImage와 "동일한" 중앙정렬(left:50% + translateX -50%).
   // marginHorizontal:'auto'는 RN 네이티브(아이패드)의 absolute에서 안 먹어 left:0만 적용→왼쪽 쏠림.
   // heroImage가 이 방식으로 웹·네이티브 둘 다 정확히 중앙정렬되므로 페이드도 동일하게 맞춘다.
+  heroCountBadge: {
+    position: 'absolute',
+    top: Spacing.sm,
+    right: Spacing.sm,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 2,
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: 2,
+    borderRadius: Radius['radius-full'],
+    backgroundColor: colors['overlay/strong'],
+  },
+  heroCountText: {
+    ...Typography.label.small,
+    color: colors['foreground/on-accent'],
+  },
   heroSideGradient: {
     position: 'absolute',
     top: 0,

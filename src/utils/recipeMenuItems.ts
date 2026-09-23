@@ -11,6 +11,8 @@ import {
   IconShare,
   IconPin,
   IconPinFilled,
+  IconCircleCheck,
+  IconCircleCheckFilled,
 } from '@components/Icon/IconIndex';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import type {SemanticColors} from '@constants/tokens';
@@ -24,6 +26,9 @@ interface RecipeMenuOptions {
   /** 목록 상단 고정 — 이미 고정돼 있으면 해제 항목으로 바뀐다 */
   showPin?: boolean;
   isPinned?: boolean;
+  /** 만들어봤음 표시 — 이미 표시돼 있으면 해제 항목으로 바뀐다 */
+  showMade?: boolean;
+  isMade?: boolean;
   showImport?: boolean;
   showRemake?: boolean;
   showEdit?: boolean;
@@ -48,6 +53,11 @@ export function getRecipeMenuItems(options: RecipeMenuOptions): MenuItemData[] {
     items.push(options.isPinned
       ? {id: 'unpin', label: t('recipeMenuItems.unpin'), icon: IconPinFilled}
       : {id: 'pin', label: t('recipeMenuItems.pin'), icon: IconPin});
+  }
+  if (options.showMade) {
+    items.push(options.isMade
+      ? {id: 'unmade', label: t('recipeMenuItems.unmade'), icon: IconCircleCheckFilled}
+      : {id: 'made', label: t('recipeMenuItems.made'), icon: IconCircleCheck});
   }
   if (options.showImport) items.push({id: 'save', label: t('recipeMenuItems.copyToMyRecipes'), icon: IconFilesFilled});
   if (options.showRemake) {

@@ -288,6 +288,11 @@ export interface RecipeListTemplateProps {
    * recipe.pinnedAt을 쓸 수 없는 목록에서 쓴다. 주면 이쪽이 우선.
    */
   pinnedMap?: Record<string, string>;
+  /**
+   * 레시피 바깥에 보관되는 "만들었어요" 정보({id: 표시시각}). 핀과 같은 이유로
+   * 둘러보기처럼 recipe.madeAt을 쓸 수 없는 목록에서 쓴다. 주면 이쪽이 우선.
+   */
+  madeMap?: Record<string, string>;
   /** FlatList 헤더 영역에 추가 콘텐츠 (인라인 배너 등) */
   listHeaderExtra?: React.ReactNode;
   /** 카드 메타 줄 맨 앞에 표시할 작성자 핸들. 둘러보기는 공식이라 'bakey' 고정.
@@ -319,6 +324,7 @@ export function RecipeListTemplate({
   scrollEnabled,
   lockedRecipeIds,
   pinnedMap,
+  madeMap,
   listHeaderExtra,
   authorHandle,
   onAuthorPress,
@@ -596,6 +602,7 @@ export function RecipeListTemplate({
         layout={activeLayout}
         locked={isLocked}
         pinned={!!(pinnedMap?.[item.id] ?? item.pinnedAt)}
+        made={!!(madeMap?.[item.id] ?? item.madeAt)}
         menuOpen={cardMenuTarget?.id === item.id}
         hidden={item.hidden}
         hasReference={!!item.referenceUrl}
@@ -616,7 +623,7 @@ export function RecipeListTemplate({
         ) : card}
       </View>
     );
-  }, [activeLayout, styles, onRecipePress, cardMenuItems, handleCardMenuPress, lockedRecipeIds, pinnedMap, cardMenuTarget, authorHandle, onAuthorPress, onCookbookPress, onMethodPress]);
+  }, [activeLayout, styles, onRecipePress, cardMenuItems, handleCardMenuPress, lockedRecipeIds, pinnedMap, cardMenuTarget, authorHandle, onAuthorPress, onCookbookPress, onMethodPress, madeMap]);
 
   return (
     <>

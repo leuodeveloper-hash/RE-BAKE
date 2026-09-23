@@ -4,6 +4,7 @@ import {useLocalSearchParams, useRouter} from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {doc, updateDoc, setDoc, deleteField} from 'firebase/firestore';
 import {RecipeDetailScreen} from '@screens/RecipeDetailScreen';
+import {useExploreMade} from '@hooks/useExploreMade';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useAddSheet} from '@contexts/AddSheetContext';
@@ -100,6 +101,7 @@ export default function RecipeDetailRoute() {
     return () => clearTimeout(timer);
   }, [recipe, id, findRecipeById, exploreRecipes, router]);
 
+  const {isMade: isExploreMade, setRecipeMade} = useExploreMade();
   const isMyRecipe = recipes.some(r => r.id === id);
   const isExploreRecipe = !isMyRecipe && exploreRecipes.some(r => r.id === id);
   const alreadyImported = recipes.some(r => r.sourceId === id);
@@ -516,10 +518,21 @@ const handleDelete = useCallback(async () => {
     }
   }, [recipe, user, handle, displayName, avatarSeed, showSnackbar, t]);
 
+  // "만들었어요"는 개인 기록 — 내 레시피는 레시피 자체(madeAt)에, 둘러보기는 계정에 따로 보관한다
+  const handleMadeChange = useCallback((made: boolean) => {
+    if (isMyRecipe) {
+      setRecipes(prev => prev.map(r => (r.id === id ? {...r, madeAt: made ? new Date().toISOString() : undefined} : r)));
+    } else {
+      setRecipeMade(id, made);
+    }
+    showSnackbar(t(made ? 'home.marked' : 'home.unmarked'));
+  }, [isMyRecipe, id, setRecipes, setRecipeMade, showSnackbar, t]);
+
   if (!recipe) return null;
 
   // 내 목록에 있으면 복사본이어도 편집 가능(원본 출처는 sourceId 등으로 계속 표시된다).
   // 기존엔 복사본을 막아 탭·롱프레스가 아무 반응 없이 먹통이었다.
+  const isMade = isMyRecipe ? !!recipe.madeAt : isExploreMade(id);
   const canEdit = isMyRecipe || (isExploreRecipe && isAdmin);
   const canDelete = isMyRecipe || (isExploreRecipe && isAdmin);
 
@@ -541,6 +554,7 @@ const handleDelete = useCallback(async () => {
         reviews={recipe.reviews}
         advice={recipe.advice}
         imageUri={recipe.imageUri}
+        imageUris={recipe.imageUris}
         time={recipe.time}
         servings={recipe.servings}
         session={recipe.session}
@@ -551,6 +565,8 @@ const handleDelete = useCallback(async () => {
         stepGroups={recipe.stepGroups}
         activeFieldIds={recipe.activeFieldIds}
         referenceUrl={recipe.referenceUrl}
+        isMade={isMade}
+        onMadeChange={handleMadeChange}
         onBack={handleBack}
         onComingSoon={handleComingSoon}
         onEdit={canEdit ? handleEdit : undefined}

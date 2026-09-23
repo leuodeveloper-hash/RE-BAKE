@@ -41,10 +41,22 @@ export interface Recipe {
   /** 이미지 URI (Firebase Storage URL 또는 로컬 URI) */
   imageUri?: string;
   /**
+   * 추가 상단 이미지(최대 2장 — imageUri까지 합쳐 3장).
+   * 대표 이미지는 imageUri로 유지한다 — 카드·목록·공유 등이 모두 그걸 읽으므로
+   * 배열로 합치면 전부 고쳐야 하고 구버전 데이터와도 어긋난다.
+   * 상세 상단은 대표만 보여주고, 롱프레스 뷰어에서 [imageUri, ...imageUris]를 넘긴다.
+   */
+  imageUris?: string[];
+  /**
    * 목록 상단 고정 시각(ISO). 불린이 아니라 시각인 이유 — 여러 개를 고정했을 때
    * "핀한 순서"를 유지해야 하기 때문(먼저 고정한 것이 위).
    */
   pinnedAt?: string;
+  /**
+   * 만들어본 시각(ISO). 핀과 같은 이유로 불린이 아니라 시각 —
+   * 나중에 "언제 만들었나"(기록·소감)로 넓힐 때 값이 그대로 쓰인다.
+   */
+  madeAt?: string;
   time?: string;
   servings?: string;
   session?: string;

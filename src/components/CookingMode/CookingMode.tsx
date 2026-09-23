@@ -26,7 +26,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {PhotoViewer} from '@components/PhotoViewer';
 import {stableStringify} from '@utils/stableStringify';
 import {GlassContainer, Card, MAX_CONTENT_WIDTH, ContentMask} from '@components/Container';
-import {BottomSheet} from '@components/BottomSheet';
+import {BottomSheet, MadeConfirmSheet} from '@components/BottomSheet';
 import {Snackbar} from '@components/Snackbar';
 import {IconButton} from '@components/IconButton';
 import {Selector} from '@components/Selector';
@@ -150,6 +150,10 @@ export interface CookingModeProps {
   advicePhotos?: string[];
   /** 참고 링크 (YouTube면 PiP 플레이어로 재생) */
   referenceUrl?: string;
+  /** 이미 "만들었어요"로 표시된 레시피인지 — 마지막 카드 확인 시트의 상태 */
+  isMade?: boolean;
+  /** 마지막 카드까지 오면 "만들었어요" 확인 시트를 띄우고, 밀어서 확정하면 호출 */
+  onMadeChange?: (made: boolean) => void;
 }
 
 
@@ -241,6 +245,8 @@ export function CookingMode({
   onRecipeSelect,
   advice,
   advicePhotos,
+  isMade = false,
+  onMadeChange,
   referenceUrl,
 }: CookingModeProps) {
   const styles = useThemedStyles(createStyles);
@@ -275,6 +281,9 @@ export function CookingMode({
 
   // State
   const [currentIndex, setCurrentIndex] = useState(0);
+  const [showMadeSheet, setShowMadeSheet] = useState(false);
+  // 한 번 띄운 뒤엔 앞뒤로 오가도 다시 뜨지 않는다(열림 1회당 1번)
+  const madePromptedRef = useRef(false);
   // 눈금에서 선택된 스톱 id (스텝 시작 또는 스텝 내부 사진 노출용 중간 스톱). null이면 현재 스텝의 첫 스톱.
   const [currentStopId, setCurrentStopId] = useState<string | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -351,6 +360,14 @@ export function CookingMode({
 
   const keyboardHeight = useKeyboardHeight();
 
+  // 닫았다 다시 열면 또 띄울 수 있게 리셋
+  useEffect(() => {
+    if (!visible) {
+      madePromptedRef.current = false;
+      setShowMadeSheet(false);
+    }
+  }, [visible]);
+
   // ESC key to close
   useEscapeKey(useCallback(() => {
     if (visible) {
@@ -402,6 +419,18 @@ export function CookingMode({
   const hasAdvice = !!advice?.trim();
   const totalCards = flatCards.length + (hasAdvice ? 1 : 0);
   const displayCards = isEditing ? editCards : flatCards;
+
+  // 마지막 카드까지 오면 "만들었어요" 확인 시트를 한 번 띄운다.
+  // (핸들러가 아니라 effect인 이유: 인덱스가 스와이프·눈금 탭·◀▶ 등 여러 경로로 바뀐다)
+  useEffect(() => {
+    if (!visible || isEditing || !onMadeChange) return;
+    const last = displayCards.length - 1;
+    if (last >= 0 && currentIndex >= last && !madePromptedRef.current) {
+      madePromptedRef.current = true;
+      setShowMadeSheet(true);
+    }
+  }, [visible, isEditing, currentIndex, displayCards.length, onMadeChange]);
+
 
   // 좁은 화면(폰): 세로 배치라 한 스텝이 정확히 한 판(화면 폭) → 한 판씩 이동
   const isNarrow = containerWidth < 600;
@@ -2149,6 +2178,13 @@ export function CookingMode({
             />
           );
         })()}
+      <MadeConfirmSheet
+        visible={showMadeSheet}
+        onClose={() => setShowMadeSheet(false)}
+        recipeTitle={title}
+        isMade={isMade}
+        onConfirm={(made) => onMadeChange?.(made)}
+      />
     </BottomSheet>
   );
 }

@@ -91,6 +91,20 @@ export default function RecipeEditRoute() {
         console.warn('Image upload failed, keeping local URI:', e);
       }
     }
+    // 추가 상단 이미지도 같은 규칙으로 업로드 — 대표와 겹치지 않게 접미사를 붙인다
+    if (user && Array.isArray(data.imageUris) && data.imageUris.length > 0) {
+      data.imageUris = await Promise.all(
+        data.imageUris.map(async (u: string, i: number) => {
+          if (!isLocalUri(u)) return u;
+          try {
+            return await uploadRecipeImage(u, `${id!}_hero${i + 1}`);
+          } catch (e) {
+            console.warn('Extra image upload failed, keeping local URI:', e);
+            return u;
+          }
+        }),
+      );
+    }
     // 이미지가 완전히 삭제된 경우에만 Storage에서 제거
     // (교체 시에는 같은 경로에 덮어쓰므로 삭제 불필요)
     if (oldImageUri && !isLocalUri(oldImageUri) && !data.imageUri) {
@@ -103,7 +117,7 @@ export default function RecipeEditRoute() {
         const {imageSource: _imgSrc, ...rest} = data;
         const serializable = stripUndefined(rest);
         // merge:true는 undefined(삭제된 필드)를 무시하므로 → 비운 optional 필드는 deleteField()로 명시해 실제 삭제.
-        const OPTIONAL_FIELDS = ['sourceUrl', 'referenceUrl', 'advice', 'imageUri', 'ratio', 'time', 'servings', 'method'] as const;
+        const OPTIONAL_FIELDS = ['sourceUrl', 'referenceUrl', 'advice', 'imageUri', 'imageUris', 'ratio', 'time', 'servings', 'method'] as const;
         for (const f of OPTIONAL_FIELDS) {
           if ((rest as any)[f] === undefined) (serializable as any)[f] = deleteField();
         }

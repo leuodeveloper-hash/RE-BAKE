@@ -420,6 +420,8 @@ export interface RecipeCardProps {
   hidden?: boolean;
   /** 상단 고정됨 — 제목 앞에 핀 아이콘 */
   pinned?: boolean;
+  /** 만들어봤음 — 제목 뒤 점으로 표시(핀처럼 안 한 것은 아무 표시 없음) */
+  made?: boolean;
   /**
    * 이 카드의 메뉴가 열려 있음 — 눌린 것과 같은 배경으로 계속 강조한다.
    * 롱프레스로 열면 손을 떼는 순간 pressed가 풀려 어느 카드의 메뉴인지 알 수 없었다.
@@ -479,6 +481,7 @@ export function RecipeCard({
   locked = false,
   hidden = false,
   pinned,
+  made,
   menuOpen,
   size = 'default',
   leadingNumber,
@@ -630,6 +633,7 @@ export function RecipeCard({
                 {hidden && (
                   <IconEyeClosed width={14} height={14} color={colors['foreground/on-surface-muted']} />
                 )}
+                {made && <View style={[styles.madeDot, {backgroundColor: colors['foreground/on-surface-muted']}]} />}
               </View>
             )}
             {customSubtitle ? (
@@ -729,6 +733,7 @@ export function RecipeCard({
             {hidden && (
               <IconEyeClosed width={14} height={14} color="rgba(255,255,255,0.9)" />
             )}
+            {made && <View style={[styles.madeDot, {backgroundColor: "rgba(255,255,255,0.9)"}]} />}
           </View>
           <View style={styles.gridSubtitleRow}>
             {renderMeta(styles.photoListSubtitle)}
@@ -774,6 +779,7 @@ export function RecipeCard({
               {hidden && (
                 <IconEyeClosed width={14} height={14} color={colors['foreground/on-surface-muted']} />
               )}
+              {made && <View style={[styles.madeDot, {backgroundColor: colors['foreground/on-surface-muted']}]} />}
             </View>
           )}
           {(hasMeta || reviewCount > 0 || hasReference) && (
@@ -941,6 +947,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 2,
+  },
+  madeDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 999,
   },
   gridTitleRow: {
     flexDirection: 'row',

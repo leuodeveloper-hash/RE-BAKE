@@ -83,6 +83,20 @@ export default function RecipeNewRoute() {
         console.warn('Image upload failed, keeping local URI:', e);
       }
     }
+    // 추가 상단 이미지도 같은 규칙으로 업로드 — 대표와 겹치지 않게 접미사를 붙인다
+    if (user && Array.isArray(data.imageUris) && data.imageUris.length > 0) {
+      data.imageUris = await Promise.all(
+        data.imageUris.map(async (u: string, i: number) => {
+          if (!isLocalUri(u)) return u;
+          try {
+            return await uploadRecipeImage(u, `${id}_hero${i + 1}`);
+          } catch (e) {
+            console.warn('Extra image upload failed, keeping local URI:', e);
+            return u;
+          }
+        }),
+      );
+    }
 
     const newRecipe = {
       id,

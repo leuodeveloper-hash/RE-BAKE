@@ -75,6 +75,8 @@ export interface RecipeEditScreenProps {
     reviews?: ReviewData[];
     advice?: string;
     imageUri?: string;
+    /** 추가 상단 이미지(대표 뒤로 최대 2장) */
+    imageUris?: string[];
     referenceUrl?: string;
     sourceUrl?: string;
     hidden?: boolean;
@@ -93,6 +95,8 @@ export interface RecipeEditScreenProps {
     stepGroups?: {title: string; steps: {step: number; description: string; tip?: string; caution?: string; photos?: (string | StepPhoto)[]}[]}[];
     activeFieldIds?: string[];
     imageUri?: string;
+    /** 추가 상단 이미지(대표 뒤로 최대 2장) */
+    imageUris?: string[];
     reviews?: ReviewData[];
     advice?: string;
     time?: string;

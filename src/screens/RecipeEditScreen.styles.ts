@@ -210,6 +210,22 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
   },
+  photoTileCount: {
+    position: 'absolute',
+    top: Spacing.xs,
+    right: Spacing.xs,
+    minWidth: 18,
+    height: 18,
+    paddingHorizontal: 5,
+    borderRadius: Radius['radius-full'],
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  photoTileCountText: {
+    ...Typography.label.small,
+    color: '#fff',
+  },
   chipRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',

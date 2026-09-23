@@ -29,7 +29,7 @@ import {Spacing} from '@constants/spacing';
 import {generateRecipeListHtml, generateRecipeHtml} from '@utils/generateRecipeHtml';
 import {parseSession, formatSession} from '@utils/session';
 import {getRecipeMenuItems} from '@utils/recipeMenuItems';
-import {CookbookSelectSheet} from '@components/BottomSheet';
+import {CookbookSelectSheet, MadeConfirmSheet} from '@components/BottomSheet';
 import {
   IconTrash,
   IconTrashTwotone,
@@ -51,6 +51,8 @@ const getDefaultCardMenuItems = (recipe: Recipe, t: (key: string, params?: Recor
     session: recipe.session,
     showPin: true,
     isPinned: !!recipe.pinnedAt,
+    showMade: true,
+    isMade: !!recipe.madeAt,
     showRemake: true, showEdit: true, showDelete: true, showCookbook: true,
   });
 
@@ -144,6 +146,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [pdfHtml, setPdfHtml] = useState('');
   const [cookbookSheetRecipe, setCookbookSheetRecipe] = useState<Recipe | null>(null);
+  const [madeSheetRecipe, setMadeSheetRecipe] = useState<Recipe | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
 
   // 홈 타이틀 드롭다운 = 그룹화 축 선택 (공통 모듈, 전체/레시피북/공법/회고)
@@ -261,12 +264,26 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
     });
   }, [recipes, setRecipes, showSnackbar, t]);
 
+  const handleMadeConfirm = useCallback((made: boolean) => {
+    const target = madeSheetRecipe;
+    if (!target) return;
+    // 핀과 같은 이유로 불린이 아니라 시각을 남긴다
+    const madeAt = made ? new Date().toISOString() : undefined;
+    setRecipes(prev => prev.map(r => (r.id === target.id ? {...r, madeAt} : r)));
+    showSnackbar(t(made ? 'home.marked' : 'home.unmarked'));
+  }, [madeSheetRecipe, setRecipes, showSnackbar, t]);
+
   const handleCardMenuSelect = useCallback((id: string, recipe: Recipe): void => {
     if (id === 'pin' || id === 'unpin') {
       // pinnedAt에 시각을 남긴다 — 여러 개를 고정했을 때 핀한 순서대로 위에 쌓인다
       const pinnedAt = id === 'pin' ? new Date().toISOString() : undefined;
       setRecipes(prev => prev.map(r => (r.id === recipe.id ? {...r, pinnedAt} : r)));
       showSnackbar(t(id === 'pin' ? 'home.pinned' : 'home.unpinned'));
+      return;
+    }
+    if (id === 'made' || id === 'unmade') {
+      // 핀과 달리 바로 토글하지 않는다 — "실제로 만들었다"는 확인을 시트에서 밀어서 받는다
+      setMadeSheetRecipe(recipe);
       return;
     }
     if (id === 'cookbook') {
@@ -640,6 +657,15 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
         onClose={() => setShowPdfPreview(false)}
         html={pdfHtml}
         filename={t('home.allCookbooksFilename')}
+      />
+
+      {/* 만들었어요 확인 바텀시트 — 요리모드와 같은 시트를 쓴다 */}
+      <MadeConfirmSheet
+        visible={!!madeSheetRecipe}
+        onClose={() => setMadeSheetRecipe(null)}
+        recipeTitle={madeSheetRecipe?.title}
+        isMade={!!madeSheetRecipe?.madeAt}
+        onConfirm={handleMadeConfirm}
       />
 
       {/* 레시피 북 선택 바텀시트 */}

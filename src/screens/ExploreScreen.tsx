@@ -14,6 +14,8 @@ import {useRecipes} from '@contexts/RecipeContext';
 import type {Recipe} from '../types/recipe';
 import {getRecipeMenuItems} from '@utils/recipeMenuItems';
 import {useExplorePins} from '@hooks/useExplorePins';
+import {useExploreMade} from '@hooks/useExploreMade';
+import {MadeConfirmSheet} from '@components/BottomSheet';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {
   IconNoteFilled,
@@ -40,10 +42,10 @@ const makeExploreAxisOverrides = (t: (key: string) => string): AxisOverrides => 
 /** 무료로 볼 수 있는 둘러보기 레시피 수 — 정책 단일 출처는 @constants/entitlements */
 const FREE_RECIPE_COUNT = ENTITLEMENTS.free.quota.exploreFree;
 
-const makeBaseCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string, isPinned: boolean) =>
-  getRecipeMenuItems({t, showPin: true, isPinned, showImport: true});
-const makeAdminCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string, isPinned: boolean) =>
-  getRecipeMenuItems({t, showPin: true, isPinned, showImport: true, showEdit: true, showDelete: true});
+const makeBaseCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string, isPinned: boolean, isMade: boolean) =>
+  getRecipeMenuItems({t, showPin: true, isPinned, showMade: true, isMade, showImport: true});
+const makeAdminCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string, isPinned: boolean, isMade: boolean) =>
+  getRecipeMenuItems({t, showPin: true, isPinned, showMade: true, isMade, showImport: true, showEdit: true, showDelete: true});
 
 export interface ExploreScreenProps {
   data: Recipe[];
@@ -90,6 +92,7 @@ export function ExploreScreen({
   const router = useRouter();
   const {showSnackbar} = useSnackbar();
   const {pins: explorePins, togglePin, isPinned} = useExplorePins();
+  const {made: exploreMade, setRecipeMade, isMade} = useExploreMade();
   const EXPLORE_AXIS_OVERRIDES = useMemo(() => makeExploreAxisOverrides(t), [t]);
   const {selectedExploreCookbook, setSelectedExploreCookbook} = useRecipes();
   // 홈과 동일한 그룹화 축 (전체/레시피북/공법). 'all'=평면 리스트, 그 외=GroupScreen.
@@ -113,13 +116,14 @@ export function ExploreScreen({
   const [showSearch, setShowSearch] = useState(false);
   const [pdfRecipe, setPdfRecipe] = useState<Recipe | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
+  const [madeSheetRecipe, setMadeSheetRecipe] = useState<Recipe | null>(null);
 
   // 핀 상태가 레시피마다 달라 함수 형태로 넘긴다(고정/해제 라벨이 바뀐다)
   const cardMenuItems = useCallback(
     (recipe: Recipe) => isAdmin
-      ? makeAdminCardMenuItems(t, isPinned(recipe.id))
-      : makeBaseCardMenuItems(t, isPinned(recipe.id)),
-    [isAdmin, t, isPinned],
+      ? makeAdminCardMenuItems(t, isPinned(recipe.id), isMade(recipe.id))
+      : makeBaseCardMenuItems(t, isPinned(recipe.id), isMade(recipe.id)),
+    [isAdmin, t, isPinned, isMade],
   );
 
   const exploreCookbookMap = useMemo(() => {
@@ -216,10 +220,22 @@ export function ExploreScreen({
       }));
   }, [data, t]);
 
+  const handleMadeConfirm = useCallback((next: boolean) => {
+    const target = madeSheetRecipe;
+    if (!target) return;
+    setRecipeMade(target.id, next);
+    showSnackbar(t(next ? 'home.marked' : 'home.unmarked'));
+  }, [madeSheetRecipe, setRecipeMade, showSnackbar, t]);
+
   const handleCardMenuSelect = useCallback((id: string, recipe: Recipe) => {
     if (id === 'pin' || id === 'unpin') {
       togglePin(recipe.id);
       showSnackbar(t(id === 'pin' ? 'home.pinned' : 'home.unpinned'));
+      return;
+    }
+    if (id === 'made' || id === 'unmade') {
+      // 핀과 달리 바로 토글하지 않는다 — 확인을 시트에서 밀어서 받는다
+      setMadeSheetRecipe(recipe);
       return;
     }
     if (id === 'save') {
@@ -320,6 +336,7 @@ export function ExploreScreen({
       scrollEnabled
       lockedRecipeIds={lockedRecipeIds}
       pinnedMap={explorePins}
+      madeMap={exploreMade}
       listEmptyComponent={
         !isOnline && data.length === 0 ? (
           <EmptyState
@@ -473,6 +490,14 @@ export function ExploreScreen({
           },
         },
       ]}
+    />
+
+    <MadeConfirmSheet
+      visible={!!madeSheetRecipe}
+      onClose={() => setMadeSheetRecipe(null)}
+      recipeTitle={madeSheetRecipe?.title}
+      isMade={!!madeSheetRecipe && isMade(madeSheetRecipe.id)}
+      onConfirm={handleMadeConfirm}
     />
 
     <Dialog

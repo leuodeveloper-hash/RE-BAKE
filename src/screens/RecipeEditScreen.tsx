@@ -16,6 +16,7 @@ import {
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
 import {getPersistentUri} from '@utils/imageUpload';
+import {PhotoViewer} from '@components/PhotoViewer';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {FloatingNavBar, NavPillButton, navPillStyle, NAV_PILL_HEIGHT} from '@components/Navigation';
 import {RecipeInputFloatingBar} from '@components/RecipeOcrButton';
@@ -101,6 +102,7 @@ import {
   IconCircleAlertFilled,
   IconCameraFilled,
   IconLeafFilled,
+  IconFilesFilled,
   IconToolCaseFilled,
   IconProcess,
   IconChartNoAxesGantt,
@@ -133,6 +135,8 @@ type TFn = (key: string, params?: Record<string, any>) => string;
 
 // 메뉴 아이템
 
+/** 상단 이미지는 대표 1장 + 추가 2장까지 (스텝 사진과 동일한 3장 제한) */
+const MAX_EXTRA_HERO = 2;
 const makeEditMenuItems = (t: TFn) => [
   {id: 'import-url', label: t('recipeEdit.importFromSite'), icon: IconImport},
   {id: 'field-manage', label: t('recipeEdit.fieldManage'), icon: IconSettingsFilled},
@@ -418,6 +422,14 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
   // 한번에 쓰기 작성법 안내 툴팁 (열린 묶음 id)
   const [bulkHelpFor, setBulkHelpFor] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(recipe?.imageUri ?? null);
+  // 추가 상단 이미지(대표 imageUri 뒤로 최대 2장 — 합쳐서 3장)
+  const [imageUris, setImageUris] = useState<string[]>(recipe?.imageUris ?? []);
+  // 대표 + 추가분을 한 줄로 — 뷰어는 이 목록을 그대로 보여주고, 인덱스로 교체/삭제한다
+  const heroUris = useMemo(
+    () => [imageUri, ...imageUris].filter((u): u is string => !!u),
+    [imageUri, imageUris],
+  );
+  const [heroViewerIndex, setHeroViewerIndex] = useState<number | null>(null);
   // 재료 bulk 상태는 그룹별(ingredientGroups[].bulkMode/bulkText)로 관리한다. 전역 상태 없음.
   const [showPhotoMenu, setShowPhotoMenu] = useState(false);
   const [activeFieldIds, setActiveFieldIds] = useState<string[]>(
@@ -478,11 +490,12 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
     reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
     advice: advice || undefined,
     imageUri: imageUri || undefined,
+    imageUris: imageUris.length > 0 ? imageUris : undefined,
     referenceUrl: referenceUrl || undefined,
     sourceUrl: sourceUrl || undefined,
     // 비공개 토글도 변경 감지 대상 — 이게 빠지면 비공개만 바꿨을 때 isDirty가 안 잡혀 저장 불가.
     hidden: isExplore ? hidden : undefined,
-  }), [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, imageUri, referenceUrl, sourceUrl, isExplore, hidden]);
+  }), [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden]);
   const initialSnapshotRef = useRef(currentSnapshot);
 
   // ── 되돌리기/다시하기 ──────────────────────────────────────
@@ -491,9 +504,9 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
   const historySnapshot = useMemo(() => ({
     title, cookbook, method, ratio, time, servings,
     ingredientGroups, toolGroups, stepGroups,
-    activeFieldIds, reviews, advice, imageUri, referenceUrl, sourceUrl, hidden,
+    activeFieldIds, reviews, advice, imageUri, imageUris, referenceUrl, sourceUrl, hidden,
   }), [title, cookbook, method, ratio, time, servings, ingredientGroups, toolGroups, stepGroups,
-    activeFieldIds, reviews, advice, imageUri, referenceUrl, sourceUrl, hidden]);
+    activeFieldIds, reviews, advice, imageUri, imageUris, referenceUrl, sourceUrl, hidden]);
 
   const applyHistory = useCallback((s: typeof historySnapshot) => {
     setTitle(s.title);
@@ -509,6 +522,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
     setReviews(s.reviews);
     setAdvice(s.advice);
     setImageUri(s.imageUri);
+    setImageUris(s.imageUris);
     setReferenceUrl(s.referenceUrl);
     setSourceUrl(s.sourceUrl);
     setHidden(s.hidden);
@@ -587,6 +601,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
         reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
         advice: advice || undefined,
         imageUri: imageUri || undefined,
+        imageUris: imageUris.length > 0 ? imageUris : undefined,
         referenceUrl: referenceUrl || undefined,
         sourceUrl: sourceUrl || undefined,
         ...(isExplore ? {hidden} : {}),
@@ -594,9 +609,9 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
     } finally {
       setSaving(false);
     }
-  }, [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, imageUri, referenceUrl, sourceUrl, isExplore, hidden, onSave]);
+  }, [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden, onSave]);
 
-  const pickImage = async (source: 'camera' | 'gallery') => {
+  const pickImage = async (source: 'camera' | 'gallery', slot: 'main' | 'extra' = 'main') => {
     if (source === 'camera') {
       const ok = await ensureImagePermission('camera', {
         deniedMessage: t('recipeEdit.cameraPermissionNeeded'),
@@ -630,9 +645,39 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
         : await ImagePicker.launchImageLibraryAsync(options);
     if (!result.canceled && result.assets[0]) {
       const uri = await getPersistentUri(result.assets[0].uri, result.assets[0].base64);
-      setImageUri(uri);
+      if (slot === 'extra') {
+        // 추가분은 뒤에 붙이고, 올린 직후 뷰어로 바로 확인시킨다
+        setImageUris(prev => {
+          const next = [...prev, uri].slice(0, MAX_EXTRA_HERO);
+          setHeroViewerIndex((imageUri ? 1 : 0) + next.length - 1);
+          return next;
+        });
+      } else {
+        setImageUri(uri);
+      }
     }
   };
+
+  /** 뷰어에서 추가분 교체 — imageUris의 idx 자리를 새로 고른 사진으로 바꾼다 */
+  const replaceExtraHeroAt = useCallback(async (idx: number) => {
+    const result = await ImagePicker.launchImageLibraryAsync({
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.8,
+      base64: Platform.OS === 'web',
+    });
+    if (result.canceled || !result.assets[0]) return;
+    const uri = await getPersistentUri(result.assets[0].uri, result.assets[0].base64);
+    setImageUris(prev => prev.map((u, i) => (i === idx ? uri : u)));
+  }, []);
+
+  /** 뷰어에서 삭제 — 대표(0번)를 지우면 추가분의 첫 장이 대표로 올라온다 */
+  const removeHeroAt = useCallback((idx: number) => {
+    const next = heroUris.filter((_, i) => i !== idx);
+    setImageUri(next[0] ?? null);
+    setImageUris(next.slice(1));
+    setHeroViewerIndex(next.length > 0 ? Math.min(idx, next.length - 1) : null);
+  }, [heroUris]);
 
 
   const handleMenuPress = () => {
@@ -1580,6 +1625,12 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
                         <ActivityIndicator color="#fff" />
                       </View>
                     )}
+                    {/* 여러 장이면 장수 표시 — 타일엔 대표만 보이므로 이게 없으면 알 수 없다 */}
+                    {heroUris.length > 1 && (
+                      <View style={styles.photoTileCount} pointerEvents="none">
+                        <Text style={styles.photoTileCountText}>{heroUris.length}</Text>
+                      </View>
+                    )}
                   </Card>
                 ) : (
                   <OptionTile icon={IconPhoto} label={t('recipeEdit.photo')} />
@@ -1589,9 +1640,21 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
                 items={[
                   {id: 'camera', label: t('recipeEdit.takePhoto'), icon: IconCameraFilled},
                   {id: 'gallery', label: t('recipeEdit.chooseFromGallery'), icon: IconPhoto},
+                  // 대표가 있어야 "추가"가 의미 있다. 3장을 채우면 추가 항목을 감춘다.
+                  ...(imageUri && imageUris.length < MAX_EXTRA_HERO
+                    ? [{id: 'add', label: t('recipeEdit.addPhoto'), icon: IconFilesFilled}]
+                    : []),
+                  ...(heroUris.length > 1
+                    ? [{id: 'view', label: t('recipeEdit.viewPhotos'), icon: IconPhoto}]
+                    : []),
                 ]}
                 visible={showPhotoMenu}
-                onSelect={(id) => { setShowPhotoMenu(false); pickImage(id as 'camera' | 'gallery'); }}
+                onSelect={(id) => {
+                  setShowPhotoMenu(false);
+                  if (id === 'add') pickImage('gallery', 'extra');
+                  else if (id === 'view') setHeroViewerIndex(0);
+                  else pickImage(id as 'camera' | 'gallery');
+                }}
                 onClose={() => setShowPhotoMenu(false)}
                 style={styles.photoMenu}
               />
@@ -3156,6 +3219,23 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
         />
         );
       })()}
+
+      {/* 상단 이미지 전체보기 — 스와이프로 넘기고, 여기서 교체·삭제까지 한다 */}
+      <PhotoViewer
+        photos={heroUris.map(uri => ({uri}))}
+        index={heroViewerIndex}
+        onIndexChange={setHeroViewerIndex}
+        onClose={() => setHeroViewerIndex(null)}
+        onReplace={() => {
+          const idx = heroViewerIndex;
+          if (idx === null) return;
+          setHeroViewerIndex(null);
+          // 대표(0번)를 교체하면 대표가, 추가분이면 그 자리가 바뀐다
+          if (idx === 0) pickImage('gallery');
+          else replaceExtraHeroAt(idx - 1);
+        }}
+        onDelete={() => { if (heroViewerIndex !== null) removeHeroAt(heroViewerIndex); }}
+      />
     </View>
   );
 }
