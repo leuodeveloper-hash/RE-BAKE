@@ -233,7 +233,30 @@ export function buildEditorHtml(theme: EditorTheme, placeholder: string, initial
   el.addEventListener('keydown', function (e) {
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
-      post(M.change, {value: toSource(el), submit: true});
+      // 문단 중간에서 엔터를 누르면 커서 뒤 글자는 새 항목으로 넘긴다.
+      // 좌표로 자르면 안 된다 — caretOffset은 "보이는 글자" 기준인데 toSource는
+      // 마크다운([라벨](url))이라 링크가 있으면 위치가 어긋난다. DOM Range로
+      // 앞/뒤를 각각 toSource해 마크다운을 보존한 채 나눈다.
+      var sel = window.getSelection();
+      var before = toSource(el);
+      var after = '';
+      if (sel && sel.rangeCount) {
+        var r = sel.getRangeAt(0);
+        // 선택 영역이 있으면 그 부분은 버린다(잘라내기와 같은 통념)
+        var head = r.cloneRange();
+        head.selectNodeContents(el);
+        head.setEnd(r.startContainer, r.startOffset);
+        var tail = r.cloneRange();
+        tail.selectNodeContents(el);
+        tail.setStart(r.endContainer, r.endOffset);
+        var headEl = document.createElement('div');
+        headEl.appendChild(head.cloneContents());
+        var tailEl = document.createElement('div');
+        tailEl.appendChild(tail.cloneContents());
+        before = toSource(headEl);
+        after = toSource(tailEl);
+      }
+      post(M.change, {value: before, submit: true, rest: after});
       return;
     }
     if (e.key === 'Backspace') {

@@ -27,7 +27,11 @@ export interface RichEditorProps {
   /** 링크 태그를 눌렀을 때 — URL 편집 다이얼로그로 */
   onLinkTap?: (info: {url: string; label: string; start: number; end: number}) => void;
   /** 엔터 — 보통 "다음 행 추가" */
-  onSubmit?: () => void;
+  /**
+   * 엔터. rest = 커서 뒤에 있던 글자(문단 중간에서 눌렀을 때).
+   * 호출부는 이걸 새로 만드는 항목의 초기값으로 쓰면 된다.
+   */
+  onSubmit?: (rest?: string) => void;
   /** 맨 앞에서 백스페이스 — 보통 "이전 행과 병합" */
   onBackspaceAtStart?: () => void;
 }
@@ -132,7 +136,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
       case EDITOR_MSG.change:
         lastFromWebRef.current = payload.value;
         onChangeText(payload.value);
-        if (payload.submit) onSubmit?.();
+        if (payload.submit) onSubmit?.(payload.rest ?? '');
         if (payload.backspaceAtStart) onBackspaceAtStart?.();
         break;
       case EDITOR_MSG.focus: onFocus?.(); break;
