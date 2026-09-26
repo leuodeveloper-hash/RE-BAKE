@@ -6,7 +6,9 @@ import {translate, deviceLanguage} from '../i18n';
 
 const APP_GROUP = 'group.com.bakle.app';
 const WIDGET_NAME = 'BakleWidget';
-const PREFS_KEY = 'examNotificationPrefs';
+// 설정을 쓰는 쪽(useExamNotificationPrefs)과 반드시 같은 키여야 한다 —
+// 어긋나면 설정을 켜도 빈 값을 읽어 배너·위젯이 조용히 안 뜬다.
+const PREFS_KEY = '@bakle_exam_notif_prefs';
 
 const t = (key: string, params?: Record<string, string | number>) =>
   translate(deviceLanguage(), key, params);

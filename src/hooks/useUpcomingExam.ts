@@ -5,7 +5,9 @@ import {fetchExamSchedules} from '@utils/examSchedules';
 import {getExamTypes, toExamType, type ExamType} from '@constants/examTypes';
 import {useTranslation} from '@contexts/LanguageContext';
 
-const PREFS_KEY = 'examNotificationPrefs';
+// 설정을 쓰는 쪽(useExamNotificationPrefs)과 반드시 같은 키여야 한다 —
+// 어긋나면 설정을 켜도 빈 값을 읽어 배너·위젯이 조용히 안 뜬다.
+const PREFS_KEY = '@bakle_exam_notif_prefs';
 /** 이 일수 이내로 다가와야 배너를 띄운다 — 너무 멀면 홈이 늘 배너로 덮인다 */
 const SHOW_WITHIN_DAYS = 7;
 
