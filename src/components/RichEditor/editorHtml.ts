@@ -256,6 +256,17 @@ export function buildEditorHtml(theme: EditorTheme, placeholder: string, initial
         before = toSource(headEl);
         after = toSource(tailEl);
       }
+      // 알리는 것만으로는 화면이 안 바뀐다 — RN이 되돌려줄 value가 방금 보낸 before와
+      // 같아 setValue 가드에 걸려 씹히고, 그러면 커서 뒤 글자가 이 칸에 그대로 남는다.
+      // (웹 구현은 el을 직접 잘라 이 문제가 없다) → 여기서도 DOM을 같이 자른다.
+      if (sel && sel.rangeCount) {
+        var keep = sel.getRangeAt(0).cloneRange();
+        keep.selectNodeContents(el);
+        keep.setEnd(sel.getRangeAt(0).startContainer, sel.getRangeAt(0).startOffset);
+        var kept = keep.cloneContents();
+        el.innerHTML = '';
+        el.appendChild(kept);
+      }
       post(M.change, {value: before, submit: true, rest: after});
       return;
     }
