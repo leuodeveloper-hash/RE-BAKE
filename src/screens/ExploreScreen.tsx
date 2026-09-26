@@ -21,6 +21,7 @@ import {
   IconNoteFilled,
   IconTrashTwotone,
   IconArrowDownToLine,
+  IconBookFilled,
   IconUserFilled,
 } from '@components/Icon/IconIndex';
 import {getColorVarKey} from '@components/ColorPicker/ColorPicker';
@@ -220,12 +221,13 @@ export function ExploreScreen({
       }));
   }, [data, t]);
 
-  const handleMadeConfirm = useCallback((next: boolean) => {
+  const handleMadeConfirm = useCallback(() => {
     const target = madeSheetRecipe;
     if (!target) return;
-    setRecipeMade(target.id, next);
-    showSnackbar(t(next ? 'home.marked' : 'home.unmarked'));
-  }, [madeSheetRecipe, setRecipeMade, showSnackbar, t]);
+    setRecipeMade(target.id, true);
+    // 찍은 우표가 어디에 쌓이는지 바로 보여준다
+    router.push('/stamps' as any);
+  }, [madeSheetRecipe, setRecipeMade, router]);
 
   const handleCardMenuSelect = useCallback((id: string, recipe: Recipe) => {
     if (id === 'pin' || id === 'unpin') {
@@ -233,8 +235,13 @@ export function ExploreScreen({
       showSnackbar(t(id === 'pin' ? 'home.pinned' : 'home.unpinned'));
       return;
     }
-    if (id === 'made' || id === 'unmade') {
-      // 핀과 달리 바로 토글하지 않는다 — 확인을 시트에서 밀어서 받는다
+    if (id === 'unmade') {
+      // 해제는 확인이 필요 없다 — 바로 푼다
+      setRecipeMade(recipe.id, false);
+      showSnackbar(t('home.unmarked'));
+      return;
+    }
+    if (id === 'made') {
       setMadeSheetRecipe(recipe);
       return;
     }
@@ -427,16 +434,20 @@ export function ExploreScreen({
           rightMenu={
             <>
               {layoutMenu}
-              {onDownloadPdf ? (
-                <Menu
-                  items={[{id: 'downloadPdf', label: t('explore.downloadPdf'), icon: IconArrowDownToLine}]}
-                  visible={showFlatMoreMenu}
-                  onSelect={(id) => {
-                    setShowFlatMoreMenu(false);
-                    if (id === 'downloadPdf') onDownloadPdf();
-                  }}
-                />
-              ) : null}
+              <Menu
+                items={[
+                  {id: 'stamps', label: t('stamps.title'), icon: IconBookFilled},
+                  ...(onDownloadPdf
+                    ? [{id: 'downloadPdf', label: t('explore.downloadPdf'), icon: IconArrowDownToLine}]
+                    : []),
+                ]}
+                visible={showFlatMoreMenu}
+                onSelect={(id) => {
+                  setShowFlatMoreMenu(false);
+                  if (id === 'stamps') router.push('/stamps' as any);
+                  else if (id === 'downloadPdf') onDownloadPdf?.();
+                }}
+              />
             </>
           }
         />
@@ -495,8 +506,7 @@ export function ExploreScreen({
     <MadeConfirmSheet
       visible={!!madeSheetRecipe}
       onClose={() => setMadeSheetRecipe(null)}
-      recipeTitle={madeSheetRecipe?.title}
-      isMade={!!madeSheetRecipe && isMade(madeSheetRecipe.id)}
+      imageUri={madeSheetRecipe?.imageUri}
       onConfirm={handleMadeConfirm}
     />
 

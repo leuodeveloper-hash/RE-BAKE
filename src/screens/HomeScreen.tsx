@@ -36,11 +36,13 @@ import {
   IconArrowDownToLine,
   IconCloudFilled,
   IconClockFilled,
+  IconBookFilled,
   IconClose,
 } from '@components/Icon/IconIndex';
 
 
 const makeMoreMenuItems = (t: (key: string) => string) => [
+  {id: 'stamps', label: t('stamps.title'), icon: IconBookFilled},
   {id: 'downloadAll', label: t('home.downloadPdf'), icon: IconArrowDownToLine},
   {id: 'deleteAll', label: t('home.deleteAll'), icon: IconTrash, destructive: true},
 ];
@@ -232,6 +234,10 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   }, [visibleRecipes, selectedCookbook, selectedMethod, t]);
 
   const handleMoreMenuSelect = (id: string) => {
+    if (id === 'stamps') {
+      router.push('/stamps' as any);
+      return;
+    }
     setShowMoreMenu(false);
     if (id === 'downloadAll') {
       const pdfData = recipes.map(r => ({
@@ -264,14 +270,14 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
     });
   }, [recipes, setRecipes, showSnackbar, t]);
 
-  const handleMadeConfirm = useCallback((made: boolean) => {
+  const handleMadeConfirm = useCallback(() => {
     const target = madeSheetRecipe;
     if (!target) return;
     // 핀과 같은 이유로 불린이 아니라 시각을 남긴다
-    const madeAt = made ? new Date().toISOString() : undefined;
-    setRecipes(prev => prev.map(r => (r.id === target.id ? {...r, madeAt} : r)));
-    showSnackbar(t(made ? 'home.marked' : 'home.unmarked'));
-  }, [madeSheetRecipe, setRecipes, showSnackbar, t]);
+    setRecipes(prev => prev.map(r => (r.id === target.id ? {...r, madeAt: new Date().toISOString()} : r)));
+    // 찍은 우표가 어디에 쌓이는지 바로 보여준다
+    router.push('/stamps' as any);
+  }, [madeSheetRecipe, setRecipes, router]);
 
   const handleCardMenuSelect = useCallback((id: string, recipe: Recipe): void => {
     if (id === 'pin' || id === 'unpin') {
@@ -281,8 +287,14 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
       showSnackbar(t(id === 'pin' ? 'home.pinned' : 'home.unpinned'));
       return;
     }
-    if (id === 'made' || id === 'unmade') {
-      // 핀과 달리 바로 토글하지 않는다 — "실제로 만들었다"는 확인을 시트에서 밀어서 받는다
+    if (id === 'unmade') {
+      // 해제는 확인이 필요 없다 — 되돌리기 쉬운 동작이라 바로 푼다
+      setRecipes(prev => prev.map(r => (r.id === recipe.id ? {...r, madeAt: undefined} : r)));
+      showSnackbar(t('home.unmarked'));
+      return;
+    }
+    if (id === 'made') {
+      // 찍을 때만 확인 — 시트에서 밀어야 우표가 된다
       setMadeSheetRecipe(recipe);
       return;
     }
@@ -663,8 +675,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
       <MadeConfirmSheet
         visible={!!madeSheetRecipe}
         onClose={() => setMadeSheetRecipe(null)}
-        recipeTitle={madeSheetRecipe?.title}
-        isMade={!!madeSheetRecipe?.madeAt}
+        imageUri={madeSheetRecipe?.imageUri}
         onConfirm={handleMadeConfirm}
       />
 

@@ -64,6 +64,7 @@ export default function ProfileRoute() {
         onUpdateDisplayName={updateDisplayName}
         onTermsPress={() => router.push('/terms')}
         onPrivacyPress={() => router.push('/privacy')}
+        onStampsPress={() => router.push('/stamps' as any)}
         onLabsPress={() => router.push('/labs' as any)}
         onWidgetPreviewPress={() => router.push('/widget-preview' as any)}
         onSubmissionsPress={() => router.push('/admin/submissions' as any)}

@@ -519,14 +519,15 @@ const handleDelete = useCallback(async () => {
   }, [recipe, user, handle, displayName, avatarSeed, showSnackbar, t]);
 
   // "만들었어요"는 개인 기록 — 내 레시피는 레시피 자체(madeAt)에, 둘러보기는 계정에 따로 보관한다
-  const handleMadeChange = useCallback((made: boolean) => {
+  const handleMadeChange = useCallback(() => {
     if (isMyRecipe) {
-      setRecipes(prev => prev.map(r => (r.id === id ? {...r, madeAt: made ? new Date().toISOString() : undefined} : r)));
+      setRecipes(prev => prev.map(r => (r.id === id ? {...r, madeAt: new Date().toISOString()} : r)));
     } else {
-      setRecipeMade(id, made);
+      setRecipeMade(id, true);
     }
-    showSnackbar(t(made ? 'home.marked' : 'home.unmarked'));
-  }, [isMyRecipe, id, setRecipes, setRecipeMade, showSnackbar, t]);
+    // 찍은 우표가 어디에 쌓이는지 바로 보여준다
+    router.push('/stamps' as any);
+  }, [isMyRecipe, id, setRecipes, setRecipeMade, router]);
 
   if (!recipe) return null;
 

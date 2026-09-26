@@ -150,10 +150,12 @@ export interface CookingModeProps {
   advicePhotos?: string[];
   /** 참고 링크 (YouTube면 PiP 플레이어로 재생) */
   referenceUrl?: string;
-  /** 이미 "만들었어요"로 표시된 레시피인지 — 마지막 카드 확인 시트의 상태 */
+  /** 이미 "만들었어요"로 표시된 레시피인지 — 이미 찍었으면 시트를 띄우지 않는다 */
   isMade?: boolean;
-  /** 마지막 카드까지 오면 "만들었어요" 확인 시트를 띄우고, 밀어서 확정하면 호출 */
-  onMadeChange?: (made: boolean) => void;
+  /** 레시피 대표 이미지 — 확인 시트의 우표 미리보기에 쓴다 */
+  imageUri?: string;
+  /** 마지막 카드까지 오면 확인 시트를 띄우고, 밀어서 확정하면 호출 */
+  onMadeChange?: () => void;
 }
 
 
@@ -246,6 +248,7 @@ export function CookingMode({
   advice,
   advicePhotos,
   isMade = false,
+  imageUri,
   onMadeChange,
   referenceUrl,
 }: CookingModeProps) {
@@ -423,13 +426,13 @@ export function CookingMode({
   // 마지막 카드까지 오면 "만들었어요" 확인 시트를 한 번 띄운다.
   // (핸들러가 아니라 effect인 이유: 인덱스가 스와이프·눈금 탭·◀▶ 등 여러 경로로 바뀐다)
   useEffect(() => {
-    if (!visible || isEditing || !onMadeChange) return;
+    if (!visible || isEditing || !onMadeChange || isMade) return;
     const last = displayCards.length - 1;
     if (last >= 0 && currentIndex >= last && !madePromptedRef.current) {
       madePromptedRef.current = true;
       setShowMadeSheet(true);
     }
-  }, [visible, isEditing, currentIndex, displayCards.length, onMadeChange]);
+  }, [visible, isEditing, currentIndex, displayCards.length, onMadeChange, isMade]);
 
 
   // 좁은 화면(폰): 세로 배치라 한 스텝이 정확히 한 판(화면 폭) → 한 판씩 이동
@@ -2181,9 +2184,8 @@ export function CookingMode({
       <MadeConfirmSheet
         visible={showMadeSheet}
         onClose={() => setShowMadeSheet(false)}
-        recipeTitle={title}
-        isMade={isMade}
-        onConfirm={(made) => onMadeChange?.(made)}
+        imageUri={imageUri}
+        onConfirm={() => onMadeChange?.()}
       />
     </BottomSheet>
   );

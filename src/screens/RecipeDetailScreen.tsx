@@ -212,7 +212,7 @@ export interface RecipeDetailScreenProps {
   /** 이미 "만들었어요"로 표시된 레시피인지 */
   isMade?: boolean;
   /** 요리모드 마지막 카드 확인 시트에서 밀어서 확정 */
-  onMadeChange?: (made: boolean) => void;
+  onMadeChange?: () => void;
   /** 원본 출처 URL — 외부 사이트(만개의레시피 등)에서 가져온 경우 */
   sourceUrl?: string;
   /** 둘러보기에서 복사한 경우 원본 작성자 핸들 (from @핸들 표시) */
@@ -1457,6 +1457,7 @@ export function RecipeDetailScreen({
         advicePhotos={advicePhotos}
         referenceUrl={referenceUrl}
         isMade={isMade}
+        imageUri={imageUri}
         onMadeChange={onMadeChange}
       />
 

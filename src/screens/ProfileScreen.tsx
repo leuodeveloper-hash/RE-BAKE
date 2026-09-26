@@ -33,6 +33,7 @@ import {
   IconImport,
   IconExport,
   IconChevronRight,
+  IconBookFilled,
   IconExprolerBookFilled,
   IconPaletteFilled,
   IconLogout,
@@ -70,6 +71,8 @@ export interface ProfileScreenProps {
   onUpdateDisplayName?: (newDisplayName: string) => Promise<void>;
   onTermsPress: () => void;
   onPrivacyPress: () => void;
+  /** 우표첩(내 기록) 진입 */
+  onStampsPress?: () => void;
   /** Labs(디버그) 화면 진입 */
   onLabsPress?: () => void;
   onWidgetPreviewPress?: () => void;
@@ -165,6 +168,7 @@ export function ProfileScreen({
   onTermsPress,
   onPrivacyPress,
   onLabsPress,
+  onStampsPress,
   onWidgetPreviewPress,
   onSubmissionsPress,
   onExamNotifPress,
@@ -422,6 +426,22 @@ export function ProfileScreen({
               </>
             )}
           </ContentContainer>
+
+          {/* 내 기록 섹션 — 만든 요리가 우표로 쌓인다 */}
+          {onStampsPress && (
+          <ContentContainer style={styles.section}>
+            <SectionHeader title={t('profile.myRecords')} />
+            <Card>
+              <ListItem
+                title={t('stamps.title')}
+                leading={{type: 'icon', icon: IconBookFilled}}
+                trailing={{type: 'icon', icon: IconChevronRight}}
+                showDivider={false}
+                onPress={onStampsPress}
+              />
+            </Card>
+          </ContentContainer>
+          )}
 
           {/* 데이터 관리 섹션 */}
           <ContentContainer style={styles.section}>
