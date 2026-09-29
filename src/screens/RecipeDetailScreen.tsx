@@ -277,10 +277,9 @@ function flourTotal(groups: IngredientGroupInput[]): number {
 function computeBakersPercentages(
   groups: IngredientGroupInput[],
 ): {title: string; ingredients: {percentage: string; name: string; amount: string}[]}[] {
-  // 밀가루가 하나도 없으면(디저트 등) 예전처럼 첫 재료를 기준으로 둔다 —
-  // 비율을 아예 안 보여주는 것보다는 낫다.
-  const baseAmount = flourTotal(groups)
-    || parseAmountGrams(groups[0]?.ingredients[0]?.amount ?? '0');
+  // 밀가루가 없으면 애초에 표시하지 않는다(hasFlour) — 밀가루 없는 배합에
+  // 임의 재료를 100%로 잡아 봐야 의미 없는 숫자다.
+  const baseAmount = flourTotal(groups);
 
   return groups.map(group => ({
     title: group.title,
