@@ -13,6 +13,8 @@ import * as Notifications from 'expo-notifications';
 import {BlurView} from 'expo-blur';
 import {ThemeProvider, useTheme, useColors} from '@contexts/ThemeContext';
 import {RecipeProvider} from '@contexts/RecipeContext';
+import {MadeStampsProvider} from '@hooks/useMadeStamps';
+import {RecipeReviewsProvider} from '@hooks/useRecipeReviews';
 import {SnackbarProvider, useSnackbar} from '@contexts/SnackbarContext';
 import {AddSheetProvider, useAddSheet} from '@contexts/AddSheetContext';
 import {AuthProvider, useAuth} from '@contexts/AuthContext';
@@ -736,6 +738,10 @@ export default function RootLayout() {
         <SnackbarProvider>
           <RecipeProvider>
             <ExploreRecipeProvider>
+            {/* 스탬프·회고는 여러 화면이 같이 본다 — 화면마다 훅을 부르면 각자
+                상태를 들어 한쪽에서 바꿔도 다른 쪽이 안 따라온다 */}
+            <MadeStampsProvider>
+            <RecipeReviewsProvider>
             <AddSheetProvider>
               <PlanSheetProvider>
                 <AuthSheetProvider>
@@ -753,6 +759,8 @@ export default function RootLayout() {
                 </AuthSheetProvider>
               </PlanSheetProvider>
             </AddSheetProvider>
+            </RecipeReviewsProvider>
+            </MadeStampsProvider>
             </ExploreRecipeProvider>
           </RecipeProvider>
         </SnackbarProvider>

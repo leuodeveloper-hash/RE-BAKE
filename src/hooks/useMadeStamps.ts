@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState} from 'react';
+import React, {createContext, useCallback, useContext, useEffect, useMemo, useRef, useState} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {doc, getDoc, setDoc} from 'firebase/firestore';
 import {db} from '@config/firebase';
@@ -22,7 +22,7 @@ function isStampMap(v: unknown): v is MadeStamps {
  *
  * 내 레시피의 Recipe.madeAt은 그대로 읽는다 — 옛 기록이 사라지면 안 된다.
  */
-export function useMadeStamps() {
+function useMadeStampsState() {
   const {user} = useAuth();
   const [stamps, setStamps] = useState<MadeStamps>({});
   const [loaded, setLoaded] = useState(false);
@@ -86,4 +86,26 @@ export function useMadeStamps() {
   );
 
   return {stamps, setMade, madeAtOf, loaded};
+}
+
+/**
+ * 스탬프는 화면 하나가 아니라 앱 전체가 같이 본다.
+ *
+ * 훅을 화면마다 부르면 각자 useState를 들어, 상세에서 해제해도 홈·스탬프북은
+ * 자기 상태를 그대로 들고 있다(저장은 되는데 화면이 안 따라온다 — 새로고침해야
+ * 반영되던 이유). Context로 한 벌만 두고 나눠 쓴다.
+ */
+type MadeStampsValue = ReturnType<typeof useMadeStampsState>;
+
+const MadeStampsContext = createContext<MadeStampsValue | null>(null);
+
+export function MadeStampsProvider({children}: {children: React.ReactNode}) {
+  const value = useMadeStampsState();
+  return React.createElement(MadeStampsContext.Provider, {value}, children);
+}
+
+export function useMadeStamps(): MadeStampsValue {
+  const ctx = useContext(MadeStampsContext);
+  if (!ctx) throw new Error('useMadeStamps must be used within MadeStampsProvider');
+  return ctx;
 }

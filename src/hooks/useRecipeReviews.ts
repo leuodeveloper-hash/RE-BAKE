@@ -1,4 +1,4 @@
-import {useCallback, useEffect, useRef, useState} from 'react';
+import React, {createContext, useCallback, useContext, useEffect, useRef, useState} from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {doc, getDoc, setDoc} from 'firebase/firestore';
 import {db} from '@config/firebase';
@@ -24,7 +24,7 @@ function isReviewMap(v: unknown): v is RecipeReviews {
  * 저장은 계정(users/{uid}.recipeReviews)이라 기기를 바꿔도 유지된다.
  * AsyncStorage는 그 캐시.
  */
-export function useRecipeReviews() {
+function useRecipeReviewsState() {
   const {user} = useAuth();
   const [reviews, setReviews] = useState<RecipeReviews>({});
   const [loaded, setLoaded] = useState(false);
@@ -95,4 +95,23 @@ export function useRecipeReviews() {
   }, [reviews]);
 
   return {reviews, saveReview, reviewOf, reviewsOf, loaded};
+}
+
+/**
+ * 회고도 스탬프와 같은 이유로 한 벌만 둔다([[useMadeStamps]] 참고) —
+ * 화면마다 훅을 부르면 상세에서 쓴 회고가 회고 노트에 안 보인다.
+ */
+type RecipeReviewsValue = ReturnType<typeof useRecipeReviewsState>;
+
+const RecipeReviewsContext = createContext<RecipeReviewsValue | null>(null);
+
+export function RecipeReviewsProvider({children}: {children: React.ReactNode}) {
+  const value = useRecipeReviewsState();
+  return React.createElement(RecipeReviewsContext.Provider, {value}, children);
+}
+
+export function useRecipeReviews(): RecipeReviewsValue {
+  const ctx = useContext(RecipeReviewsContext);
+  if (!ctx) throw new Error('useRecipeReviews must be used within RecipeReviewsProvider');
+  return ctx;
 }
