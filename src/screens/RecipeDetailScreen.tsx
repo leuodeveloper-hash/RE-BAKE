@@ -213,8 +213,8 @@ export interface RecipeDetailScreenProps {
   isMade?: boolean;
   /** 이번에 찍힐 우표 순번 */
   stampIndex?: number;
-  /** 요리모드 마지막 카드 확인 시트에서 밀어서 확정 */
-  onMadeChange?: () => void;
+  /** 스탬프를 찍거나(true) 해제(false) — 요리모드 확인 시트와 오버플로우 메뉴가 함께 쓴다 */
+  onMadeChange?: (made: boolean) => void;
   /** 원본 출처 URL — 외부 사이트(만개의레시피 등)에서 가져온 경우 */
   sourceUrl?: string;
   /** 둘러보기에서 복사한 경우 원본 작성자 핸들 (from @핸들 표시) */
@@ -601,6 +601,9 @@ export function RecipeDetailScreen({
       t,
       session,
       showImport: !!onImport,
+      // 목록 오버플로우와 같은 항목 — 상세에서도 찍고 해제할 수 있어야 한다
+      showMade: !!onMadeChange,
+      isMade,
       showRemake: !!onRemake,
       showEdit: !!onEdit,
       showDelete: !!onDelete,
@@ -650,6 +653,10 @@ export function RecipeDetailScreen({
     }
     setShowMenu(false);
     setShowCookbookSubmenu(false);
+    if (id === 'made' || id === 'unmade') {
+      onMadeChange?.(id === 'made');
+      return;
+    }
     if (id === 'compareDiff') {
       setShowDiff(prev => !prev);
     } else if (id === 'save') {
@@ -1465,7 +1472,7 @@ export function RecipeDetailScreen({
         isMade={isMade}
         imageUri={imageUri}
         stampIndex={stampIndex}
-        onMadeChange={onMadeChange}
+        onMadeChange={() => onMadeChange?.(true)}
       />
 
       {/* 회차 슬라이더: 하단 탭바 자리에서 좌우 슬라이드/스냅으로 회차 전환.

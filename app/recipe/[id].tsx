@@ -520,8 +520,14 @@ const handleDelete = useCallback(async () => {
 
   // 스탬프는 내 레시피에만 찍힌다 — 둘러보기 레시피는 가져와야 요리할 수 있고,
   // 가져오면 sourceId로 원본 칸이 채워진다(스탬프북이 그렇게 센다).
-  const handleMadeChange = useCallback(() => {
+  const handleMadeChange = useCallback((made: boolean) => {
     if (!isMyRecipe) return;
+    if (!made) {
+      // 해제는 확인도 이동도 없다 — 되돌리기 쉬운 동작이다
+      setRecipes(prev => prev.map(r => (r.id === id ? {...r, madeAt: undefined} : r)));
+      showSnackbar(t('home.unmarked'));
+      return;
+    }
     // 스탬프는 계정에 쌓이는 기록이라 로그인이 필요하다 —
     // 게스트로 모아두면 기기를 바꿀 때 통째로 사라진다
     if (!user) {
@@ -531,7 +537,7 @@ const handleDelete = useCallback(async () => {
     setRecipes(prev => prev.map(r => (r.id === id ? {...r, madeAt: new Date().toISOString()} : r)));
     // 찍은 스탬프가 어디에 쌓이는지 바로 보여준다(방금 것을 강조하도록 id를 넘긴다)
     router.push(`/stamps?just=${encodeURIComponent(id)}` as any);
-  }, [isMyRecipe, id, setRecipes, router, user, openAuthSheet]);
+  }, [isMyRecipe, id, setRecipes, router, user, openAuthSheet, showSnackbar, t]);
 
   if (!recipe) return null;
 
