@@ -8,3 +8,4 @@ export const CONTACT_EMAIL = 'hk3522@gmail.com';
 
 /** 메일 앱으로 여는 URL (제목 미리 채움) */
 export const CONTACT_URL = `mailto:${CONTACT_EMAIL}?subject=${encodeURIComponent('[베이클] 문의')}`;
+

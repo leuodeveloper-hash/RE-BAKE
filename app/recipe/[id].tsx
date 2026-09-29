@@ -4,6 +4,7 @@ import {useLocalSearchParams, useRouter} from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {doc, updateDoc, setDoc, deleteField} from 'firebase/firestore';
 import {RecipeDetailScreen} from '@screens/RecipeDetailScreen';
+import {sendRecipeFeedback, type FeedbackKind} from '@utils/recipeFeedback';
 import {useMadeCount} from '@hooks/useMadeCount';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
@@ -553,6 +554,25 @@ const handleDelete = useCallback(async () => {
   // 내 목록에 있으면 복사본이어도 편집 가능(원본 출처는 sourceId 등으로 계속 표시된다).
   // 기존엔 복사본을 막아 탭·롱프레스가 아무 반응 없이 먹통이었다.
   const isMade = isMyRecipe && !!recipe.madeAt;
+  // 의견은 공식(둘러보기) 레시피에만 — 내 레시피는 직접 고치면 된다
+  const handleFeedback = useCallback(async (kind: string, message: string) => {
+    if (!recipe) return;
+    try {
+      await sendRecipeFeedback({
+        recipeId: recipe.id,
+        recipeTitle: recipe.title,
+        kind: kind as FeedbackKind,
+        message,
+        uid: user?.uid,
+        handle: handle ?? undefined,
+      });
+      showSnackbar(t('feedback.sent'));
+    } catch (e) {
+      console.warn('[feedback] 저장 실패:', e);
+      showSnackbar(t('feedback.failed'));
+    }
+  }, [recipe, user?.uid, handle, showSnackbar, t]);
+
   const canEdit = isMyRecipe || (isExploreRecipe && isAdmin);
   const canDelete = isMyRecipe || (isExploreRecipe && isAdmin);
 
@@ -588,6 +608,7 @@ const handleDelete = useCallback(async () => {
         isMade={isMade}
         stampIndex={madeCount}
         onMadeChange={handleMadeChange}
+        onFeedback={isExploreRecipe ? handleFeedback : undefined}
         onBack={handleBack}
         onComingSoon={handleComingSoon}
         onEdit={canEdit ? handleEdit : undefined}

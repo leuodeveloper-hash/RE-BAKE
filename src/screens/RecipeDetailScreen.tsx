@@ -38,7 +38,7 @@ import {ReviewLogSheet} from '@components/BottomSheet';
 import {Thumbnail} from '@components/Thumbnail';
 import {StepPhotos} from '@components/StepPhotos';
 import {PhotoViewer} from '@components/PhotoViewer';
-import {MadeConfirmSheet} from '@components/BottomSheet';
+import {MadeConfirmSheet, RecipeFeedbackSheet} from '@components/BottomSheet';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {normalizeStepPhotos} from '@utils/stepPhotos';
 import type {StepPhoto} from '../types/recipe';
@@ -216,6 +216,8 @@ export interface RecipeDetailScreenProps {
   stampIndex?: number;
   /** 스탬프를 찍거나(true) 해제(false) — 요리모드 확인 시트와 오버플로우 메뉴가 함께 쓴다 */
   onMadeChange?: (made: boolean) => void;
+  /** 이 레시피에 의견 보내기 — 주면 메뉴에 항목이 생긴다 */
+  onFeedback?: (kind: string, message: string) => void;
   /** 원본 출처 URL — 외부 사이트(만개의레시피 등)에서 가져온 경우 */
   sourceUrl?: string;
   /** 둘러보기에서 복사한 경우 원본 작성자 핸들 (from @핸들 표시) */
@@ -386,6 +388,7 @@ export function RecipeDetailScreen({
   isMade,
   stampIndex,
   onMadeChange,
+  onFeedback,
   sourceUrl,
   sourceHandle,
   onSourcePress,
@@ -441,6 +444,7 @@ export function RecipeDetailScreen({
   const [showServingsDialog, setShowServingsDialog] = useState(false);
   // 메뉴에서 "만들었어요"를 누르면 뜨는 확인 시트(목록과 같은 흐름)
   const [showMadeSheet, setShowMadeSheet] = useState(false);
+  const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
   const [showCookingMode, setShowCookingMode] = useState(initialCookingMode ?? false);
   const [cookingModeInitialIndex, setCookingModeInitialIndex] = useState(0);
   const [cookingModeShowIngredients, setCookingModeShowIngredients] = useState(false);
@@ -614,6 +618,7 @@ export function RecipeDetailScreen({
       showCopyToExplore: !!onCopyToExplore,
       showSubmitToExplore: !!onSubmitToExplore,
       showShare: !!onShare,
+      showFeedback: !!onFeedback,
     });
     if (compareBaseline) {
       items.unshift({
@@ -624,7 +629,7 @@ export function RecipeDetailScreen({
     }
     return items;
   },
-  [onImport, onRemake, onEdit, onDelete, onCookbookChange, onCopyToExplore, onSubmitToExplore, onShare, onMadeChange, isMade, session, compareBaseline, showDiff, t]);
+  [onImport, onRemake, onEdit, onDelete, onCookbookChange, onCopyToExplore, onSubmitToExplore, onShare, onFeedback, onMadeChange, isMade, session, compareBaseline, showDiff, t]);
 
   const cookbookSubmenu = useMemo(() => {
     if (!onCookbookChange || !availableCookbooks) return null;
@@ -656,6 +661,10 @@ export function RecipeDetailScreen({
     }
     setShowMenu(false);
     setShowCookbookSubmenu(false);
+    if (id === 'feedback') {
+      setShowFeedbackSheet(true);
+      return;
+    }
     if (id === 'made') {
       // 찍을 때만 확인 — 시트에서 밀어야 스탬프가 된다(목록과 같다)
       setShowMadeSheet(true);
@@ -1458,6 +1467,13 @@ export function RecipeDetailScreen({
         onDownload={onDownloadPhoto && viewerIndex !== null
           ? () => onDownloadPhoto(viewerPhotos[viewerIndex]?.uri ?? '')
           : undefined}
+      />
+
+      <RecipeFeedbackSheet
+        visible={showFeedbackSheet}
+        onClose={() => setShowFeedbackSheet(false)}
+        recipeTitle={title}
+        onSubmit={(kind, message) => onFeedback?.(kind, message)}
       />
 
       <MadeConfirmSheet

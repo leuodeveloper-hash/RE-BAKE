@@ -57,6 +57,13 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
+    // recipe_feedback: 로그인 사용자가 남기고, 읽기·수정은 어드민만.
+    // 남이 쓴 의견을 서로 볼 이유가 없다(신고·지적이 섞인다).
+    match /recipe_feedback/{docId} {
+      allow create: if request.auth != null;
+      allow read, update, delete: if isAdmin();
+    }
+
     // exam_schedules: 누구나 읽기(공개 시험일정), 쓰기는 어드민만
     match /exam_schedules/{docId} {
       allow read: if true;

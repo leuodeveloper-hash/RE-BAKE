@@ -9,6 +9,7 @@ import {
   IconBookFilled,
   IconExprolerBookFilled,
   IconShare,
+  IconMailFilled,
   IconPin,
   IconPinFilled,
   IconCircleCheck,
@@ -38,6 +39,8 @@ interface RecipeMenuOptions {
   /** 유저: 둘러보기에 공개 신청 (어드민 승인 필요) */
   showSubmitToExplore?: boolean;
   showShare?: boolean;
+  /** 이 레시피에 대한 의견 보내기(메일) */
+  showFeedback?: boolean;
   /** 전체 PDF 다운로드 (단일 download 대신, 리스트 화면용) */
   showDownloadAll?: boolean;
   /** 전체 삭제 (리스트 화면용). false면 아예 숨김 */
@@ -69,6 +72,7 @@ export function getRecipeMenuItems(options: RecipeMenuOptions): MenuItemData[] {
   if (options.showCopyToExplore) items.push({id: 'copyToExplore', label: t('recipeMenuItems.copyToExplore'), icon: IconExprolerBookFilled});
   if (options.showSubmitToExplore) items.push({id: 'submitToExplore', label: t('recipeMenuItems.submitToExplore'), icon: IconExprolerBookFilled});
   if (options.showShare) items.push({id: 'share', label: t('recipeMenuItems.share'), icon: IconShare});
+  if (options.showFeedback) items.push({id: 'feedback', label: t('recipeMenuItems.feedback'), icon: IconMailFilled});
   if (options.showDownloadAll) items.push({id: 'downloadAll', label: t('recipeMenuItems.downloadPdf'), icon: IconArrowDownToLine});
   if (options.showDownload !== false && !options.showDownloadAll) {
     items.push({id: 'download', label: t('recipeMenuItems.downloadPdf'), icon: IconArrowDownToLine});
