@@ -30,6 +30,7 @@ import {generateRecipeListHtml, generateRecipeHtml} from '@utils/generateRecipeH
 import {parseSession, formatSession} from '@utils/session';
 import {getRecipeMenuItems} from '@utils/recipeMenuItems';
 import {useMadeCount} from '@hooks/useMadeCount';
+import {useRecipeReviews} from '@hooks/useRecipeReviews';
 import {CookbookSelectSheet, MadeConfirmSheet} from '@components/BottomSheet';
 import {
   IconTrash,
@@ -151,6 +152,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   const [cookbookSheetRecipe, setCookbookSheetRecipe] = useState<Recipe | null>(null);
   const [madeSheetRecipe, setMadeSheetRecipe] = useState<Recipe | null>(null);
   const madeCount = useMadeCount();
+  const {saveReview} = useRecipeReviews();
   const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
 
   // 홈 타이틀 드롭다운 = 그룹화 축 선택 (공통 모듈, 전체/레시피북/공법/회고)
@@ -695,6 +697,10 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
         imageUri={madeSheetRecipe?.imageUri}
         stampIndex={madeCount}
         onConfirm={handleMadeConfirm}
+        // 찍은 김에 바로 회고까지 — 계정에 보관해 공식 레시피에도 남길 수 있다
+        onSaveReview={(review) => {
+          if (madeSheetRecipe) saveReview(madeSheetRecipe.id, review);
+        }}
       />
 
       {/* 레시피 북 선택 바텀시트 */}

@@ -218,6 +218,8 @@ export interface RecipeDetailScreenProps {
   onMadeChange?: (made: boolean) => void;
   /** 이 레시피에 의견 보내기 — 주면 메뉴에 항목이 생긴다 */
   onFeedback?: (kind: string, message: string) => void;
+  /** 스탬프를 찍은 뒤 이어서 남기는 회고 */
+  onSaveReview?: (review: {evaluation: string; improvement: string}) => void;
   /** 원본 출처 URL — 외부 사이트(만개의레시피 등)에서 가져온 경우 */
   sourceUrl?: string;
   /** 둘러보기에서 복사한 경우 원본 작성자 핸들 (from @핸들 표시) */
@@ -389,6 +391,7 @@ export function RecipeDetailScreen({
   stampIndex,
   onMadeChange,
   onFeedback,
+  onSaveReview,
   sourceUrl,
   sourceHandle,
   onSourcePress,
@@ -1482,6 +1485,7 @@ export function RecipeDetailScreen({
         imageUri={imageUri}
         stampIndex={stampIndex}
         onConfirm={() => onMadeChange?.(true)}
+        onSaveReview={onSaveReview}
       />
 
       <CookingMode

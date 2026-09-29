@@ -6,6 +6,7 @@ import {doc, updateDoc, setDoc, deleteField} from 'firebase/firestore';
 import {RecipeDetailScreen} from '@screens/RecipeDetailScreen';
 import {sendRecipeFeedback, type FeedbackKind} from '@utils/recipeFeedback';
 import {useMadeCount} from '@hooks/useMadeCount';
+import {useRecipeReviews} from '@hooks/useRecipeReviews';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useAddSheet} from '@contexts/AddSheetContext';
@@ -103,6 +104,7 @@ export default function RecipeDetailRoute() {
   }, [recipe, id, findRecipeById, exploreRecipes, router]);
 
   const madeCount = useMadeCount();
+  const {saveReview} = useRecipeReviews();
   const isMyRecipe = recipes.some(r => r.id === id);
   const isExploreRecipe = !isMyRecipe && exploreRecipes.some(r => r.id === id);
   const alreadyImported = recipes.some(r => r.sourceId === id);
@@ -609,6 +611,7 @@ const handleDelete = useCallback(async () => {
         stampIndex={madeCount}
         onMadeChange={handleMadeChange}
         onFeedback={isExploreRecipe ? handleFeedback : undefined}
+        onSaveReview={(review) => saveReview(id, review)}
         onBack={handleBack}
         onComingSoon={handleComingSoon}
         onEdit={canEdit ? handleEdit : undefined}
