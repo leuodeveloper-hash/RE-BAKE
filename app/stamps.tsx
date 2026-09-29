@@ -1,5 +1,5 @@
 import React, {useCallback, useMemo, useState} from 'react';
-import {Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
+import {Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import {AppBar} from '@components/Navigation';
@@ -21,8 +21,11 @@ import {IconClose, IconFilter, IconBookFilled, IconClockFilled, IconChevronRight
 import {parseSession} from '@utils/session';
 import type {Recipe} from '../src/types/recipe';
 
-/** 한 줄에 놓을 칸 수 */
-const COLUMNS = 6;
+/**
+ * 한 줄에 놓을 칸 수.
+ * 웹은 좌우가 넓어 6칸이면 스탬프가 과하게 커진다 → 8칸으로 촘촘히.
+ */
+const COLUMNS = Platform.OS === 'web' ? 8 : 6;
 const GRID_GAP = Spacing.sm;
 
 /**
