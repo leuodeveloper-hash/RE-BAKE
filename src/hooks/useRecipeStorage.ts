@@ -158,6 +158,30 @@ function stripUndefined(obj: any): any {
   return obj;
 }
 
+/**
+ * Firestore가 거부하는 값을 찾아 경로를 돌려준다(없으면 null).
+ * 중첩 배열(배열 안 배열)과 NaN/Infinity, 함수가 대표적이다.
+ */
+function findUnsupported(v: any, path = '', inArray = false): string | null {
+  if (Array.isArray(v)) {
+    if (inArray) return `${path} — 배열 안에 배열이 있습니다`;
+    for (let i = 0; i < v.length; i++) {
+      const r = findUnsupported(v[i], `${path}[${i}]`, true);
+      if (r) return r;
+    }
+    return null;
+  }
+  if (typeof v === 'number' && !Number.isFinite(v)) return `${path} — 숫자가 NaN/Infinity 입니다`;
+  if (typeof v === 'function') return `${path} — 함수가 들어 있습니다`;
+  if (v && typeof v === 'object') {
+    for (const [k, val] of Object.entries(v)) {
+      const r = findUnsupported(val, path ? `${path}.${k}` : k, false);
+      if (r) return r;
+    }
+  }
+  return null;
+}
+
 /** Firestore에 레시피 배열을 동기화 (batch write) */
 async function syncToFirestore(uid: string, recipes: Recipe[]) {
   const colRef = collection(db, 'user_recipes', uid, 'recipes');
@@ -169,6 +193,12 @@ async function syncToFirestore(uid: string, recipes: Recipe[]) {
     const size = JSON.stringify(data).length;
     if (size > 900_000) {
       throw Object.assign(new Error(`"${recipe.title}"이(가) 너무 큽니다(${Math.round(size / 1024)}KB). 사진을 줄여주세요.`), {code: 'too-large'});
+    }
+    // Firestore가 못 받는 값을 미리 찾는다 — 중첩 배열, NaN, 함수 등.
+    // batch는 하나만 어긋나도 전체가 invalid-argument로 죽어 원인을 알 수 없다.
+    const bad = findUnsupported(data);
+    if (bad) {
+      throw Object.assign(new Error(`"${recipe.title}"의 ${bad}`), {code: 'bad-field'});
     }
     batch.set(doc(colRef, recipe.id), data);
   }
