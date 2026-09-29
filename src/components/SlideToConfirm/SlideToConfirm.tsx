@@ -133,7 +133,7 @@ export function SlideToConfirm({
           icon={isDone ? IconCircleCheck : IconArrowRight}
           size="sm"
           // 손잡이가 흰 원이라 아이콘은 트랙과 같은 어두운 색이어야 보인다
-          color={colors['background/accent']}
+          color={colors['background/primary']}
         />
       </Animated.View>
     </View>
@@ -145,12 +145,12 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   track: {
     height: TRACK_H,
     borderRadius: Radius['radius-full'],
-    backgroundColor: colors['background/accent'],
+    backgroundColor: colors['background/primary'],
     justifyContent: 'center',
     overflow: 'hidden',
   },
   trackDone: {
-    backgroundColor: colors['background/accent'],
+    backgroundColor: colors['background/primary'],
   },
   trackDisabled: {
     opacity: 0.5,
@@ -158,7 +158,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   label: {
     ...Typography.label.large,
     fontWeight: Typography.label.large.fontWeight as '500',
-    color: colors['foreground/on-accent'],
+    color: colors['foreground/on-primary'],
     textAlign: 'center',
   },
   knob: {
@@ -181,7 +181,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   doneText: {
     ...Typography.label.large,
     fontWeight: Typography.label.large.fontWeight as '500',
-    color: colors['foreground/on-accent'],
+    color: colors['foreground/on-primary'],
   },
 });
 
