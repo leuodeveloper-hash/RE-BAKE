@@ -66,11 +66,13 @@ interface AuthContextValue {
 
 const AuthContext = createContext<AuthContextValue | null>(null);
 
-// 어드민 판별: 아래 이메일 목록, UID 목록, 또는 Firestore admins 컬렉션
-const ADMIN_EMAILS: string[] = [
-  'leuo.developer@gmail.com',
-];
-const ADMIN_UIDS: string[] = [];
+/**
+ * 어드민 판별은 Firestore admin/{uid} 문서로만 한다.
+ *
+ * 예전엔 이메일 허용목록을 여기 뒀는데, 앱 번들에 그대로 박혀 누구나 꺼내 볼 수
+ * 있었다. 판별 자체는 서버(firestore.rules)에서 다시 하므로 목록을 앱에 둘 이유가
+ * 없다 — 어드민을 추가하려면 콘솔에서 admin/{uid} 문서를 만든다.
+ */
 
 function generateHandle(displayName: string | null, email: string | null): string {
   if (displayName) {
@@ -115,22 +117,14 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
-        // 어드민 확인 (이메일, UID, Firestore 순)
-        if (
-          (firebaseUser.email && ADMIN_EMAILS.includes(firebaseUser.email)) ||
-          ADMIN_UIDS.includes(firebaseUser.uid)
-        ) {
-          setIsAdmin(true);
-        } else {
-          try {
-            const adminDoc = await getDoc(doc(db, 'admin', firebaseUser.uid));
-            // 조용히 false로 두면 Pro가 아니게 돼 클라우드 동기화가 통째로 꺼진다
-            console.log('[Auth] admin 조회:', firebaseUser.uid, '→', adminDoc.exists(), '| email:', firebaseUser.email);
-            setIsAdmin(adminDoc.exists());
-          } catch (e) {
-            console.warn('[Auth] admin 조회 실패 — 비어드민으로 둔다:', e);
-            setIsAdmin(false);
-          }
+        // 어드민 확인 — admin/{uid} 문서가 있으면 어드민
+        try {
+          const adminDoc = await getDoc(doc(db, 'admin', firebaseUser.uid));
+          setIsAdmin(adminDoc.exists());
+        } catch (e) {
+          // 조용히 false로 두면 원인을 알 수 없다
+          console.warn('[Auth] admin 조회 실패 — 비어드민으로 둔다:', e);
+          setIsAdmin(false);
         }
         // 핸들·표시이름 로드 (핸들 없으면 자동 생성)
         try {
