@@ -1,5 +1,5 @@
-import React from 'react';
-import {StyleSheet, View, type StyleProp, type ViewStyle} from 'react-native';
+import React, {useEffect, useRef} from 'react';
+import {Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle} from 'react-native';
 import MaskedView from '@react-native-masked-view/masked-view';
 import {Image as ExpoImage} from 'expo-image';
 import Svg, {Path} from 'react-native-svg';
@@ -34,6 +34,21 @@ export interface StampProps {
 export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, style}: StampProps) {
   const colors = useColors();
   const d = stampShapeAt(index);
+  // 사진이 없을 때 마스크 안을 은은하게 깜빡인다 — 빈 칸이 아니라
+  // "아직 채워지지 않은 자리"로 읽히게
+  const pulse = useRef(new Animated.Value(0.45)).current;
+  const idle = !imageUri && !outline;
+  useEffect(() => {
+    if (!idle) return;
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulse, {toValue: 0.9, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true}),
+        Animated.timing(pulse, {toValue: 0.45, duration: 700, easing: Easing.inOut(Easing.ease), useNativeDriver: true}),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [idle, pulse]);
 
   if (outline) {
     // 마스크로 사진을 자르는 대신 같은 path를 점선으로 그린다 — 빈 자리 표시
@@ -75,8 +90,8 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
             <Path d={d} fill="white" />
           </Svg>
         }>
-        <View style={[StyleSheet.absoluteFill, {backgroundColor: colors['surface/bright']}]}>
-          {imageUri ? (
+        {imageUri ? (
+          <View style={[StyleSheet.absoluteFill, {backgroundColor: colors['surface/bright']}]}>
             <ExpoImage
               source={{uri: imageUri}}
               style={StyleSheet.absoluteFill}
@@ -84,8 +99,14 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
               cachePolicy="memory-disk"
               transition={200}
             />
-          ) : null}
-        </View>
+          </View>
+        ) : (
+          // 사진이 없으면 스켈레톤 — surface/bright는 흰 시트 위에서 배경과 같아
+          // 아무것도 없는 것처럼 보인다
+          <Animated.View
+            style={[StyleSheet.absoluteFill, {backgroundColor: colors['fill/faint'], opacity: pulse}]}
+          />
+        )}
       </MaskedView>
     </View>
   );
