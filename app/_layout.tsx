@@ -731,8 +731,9 @@ export default function RootLayout() {
       <AuthProvider>
       <SubscriptionProvider>
       <SafeAreaProvider>
-        <RecipeProvider>
-          <SnackbarProvider>
+        {/* RecipeProvider가 동기화 실패를 스낵바로 알리므로 SnackbarProvider가 위에 있어야 한다 */}
+        <SnackbarProvider>
+          <RecipeProvider>
             <ExploreRecipeProvider>
             <AddSheetProvider>
               <PlanSheetProvider>
@@ -752,8 +753,8 @@ export default function RootLayout() {
               </PlanSheetProvider>
             </AddSheetProvider>
             </ExploreRecipeProvider>
-          </SnackbarProvider>
-        </RecipeProvider>
+          </RecipeProvider>
+        </SnackbarProvider>
       </SafeAreaProvider>
       </SubscriptionProvider>
       </AuthProvider>
