@@ -7,6 +7,8 @@ import {ContentContainer} from '@components/Container';
 import {InlineBanner} from '@components/InlineBanner';
 import {EmptyState} from '@components/EmptyState';
 import {Menu} from '@components/Menu';
+import {ListItem} from '@components/ListItem';
+import {Switch} from '@components/Switch';
 import {SectionHeader} from '@components/SectionHeader';
 import {ReviewDialog} from '@components/Dialog';
 import {Stamp} from '@components/Stamp';
@@ -299,10 +301,6 @@ export default function StampsRoute() {
     {id: 'date', label: t('stamps.axisDate'), icon: IconClockFilled},
   ], [t]);
 
-  const filterMenuItems = useMemo(() => [
-    {id: 'madeOnly', label: t('stamps.filterMadeOnly'), icon: IconEyeClosed},
-  ], [t]);
-
   const layoutMenuItems = useMemo(() => [
     {id: 'list', label: t('stamps.layoutList'), icon: IconList},
     {id: 'grid', label: t('stamps.layoutGrid'), icon: IconLayoutGrid},
@@ -329,12 +327,26 @@ export default function StampsRoute() {
             sections={[
               {title: t('stamps.sectionAxis'), items: axisMenuItems, selectedId: axis},
               {title: t('stamps.sectionLayout'), items: layoutMenuItems, selectedId: layout},
-              {title: t('stamps.sectionFilter'), items: filterMenuItems, selectedId: madeOnly ? 'madeOnly' : undefined},
+              {
+                title: t('stamps.sectionFilter'),
+                // 켜고 끄는 값이라 스위치 — 행 전체를 눌러도 토글된다(프로필 설정과 같은 방식)
+                content: (
+                  <ListItem
+                    title={t('stamps.filterHideEmpty')}
+                    leading={{type: 'icon', icon: IconEyeClosed}}
+                    onPress={() => setMadeOnly(v => !v)}
+                    trailing={{
+                      type: 'custom',
+                      element: <Switch value={madeOnly} onValueChange={setMadeOnly} />,
+                    }}
+                    showDivider={false}
+                  />
+                ),
+              },
             ]}
             visible={axisMenu}
             onSelect={(id) => {
-              if (id === 'madeOnly') setMadeOnly(v => !v);
-              else if (id === 'list' || id === 'grid') setLayout(id);
+              if (id === 'list' || id === 'grid') setLayout(id);
               else setAxis(id as StampAxis);
               setAxisMenu(false);
             }}
