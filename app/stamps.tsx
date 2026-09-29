@@ -7,6 +7,7 @@ import {ContentContainer} from '@components/Container';
 import {InlineBanner} from '@components/InlineBanner';
 import {EmptyState} from '@components/EmptyState';
 import {Menu} from '@components/Menu';
+import {ReviewDialog} from '@components/Dialog';
 import {Stamp} from '@components/Stamp';
 import {StampDetailSheet} from '@components/BottomSheet';
 import {getColorVarKey} from '@components/ColorPicker';
@@ -111,11 +112,13 @@ export default function StampsRoute() {
   const {open: openAuthSheet} = useAuthSheet();
   const colors = useColors();
   const {width} = useWindowDimensions();
-  const {recipes, setSelectedExploreCookbook, cookbookColors} = useRecipes();
+  const {recipes, setRecipes, setSelectedExploreCookbook, cookbookColors} = useRecipes();
   const {recipes: exploreRecipes, exploreCookbooks} = useExploreRecipeContext();
   const [axis, setAxis] = useState<StampAxis>('cookbook');
   const [axisMenu, setAxisMenu] = useState(false);
   const [selected, setSelected] = useState<StampSlot | null>(null);
+  // 회고는 편집 화면까지 가지 않고 이 자리에서 쓴다
+  const [reviewTarget, setReviewTarget] = useState<Recipe | null>(null);
   // 그리드가 기본 — 스탬프가 늘어선 모습 자체가 이 화면의 내용이다
   const [layout, setLayout] = useState<'list' | 'grid'>('grid');
 
@@ -165,6 +168,18 @@ export default function StampsRoute() {
     const group = recipes.filter(x => x.remakeGroupId === gid || x.id === gid);
     return group.length > 1 ? group : undefined;
   }, [recipes]);
+
+  const handleSaveReview = useCallback((review: {evaluation: string; improvement: string}) => {
+    const target = reviewTarget;
+    if (!target) return;
+    if (!review.evaluation && !review.improvement) return;
+    setRecipes(prev => prev.map(r => {
+      if (r.id !== target.id) return r;
+      // 마지막 회고를 고친다 — 회차마다 레시피가 따로라 한 레시피엔 회고 하나가 원칙
+      const reviews = r.reviews?.length ? [...r.reviews.slice(0, -1), review] : [review];
+      return {...r, reviews, reviewCount: reviews.length};
+    }));
+  }, [reviewTarget, setRecipes]);
 
   const slotFor = useCallback((r: Recipe): StampSlot => {
     const key = r.remakeGroupId ?? r.id;
@@ -278,6 +293,13 @@ export default function StampsRoute() {
 
   return (
     <View style={styles.container}>
+      <ReviewDialog
+        visible={!!reviewTarget}
+        onClose={() => setReviewTarget(null)}
+        value={reviewTarget?.reviews?.[reviewTarget.reviews.length - 1]}
+        onConfirm={handleSaveReview}
+      />
+
       <AppBar
         centered
         title={t('stamps.title')}
@@ -336,7 +358,7 @@ export default function StampsRoute() {
                   size="medium"
                   action={{
                     label: t('stamps.reviewAction'),
-                    onPress: () => router.push(`/recipe/edit/${justRecipe.id}` as any),
+                    onPress: () => setReviewTarget(justRecipe),
                   }}
                   style={styles.banner}
                 />
@@ -435,9 +457,9 @@ export default function StampsRoute() {
           if (id) router.push(`/recipe/${id}` as any);
         }}
         onWriteReview={() => {
-          const id = selected?.recipe.id;
+          const target = selected?.recipe;
           setSelected(null);
-          if (id) router.push(`/recipe/edit/${id}` as any);
+          if (target) setReviewTarget(target);
         }}
       />
 
