@@ -283,7 +283,8 @@ export default function StampsRoute() {
   const justRecipe = useMemo(() => {
     if (!just) return undefined;
     const r = recipes.find(x => x.id === just);
-    if (!r) return undefined;
+    // 해제했으면 권유도 사라져야 한다 — 찍지도 않은 것에 회고를 권할 이유가 없다
+    if (!r?.madeAt) return undefined;
     const hasReview = r.reviews?.some(rv => rv.evaluation?.trim() || rv.improvement?.trim());
     return hasReview ? undefined : r;
   }, [just, recipes]);
