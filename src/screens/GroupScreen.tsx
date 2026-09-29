@@ -9,6 +9,7 @@ import {SectionHeader} from '@components/SectionHeader';
 import {RecipeCard} from '@components/Recipe/RecipeCard';
 import {PackCanvas, CookbookCarousel, GroupExpandOverlay, SessionFlow, type SessionFlowItem, type PackBoardItem, type PackOriginRect} from '@components/PackBoard';
 import {Menu, type MenuItemData} from '@components/Menu';
+import {Tabs} from '@components/Tabs';
 import {Dialog} from '@components/Dialog';
 import {Button} from '@components/Button';
 import {ReviewLogSheet} from '@components/BottomSheet';
@@ -536,10 +537,23 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
         rightMenu={
           <>
             <Menu
-              items={layoutMenuItems}
-              selectedId={viewMode}
+              sections={[{
+                title: t('recipeList.sectionLayout'),
+                // 아이콘 탭 한 줄 — 라벨 목록이면 메뉴가 길어진다(목록·스탬프북과 같은 방식)
+                content: (
+                  <View style={styles.layoutTabs}>
+                    <Tabs
+                      variant="icon"
+                      size="large"
+                      fullWidth
+                      tabs={layoutMenuItems.map(i => ({id: i.id, label: '', icon: i.icon}))}
+                      selectedId={viewMode}
+                      onSelect={handleViewModeSelect}
+                    />
+                  </View>
+                ),
+              }]}
               visible={showLayoutMenu}
-              onSelect={handleViewModeSelect}
             />
             <Menu
               items={moreMenuItems}
@@ -826,6 +840,11 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  layoutTabs: {
+    // 메뉴 항목과 좌우 정렬 (GlassContainer 패딩만 적용되도록)
+    paddingHorizontal: 0,
+    paddingBottom: 4,
+  },
   container: {
     flex: 1,
     backgroundColor: colors['surface/dim'],
