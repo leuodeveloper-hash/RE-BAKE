@@ -9,9 +9,12 @@ import {EmptyState} from '@components/EmptyState';
 import {Menu} from '@components/Menu';
 import {Stamp} from '@components/Stamp';
 import {StampDetailSheet} from '@components/BottomSheet';
+import {getColorVarKey} from '@components/ColorPicker';
+import type {AvatarColor} from '@components/Avatar/Avatar';
+import {useColors} from '@contexts/ThemeContext';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
-import {useRecipes} from '@contexts/RecipeContext';
+import {useRecipes, DEFAULT_COOKBOOK_COLOR} from '@contexts/RecipeContext';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
@@ -99,9 +102,10 @@ export default function StampsRoute() {
   // 방금 찍고 넘어온 경우 — 그 스탬프를 강조하고 회고를 권한다
   const {just} = useLocalSearchParams<{just?: string}>();
   const {t} = useTranslation();
+  const colors = useColors();
   const {width} = useWindowDimensions();
-  const {recipes} = useRecipes();
-  const {recipes: exploreRecipes} = useExploreRecipeContext();
+  const {recipes, setSelectedExploreCookbook} = useRecipes();
+  const {recipes: exploreRecipes, exploreCookbooks} = useExploreRecipeContext();
   const [axis, setAxis] = useState<StampAxis>('cookbook');
   const [axisMenu, setAxisMenu] = useState(false);
   const [selected, setSelected] = useState<StampSlot | null>(null);
@@ -167,6 +171,13 @@ export default function StampsRoute() {
   }, [madeIndex, orderIndex]);
 
   // 레시피북별 — 그 북의 레시피 전부가 칸이 된다(안 만든 것 포함)
+  /** 공식 레시피북에 부여된 색 — 둘러보기·그룹 화면과 같은 색을 쓴다 */
+  const bookColor = useCallback((name: string) => {
+    const cb = exploreCookbooks.find(c => c.name === name);
+    const key = getColorVarKey((cb?.color as AvatarColor) || DEFAULT_COOKBOOK_COLOR);
+    return colors[key.replace('-var', '') as keyof typeof colors] as string;
+  }, [exploreCookbooks, colors]);
+
   const cookbookSections = useMemo(() => {
     const byBook = new Map<string, Recipe[]>();
     // 회차는 한 칸으로 — 3회차까지 만들어도 품목은 하나다
@@ -315,7 +326,16 @@ export default function StampsRoute() {
                   <Pressable
                     style={styles.sectionHeader}
                     disabled={axis !== 'cookbook'}
-                    onPress={() => router.push(`/(tabs)/explore?cookbook=${encodeURIComponent(section.key)}` as any)}>
+                    onPress={() => {
+                      // 둘러보기는 쿼리 파라미터를 받지 않는다 — 선택 상태를 컨텍스트에
+                      // 넣고 이동해야 그 레시피북이 펼쳐진 채로 열린다
+                      setSelectedExploreCookbook(section.key);
+                      router.push('/(tabs)/explore' as any);
+                    }}>
+                    {axis === 'cookbook' && (
+                      // 공식 레시피북 아이콘 — 둘러보기와 같은 색으로 어느 북인지 구분
+                      <IconBookFilled width={16} height={16} color={bookColor(section.key)} />
+                    )}
                     <Text style={styles.sectionTitle}>{section.title}</Text>
                     {section.total > 0 && (
                       <>
