@@ -273,18 +273,13 @@ export default function StampsRoute() {
 
   const allSections = axis === 'cookbook' ? cookbookSections : dateSections;
   /**
-   * "만든 것만" — 빈 칸을 걷어내되 첫 하나는 남긴다.
-   * 전부 지우면 다음에 채울 자리가 사라져 "여기 더 있다"는 게 안 보인다.
+   * "만든 것만" — 빈 칸을 걷어낸다.
    * 진도(done/total)는 그대로 둬야 몇 개 남았는지 알 수 있다.
    */
   const sections = useMemo(() => {
     if (!madeOnly) return allSections;
     return allSections
-      .map(sec => {
-        const made = sec.slots.filter(sl => sl.madeAt);
-        const firstEmpty = sec.slots.find(sl => !sl.madeAt);
-        return {...sec, slots: firstEmpty ? [...made, firstEmpty] : made};
-      })
+      .map(sec => ({...sec, slots: sec.slots.filter(sl => sl.madeAt)}))
       .filter(sec => sec.slots.length > 0);
   }, [allSections, madeOnly]);
   const madeCount = useMemo(() => recipes.filter(r => r.madeAt).length, [recipes]);
