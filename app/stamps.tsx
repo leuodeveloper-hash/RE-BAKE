@@ -25,7 +25,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconList, IconLayoutGrid, IconNoteFilled, IconCircleCheckFilled} from '@components/Icon/IconIndex';
+import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconList, IconLayoutGrid, IconNoteFilled, IconEyeClosed} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import type {Recipe} from '../src/types/recipe';
 
@@ -300,7 +300,7 @@ export default function StampsRoute() {
   ], [t]);
 
   const filterMenuItems = useMemo(() => [
-    {id: 'madeOnly', label: t('stamps.filterMadeOnly'), icon: IconCircleCheckFilled},
+    {id: 'madeOnly', label: t('stamps.filterMadeOnly'), icon: IconEyeClosed},
   ], [t]);
 
   const layoutMenuItems = useMemo(() => [
