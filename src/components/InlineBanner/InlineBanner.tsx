@@ -164,7 +164,7 @@ const styles = StyleSheet.create({
   contentMedium: {
     paddingLeft: 16,
     paddingRight: 4,
-    paddingVertical: 8,
+    paddingVertical: 12,
   },
   contentSmall: {
     paddingHorizontal: 16,
