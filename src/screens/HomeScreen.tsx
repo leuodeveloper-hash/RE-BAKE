@@ -296,7 +296,13 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
       return;
     }
     if (id === 'made') {
-      // 찍을 때만 확인 — 시트에서 밀어야 우표가 된다
+      // 스탬프는 계정에 쌓이는 기록이라 로그인이 필요하다 —
+      // 게스트로 모아두면 기기를 바꿀 때 통째로 사라진다
+      if (isGuest) {
+        openAuthSheet({onSuccess: () => setMadeSheetRecipe(recipe)});
+        return;
+      }
+      // 찍을 때만 확인 — 시트에서 밀어야 스탬프가 된다
       setMadeSheetRecipe(recipe);
       return;
     }
@@ -362,7 +368,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
       }));
       setShowPdfPreview(true);
     }
-  }, [router, setRecipes, showSnackbar, canAddRecipe, t]);
+  }, [router, setRecipes, showSnackbar, canAddRecipe, t, isGuest, openAuthSheet]);
 
   const handleConfirmDelete = useCallback(() => {
     if (!deleteTarget) return;

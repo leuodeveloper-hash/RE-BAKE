@@ -794,6 +794,8 @@
   "stamps.banner": "Make the recipes in each book one by one. Leave reflections to build your own notes.",
   "stamps.emptySubtitle": "Make the recipes in each book one by one.\nLeave reflections to build your own notes.",
   "stamps.emptyTitle": "You haven't made anything yet.",
+  "stamps.guestAction": "Sign in",
+  "stamps.guestBanner": "Sign in to keep your stamps safe on your account.",
   "stamps.layoutGrid": "Grid",
   "stamps.layoutList": "List",
   "stamps.monthLabel": "{{month}}",

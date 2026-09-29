@@ -779,6 +779,8 @@
   "stamps.banner": "레시피북의 요리를 하나씩 만들어 보세요. 회고를 남기면 나만의 회고 노트가 완성돼요.",
   "stamps.emptySubtitle": "레시피북의 요리를 하나씩 만들어 보세요.\n회고를 남기면 나만의 회고 노트가 완성돼요.",
   "stamps.emptyTitle": "아직 직접 해 본 레시피가 없어요.",
+  "stamps.guestAction": "로그인",
+  "stamps.guestBanner": "로그인하면 모은 스탬프가 계정에 안전하게 보관돼요.",
   "stamps.layoutGrid": "그리드",
   "stamps.layoutList": "리스트",
   "stamps.monthLabel": "{{month}}월",

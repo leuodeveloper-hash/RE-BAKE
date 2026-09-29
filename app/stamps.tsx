@@ -9,16 +9,20 @@ import {EmptyState} from '@components/EmptyState';
 import {Menu} from '@components/Menu';
 import {Stamp} from '@components/Stamp';
 import {StampDetailSheet} from '@components/BottomSheet';
-import {AuthorAvatar} from '@components/AuthorBadge/AuthorAvatar';
+import {getColorVarKey} from '@components/ColorPicker';
+import type {AvatarColor} from '@components/Avatar/Avatar';
+import {useColors} from '@contexts/ThemeContext';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
-import {useRecipes} from '@contexts/RecipeContext';
+import {useAuth} from '@contexts/AuthContext';
+import {useAuthSheet} from '@contexts/AuthSheetContext';
+import {useRecipes, DEFAULT_COOKBOOK_COLOR} from '@contexts/RecipeContext';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {IconClose, IconFilter, IconBookFilled, IconClockFilled, IconChevronRight, IconList, IconLayoutGrid, IconNoteFilled} from '@components/Icon/IconIndex';
+import {IconClose, IconFilter, IconBookFilled, IconClockFilled, IconChevronRight, IconList, IconLayoutGrid, IconNoteFilled, IconCloudFilled} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import type {Recipe} from '../src/types/recipe';
 
@@ -100,8 +104,11 @@ export default function StampsRoute() {
   // 방금 찍고 넘어온 경우 — 그 스탬프를 강조하고 회고를 권한다
   const {just} = useLocalSearchParams<{just?: string}>();
   const {t} = useTranslation();
+  const {user} = useAuth();
+  const {open: openAuthSheet} = useAuthSheet();
+  const colors = useColors();
   const {width} = useWindowDimensions();
-  const {recipes, setSelectedExploreCookbook} = useRecipes();
+  const {recipes, setSelectedExploreCookbook, cookbookColors} = useRecipes();
   const {recipes: exploreRecipes, exploreCookbooks} = useExploreRecipeContext();
   const [axis, setAxis] = useState<StampAxis>('cookbook');
   const [axisMenu, setAxisMenu] = useState(false);
@@ -168,6 +175,17 @@ export default function StampsRoute() {
   }, [madeIndex, orderIndex]);
 
   // 레시피북별 — 그 북의 레시피 전부가 칸이 된다(안 만든 것 포함)
+  /**
+   * 레시피북 대표 색 — 공식은 explore_cookbooks에, 내 북은 계정 설정에 있다.
+   * 둘러보기·그룹 화면과 같은 색을 써야 어느 북인지 한눈에 이어진다.
+   */
+  const bookColor = useCallback((name: string) => {
+    const official = exploreCookbooks.find(c => c.name === name)?.color;
+    const mine = cookbookColors[name];
+    const key = getColorVarKey((official as AvatarColor) || mine || DEFAULT_COOKBOOK_COLOR);
+    return colors[key.replace('-var', '') as keyof typeof colors] as string;
+  }, [exploreCookbooks, cookbookColors, colors]);
+
   const cookbookSections = useMemo(() => {
     const byBook = new Map<string, Recipe[]>();
     // 회차는 한 칸으로 — 3회차까지 만들어도 품목은 하나다
@@ -189,12 +207,7 @@ export default function StampsRoute() {
       .map(([book, list]) => {
         const slots = list.map(slotFor);
         const done = slots.filter(s => s.madeAt).length;
-        // 작성자 아바타로 공식/유저 북을 구분한다 — 북 안의 레시피가 출처다
-        const author = list[0];
-        return {
-          key: book, title: book, slots, done, total: slots.length,
-          authorId: author?.authorId, authorSeed: author?.authorAvatarSeed ?? book,
-        };
+        return {key: book, title: book, slots, done, total: slots.length};
       })
       // 많이 채운 북이 위로 — 진행 중인 것을 먼저 보여준다
       .sort((a, b) => b.done - a.done || a.title.localeCompare(b.title));
@@ -225,8 +238,6 @@ export default function StampsRoute() {
         slots: slots.sort((a, b) => b.madeAt!.localeCompare(a.madeAt!)),
         done: slots.length,
         total: 0, // 날짜 축은 분모가 없다 — 진도 바를 감춘다
-        authorId: undefined as string | undefined,
-        authorSeed: key,
       }));
   }, [recipes, slotFor, t]);
 
@@ -298,6 +309,18 @@ export default function StampsRoute() {
             />
           ) : (
             <ContentContainer>
+              {!user && (
+                // 스탬프는 계정에 쌓인다 — 로그인하지 않으면 기기를 바꿀 때 사라진다
+                <InlineBanner
+                  icon={IconCloudFilled}
+                  label={t('stamps.guestBanner')}
+                  color="accent"
+                  size="medium"
+                  action={{label: t('stamps.guestAction'), onPress: () => openAuthSheet()}}
+                  style={styles.banner}
+                />
+              )}
+
               <InlineBanner
                 icon={IconBookFilled}
                 label={t('stamps.banner')}
@@ -333,8 +356,8 @@ export default function StampsRoute() {
                       router.push('/(tabs)/explore' as any);
                     }}>
                     {axis === 'cookbook' && (
-                      // 작성자 아바타 — 공식(bakey)이면 브랜드 로고가 나와 공식 북임이 드러난다
-                      <AuthorAvatar authorId={section.authorId} seed={section.authorSeed} size="xsmall" />
+                      // 레시피북 대표 색 아이콘 — 목록·그룹 화면과 같은 색
+                      <IconBookFilled width={16} height={16} color={bookColor(section.key)} />
                     )}
                     <Text style={styles.sectionTitle}>{section.title}</Text>
                     {section.total > 0 && (
