@@ -1,5 +1,5 @@
-import React, {useEffect, useRef} from 'react';
-import {Animated, Easing, View, type StyleProp, type ViewStyle} from 'react-native';
+import React, {useEffect, useRef, useState} from 'react';
+import {Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle} from 'react-native';
 import Svg, {ClipPath, Defs, Image as SvgImage, Path, Rect} from 'react-native-svg';
 import {useColors} from '@contexts/ThemeContext';
 import {STAMP_VIEWBOX, stampShapeAt} from './shapes';
@@ -43,7 +43,11 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
 
   // 사진이 없을 때 은은하게 깜빡인다 — 빈 칸이 아니라 "아직 채워지지 않은 자리"로
   const pulse = useRef(new Animated.Value(0.45)).current;
-  const idle = !imageUri && !outline;
+  // 사진이 없거나(빈 칸) 아직 안 떴을 때(로딩) 스켈레톤을 깐다 —
+  // 바탕이 흰색이면 로딩 중 아무것도 없다가 툭 나타난다
+  const [loaded, setLoaded] = useState(false);
+  useEffect(() => { setLoaded(false); }, [imageUri]);
+  const idle = (!imageUri || !loaded) && !outline;
   useEffect(() => {
     if (!idle) return;
     const loop = Animated.loop(
@@ -95,19 +99,30 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
 
   return (
     <View style={wrapStyle}>
+      {/* 로딩 중 스켈레톤 — 사진이 뜨면 그 위를 덮는다 */}
+      {!loaded && (
+        <Animated.View style={[StyleSheet.absoluteFill, styles.center, {opacity: pulse}]}>
+          <Svg width={inner} height={inner} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
+            <Path d={d} fill={colors['fill/faint']} />
+          </Svg>
+        </Animated.View>
+      )}
       <Svg width={inner} height={inner} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
         <Defs>
           <ClipPath id={clipId}>
             <Path d={d} />
           </ClipPath>
         </Defs>
-        {/* 사진이 비칠 바탕 — 투명 PNG도 모양이 유지된다 */}
-        <Rect
-          width={STAMP_VIEWBOX}
-          height={STAMP_VIEWBOX}
-          fill={colors['surface/bright']}
-          clipPath={`url(#${clipId})`}
-        />
+        {/* 사진이 비칠 바탕 — 투명 PNG도 모양이 유지된다. 로딩 중엔 스켈레톤이
+            비치도록 칠하지 않는다 */}
+        {loaded && (
+          <Rect
+            width={STAMP_VIEWBOX}
+            height={STAMP_VIEWBOX}
+            fill={colors['surface/bright']}
+            clipPath={`url(#${clipId})`}
+          />
+        )}
         <SvgImage
           href={{uri: imageUri}}
           width={STAMP_VIEWBOX}
@@ -115,10 +130,15 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
           // 가장자리가 잘리므로 피사체가 가운데 크게 들어오도록 채운다
           preserveAspectRatio="xMidYMid slice"
           clipPath={`url(#${clipId})`}
+          onLoad={() => setLoaded(true)}
         />
       </Svg>
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  center: {alignItems: 'center', justifyContent: 'center'},
+});
 
 export default Stamp;
