@@ -332,7 +332,11 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
             } catch (e: any) {
               // 조용히 큐에 넣기만 하면 사용자는 저장된 줄 안다 — 실패를 알린다
               console.error('[Storage] upload/sync failed:', e);
-              showSnackbarRef.current?.(`동기화 실패: ${e?.code ?? e?.message ?? e}`);
+              // 에러 모양이 제각각이라(code/message가 없는 것도 온다) 최대한 드러낸다
+              const detail = e?.code || e?.message || (() => {
+                try { return JSON.stringify(e); } catch { return String(e); }
+              })();
+              showSnackbarRef.current?.(`동기화 실패: ${detail}`);
               addToQueue({type: 'sync', uid: user.uid, data: next});
             }
 
