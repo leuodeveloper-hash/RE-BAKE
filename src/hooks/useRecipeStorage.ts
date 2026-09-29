@@ -185,7 +185,7 @@ function findUnsupported(v: any, path = '', inArray = false): string | null {
 /** Firestore에 레시피 배열을 동기화 (batch write) */
 async function syncToFirestore(uid: string, recipes: Recipe[]) {
   const colRef = collection(db, 'user_recipes', uid, 'recipes');
-  const batch = writeBatch(db);
+  const writes: {id: string; data: any}[] = [];
   for (const recipe of recipes) {
     const data = stripUndefined(recipe);
     // 웹에서 고른 사진은 data: URL(base64)이라 문서가 1MB를 넘으면 Firestore가
@@ -200,12 +200,13 @@ async function syncToFirestore(uid: string, recipes: Recipe[]) {
     if (bad) {
       throw Object.assign(new Error(`"${recipe.title}"의 ${bad}`), {code: 'bad-field'});
     }
-    batch.set(doc(colRef, recipe.id), data);
+    writes.push({id: recipe.id, data});
   }
-  // Firestore 쓰기가 응답 없이 매달리는 경우가 있다(웹) — 그대로 두면 에러도
-  // 완료도 없이 영영 끝나지 않아 무엇이 잘못됐는지 알 수 없다.
+  // writeBatch가 웹에서 응답 없이 매달린다(같은 Firestore인데 setDoc은 된다).
+  // 레시피 수가 많지 않으므로 문서별 setDoc으로 쓴다 — 한 번에 묶이지 않는 대신
+  // 어느 문서에서 막히는지도 드러난다.
   await Promise.race([
-    batch.commit(),
+    Promise.all(writes.map(w => setDoc(doc(colRef, w.id), w.data))),
     new Promise((_, reject) =>
       setTimeout(() => reject(Object.assign(new Error('Firestore 쓰기가 응답하지 않습니다(15초)'), {code: 'timeout'})), 15000),
     ),
