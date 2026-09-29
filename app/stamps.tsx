@@ -1,5 +1,5 @@
 import React, {useCallback, useMemo, useState} from 'react';
-import {Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
+import {Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import {AppBar, APPBAR_CONTENT_BOTTOM} from '@components/Navigation';
@@ -27,10 +27,14 @@ import {parseSession} from '@utils/session';
 import type {Recipe} from '../src/types/recipe';
 
 /**
- * 한 줄에 놓을 칸 수.
- * 웹은 좌우가 넓어 6칸이면 스탬프가 과하게 커진다 → 8칸으로 촘촘히.
+ * 한 줄에 놓을 칸 수 — 화면 너비로 정한다.
+ * 플랫폼으로 가르면 모바일 브라우저도 웹이라 8칸이 돼 스탬프가 너무 작아진다.
  */
-const COLUMNS = Platform.OS === 'web' ? 8 : 6;
+function columnsFor(width: number): number {
+  if (width >= 900) return 10;
+  if (width >= 600) return 8;
+  return 6;
+}
 const GRID_GAP = Spacing.sm;
 
 /**
@@ -253,10 +257,11 @@ export default function StampsRoute() {
   const madeCount = useMemo(() => recipes.filter(r => r.madeAt).length, [recipes]);
 
   // 화면 폭에 맞춰 칸 크기 산출 — 고정 px이면 넓은 화면에서 성기게 흩어진다
+  const columns = columnsFor(width);
   const slotSize = useMemo(() => {
     const maxContent = Math.min(width, 800) - Spacing.md * 2;
-    return Math.floor((maxContent - GRID_GAP * (COLUMNS - 1)) / COLUMNS);
-  }, [width]);
+    return Math.floor((maxContent - GRID_GAP * (columns - 1)) / columns);
+  }, [width, columns]);
 
   const axisMenuItems = useMemo(() => [
     {id: 'cookbook', label: t('stamps.axisCookbook'), icon: IconBookFilled},
