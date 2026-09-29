@@ -22,7 +22,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {IconClose, IconFilter, IconBookFilled, IconClockFilled, IconChevronRight, IconList, IconLayoutGrid, IconNoteFilled, IconCloudFilled} from '@components/Icon/IconIndex';
+import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconChevronRight, IconList, IconLayoutGrid, IconNoteFilled, IconCloudFilled} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import type {Recipe} from '../src/types/recipe';
 
@@ -203,11 +203,13 @@ export default function StampsRoute() {
       .map(([book, list]) => {
         const slots = list.map(slotFor);
         const done = slots.filter(s => s.madeAt).length;
-        return {key: book, title: book, slots, done, total: slots.length};
+        // 공식 레시피북인지 — explore_cookbooks에 등록된 이름이면 공식
+        const official = exploreCookbooks.some(c => c.name === book);
+        return {key: book, title: book, slots, done, total: slots.length, official};
       })
       // 많이 채운 북이 위로 — 진행 중인 것을 먼저 보여준다
       .sort((a, b) => b.done - a.done || a.title.localeCompare(b.title));
-  }, [exploreRecipes, recipes, slotFor]);
+  }, [exploreRecipes, recipes, slotFor, exploreCookbooks]);
 
   // 날짜별 — 만든 것만 월별로(안 만든 칸은 날짜가 없으니 자리도 없다)
   const dateSections = useMemo(() => {
@@ -234,6 +236,7 @@ export default function StampsRoute() {
         slots: slots.sort((a, b) => b.madeAt!.localeCompare(a.madeAt!)),
         done: slots.length,
         total: 0, // 날짜 축은 분모가 없다 — 진도 바를 감춘다
+        official: false,
       }));
   }, [recipes, slotFor, t]);
 
@@ -355,8 +358,13 @@ export default function StampsRoute() {
                       router.push('/(tabs)/explore' as any);
                     }}>
                     {axis === 'cookbook' && (
-                      // 레시피북 대표 색 아이콘 — 목록·그룹 화면과 같은 색
-                      <IconBookFilled width={16} height={16} color={bookColor(section.key)} />
+                      // 공식 레시피북과 내 레시피북은 아이콘이 다르다(둘러보기와 같은 기준).
+                      // 색은 그 북에 부여된 대표 색 — 목록·그룹 화면과 이어진다.
+                      section.official ? (
+                        <IconExprolerBookFilled width={16} height={16} color={bookColor(section.key)} />
+                      ) : (
+                        <IconBookFilled width={16} height={16} color={bookColor(section.key)} />
+                      )
                     )}
                     <Text style={styles.sectionTitle}>{section.title}</Text>
                     {section.total > 0 && (
