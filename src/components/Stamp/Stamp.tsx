@@ -126,7 +126,8 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, p
       return (
         <View style={wrapStyle}>
           <View style={[{width: inner, height: inner}, styles.clipBox]}>
-            <View style={[StyleSheet.absoluteFill, {backgroundColor: colors['fill/faint']}]} />
+            {/* 글만 있는 스탬프 — 바탕은 밝게 둬야 글이 읽힌다(사진 자리와 같은 톤) */}
+            <View style={[StyleSheet.absoluteFill, {backgroundColor: colors['surface/bright']}]} />
             <View style={StyleSheet.absoluteFill} pointerEvents="none">{children}</View>
             <Svg
               style={StyleSheet.absoluteFill}
