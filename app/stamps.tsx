@@ -9,12 +9,10 @@ import {EmptyState} from '@components/EmptyState';
 import {Menu} from '@components/Menu';
 import {Stamp} from '@components/Stamp';
 import {StampDetailSheet} from '@components/BottomSheet';
-import {getColorVarKey} from '@components/ColorPicker';
-import type {AvatarColor} from '@components/Avatar/Avatar';
-import {useColors} from '@contexts/ThemeContext';
+import {AuthorAvatar} from '@components/AuthorBadge/AuthorAvatar';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
-import {useRecipes, DEFAULT_COOKBOOK_COLOR} from '@contexts/RecipeContext';
+import {useRecipes} from '@contexts/RecipeContext';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
@@ -102,7 +100,6 @@ export default function StampsRoute() {
   // 방금 찍고 넘어온 경우 — 그 스탬프를 강조하고 회고를 권한다
   const {just} = useLocalSearchParams<{just?: string}>();
   const {t} = useTranslation();
-  const colors = useColors();
   const {width} = useWindowDimensions();
   const {recipes, setSelectedExploreCookbook} = useRecipes();
   const {recipes: exploreRecipes, exploreCookbooks} = useExploreRecipeContext();
@@ -171,18 +168,14 @@ export default function StampsRoute() {
   }, [madeIndex, orderIndex]);
 
   // 레시피북별 — 그 북의 레시피 전부가 칸이 된다(안 만든 것 포함)
-  /** 공식 레시피북에 부여된 색 — 둘러보기·그룹 화면과 같은 색을 쓴다 */
-  const bookColor = useCallback((name: string) => {
-    const cb = exploreCookbooks.find(c => c.name === name);
-    const key = getColorVarKey((cb?.color as AvatarColor) || DEFAULT_COOKBOOK_COLOR);
-    return colors[key.replace('-var', '') as keyof typeof colors] as string;
-  }, [exploreCookbooks, colors]);
-
   const cookbookSections = useMemo(() => {
     const byBook = new Map<string, Recipe[]>();
     // 회차는 한 칸으로 — 3회차까지 만들어도 품목은 하나다
     const seen = new Set<string>();
-    for (const r of exploreRecipes) {
+    // 공식 레시피북과 내 레시피북을 함께 — 어느 쪽이든 만들면 스탬프가 찍힌다.
+    // 가져온 레시피는 원본과 사본이 둘 다 있으므로 sourceId로 중복을 막는다.
+    const importedSources = new Set(recipes.map(r => r.sourceId).filter(Boolean) as string[]);
+    for (const r of [...exploreRecipes.filter(x => !importedSources.has(x.id)), ...recipes]) {
       const key = r.remakeGroupId ?? r.id;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -196,11 +189,16 @@ export default function StampsRoute() {
       .map(([book, list]) => {
         const slots = list.map(slotFor);
         const done = slots.filter(s => s.madeAt).length;
-        return {key: book, title: book, slots, done, total: slots.length};
+        // 작성자 아바타로 공식/유저 북을 구분한다 — 북 안의 레시피가 출처다
+        const author = list[0];
+        return {
+          key: book, title: book, slots, done, total: slots.length,
+          authorId: author?.authorId, authorSeed: author?.authorAvatarSeed ?? book,
+        };
       })
       // 많이 채운 북이 위로 — 진행 중인 것을 먼저 보여준다
       .sort((a, b) => b.done - a.done || a.title.localeCompare(b.title));
-  }, [exploreRecipes, slotFor]);
+  }, [exploreRecipes, recipes, slotFor]);
 
   // 날짜별 — 만든 것만 월별로(안 만든 칸은 날짜가 없으니 자리도 없다)
   const dateSections = useMemo(() => {
@@ -227,6 +225,8 @@ export default function StampsRoute() {
         slots: slots.sort((a, b) => b.madeAt!.localeCompare(a.madeAt!)),
         done: slots.length,
         total: 0, // 날짜 축은 분모가 없다 — 진도 바를 감춘다
+        authorId: undefined as string | undefined,
+        authorSeed: key,
       }));
   }, [recipes, slotFor, t]);
 
@@ -333,8 +333,8 @@ export default function StampsRoute() {
                       router.push('/(tabs)/explore' as any);
                     }}>
                     {axis === 'cookbook' && (
-                      // 공식 레시피북 아이콘 — 둘러보기와 같은 색으로 어느 북인지 구분
-                      <IconBookFilled width={16} height={16} color={bookColor(section.key)} />
+                      // 작성자 아바타 — 공식(bakey)이면 브랜드 로고가 나와 공식 북임이 드러난다
+                      <AuthorAvatar authorId={section.authorId} seed={section.authorSeed} size="xsmall" />
                     )}
                     <Text style={styles.sectionTitle}>{section.title}</Text>
                     {section.total > 0 && (
