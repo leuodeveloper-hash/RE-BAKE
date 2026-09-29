@@ -32,7 +32,6 @@ import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconList, IconLayoutGrid, IconNoteFilled, IconEyeClosed} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
-import {recipePreviewParts} from '@utils/recipePreview';
 import type {Recipe} from '../src/types/recipe';
 
 /**
@@ -77,22 +76,6 @@ function HighlightPop({active, children}: {active: boolean; children: React.Reac
   return <Animated.View style={{transform: [{scale}]}}>{children}</Animated.View>;
 }
 
-/** 사진 없는 스탬프 안에 들어가는 내용 미리보기 — 카드와 같은 재료·과정 글 */
-function StampPreview({recipe, styles}: {recipe: Recipe; styles: ReturnType<typeof createStyles>}) {
-  // 문장을 통째로 흘리면 가운데가 잘려 읽다 만 글처럼 보인다.
-  // 재료 이름처럼 짧은 토막만 앞에서부터 줄줄이 세워 '내용이 찼다'는 질감만 남긴다.
-  const parts = recipePreviewParts(recipe)
-    .map(p => p.trim())
-    .filter(p => p && p.length <= 14)
-    .slice(0, 12);
-  if (parts.length === 0) return null;
-  return (
-    <View style={styles.stampPreview} pointerEvents="none">
-      <Text style={styles.stampPreviewText}>{parts.join('\n')}</Text>
-    </View>
-  );
-}
-
 /** 리스트 행의 스탬프 크기 */
 const LIST_STAMP = 36;
 
@@ -127,10 +110,7 @@ function SlotStamp({slot, size, styles, colors, highlight, outline}: {
         imageUri={slot.recipe.imageUri}
         size={size}
         index={slot.order}
-        cutoutColor={colors['surface/dim']}>
-        {/* 사진이 없으면 카드와 같은 내용 미리보기를 모양 안에 넣는다 */}
-        <StampPreview recipe={slot.recipe} styles={styles} />
-      </Stamp>
+      />
     </HighlightPop>
   );
 }
@@ -595,24 +575,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   listDate: {
     ...Typography.label.medium,
     color: colors['foreground/on-surface-muted'],
-  },
-  stampPreview: {
-    ...StyleSheet.absoluteFillObject,
-    // 모양이 가운데로 갈수록 넓다 — 좌우를 넉넉히 비워 글이 경계에 물리지 않게
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
-    overflow: 'hidden',
-  },
-  stampPreviewText: {
-    ...Typography.label.small,
-    color: colors['foreground/on-surface-muted'],
-    textAlign: 'center',
-    // 글이 그림 역할이라 촘촘하게 — 읽히기보다 "내용이 있다"가 보이면 된다
-    fontSize: 6,
-    lineHeight: 8,
-    opacity: 0.7,
   },
   emptyDot: {
     width: 6,

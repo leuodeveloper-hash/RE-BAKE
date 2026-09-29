@@ -3,6 +3,8 @@ import {View, StyleSheet} from 'react-native';
 import {useRouter, useLocalSearchParams} from 'expo-router';
 import {ProfileScreen} from '@screens/ProfileScreen';
 import {useRecipes} from '@contexts/RecipeContext';
+import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
+import {useMadeStamps} from '@hooks/useMadeStamps';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useColors} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
@@ -15,6 +17,13 @@ export default function ProfileRoute() {
   const params = useLocalSearchParams<{openPlan?: string}>();
   const [planSheetTrigger, setPlanSheetTrigger] = useState(0);
   const {recipes, exportRecipes, importRecipes, lastSyncedAt, lastSyncedDevice} = useRecipes();
+  const {recipes: exploreRecipes} = useExploreRecipeContext();
+  // 스탬프는 계정에 있다 — 내 레시피·공식 레시피를 함께 센다
+  const {madeAtOf} = useMadeStamps();
+  const stampCount = useMemo(
+    () => [...recipes, ...exploreRecipes].filter(r => madeAtOf(r)).length,
+    [recipes, exploreRecipes, madeAtOf],
+  );
   const {showSnackbar} = useSnackbar();
   const {user, handle, displayName, signOut, updateHandle, updateDisplayName, avatarSeed, isAdmin} = useAuth();
   const {isPro} = useSubscription();
@@ -65,6 +74,7 @@ export default function ProfileRoute() {
         onTermsPress={() => router.push('/terms')}
         onPrivacyPress={() => router.push('/privacy')}
         onStampsPress={() => router.push('/stamps' as any)}
+        stampCount={stampCount}
         onLabsPress={() => router.push('/labs' as any)}
         onWidgetPreviewPress={() => router.push('/widget-preview' as any)}
         onSubmissionsPress={() => router.push('/admin/submissions' as any)}

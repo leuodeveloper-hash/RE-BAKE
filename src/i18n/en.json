@@ -809,6 +809,7 @@
   "stamps.axisCookbook": "Recipe book",
   "stamps.axisDate": "Date",
   "stamps.banner": "Make the recipes in each book one by one. Leave reflections to build your own notes.",
+  "stamps.countValue": "{{count}}",
   "stamps.emptySubtitle": "Make the recipes in each book one by one.\nLeave reflections to build your own notes.",
   "stamps.emptyTitle": "You haven't made anything yet.",
   "stamps.filterHideEmpty": "Hide empty slots",

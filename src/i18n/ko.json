@@ -794,6 +794,7 @@
   "stamps.axisCookbook": "레시피 북",
   "stamps.axisDate": "날짜",
   "stamps.banner": "레시피북의 요리를 하나씩 만들어 보세요. 회고를 남기면 회고 노트가 쌓여요.",
+  "stamps.countValue": "{{count}}개",
   "stamps.emptySubtitle": "레시피북의 요리를 하나씩 만들어 보세요.\n회고를 남기면 회고 노트가 쌓여요.",
   "stamps.emptyTitle": "아직 직접 해 본 레시피가 없어요.",
   "stamps.filterHideEmpty": "빈 칸 숨기기",

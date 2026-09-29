@@ -73,6 +73,8 @@ export interface ProfileScreenProps {
   onPrivacyPress: () => void;
   /** 우표첩(내 기록) 진입 */
   onStampsPress?: () => void;
+  /** 모은 스탬프 개수 — 목록에서 바로 보이게 */
+  stampCount?: number;
   /** Labs(디버그) 화면 진입 */
   onLabsPress?: () => void;
   onWidgetPreviewPress?: () => void;
@@ -169,6 +171,7 @@ export function ProfileScreen({
   onPrivacyPress,
   onLabsPress,
   onStampsPress,
+  stampCount = 0,
   onWidgetPreviewPress,
   onSubmissionsPress,
   onExamNotifPress,
@@ -435,6 +438,8 @@ export function ProfileScreen({
               <ListItem
                 title={t('stamps.title')}
                 leading={{type: 'icon', icon: IconBookFilled}}
+                // 몇 개나 모았는지 — 들어가 보지 않고도 알 수 있게
+                trailingValue={stampCount > 0 ? t('stamps.countValue', {count: stampCount}) : undefined}
                 trailing={{type: 'icon', icon: IconChevronRight}}
                 showDivider={false}
                 onPress={onStampsPress}

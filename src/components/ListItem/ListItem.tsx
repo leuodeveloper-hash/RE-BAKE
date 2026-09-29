@@ -34,6 +34,11 @@ export interface ListItemProps {
   leading?: ListItemElementType;
   /** 오른쪽 슬롯 (아이콘, 숫자, 아이콘 버튼) */
   trailing?: ListItemElementType;
+  /**
+   * 우측 끝(보통 > 아이콘) 앞에 붙는 값 — "12개"처럼 들어가지 않고도
+   * 알 수 있어야 하는 수치. 설정 목록이 공통으로 쓴다.
+   */
+  trailingValue?: string;
   /** 하단 구분선 표시 여부 (기본: true) */
   showDivider?: boolean;
   /** 타이틀 최대 줄 수 (기본: 1, 0이면 무제한) */
@@ -113,6 +118,7 @@ export function ListItem({
   children,
   leading,
   trailing,
+  trailingValue,
   showDivider = true,
   titleNumberOfLines = 1,
   disabled = false,
@@ -158,6 +164,7 @@ export function ListItem({
             </Text>
           )}
         </View>
+        {trailingValue ? <Text style={styles.trailingValue}>{trailingValue}</Text> : null}
         {trailing && renderSlotElement(trailing, colors, styles, resolvedVariant)}
       </Wrapper>
       {showDivider && (
@@ -231,6 +238,10 @@ const createStyles = (colors: SemanticColors) =>
     },
     numberContainer: {
       backgroundColor: colors['surface/container'],
+    },
+    trailingValue: {
+      ...Typography.label.medium,
+      color: colors['foreground/on-surface-muted'],
     },
     numberText: {
       fontFamily: Typography.body.medium.fontFamily,
