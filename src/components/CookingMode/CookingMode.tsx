@@ -2270,8 +2270,11 @@ const createStyles = (colors: SemanticColors) =>
       // 한 줄에 안 들어가고, calc()는 웹에서만 동작한다.
       // OptionTile 바깥 래퍼가 flex:1이라 그대로 두면 flex가 폭을 이겨
       // 재료 수만큼 한 줄에 다 들어간다(7개가 한 줄로 늘어났다).
+      // flex:1은 flexBasis:0도 포함하므로 grow만 막으면 0에서 안 자라 쪼그라든다
+      // — basis를 auto로 되돌려 지정한 width가 그대로 쓰이게 한다.
       flexGrow: 0,
       flexShrink: 0,
+      flexBasis: 'auto',
       // 이름이 길고 짧아도 칸 크기가 같아 보이도록 높이를 고정한다
       height: 76,
     },
