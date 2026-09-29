@@ -40,7 +40,6 @@ export function SlideToConfirm({
 }: SlideToConfirmProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
-  const [trackW, setTrackW] = useState(0);
   const [done, setDone] = useState(confirmed);
   const x = useRef(new Animated.Value(0)).current;
   // PanResponder 클로저가 최신 값을 보도록 ref로 유지
@@ -52,7 +51,6 @@ export function SlideToConfirm({
 
   const onLayout = useCallback((e: LayoutChangeEvent) => {
     const w = e.nativeEvent.layout.width;
-    setTrackW(w);
     maxRef.current = Math.max(0, w - TRACK_H - KNOB_M * 2);
     // 이미 완료 상태면 손잡이를 오른쪽 끝에 둔다(되돌리기 시작 위치)
     if (doneRef.current) x.setValue(maxRef.current);
@@ -106,10 +104,8 @@ export function SlideToConfirm({
   ).current;
 
   const isDone = done || confirmed;
-  // 진행할수록 안내 문구가 흐려짐
-  const labelOpacity = trackW > 0
-    ? x.interpolate({inputRange: [0, Math.max(1, maxRef.current)], outputRange: [1, 0]})
-    : 1;
+  // 문구는 흐리지 않는다 — 진행은 손잡이가 보여주고, 흐렸다가 되돌아올 때
+  // 다시 또렷해지는 왕복이 오히려 눈에 거슬린다
 
   return (
     <View
@@ -121,9 +117,9 @@ export function SlideToConfirm({
           <Text style={styles.doneText}>{confirmedLabel ?? label}</Text>
         </View>
       ) : (
-        <Animated.Text style={[styles.label, {opacity: labelOpacity}]} numberOfLines={1}>
+        <Text style={styles.label} numberOfLines={1}>
           {label}
-        </Animated.Text>
+        </Text>
       )}
       {/* 손잡이는 항상 렌더 — 완료 상태에선 오른쪽 끝에서 왼쪽으로 밀어 되돌린다 */}
       <Animated.View

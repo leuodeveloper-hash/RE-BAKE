@@ -44,7 +44,8 @@ export function MadeConfirmSheet({
 
   const handleConfirm = useCallback(() => {
     onConfirm();
-    onClose();
+    // 곧장 닫으면 완료 문구가 보일 틈이 없다 — 찍혔다는 걸 확인하고 넘어가게 잠깐 둔다
+    setTimeout(onClose, 600);
   }, [onConfirm, onClose]);
 
   return (
