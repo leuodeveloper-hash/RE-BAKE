@@ -173,7 +173,7 @@ async function syncToFirestore(uid: string, recipes: Recipe[]) {
   }, {merge: true});
 }
 
-export function useRecipeStorage() {
+export function useRecipeStorage(showSnackbar?: (message: string) => void) {
   const {user} = useAuth();
   const {isPro, photoCloudBackup} = useSubscription();
   const cloudEnabled = !!user && isPro;
@@ -186,6 +186,9 @@ export function useRecipeStorage() {
   const firestoreUnsubRef = useRef<(() => void) | null>(null);
   /** 로컬 쓰기 중 onSnapshot이 state를 덮어쓰지 않도록 하는 가드 */
   const localWritePending = useRef(false);
+  // setRecipes는 useCallback으로 굳어 있어 최신 콜백을 ref로 본다
+  const showSnackbarRef = useRef(showSnackbar);
+  showSnackbarRef.current = showSnackbar;
   /** 게스트→로그인(Pro) 시 올릴 로컬 레시피 후보 (확인 팝업 대기) */
   const migrationRecipesRef = useRef<Recipe[] | null>(null);
   const [migrationCount, setMigrationCount] = useState(0);
@@ -326,8 +329,10 @@ export function useRecipeStorage() {
               await syncToFirestore(user.uid, uploaded);
               setLastSyncedAt(new Date());
               setLastSyncedDevice(getDeviceName());
-            } catch (e) {
+            } catch (e: any) {
+              // 조용히 큐에 넣기만 하면 사용자는 저장된 줄 안다 — 실패를 알린다
               console.error('[Storage] upload/sync failed:', e);
+              showSnackbarRef.current?.(`동기화 실패: ${e?.code ?? e?.message ?? e}`);
               addToQueue({type: 'sync', uid: user.uid, data: next});
             }
 

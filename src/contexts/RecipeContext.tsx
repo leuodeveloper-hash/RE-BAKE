@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useRecipeStorage} from '@hooks/useRecipeStorage';
 import type {Recipe} from '../types/recipe';
 import type {AvatarColor} from '@components/Avatar/Avatar';
+import {useSnackbar} from '@contexts/SnackbarContext';
 
 const COOKBOOK_COLORS_KEY = 'bakle_cookbook_colors_v1';
 // 홈/둘러보기 메뉴 선택 유지 (앱 재시작해도 마지막 본 페이지 유지)
@@ -49,7 +50,8 @@ interface RecipeContextValue {
 const RecipeContext = createContext<RecipeContextValue | null>(null);
 
 export function RecipeProvider({children}: {children: React.ReactNode}) {
-  const {recipes, setRecipes, exportRecipes, importRecipes, isLoading, lastSyncedAt, lastSyncedDevice, reload, canAddRecipe, migrationCount, confirmMigration, dismissMigration} = useRecipeStorage();
+  const {showSnackbar} = useSnackbar();
+  const {recipes, setRecipes, exportRecipes, importRecipes, isLoading, lastSyncedAt, lastSyncedDevice, reload, canAddRecipe, migrationCount, confirmMigration, dismissMigration} = useRecipeStorage(showSnackbar);
   const [selectedCookbook, setSelectedCookbookState] = useState<string | null>(null);
   const [selectedMethod, setSelectedMethodState] = useState<string | null>(null);
   const [selectedExploreCookbook, setSelectedExploreCookbookState] = useState<string | null>(null);

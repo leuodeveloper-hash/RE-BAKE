@@ -1,7 +1,7 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Animated, LayoutChangeEvent, PanResponder, StyleSheet, Text, View} from 'react-native';
 import {AppIcon} from '@components/Icon/AppIcon';
-import {IconArrowRight, IconCircleCheck} from '@components/Icon/IconIndex';
+import {IconArrowRight, IconTick} from '@components/Icon/IconIndex';
 import {Radius, type SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
@@ -124,13 +124,17 @@ export function SlideToConfirm({
           <Text style={styles.doneText}>{confirmedLabel ?? label}</Text>
         </View>
       ) : (
-        <View style={styles.labelStack} pointerEvents="none">
+        // 두 문구를 같은 자리에 겹친다 — 흐름에 하나만 두고 나머지를 절대위치로
+        // 얹으면 중앙 정렬 기준이 어긋나지 않는다
+        <View pointerEvents="none">
           <Animated.Text style={[styles.label, {opacity: fadeOut}]} numberOfLines={1}>
             {label}
           </Animated.Text>
-          <Animated.Text style={[styles.label, styles.labelOverlay, {opacity: fadeIn}]} numberOfLines={1}>
-            {confirmedLabel ?? label}
-          </Animated.Text>
+          <Animated.View style={[StyleSheet.absoluteFill, styles.labelOverlay, {opacity: fadeIn}]}>
+            <Text style={styles.label} numberOfLines={1}>
+              {confirmedLabel ?? label}
+            </Text>
+          </Animated.View>
         </View>
       )}
       {/* 손잡이는 항상 렌더 — 완료 상태에선 오른쪽 끝에서 왼쪽으로 밀어 되돌린다 */}
@@ -138,7 +142,7 @@ export function SlideToConfirm({
         style={[styles.knob, {transform: [{translateX: x}]}]}
         {...pan.panHandlers}>
         <AppIcon
-          icon={isDone ? IconCircleCheck : IconArrowRight}
+          icon={isDone ? IconTick : IconArrowRight}
           size="sm"
           // 손잡이가 흰 원이라 아이콘은 트랙과 같은 어두운 색이어야 보인다
           color={colors['background/primary']}
@@ -163,12 +167,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   trackDisabled: {
     opacity: 0.5,
   },
-  labelStack: {
-    justifyContent: 'center',
-  },
   labelOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    textAlignVertical: 'center',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   label: {
     ...Typography.label.large,
