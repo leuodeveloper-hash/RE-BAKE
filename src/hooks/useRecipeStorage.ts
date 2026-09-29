@@ -347,11 +347,19 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
         // {uri, caption: undefined}와 {uri}가 같아진다 → 실제 변경이 "변경 없음"으로
         // 판정돼 저장이 스킵됐다(요리모드 수정이 반영 안 되던 문제).
         const hasChange = stableStringify(next) !== stableStringify(prev);
-        if (!hasChange) return prev;
+        if (!hasChange) {
+          showSnackbarRef.current?.('진단: 변경 없음으로 판정돼 저장 안 함');
+          return prev;
+        }
 
         // 진단: 클라우드가 꺼져 있으면 로컬에만 남는데 아무 표시가 없어
         // "저장됐다"고 오해하게 된다
         const {cloudEnabled: cloudNow, user: userNow, photoCloudBackup: backupNow} = cloudRef.current;
+        if (!cloudNow || !userNow) {
+          showSnackbarRef.current?.(`진단: 클라우드 건너뜀 (cloud:${cloudNow} user:${!!userNow})`);
+        } else {
+          showSnackbarRef.current?.('진단: 업로드 시작');
+        }
         if (cloudNow && userNow) {
           // Firestore에 동기화 (이미지 업로드 → 동기화)
           localWritePending.current = true;
