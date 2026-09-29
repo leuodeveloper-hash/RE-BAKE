@@ -1,5 +1,5 @@
 import React, {useEffect, useRef} from 'react';
-import {Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle} from 'react-native';
+import {Animated, Easing, View, type StyleProp, type ViewStyle} from 'react-native';
 import MaskedView from '@react-native-masked-view/masked-view';
 import {Image as ExpoImage} from 'expo-image';
 import Svg, {Path} from 'react-native-svg';
@@ -83,7 +83,8 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
         style,
       ]}>
       <MaskedView
-        style={StyleSheet.absoluteFill}
+        // absoluteFill만 주면 웹에서 마스크가 크기를 못 잡아 내용이 안 보인다
+        style={{width: size, height: size}}
         maskElement={
           // viewBox로 그리면 size가 달라져도 모양이 그대로 늘어난다
           <Svg width={size} height={size} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
@@ -91,10 +92,17 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
           </Svg>
         }>
         {imageUri ? (
-          <View style={[StyleSheet.absoluteFill, {backgroundColor: colors['surface/bright']}]}>
+          <View style={{width: size, height: size, backgroundColor: colors['surface/bright'], overflow: 'hidden'}}>
+            {/* 2배로 그리고 가운데로 당긴다 — 마스크가 불규칙해 가장자리가 잘리므로
+                피사체가 가운데 크게 들어오는 편이 낫다 */}
             <ExpoImage
               source={{uri: imageUri}}
-              style={StyleSheet.absoluteFill}
+              style={{
+                width: size * 2,
+                height: size * 2,
+                marginLeft: -size / 2,
+                marginTop: -size / 2,
+              }}
               contentFit="cover"
               cachePolicy="memory-disk"
               transition={200}
@@ -104,7 +112,7 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
           // 사진이 없으면 스켈레톤 — surface/bright는 흰 시트 위에서 배경과 같아
           // 아무것도 없는 것처럼 보인다
           <Animated.View
-            style={[StyleSheet.absoluteFill, {backgroundColor: colors['fill/faint'], opacity: pulse}]}
+            style={{width: size, height: size, backgroundColor: colors['fill/faint'], opacity: pulse}}
           />
         )}
       </MaskedView>
