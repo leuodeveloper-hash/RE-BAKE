@@ -80,20 +80,18 @@ function HighlightPop({active, children}: {active: boolean; children: React.Reac
 const LIST_STAMP = 36;
 
 /** 그리드·리스트가 같은 그림을 쓴다 — 채운 칸은 스탬프, 빈 칸은 점 */
-function SlotStamp({slot, size, styles, colors, highlight, outline}: {
+function SlotStamp({slot, size, styles, colors, highlight}: {
   slot: StampSlot;
   size: number;
   styles: ReturnType<typeof createStyles>;
   colors: ReturnType<typeof useColors>;
   /** 방금 찍은 칸 — 어디에 붙었는지 눈에 띄게 */
   highlight?: boolean;
-  /** 점선 윤곽으로 — 한 칸도 못 채운 섹션의 첫 칸만 */
-  outline?: boolean;
 }) {
   if (!slot.madeAt) {
-    // 아직 하나도 없으면 첫 칸만 점선으로 — 점만 늘어놓으면 너무 휑하다
-    if (outline) return <Stamp size={size} outline />;
-    return <View style={styles.emptyDot} />;
+    // 빈 칸은 모두 점선 실루엣 — 무엇이 들어올 자리인지 모양으로 보인다.
+    // (order를 그대로 줘 채워졌을 때와 같은 모양이 나온다)
+    return <Stamp size={size} index={slot.order} outline />;
   }
   return (
     <HighlightPop active={!!highlight}>
@@ -123,6 +121,13 @@ function formatMadeDate(iso: string, t: (k: string, p?: Record<string, unknown>)
 
 /** 레시피북이 없는 레시피를 모으는 섹션 키 — 실제 북 이름과 겹치지 않게 */
 const NO_BOOK = '\u0000no-book';
+
+/** 빈 슬롯의 모양을 레시피마다 다르게 — id로 만든 안정적인 숫자(새로 고쳐도 같다) */
+function shapeSeed(key: string): number {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
 
 export default function StampsRoute() {
   const styles = useThemedStyles(createStyles);
@@ -213,7 +218,10 @@ export default function StampsRoute() {
       recipe: r,
       madeAt: hit?.madeAt,
       count: hit?.count ?? 0,
-      order: orderIndex.get(key) ?? 0,
+      // 만든 칸은 모은 순서로 모양이 정해진다(shapes.ts 참고).
+      // 아직 안 만든 칸은 순서가 없으니 레시피 id로 고르게 흩는다 —
+      // 0으로 두면 빈 실루엣이 전부 같은 모양이 된다.
+      order: orderIndex.get(key) ?? shapeSeed(key),
     };
   }, [madeIndex, orderIndex]);
 
@@ -476,7 +484,7 @@ export default function StampsRoute() {
                           key={slot.recipe.id}
                           onPress={() => { if (!user) { openAuthSheet(); return; } setSelected(slot); }}
                           style={[styles.gridCell, {width: slotSize, height: slotSize}]}>
-                          <SlotStamp slot={slot} size={slotSize} styles={styles} colors={colors} highlight={slot.recipe.id === just} outline={section.done === 0 && i === 0} />
+                          <SlotStamp slot={slot} size={slotSize} styles={styles} colors={colors} highlight={slot.recipe.id === just} />
                         </Pressable>
                       ))}
                     </View>
@@ -488,7 +496,7 @@ export default function StampsRoute() {
                           onPress={() => { if (!user) { openAuthSheet(); return; } setSelected(slot); }}
                           style={styles.listRow}>
                           <View style={styles.listThumb}>
-                            <SlotStamp slot={slot} size={LIST_STAMP} styles={styles} colors={colors} highlight={slot.recipe.id === just} outline={section.done === 0 && i === 0} />
+                            <SlotStamp slot={slot} size={LIST_STAMP} styles={styles} colors={colors} highlight={slot.recipe.id === just} />
                           </View>
                           <Text
                             style={[styles.listTitle, !slot.madeAt && styles.listTitleMuted]}
@@ -578,11 +586,5 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   listDate: {
     ...Typography.label.medium,
     color: colors['foreground/on-surface-muted'],
-  },
-  emptyDot: {
-    width: 6,
-    height: 6,
-    borderRadius: Radius['radius-full'],
-    backgroundColor: colors['fill/normal'],
   },
 });
