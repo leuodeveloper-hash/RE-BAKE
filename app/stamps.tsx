@@ -292,6 +292,7 @@ export default function StampsRoute() {
         done: slots.length,
         total: 0, // 날짜 축은 분모가 없다 — 진도 바를 감춘다
         official: false,
+        noBook: false,
       }));
   }, [recipes, exploreRecipes, madeAtOf, slotFor, t]);
 
@@ -451,13 +452,15 @@ export default function StampsRoute() {
                     title={section.title}
                     variant="strong"
                     leadingIcon={
-                      axis !== 'cookbook' ? undefined
+                      // 레시피북 없음은 실제 북이 아니다 — 대표 이미지도 없으니
+                      // 아이콘도 붙이지 않는다(누를 곳도 없다)
+                      axis !== 'cookbook' || section.noBook ? undefined
                         // 공식과 내 레시피북은 아이콘이 다르다(둘러보기와 같은 기준)
                         : section.official ? IconExprolerBookFilled : IconBookFilled
                     }
-                    leadingIconColor={bookColor(section.key)}
+                    leadingIconColor={section.noBook ? undefined : bookColor(section.key)}
                     progress={{done: section.done, total: section.total}}
-                    onPress={axis !== 'cookbook' ? undefined : () => {
+                    onPress={axis !== 'cookbook' || section.noBook ? undefined : () => {
                       // 둘러보기는 쿼리 파라미터를 받지 않는다 — 선택 상태를 컨텍스트에
                       // 넣고 이동해야 그 레시피북이 펼쳐진 채로 열린다
                       setSelectedExploreCookbook(section.key);
