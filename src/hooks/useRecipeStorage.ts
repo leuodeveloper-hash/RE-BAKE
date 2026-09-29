@@ -202,7 +202,14 @@ async function syncToFirestore(uid: string, recipes: Recipe[]) {
     }
     batch.set(doc(colRef, recipe.id), data);
   }
-  await batch.commit();
+  // Firestore 쓰기가 응답 없이 매달리는 경우가 있다(웹) — 그대로 두면 에러도
+  // 완료도 없이 영영 끝나지 않아 무엇이 잘못됐는지 알 수 없다.
+  await Promise.race([
+    batch.commit(),
+    new Promise((_, reject) =>
+      setTimeout(() => reject(Object.assign(new Error('Firestore 쓰기가 응답하지 않습니다(15초)'), {code: 'timeout'})), 15000),
+    ),
+  ]);
   // 동기화한 기기 정보 기록
   await setDoc(doc(db, 'users', uid), {
     lastSyncedDevice: getDeviceName(),
