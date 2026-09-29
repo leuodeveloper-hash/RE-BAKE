@@ -3,6 +3,8 @@
  */
 import {createWorker} from 'tesseract.js';
 
+import {parseIngredientLines, splitTableRow, stripOcrNoise} from './ocrText';
+
 export type RecipeOcrField = 'title' | 'ingredients' | 'tools' | 'steps';
 
 let workerPromise: ReturnType<typeof createWorker> | null = null;
@@ -54,12 +56,17 @@ export function parseRecognizedText(text: string, field: RecipeOcrField): string
 
   switch (field) {
     case 'title':
-      return lines[0] || '';
+      return stripOcrNoise(lines[0] || '');
     case 'ingredients':
-      return lines.flatMap(l => l.split(/[,、・]/).map(s => s.trim()).filter(Boolean));
+      // 표에서 뽑힌 줄은 열을 갈라야 한다 — 네이티브와 같은 규칙(ocrText)
+      return parseIngredientLines(lines).map(i => (i.amount ? `${i.name} ${i.amount}` : i.name));
     case 'tools':
-      return lines.flatMap(l => l.split(/[,、・/]/).map(s => s.trim()).filter(Boolean));
+      return lines
+        .flatMap(splitTableRow)
+        .flatMap(l => l.split(/[/]/).map(s => s.trim()).filter(Boolean));
     case 'steps':
-      return lines.map(l => l.replace(/^[\d①-⑨ⓐ-ⓩ.\)\-\s]+/, '').trim()).filter(Boolean);
+      return lines
+        .map(l => stripOcrNoise(l).replace(/^[\d①-⑨ⓐ-ⓩ.\)\-\s]+/, '').trim())
+        .filter(Boolean);
   }
 }

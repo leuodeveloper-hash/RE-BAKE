@@ -3,6 +3,7 @@
  * Web 구현은 recipeOcr.web.ts 참고.
  */
 import TextRecognition, {TextRecognitionScript} from '@react-native-ml-kit/text-recognition';
+import {parseIngredientLines, splitTableRow, stripOcrNoise} from './ocrText';
 
 export type RecipeOcrField = 'title' | 'ingredients' | 'tools' | 'steps';
 
@@ -48,7 +49,7 @@ export function parseRecognizedText(text: string, field: RecipeOcrField): string
 
   switch (field) {
     case 'title': {
-      const candidate = (lines[0] || '').slice(0, 60);
+      const candidate = stripOcrNoise(lines[0] || '').slice(0, 60);
       if (candidate.length < 2) {
         throw new OcrValidationError(field, '제목으로 쓸 만한 텍스트가 없어요');
       }
@@ -59,9 +60,10 @@ export function parseRecognizedText(text: string, field: RecipeOcrField): string
     }
 
     case 'ingredients': {
-      const items = lines
-        .flatMap(l => l.split(/[,、・]/).map(s => s.trim()).filter(Boolean))
-        .filter(s => s.length <= 40);
+      // 레시피는 보통 표로 인쇄돼 있다 — 열을 갈라야 "박력분 400g 설탕 260g"이
+      // 재료 하나로 들어가지 않는다. 표 괘선·오인식 기호도 함께 걷어낸다.
+      const items = parseIngredientLines(lines)
+        .map(i => (i.amount ? `${i.name} ${i.amount}` : i.name));
       if (items.length === 0) {
         throw new OcrValidationError(field, '재료를 인식할 수 없어요');
       }
@@ -70,7 +72,8 @@ export function parseRecognizedText(text: string, field: RecipeOcrField): string
 
     case 'tools': {
       const items = lines
-        .flatMap(l => l.split(/[,、・/]/).map(s => s.trim()).filter(Boolean))
+        .flatMap(splitTableRow)
+        .flatMap(l => l.split(/[/]/).map(s => s.trim()).filter(Boolean))
         .filter(s => s.length <= 30);
       if (items.length === 0) {
         throw new OcrValidationError(field, '도구를 인식할 수 없어요');
@@ -80,7 +83,8 @@ export function parseRecognizedText(text: string, field: RecipeOcrField): string
 
     case 'steps': {
       const items = lines
-        .map(l => l.replace(/^[\d①-⑨ⓐ-ⓩ.\)\-\s]+/, '').trim())
+        // 괘선·오인식 기호를 먼저 걷어낸 뒤 번호 머리를 뗀다
+        .map(l => stripOcrNoise(l).replace(/^[\d①-⑨ⓐ-ⓩ.\)\-\s]+/, '').trim())
         .filter(Boolean)
         .filter(s => s.length >= 4);
       if (items.length === 0) {
