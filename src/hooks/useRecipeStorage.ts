@@ -372,6 +372,7 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
               const uploaded = backupNow
                 ? await Promise.all(next.map(uploadLocalImages))
                 : next;
+              showSnackbarRef.current?.('진단: 이미지 단계 통과');
               const hasUploads = JSON.stringify(uploaded) !== JSON.stringify(next);
               if (hasUploads) {
                 setRecipesState(uploaded);
@@ -379,6 +380,7 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
               }
               // Firestore 동기화 (URL 포함)
               await syncToFirestore(userNow.uid, uploaded);
+              showSnackbarRef.current?.('진단: Firestore 쓰기 완료');
               setLastSyncedAt(new Date());
               setLastSyncedDevice(getDeviceName());
             } catch (e: any) {
