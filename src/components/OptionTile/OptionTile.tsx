@@ -1,5 +1,5 @@
 import React from 'react';
-import {Pressable, StyleSheet, Text, ViewStyle} from 'react-native';
+import {Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
@@ -34,7 +34,7 @@ export function OptionTile({
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const content = (
-    <Card style={[styles.card, selected && styles.cardSelected, style]}>
+    <Card style={[styles.card, selected && styles.cardSelected]}>
       {icon && (
         <AppIcon
           icon={icon}
@@ -48,10 +48,12 @@ export function OptionTile({
       ) : null}
     </Card>
   );
+  // 크기(style)는 바깥이 받는다 — Card에만 주면 pressable의 flex가 이겨
+  // 지정한 폭·높이가 무시된다
   if (onPress) {
-    return <Pressable style={styles.pressable} onPress={onPress}>{content}</Pressable>;
+    return <Pressable style={[styles.pressable, style]} onPress={onPress}>{content}</Pressable>;
   }
-  return content;
+  return <View style={[styles.pressable, style]}>{content}</View>;
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({

@@ -2210,9 +2210,10 @@ const createStyles = (colors: SemanticColors) =>
       paddingBottom: Spacing.sm,
     },
     ingredientTile: {
-      // 3열 — gap(8)을 빼고 나눈 폭
-      width: '31.5%',
-      minHeight: 72,
+      // 4열 — gap(8) 세 칸을 빼고 나눈 폭
+      width: '23%',
+      // 이름이 길고 짧아도 칸 크기가 같아 보이도록 높이를 고정한다
+      height: 76,
     },
     topLeft: {
       flexDirection: 'row',
