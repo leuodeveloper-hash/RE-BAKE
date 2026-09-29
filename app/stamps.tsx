@@ -1,5 +1,5 @@
-import React, {useCallback, useMemo, useState} from 'react';
-import {Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
+import {Animated, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import {AppBar, APPBAR_CONTENT_BOTTOM} from '@components/Navigation';
@@ -58,6 +58,21 @@ interface StampSlot {
 
 type StampAxis = 'cookbook' | 'date';
 
+/**
+ * 방금 찍은 스탬프 등장 — 작게 시작해 살짝 튀어오른다.
+ * 어디에 붙었는지 눈이 따라가도록.
+ */
+function HighlightPop({active, children}: {active: boolean; children: React.ReactNode}) {
+  const scale = useRef(new Animated.Value(active ? 0.6 : 1)).current;
+  useEffect(() => {
+    if (!active) return;
+    scale.setValue(0.6);
+    Animated.spring(scale, {toValue: 1, friction: 5, tension: 140, useNativeDriver: true}).start();
+  }, [active, scale]);
+  if (!active) return <>{children}</>;
+  return <Animated.View style={{transform: [{scale}]}}>{children}</Animated.View>;
+}
+
 /** 리스트 행의 스탬프 크기 */
 const LIST_STAMP = 36;
 
@@ -77,7 +92,7 @@ function SlotStamp({slot, size, styles, highlight, outline}: {
     return <View style={styles.emptyDot} />;
   }
   return (
-    <View style={highlight ? styles.highlight : undefined}>
+    <HighlightPop active={!!highlight}>
       {/* 회차가 여럿이면 뒤에 한 장 더 깔아 "여러 번 만들었음"을 보인다 */}
       {slot.count > 1 && (
         <Stamp
@@ -92,7 +107,7 @@ function SlotStamp({slot, size, styles, highlight, outline}: {
         size={size}
         index={slot.order}
       />
-    </View>
+    </HighlightPop>
   );
 }
 
@@ -520,11 +535,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   listDate: {
     ...Typography.label.medium,
     color: colors['foreground/on-surface-muted'],
-  },
-  highlight: {
-    // 방금 붙인 스탬프 — 살짝 키워 눈에 띄게 한다.
-    // 그림자를 주면 RN이 배경을 칠해야 해서 마스크 뒤에 사각형이 생긴다.
-    transform: [{scale: 1.12}],
   },
   emptyDot: {
     width: 6,
