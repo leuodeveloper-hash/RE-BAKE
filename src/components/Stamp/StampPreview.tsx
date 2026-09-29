@@ -14,7 +14,13 @@ import type {Recipe} from '../../types/recipe';
  * 토막을 한 줄로 이어 위에서부터 흘리고 넘치는 만큼은 잘라 낸다
  * (가운데 정렬하면 위아래가 비어 덩그러니 남는다).
  */
-export function StampPreview({recipe, fontSize = 6}: {recipe?: Partial<Recipe>; fontSize?: number}) {
+/**
+ * 기본 글자 크기 — 6px로 두니 iOS에서 거의 안 보였다(웹은 보였다).
+ * 작은 글씨는 기기마다 렌더링이 갈리므로 읽히는 하한을 지킨다.
+ */
+const DEFAULT_FONT_SIZE = 9;
+
+export function StampPreview({recipe, fontSize = DEFAULT_FONT_SIZE}: {recipe?: Partial<Recipe>; fontSize?: number}) {
   const styles = useThemedStyles(createStyles);
   if (!recipe) return null;
   const text = recipePreviewParts(recipe)
@@ -39,9 +45,9 @@ const createStyles = (colors: SemanticColors) =>
     },
     text: {
       ...Typography.label.small,
+      // 질감 삼아 옅게 두면 작은 글씨가 iOS에서 사라진다 — 본문 색을 그대로 쓴다
       color: colors['foreground/on-surface-muted'],
       textAlign: 'justify',
-      opacity: 0.7,
     },
   });
 

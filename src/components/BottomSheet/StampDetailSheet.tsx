@@ -90,9 +90,8 @@ export function StampDetailSheet({
             size={STAMP_SIZE}
             index={stampIndex}
            
-            // 사진이 없으면 목록과 같이 내용 미리보기로 채운다(크게 보는 자리라 글자도 키운다)
+            // 사진이 없으면 목록과 같이 내용 미리보기로 채운다
             recipe={recipe}
-            previewFontSize={9}
           />
         </View>
 
