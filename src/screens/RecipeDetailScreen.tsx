@@ -251,14 +251,36 @@ function formatPercentage(value: number): string {
 }
 
 const FLOUR_KEYWORDS = ['강력분', '중력분', '박력분', '밀가루', '통밀', '쌀가루'];
+const isFlour = (name: string) => FLOUR_KEYWORDS.some(k => name.includes(k));
+
 function hasFlour(groups: IngredientGroupInput[]): boolean {
-  return groups.some(g => g.ingredients.some(i => FLOUR_KEYWORDS.some(k => i.name.includes(k))));
+  return groups.some(g => g.ingredients.some(i => isFlour(i.name)));
+}
+
+/**
+ * 기준이 되는 밀가루 총량 — 베이커스 퍼센티지는 "밀가루 전체가 100%"다.
+ *
+ * 박력분 400g + 강력분 600g이면 합쳐서 1000g이 100%이고, 각 밀가루도 그 합을
+ * 기준으로 40%·60%가 된다. 첫 재료 하나만 기준으로 삼으면 밀가루를 섞어 쓰는
+ * 배합에서 모든 비율이 어긋난다.
+ */
+function flourTotal(groups: IngredientGroupInput[]): number {
+  return groups.reduce(
+    (sum, g) => sum + g.ingredients.reduce(
+      (s, i) => s + (isFlour(i.name) ? parseAmountGrams(i.amount) : 0),
+      0,
+    ),
+    0,
+  );
 }
 
 function computeBakersPercentages(
   groups: IngredientGroupInput[],
 ): {title: string; ingredients: {percentage: string; name: string; amount: string}[]}[] {
-  const baseAmount = parseAmountGrams(groups[0]?.ingredients[0]?.amount ?? '0');
+  // 밀가루가 하나도 없으면(디저트 등) 예전처럼 첫 재료를 기준으로 둔다 —
+  // 비율을 아예 안 보여주는 것보다는 낫다.
+  const baseAmount = flourTotal(groups)
+    || parseAmountGrams(groups[0]?.ingredients[0]?.amount ?? '0');
 
   return groups.map(group => ({
     title: group.title,
