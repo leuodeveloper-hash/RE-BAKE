@@ -1,5 +1,6 @@
 import WidgetKit
 import SwiftUI
+import AppIntents
 import UIKit   // UIFontDescriptor — OpenType feature(tnum/ss01) 활성화용
 
 // App Group으로 앱↔위젯 데이터 공유
@@ -29,9 +30,11 @@ struct UpcomingExam: Codable {
   let registrationStart: String
 }
 
-func readUpcomingExam() -> UpcomingExam? {
+/// 종목별 키로 읽는다. 예전 위젯이 쓰던 단일 키("upcomingExam")도 그대로 지원한다 —
+/// 업데이트 전에 설치해 둔 위젯이 빈 화면이 되면 안 된다.
+func readUpcomingExam(key: String = "upcomingExam") -> UpcomingExam? {
   guard let defaults = UserDefaults(suiteName: appGroup),
-        let raw = defaults.string(forKey: "upcomingExam"),
+        let raw = defaults.string(forKey: key),
         !raw.isEmpty,
         let data = raw.data(using: .utf8),
         let exam = try? JSONDecoder().decode(UpcomingExam.self, from: data)
@@ -161,23 +164,29 @@ func entryFor(date: Date, sets: [DailySet], exam: UpcomingExam?) -> RecipeEntry 
   return RecipeEntry(date: date, recipe: nil, imagePath: nil, exam: exam)
 }
 
-struct Provider: TimelineProvider {
+struct Provider: AppIntentTimelineProvider {
   func placeholder(in context: Context) -> RecipeEntry {
     RecipeEntry(date: Date(), recipe: DailyRecipe(id: "", title: "오늘의 레시피", cookbook: nil), imagePath: nil, exam: nil)
   }
 
-  func getSnapshot(in context: Context, completion: @escaping (RecipeEntry) -> Void) {
-    completion(entryFor(date: Date(), sets: readDailySets(), exam: readUpcomingExam()))
+  func snapshot(for configuration: ExamWidgetIntent, in context: Context) async -> RecipeEntry {
+    entryFor(date: Date(), sets: readDailySets(), exam: readUpcomingExam(key: configuration.discipline.storageKey))
   }
 
-  func getTimeline(in context: Context, completion: @escaping (Timeline<RecipeEntry>) -> Void) {
+  func timeline(for configuration: ExamWidgetIntent, in context: Context) async -> Timeline<RecipeEntry> {
+    await withCheckedContinuation { continuation in
+      buildTimeline(key: configuration.discipline.storageKey) { continuation.resume(returning: $0) }
+    }
+  }
+
+  private func buildTimeline(key: String, completion: @escaping (Timeline<RecipeEntry>) -> Void) {
     // 날짜별 세트(제목+이미지 일치)를 각 날짜 00:00 엔트리로. 매일 자정에 다음 세트로 전환.
     let cal = Calendar.current
     let startOfToday = cal.startOfDay(for: Date())
     let sets = readDailySets()
     // 시험 정보는 하루 단위로 D-day가 바뀐다. 엔트리마다 같은 값을 넣되,
     // 각 엔트리의 date를 기준으로 뷰가 남은 일수를 다시 계산한다.
-    let exam = readUpcomingExam()
+    let exam = readUpcomingExam(key: key)
     var entries: [RecipeEntry] = []
     for dayOffset in 0..<14 {
       guard let day = cal.date(byAdding: .day, value: dayOffset, to: startOfToday) else { continue }
@@ -365,7 +374,7 @@ struct BakleWidget: Widget {
   let kind: String = "BakleWidget"
 
   var body: some WidgetConfiguration {
-    StaticConfiguration(kind: kind, provider: Provider()) { entry in
+    AppIntentConfiguration(kind: kind, intent: ExamWidgetIntent.self, provider: Provider()) { entry in
       // 이미지가 위젯 전체(가장자리까지)를 채우도록 배경 자체를 containerBackground로.
       // 위젯 타깃은 iOS18+ 이므로 항상 이 경로.
       BakleWidgetEntryView(entry: entry)
@@ -374,7 +383,9 @@ struct BakleWidget: Widget {
         }
     }
     .configurationDisplayName("오늘의 레시피")
-    .description("매일 새로운 오늘의 레시피를 추천해드려요.")
+    // 종목은 위젯을 길게 눌러 "위젯 편집"에서 바꾼다. 두 개를 놓고 각각 제과·제빵으로
+    // 고르면 둘 다 볼 수 있다.
+    .description("매일 새로운 오늘의 레시피와 시험 D-day를 보여드려요. 길게 눌러 종목을 고르세요.")
     // 아이패드는 홈 화면 위젯이 large/extraLarge 중심이라 small/medium만 지원하면
     // 선택지가 거의 없다. 큰 크기까지 지원해 아이패드에서도 정상 배치되게 한다.
     .supportedFamilies([.systemSmall, .systemMedium, .systemLarge, .systemExtraLarge])

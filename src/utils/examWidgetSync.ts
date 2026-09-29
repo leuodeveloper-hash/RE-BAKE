@@ -6,6 +6,25 @@ import {translate, deviceLanguage} from '../i18n';
 
 const APP_GROUP = 'group.com.bakle.app';
 const WIDGET_NAME = 'BakleWidget';
+
+/**
+ * 위젯이 고를 수 있는 종목 — 제과/제빵은 접수일이 달라 한 칸에 담으면 한쪽이 가린다.
+ * 위젯 종류를 늘리는 대신(갤러리가 지저분해진다) 같은 위젯을 두 개 놓고
+ * 각각 길게 눌러 종목을 고르게 한다(Swift의 ExamWidgetIntent).
+ */
+export const WIDGET_DISCIPLINES = ['pastry', 'baking'] as const;
+export type WidgetDiscipline = (typeof WIDGET_DISCIPLINES)[number];
+
+/** 종목별 저장 키 — Swift가 같은 이름으로 읽는다 */
+const storageKey = (d: WidgetDiscipline) => `upcomingExam_${d}`;
+
+/** 접수 시작일과 시험일 중 먼저 오는 시각 */
+function nextMomentOf(e: ExamWidgetData): number {
+  const times = [e.registrationStart, e.examDate]
+    .map(v => (v ? new Date(v).getTime() : NaN))
+    .filter(v => !Number.isNaN(v) && v > Date.now());
+  return times.length > 0 ? Math.min(...times) : Infinity;
+}
 // 설정을 쓰는 쪽(useExamNotificationPrefs)과 반드시 같은 키여야 한다 —
 // 어긋나면 설정을 켜도 빈 값을 읽어 배너·위젯이 조용히 안 뜬다.
 const PREFS_KEY = '@bakle_exam_notif_prefs';
@@ -44,7 +63,9 @@ export async function syncExamWidget(): Promise<void> {
     const prefs = raw ? JSON.parse(raw) : null;
     const targets: ExamType[] = prefs?.enabled ? (prefs.targets ?? []) : [];
 
-    let payload: ExamWidgetData | null = null;
+    // 종목(제과/제빵)별로 따로 담는다 — 위젯이 두 종류라 각자 자기 것을 읽는다.
+    // 한 칸에 몰아넣으면 접수가 급한 한 종목이 다른 종목을 가린다.
+    const byDiscipline: Record<WidgetDiscipline, ExamWidgetData | null> = {pastry: null, baking: null};
 
     if (targets.length > 0) {
       const schedules = await fetchExamSchedules(targets);
@@ -65,12 +86,12 @@ export async function syncExamWidget(): Promise<void> {
         return times.length > 0 ? Math.min(...times) : Infinity;
       };
 
-      const upcoming = schedules
-        .filter(s => nextMoment(s) !== Infinity)
-        .sort((a, b) => nextMoment(a) - nextMoment(b))[0];
-
-      if (upcoming) {
-        payload = {
+      for (const discipline of WIDGET_DISCIPLINES) {
+        const upcoming = schedules
+          .filter(s => s.examType.startsWith(discipline) && nextMoment(s) !== Infinity)
+          .sort((a, b) => nextMoment(a) - nextMoment(b))[0];
+        if (!upcoming) continue;
+        byDiscipline[discipline] = {
           examDate: upcoming.examDate,
           // 종목까지 밝힌다 — "기능사 실기"만으로는 제과인지 제빵인지 알 수 없다
           label: scheduleExamLabel(upcoming.examType, t)
@@ -83,8 +104,18 @@ export async function syncExamWidget(): Promise<void> {
     }
 
     const WidgetStorage = require('../../modules/widget-storage').default;
-    // 대상이 없으면 빈 문자열 — 위젯은 이걸 보고 배너를 감춘다
-    WidgetStorage.setString('upcomingExam', payload ? JSON.stringify(payload) : '', APP_GROUP);
+    for (const discipline of WIDGET_DISCIPLINES) {
+      const payload = byDiscipline[discipline];
+      // 대상이 없으면 빈 문자열 — 위젯은 이걸 보고 배너를 감춘다
+      WidgetStorage.setString(storageKey(discipline), payload ? JSON.stringify(payload) : '', APP_GROUP);
+    }
+    // 예전 단일 키도 계속 채운다 — 업데이트 전에 설치해 둔 위젯이 빈 화면이 되면 안 된다.
+    // 급한 쪽(먼저 오는 일정)을 넣는다.
+    const legacy = [byDiscipline.pastry, byDiscipline.baking]
+      .filter(Boolean)
+      .sort((a, b) => nextMomentOf(a!) - nextMomentOf(b!))[0] ?? null;
+    WidgetStorage.setString('upcomingExam', legacy ? JSON.stringify(legacy) : '', APP_GROUP);
+
     WidgetStorage.reloadWidget(WIDGET_NAME);
   } catch (e) {
     console.warn('[examWidgetSync] 동기화 실패:', e);
@@ -155,7 +186,11 @@ export function previewExamWidget(
   }
 
   const WidgetStorage = require('../../modules/widget-storage').default;
-  WidgetStorage.setString('upcomingExam', payload ? JSON.stringify(payload) : '', APP_GROUP);
+  // 위젯이 고른 종목의 키를 읽으므로 그 자리에 넣어야 실제와 같은 경로로 확인된다.
+  // 어느 종목을 골라 뒀든 보이도록 양쪽 + 예전 단일 키까지 채운다.
+  const raw = JSON.stringify(payload);
+  for (const d of WIDGET_DISCIPLINES) WidgetStorage.setString(storageKey(d), raw, APP_GROUP);
+  WidgetStorage.setString('upcomingExam', raw, APP_GROUP);
   WidgetStorage.reloadWidget(WIDGET_NAME);
 }
 
