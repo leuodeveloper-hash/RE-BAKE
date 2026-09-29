@@ -436,7 +436,7 @@
   "madeSheet.description": "Slide the button if you made it yourself\nand collect a stamp.\nWrite a reflection to complete your notes.",
   "madeSheet.later": "Later",
   "madeSheet.reviewDescription": "Note what fell short and what you'd change next time.",
-  "madeSheet.reviewPlaceholder": "Write freely",
+  "madeSheet.reviewPlaceholder": "Up to {{max}} characters",
   "madeSheet.reviewTitle": "How did it go?",
   "madeSheet.saveReview": "Save review",
   "madeSheet.slideConfirmed": "Stamp collected",

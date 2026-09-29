@@ -36,6 +36,9 @@ export interface MadeConfirmSheetProps {
  * 찍고 나면 같은 시트에서 회고를 이어 쓴다 — 방금 만든 기억이 가장 선명할 때다.
  * 건너뛰어도 되도록 "나중에"를 둔다(요리 직후엔 손이 바쁘다).
  */
+/** 회고 길이 상한 — 길게 쓰라고 권하는 자리가 아니다 */
+const REVIEW_MAX = 500;
+
 export function MadeConfirmSheet({
   visible,
   onClose,
@@ -93,10 +96,16 @@ export function MadeConfirmSheet({
             <View style={styles.inputWrap}>
               <AutoGrowInput
                 style={styles.input}
-                placeholder={t('madeSheet.reviewPlaceholder')}
+                placeholder={t('madeSheet.reviewPlaceholder', {max: REVIEW_MAX})}
                 value={evaluation}
                 onChangeText={setEvaluation}
+                maxLength={REVIEW_MAX}
               />
+              {/* 글자수는 쓰기 시작한 뒤에만 — 빈 칸에 0/500이 떠 있으면
+                  분량을 채워야 할 것처럼 보인다 */}
+              {evaluation.length > 0 && (
+                <Text style={styles.counter}>{evaluation.length}/{REVIEW_MAX}</Text>
+              )}
             </View>
             <View style={styles.actions}>
               <Button label={t('madeSheet.later')} variant="soft" onPress={onClose} style={{flex: 1}} />
@@ -153,6 +162,12 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingHorizontal: Spacing.smd,
     paddingVertical: Spacing.sm,
     minHeight: 96,
+  },
+  counter: {
+    ...Typography.label.small,
+    color: colors['foreground/on-surface-muted'],
+    textAlign: 'right',
+    marginTop: Spacing.xs,
   },
   input: {
     ...Typography.body.medium,

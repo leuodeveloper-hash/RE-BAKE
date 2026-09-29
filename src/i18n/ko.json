@@ -421,7 +421,7 @@
   "madeSheet.description": "직접 만들었다면 버튼을 슬라이드해서\n스탬프를 모아보세요.\n회고를 쓰면 회고 노트가 쌓여요.",
   "madeSheet.later": "나중에",
   "madeSheet.reviewDescription": "아쉬웠던 점, 다음에 바꿔볼 것을 적어보세요.",
-  "madeSheet.reviewPlaceholder": "자유롭게 적어보세요",
+  "madeSheet.reviewPlaceholder": "{{max}}자까지 쓸 수 있어요",
   "madeSheet.reviewTitle": "어떻게 만들었나요?",
   "madeSheet.saveReview": "회고 남기기",
   "madeSheet.slideConfirmed": "스탬프를 모았어요",
