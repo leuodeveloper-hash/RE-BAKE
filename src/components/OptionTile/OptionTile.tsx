@@ -65,9 +65,9 @@ export function OptionTile({
         // outline은 "테두리가 있는 타입" — 고르기 전에도 선이 보이고,
         // 고르면 그 선이 진해진다. 선이 아예 없으면 어디가 칸인지 모른다.
         selectedStyle === 'outline' && styles.cardOutline,
-        selected && (selectedStyle === 'outline'
-          ? {borderColor: colors[tone.fg], borderWidth: 1.5}
-          : {backgroundColor: colors[tone.bg], borderColor: colors[tone.border]}),
+        // 고르면 어느 타입이든 배경이 채워진다 — outline은 그 위에 옅은
+        // 아웃라인이 남아 테두리 타입이라는 성격을 유지한다.
+        selected && {backgroundColor: colors[tone.bg], borderColor: colors[tone.border]},
       ]}>
       {icon && (
         <AppIcon
