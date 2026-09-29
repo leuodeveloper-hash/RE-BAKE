@@ -326,7 +326,7 @@ export function CookingMode({
   // onLayout이 주는 폭에는 컨테이너 자신의 좌우 패딩이 들어 있다 —
   // 빼지 않으면 칸이 그만큼 넓어져 4칸이 한 줄에 안 들어간다.
   const tileWidth = tileRowWidth > 0
-    ? Math.floor((tileRowWidth - Spacing.sm * 2 - Spacing.sm * 3) / 4)
+    ? Math.floor((tileRowWidth - Spacing.md * 2 - Spacing.sm * 3) / 4)
     : 0;
   const [editAdvice, setEditAdvice] = useState(advice ?? '');
   const [editAdvicePhotos, setEditAdvicePhotos] = useState<string[]>(advicePhotos ?? []);
@@ -2137,7 +2137,7 @@ export function CookingMode({
               {/* 타일 4열 — 요리 중엔 손이 바빠 한 줄짜리 목록은 누르기 어렵다.
                   이름이 길면 목록이 읽기 편해 우측 버튼으로 바꿀 수 있다. */}
               <View
-                style={ingredientLayout === 'grid' ? styles.ingredientTiles : undefined}
+                style={ingredientLayout === 'grid' ? styles.ingredientTiles : styles.ingredientRows}
                 onLayout={e => setTileRowWidth(e.nativeEvent.layout.width)}>
                 {(group.ingredients ?? []).filter(ing => ing.name?.trim()).map(ing => {
                   const checked = checkedIngredients.has(ing.name);
@@ -2249,6 +2249,12 @@ const createStyles = (colors: SemanticColors) =>
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: Spacing.sm,
+      // 시트 가장자리에 붙지 않게 — 좌우로 한 단계 더 띄운다
+      paddingHorizontal: Spacing.md,
+      paddingBottom: Spacing.sm,
+    },
+    // 목록도 같은 좌우 여백 — 없으면 행이 시트 끝에 붙는다
+    ingredientRows: {
       paddingHorizontal: Spacing.sm,
       paddingBottom: Spacing.sm,
     },
