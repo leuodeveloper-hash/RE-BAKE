@@ -1,12 +1,11 @@
 import React, {useCallback, useRef} from 'react';
-import {Image, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
+import {Image, Modal, Pressable, StyleSheet, View, useWindowDimensions} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {FloatingNavBar, navPillStyle, NavPillButton} from '@components/Navigation';
 import {GlassContainer} from '@components/Container';
 import {IconButton} from '@components/IconButton';
 import {IconClose, IconPhoto, IconTrash, IconArrowDownToLine} from '@components/Icon/IconIndex';
 import {ForceDarkTheme} from '@contexts/ThemeContext';
-import {Typography} from '@constants/typography';
 
 const MAX_CONTENT_WIDTH = 800;
 
@@ -98,7 +97,9 @@ export function PhotoViewer({
               left={<NavPillButton icon={IconClose} onPress={onClose} />}
               // 한 장이어도 표시한다 — 몇 번째를 보고 있는지 늘 같은 자리에 있어야
               // 여러 장일 때와 상단바 구성이 흔들리지 않는다.
-              center={<Text style={styles.counter}>{index + 1} / {total}</Text>}
+              // 직접 Text를 꽂지 않고 title을 쓴다 — 다른 화면 상단바와 같은 크기여야 한다.
+              // (ForceDarkTheme 안이라 색도 알아서 밝게 잡힌다)
+              title={`${index + 1} / ${total}`}
               right={hasRightActions ? (
                 <GlassContainer contentStyle={navPillStyle}>
                   {onReplace && (
@@ -133,11 +134,5 @@ const styles = StyleSheet.create({
   },
   image: {
     height: '100%',
-  },
-  counter: {
-    color: '#FFFFFF',
-    fontFamily: Typography.label.small.fontFamily,
-    fontSize: Typography.label.small.fontSize,
-    fontWeight: Typography.label.small.fontWeight as '500',
   },
 });
