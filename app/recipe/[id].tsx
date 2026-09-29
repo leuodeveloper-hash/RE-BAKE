@@ -549,11 +549,6 @@ const handleDelete = useCallback(async () => {
     });
   }, [isMyRecipe, id, recipe?.madeAt, setRecipes, router, user, openAuthSheet, showSnackbar, t]);
 
-  if (!recipe) return null;
-
-  // 내 목록에 있으면 복사본이어도 편집 가능(원본 출처는 sourceId 등으로 계속 표시된다).
-  // 기존엔 복사본을 막아 탭·롱프레스가 아무 반응 없이 먹통이었다.
-  const isMade = isMyRecipe && !!recipe.madeAt;
   // 의견은 공식(둘러보기) 레시피에만 — 내 레시피는 직접 고치면 된다
   const handleFeedback = useCallback(async (kind: string, message: string) => {
     if (!recipe) return;
@@ -573,6 +568,11 @@ const handleDelete = useCallback(async () => {
     }
   }, [recipe, user?.uid, handle, showSnackbar, t]);
 
+  if (!recipe) return null;
+
+  // 내 목록에 있으면 복사본이어도 편집 가능(원본 출처는 sourceId 등으로 계속 표시된다).
+  // 기존엔 복사본을 막아 탭·롱프레스가 아무 반응 없이 먹통이었다.
+  const isMade = isMyRecipe && !!recipe.madeAt;
   const canEdit = isMyRecipe || (isExploreRecipe && isAdmin);
   const canDelete = isMyRecipe || (isExploreRecipe && isAdmin);
 
