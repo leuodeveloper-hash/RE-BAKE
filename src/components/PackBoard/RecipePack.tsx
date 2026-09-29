@@ -5,6 +5,7 @@ import Animated, {useAnimatedStyle, type SharedValue} from 'react-native-reanima
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors, useTheme} from '@contexts/ThemeContext';
 import {StackedThumbnail} from '@components/Recipe/RecipeCard';
+import {Stamp} from '@components/Stamp';
 import {IconLockFilled, IconEyeClosed} from '@components/Icon/IconIndex';
 import {type SemanticColors, PrimitiveColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
@@ -99,6 +100,13 @@ export interface BookAuthor {
   avatarSeed: string | number;
 }
 
+/** 제목으로 모양을 정한다 — 북마다 다르되 다시 그려도 같은 모양이 나온다 */
+function shapeIndexOf(key: string): number {
+  let h = 0;
+  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
+  return Math.abs(h);
+}
+
 export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom, pillCorner, pillProgress, icon: PillIcon, iconColor, locked, variant = 'default', footerLeft, footerRight, emptyCover, hidden, authors}: RecipePackProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
@@ -156,19 +164,24 @@ export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom
         onPress={handlePress}
         style={({pressed}) => [styles.container, {width: BOOK_PACK_WIDTH}, pressed && {opacity: 0.85, transform: [{scale: 0.97}]}]}>
         <View style={[styles.bookCover, bookShadow, {width: BOOK_W, height: BOOK_H, backgroundColor: coverBg, transform: [{rotate: `${rotate}deg`}]}]}>
-          {/* 썸넬 중앙 */}
-          <StackedThumbnail
-            size={BOOK_IMG}
-            fill
-            bare
-            transparent={emptyCover}
-            imageUrl={shown[0].imageUrl}
-            colors={colors}
-            paperTitle={shown[0].title}
-            paperPreview={shown[0].paperPreview}
-            radius={0}
-            showPaper={!shown[0].imageUrl}
-          />
+          {/* 썸넬 중앙 — 사진이 있으면 스탬프 모양으로 오려낸다.
+              모양은 제목으로 정해 북마다 다르되 매번 같게 한다(랜덤이면 다시 그릴 때 바뀐다) */}
+          {typeof shown[0].imageUrl === 'string' && shown[0].imageUrl ? (
+            <Stamp imageUri={shown[0].imageUrl} size={BOOK_IMG} index={shapeIndexOf(title)} />
+          ) : (
+            <StackedThumbnail
+              size={BOOK_IMG}
+              fill
+              bare
+              transparent={emptyCover}
+              imageUrl={shown[0].imageUrl}
+              colors={colors}
+              paperTitle={shown[0].title}
+              paperPreview={shown[0].paperPreview}
+              radius={0}
+              showPaper={!shown[0].imageUrl}
+            />
+          )}
           {/* 제목 — 썸넬 상단에 살짝 겹치게 (absolute) */}
           <Text style={[styles.bookTitle, {color: titleColor}]} numberOfLines={2}>{title}</Text>
           {/* 부가정보 — 하단 좌·중·우 (레퍼런스 풋터): 레시피 수 · 브랜드 · 회고 수 */}
