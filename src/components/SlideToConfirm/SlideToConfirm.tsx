@@ -128,8 +128,9 @@ export function SlideToConfirm({
         />
       )}
       {isDone ? (
-        // 손잡이가 오른쪽 끝에 있으므로 그만큼 비워 텍스트가 가려지지 않게
-        <View style={[styles.doneRow, {paddingRight: TRACK_H}]}>
+        // 손잡이(오른쪽 끝)에 가리지 않게 비우되, 좌우를 같이 비운다 —
+        // 한쪽만 비우면 남은 공간의 중앙이라 글자가 왼쪽으로 틀어진다
+        <View style={[styles.doneRow, {paddingHorizontal: TRACK_H}]}>
           <Text style={styles.doneText}>{confirmedLabel ?? label}</Text>
         </View>
       ) : (
