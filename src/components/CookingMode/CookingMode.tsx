@@ -17,6 +17,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {recognizeImageText} from '@utils/recipeOcr';
+import {logOcrWithImage} from '@utils/ocrLog';
 import {dismissKeyboardAndWait} from '@utils/keyboard';
 import Svg, {Rect} from 'react-native-svg';
 import * as VideoThumbnails from 'expo-video-thumbnails';
@@ -952,7 +953,13 @@ export function CookingMode({
         ? await ImagePicker.launchCameraAsync({quality: 0.85})
         : await ImagePicker.launchImageLibraryAsync({mediaTypes: ['images'], quality: 0.85});
       if (result.canceled || !result.assets[0]) return;
-      const text = (await recognizeImageText(result.assets[0].uri)).trim();
+      const ocrUri = result.assets[0].uri;
+      const text = (await recognizeImageText(ocrUri)).trim();
+      // 기록은 흘려보낸다 — 업로드를 기다리면 붙여넣기가 늦어진다
+      void logOcrWithImage(
+        {source: 'cookingMode', ok: !!text, textLength: text.length, error: text ? undefined : 'no-text', uid: user?.uid},
+        ocrUri,
+      );
       if (!text) {
         showSnackbar(t('cookingMode.noTextFound'), {tone: 'error'});
         return;
@@ -970,7 +977,7 @@ export function CookingMode({
     } finally {
       setOcrBusy(false);
     }
-  }, [ocrBusy, editCards, currentIndex, updateEditCards, showSnackbar, t]);
+  }, [ocrBusy, editCards, currentIndex, updateEditCards, showSnackbar, t, user?.uid]);
 
   const pickPhoto = useCallback(async (source: 'camera' | 'gallery', globalIndex: number, currentPhotos?: StepPhoto[]) => {
     if ((currentPhotos?.length ?? 0) >= MAX_PHOTOS) return;

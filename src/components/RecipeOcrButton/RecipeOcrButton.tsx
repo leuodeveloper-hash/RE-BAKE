@@ -7,6 +7,8 @@ import {Radius} from '@constants/tokens';
 import {IconCameraFilled} from '@components/Icon/IconIndex';
 import {recognizeImageText, parseRecognizedText, type RecipeOcrField} from '@utils/recipeOcr';
 import {ensureImagePermission} from '@utils/imagePermission';
+import {logOcrWithImage, type OcrSource} from '@utils/ocrLog';
+import {useAuth} from '@contexts/AuthContext';
 
 export interface RecipeOcrButtonProps {
   /** 어떤 필드 타입에 결과를 적용할지 */
@@ -28,6 +30,7 @@ export interface RecipeOcrButtonProps {
 export function RecipeOcrButton({field, onStart, onRecognized, onEnd, style}: RecipeOcrButtonProps) {
   const colors = useColors();
   const {t} = useTranslation();
+  const {user} = useAuth();
   const [busy, setBusy] = useState(false);
 
   const handlePress = useCallback(async () => {
@@ -57,9 +60,29 @@ export function RecipeOcrButton({field, onStart, onRecognized, onEnd, style}: Re
         onEnd?.();
         return;
       }
-      const text = await recognizeImageText(result.assets[0].uri);
-      const parsed = parseRecognizedText(text, field);
-      onRecognized(parsed);
+      const uri = result.assets[0].uri;
+      const text = await recognizeImageText(uri);
+      try {
+        const parsed = parseRecognizedText(text, field);
+        onRecognized(parsed);
+        // 기록은 흘려보낸다 — 업로드를 기다리면 결과 반영이 늦어진다
+        void logOcrWithImage({
+          source: `edit.${field}` as OcrSource,
+          ok: true,
+          textLength: text.length,
+          itemCount: Array.isArray(parsed) ? parsed.length : parsed ? 1 : 0,
+          uid: user?.uid,
+        }, uri);
+      } catch (parseErr: any) {
+        void logOcrWithImage({
+          source: `edit.${field}` as OcrSource,
+          ok: false,
+          textLength: text.length,
+          error: parseErr?.message ?? String(parseErr),
+          uid: user?.uid,
+        }, uri);
+        throw parseErr;
+      }
     } catch (err) {
       // 실패 시 silent — 상위에서 스낵바 등 처리
       // eslint-disable-next-line no-console

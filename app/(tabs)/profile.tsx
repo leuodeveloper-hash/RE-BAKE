@@ -75,6 +75,7 @@ export default function ProfileRoute() {
         onPrivacyPress={() => router.push('/privacy')}
         onStampsPress={() => router.push('/stamps' as any)}
         stampCount={stampCount}
+        onOcrLogsPress={() => router.push('/admin/ocr-logs' as any)}
         onLabsPress={() => router.push('/labs' as any)}
         onWidgetPreviewPress={() => router.push('/widget-preview' as any)}
         onSubmissionsPress={() => router.push('/admin/submissions' as any)}

@@ -46,7 +46,15 @@ export async function getPersistentUri(uri: string, base64?: string | null): Pro
  * @param recipeId 레시피 ID (Storage 경로에 사용)
  */
 export async function uploadRecipeImage(uri: string, recipeId: string): Promise<string> {
-  const storageRef = ref(storage, `recipe_images/${recipeId}`);
+  return uploadImageTo(uri, `recipe_images/${recipeId}`);
+}
+
+/**
+ * 임의 경로로 이미지를 올린다 — 레시피 사진 외의 용도(OCR 로그 등).
+ * 웹(data:/blob:)과 네이티브(file:)가 올리는 방식이 달라 한 곳에 모은다.
+ */
+export async function uploadImageTo(uri: string, path: string): Promise<string> {
+  const storageRef = ref(storage, path);
 
   if (uri.startsWith('data:')) {
     // data: URL → base64 추출 → uploadString

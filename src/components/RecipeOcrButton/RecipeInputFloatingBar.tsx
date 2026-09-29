@@ -9,6 +9,8 @@ import {
 import {EditorToolbar, type ToolbarSubView} from '@components/EditorToolbar';
 import {useSTT} from '@hooks/useSTT';
 import {recognizeImageText, parseRecognizedText, type RecipeOcrField} from '@utils/recipeOcr';
+import {logOcrWithImage} from '@utils/ocrLog';
+import {useAuth} from '@contexts/AuthContext';
 import {dismissKeyboardAndWait} from '@utils/keyboard';
 import {ensureImagePermission} from '@utils/imagePermission';
 import {useTranslation} from '@contexts/LanguageContext';
@@ -103,6 +105,7 @@ export function RecipeInputFloatingBar({
 }: RecipeInputFloatingBarProps) {
   const {showSnackbar} = useSnackbar();
   const {t} = useTranslation();
+  const {user} = useAuth();
   const stt = useSTT();
   const [busy, setBusy] = useState(false);
   const [showScanMenu, setShowScanMenu] = useState(false);
@@ -138,24 +141,37 @@ export function RecipeInputFloatingBar({
     onOcrStart?.();
     try {
       const text = await recognizeImageText(uri);
+      // 기록은 흘려보낸다 — 업로드를 기다리면 입력 반영이 늦어진다
+      const log = (ok: boolean, itemCount?: number, error?: string) =>
+        void logOcrWithImage(
+          {source: 'inputBar', field: capturedField, ok, textLength: text.length, itemCount, error, uid: user?.uid},
+          uri,
+        );
       if (!text || !text.trim()) {
+        log(false, 0, 'no-text');
         showSnackbar(t('recipeInputFloatingBar.noTextFound'), {tone: 'error'});
         return;
       }
       const parsed = parseRecognizedText(text, capturedField);
       if (typeof parsed === 'string' ? !parsed.trim() : parsed.length === 0) {
+        log(false, 0, 'parsed-empty');
         showSnackbar(t('recipeInputFloatingBar.noTextFound'), {tone: 'error'});
         return;
       }
+      log(true, Array.isArray(parsed) ? parsed.length : 1);
       onRecognized(parsed, capturedField);
-    } catch (err) {
+    } catch (err: any) {
       // eslint-disable-next-line no-console
       console.warn('OCR failed', err);
+      void logOcrWithImage(
+        {source: 'inputBar', field: capturedField, ok: false, textLength: 0, error: err?.message ?? String(err), uid: user?.uid},
+        uri,
+      );
       showSnackbar(t('recipeInputFloatingBar.ocrFailed'), {tone: 'error'});
     } finally {
       onOcrEnd?.();
     }
-  }, [onRecognized, onOcrStart, onOcrEnd, showSnackbar, t]);
+  }, [onRecognized, onOcrStart, onOcrEnd, showSnackbar, t, user?.uid]);
 
   const pickImage = useCallback(async (source: 'camera' | 'library') => {
     if (busy) return;

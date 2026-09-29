@@ -46,6 +46,7 @@ import {
   IconTicketFilled,
   IconGlobeFilled,
   IconClockFilled,
+  IconCameraFilled,
 } from '@components/Icon/IconIndex';
 
 import Constants from 'expo-constants';
@@ -73,6 +74,8 @@ export interface ProfileScreenProps {
   onPrivacyPress: () => void;
   /** 우표첩(내 기록) 진입 */
   onStampsPress?: () => void;
+  /** 어드민 — 이미지 인식 기록 */
+  onOcrLogsPress?: () => void;
   /** 모은 스탬프 개수 — 목록에서 바로 보이게 */
   stampCount?: number;
   /** Labs(디버그) 화면 진입 */
@@ -171,6 +174,7 @@ export function ProfileScreen({
   onPrivacyPress,
   onLabsPress,
   onStampsPress,
+  onOcrLogsPress,
   stampCount = 0,
   onWidgetPreviewPress,
   onSubmissionsPress,
@@ -634,6 +638,13 @@ export function ProfileScreen({
                   leading={{type: 'icon', icon: IconClockFilled}}
                   trailing={{type: 'icon', icon: IconChevronRight}}
                   onPress={() => onWidgetPreviewPress?.()}
+                  showDivider
+                />
+                <ListItem
+                  title={t('profile.ocrLogs')}
+                  leading={{type: 'icon', icon: IconCameraFilled}}
+                  trailing={{type: 'icon', icon: IconChevronRight}}
+                  onPress={() => onOcrLogsPress?.()}
                   showDivider={false}
                 />
               </Card>
