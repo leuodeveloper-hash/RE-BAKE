@@ -379,9 +379,9 @@ export default function StampsRoute() {
                       // 공식 레시피북과 내 레시피북은 아이콘이 다르다(둘러보기와 같은 기준).
                       // 색은 그 북에 부여된 대표 색 — 목록·그룹 화면과 이어진다.
                       section.official ? (
-                        <IconExprolerBookFilled width={16} height={16} color={bookColor(section.key)} />
+                        <IconExprolerBookFilled width={20} height={20} color={bookColor(section.key)} />
                       ) : (
-                        <IconBookFilled width={16} height={16} color={bookColor(section.key)} />
+                        <IconBookFilled width={20} height={20} color={bookColor(section.key)} />
                       )
                     )}
                     <Text style={styles.sectionTitle}>{section.title}</Text>
