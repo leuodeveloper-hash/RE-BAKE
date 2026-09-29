@@ -1,6 +1,6 @@
 import React, {useEffect, useId, useRef, useState} from 'react';
 import {Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle} from 'react-native';
-import Svg, {ClipPath, Defs, Image as SvgImage, Path, Rect} from 'react-native-svg';
+import Svg, {ClipPath, Defs, G, Image as SvgImage, Path, Rect} from 'react-native-svg';
 import {useColors} from '@contexts/ThemeContext';
 import {STAMP_VIEWBOX, stampShapeAt} from './shapes';
 import {StampPreview} from './StampPreview';
@@ -199,19 +199,25 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, p
             clipPath={`url(#${clipId})`}
           />
         )}
-        {/* 확대한 만큼 위·왼쪽으로 당겨 가운데를 유지한다 —
-            그냥 키우면 우하단으로 쏠려 피사체가 화면 밖으로 밀린다 */}
-        <SvgImage
-          href={{uri: imageUri}}
-          x={(STAMP_VIEWBOX - STAMP_VIEWBOX * imageScale) / 2}
-          y={(STAMP_VIEWBOX - STAMP_VIEWBOX * imageScale) / 2}
-          width={STAMP_VIEWBOX * imageScale}
-          height={STAMP_VIEWBOX * imageScale}
-          // 가장자리가 잘리므로 피사체가 가운데 크게 들어오도록 채운다
-          preserveAspectRatio="xMidYMid slice"
-          clipPath={`url(#${clipId})`}
-          onLoad={() => setLoaded(true)}
-        />
+        {/* 확대는 transform scale로 — 사진 자체를 viewBox보다 크게 그리면
+            SVG 캔버스 밖이 잘려 모양 대신 네모난 변이 생긴다.
+            모양대로 자른 뒤(그룹의 clipPath) 그 안에서 확대해야 한다. */}
+        <G clipPath={`url(#${clipId})`}>
+          <G
+            scale={imageScale}
+            // 확대한 만큼 가운데로 당긴다 — 안 그러면 우하단으로 쏠린다
+            originX={STAMP_VIEWBOX / 2}
+            originY={STAMP_VIEWBOX / 2}>
+            <SvgImage
+              href={{uri: imageUri}}
+              width={STAMP_VIEWBOX}
+              height={STAMP_VIEWBOX}
+              // 가장자리가 잘리므로 피사체가 가운데 크게 들어오도록 채운다
+              preserveAspectRatio="xMidYMid slice"
+              onLoad={() => setLoaded(true)}
+            />
+          </G>
+        </G>
       </Svg>
     </View>
   );
