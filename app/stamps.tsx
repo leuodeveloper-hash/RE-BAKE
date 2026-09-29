@@ -23,7 +23,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconChevronRight, IconList, IconLayoutGrid, IconNoteFilled, IconCloudFilled} from '@components/Icon/IconIndex';
+import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconChevronRight, IconList, IconLayoutGrid, IconNoteFilled} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import type {Recipe} from '../src/types/recipe';
 
@@ -319,18 +319,6 @@ export default function StampsRoute() {
             />
           ) : (
             <ContentContainer>
-              {!user && (
-                // 스탬프는 계정에 쌓인다 — 로그인하지 않으면 기기를 바꿀 때 사라진다
-                <InlineBanner
-                  icon={IconCloudFilled}
-                  label={t('stamps.guestBanner')}
-                  color="accent"
-                  size="medium"
-                  action={{label: t('stamps.guestAction'), onPress: () => openAuthSheet()}}
-                  style={styles.banner}
-                />
-              )}
-
               <InlineBanner
                 icon={IconBookFilled}
                 label={t('stamps.banner')}
@@ -399,7 +387,7 @@ export default function StampsRoute() {
                       {section.slots.map((slot, i) => (
                         <Pressable
                           key={slot.recipe.id}
-                          onPress={() => setSelected(slot)}
+                          onPress={() => { if (!user) { openAuthSheet(); return; } setSelected(slot); }}
                           style={[styles.gridCell, {width: slotSize, height: slotSize}]}>
                           <SlotStamp slot={slot} size={slotSize} styles={styles} highlight={slot.recipe.id === just} outline={section.done === 0 && i === 0} />
                         </Pressable>
@@ -410,7 +398,7 @@ export default function StampsRoute() {
                       {section.slots.map((slot, i) => (
                         <Pressable
                           key={slot.recipe.id}
-                          onPress={() => setSelected(slot)}
+                          onPress={() => { if (!user) { openAuthSheet(); return; } setSelected(slot); }}
                           style={styles.listRow}>
                           <View style={styles.listThumb}>
                             <SlotStamp slot={slot} size={LIST_STAMP} styles={styles} highlight={slot.recipe.id === just} outline={section.done === 0 && i === 0} />
