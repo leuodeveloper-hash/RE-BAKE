@@ -2,7 +2,7 @@ import React, {useCallback, useMemo, useState} from 'react';
 import {Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useLocalSearchParams, useRouter} from 'expo-router';
-import {AppBar} from '@components/Navigation';
+import {AppBar, APPBAR_CONTENT_BOTTOM} from '@components/Navigation';
 import {ContentContainer} from '@components/Container';
 import {InlineBanner} from '@components/InlineBanner';
 import {EmptyState} from '@components/EmptyState';
@@ -295,7 +295,10 @@ export default function StampsRoute() {
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
-          <View style={{height: 80}} />
+          {/* 앱바가 절대위치로 떠 있어 그만큼 콘텐츠를 내린다.
+              고정값이면 기기·플랫폼마다 어긋나므로 앱바 실제 높이 + 여백으로 잡는다.
+              (상단 인셋은 바깥 SafeAreaView가 이미 밀어줬다) */}
+          <View style={{height: APPBAR_CONTENT_BOTTOM + Spacing.sm}} />
 
           {sections.length === 0 ? (
             <EmptyState
