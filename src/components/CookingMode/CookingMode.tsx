@@ -168,6 +168,9 @@ export interface CookingModeProps {
 
 
 
+/** 재료 타일 사이 간격 — gap 대신 마진으로 준다(퍼센트 폭에서 gap은 안 빠진다) */
+const TILE_GAP = 8;
+
 const MAX_PHOTOS = 3;
 
 // Match ingredients by checking if name appears in step description
@@ -319,16 +322,9 @@ export function CookingMode({
   const [showPhotoSubmenu, setShowPhotoSubmenu] = useState(false);
   const [showIngredientPicker, setShowIngredientPicker] = useState(false);
   const [showIngredientList, setShowIngredientList] = useState(false);
-  // 타일 폭은 실제 줄 너비에서 gap을 빼고 나눈다 — %로는 gap이 안 빠져 3열로 접힌다
-  const [tileRowWidth, setTileRowWidth] = useState(0);
   // 재료를 타일로 볼지 목록으로 볼지 — 이름이 길면 목록이 읽기 편하다
   const [ingredientLayout, setIngredientLayout] = useState<'grid' | 'list'>('grid');
   /** 4열 타일 한 칸 폭 — 줄 너비에서 gap(8) 세 칸을 빼고 나눈다 */
-  // onLayout이 주는 폭에는 컨테이너 자신의 좌우 패딩이 들어 있다 —
-  // 빼지 않으면 칸이 그만큼 넓어져 4칸이 한 줄에 안 들어간다.
-  const tileWidth = tileRowWidth > 0
-    ? Math.floor((tileRowWidth - Spacing.smd * 2 - Spacing.sm * 3) / 4)
-    : 0;
   const [editAdvice, setEditAdvice] = useState(advice ?? '');
   const [editAdvicePhotos, setEditAdvicePhotos] = useState<string[]>(advicePhotos ?? []);
   const [isInitialIngredientSheet, setIsInitialIngredientSheet] = useState(false);
@@ -2143,9 +2139,7 @@ export function CookingMode({
               ) : null}
               {/* 타일 4열 — 요리 중엔 손이 바빠 한 줄짜리 목록은 누르기 어렵다.
                   이름이 길면 목록이 읽기 편해 우측 버튼으로 바꿀 수 있다. */}
-              <View
-                style={ingredientLayout === 'grid' ? styles.ingredientTiles : styles.ingredientRows}
-                onLayout={e => setTileRowWidth(e.nativeEvent.layout.width)}>
+              <View style={ingredientLayout === 'grid' ? styles.ingredientTiles : styles.ingredientRows}>
                 {(group.ingredients ?? []).filter(ing => ing.name?.trim()).map(ing => {
                   const checked = checkedIngredients.has(ing.name);
                   // 목록은 체크박스 행(MenuItem), 타일은 OptionTile — 같은 재료를
@@ -2167,7 +2161,7 @@ export function CookingMode({
                       selected={checked}
                       onPress={() => toggleIngredient(ing.name)}
                       selectedStyle="outline"
-                      style={[styles.ingredientTile, tileWidth ? {width: tileWidth} : null]}
+                      style={styles.ingredientTile}
                     />
                   );
                 })}
@@ -2255,9 +2249,10 @@ const createStyles = (colors: SemanticColors) =>
     ingredientTiles: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      gap: Spacing.sm,
-      // 그룹 라벨(SectionHeader 내부 패딩)과 같은 값이라야 좌우가 맞는다
-      paddingHorizontal: Spacing.smd,
+      // gap 대신 칸마다 마진을 준다 — gap은 퍼센트 폭에서 빠지지 않아
+      // 폭을 재서 빼야 했고, 첫 렌더에 측정값이 없어 칸이 쪼그라들었다.
+      // 그룹 라벨(SectionHeader 내부 패딩)과 좌우를 맞추되 마진만큼 덜 준다.
+      paddingHorizontal: Spacing.smd - TILE_GAP / 2,
       paddingBottom: Spacing.sm,
     },
     // 목록도 같은 좌우 여백 — 없으면 행이 시트 끝에 붙는다
@@ -2266,15 +2261,16 @@ const createStyles = (colors: SemanticColors) =>
       paddingBottom: Spacing.sm,
     },
     ingredientTile: {
-      // 폭은 실제 줄 너비를 재서 준다(onLayout) — %는 gap을 못 빼 4칸이
-      // 한 줄에 안 들어가고, calc()는 웹에서만 동작한다.
+      // 4열 — 폭은 25%, 칸 사이는 마진으로 벌린다(측정이 필요 없다).
       // OptionTile 바깥 래퍼가 flex:1이라 그대로 두면 flex가 폭을 이겨
       // 재료 수만큼 한 줄에 다 들어간다(7개가 한 줄로 늘어났다).
-      // flex:1은 flexBasis:0도 포함하므로 grow만 막으면 0에서 안 자라 쪼그라든다
-      // — basis를 auto로 되돌려 지정한 width가 그대로 쓰이게 한다.
+      // flex:1은 flexBasis:0도 포함하므로 basis까지 되돌려야 width가 쓰인다.
+      width: '25%',
       flexGrow: 0,
       flexShrink: 0,
       flexBasis: 'auto',
+      paddingHorizontal: TILE_GAP / 2,
+      marginBottom: TILE_GAP,
       // 이름이 길고 짧아도 칸 크기가 같아 보이도록 높이를 고정한다
       height: 76,
     },
