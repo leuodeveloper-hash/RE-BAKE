@@ -366,6 +366,7 @@ export default function StampsRoute() {
                 <View key={section.key} style={styles.section}>
                   <SectionHeader
                     title={section.title}
+                    variant="strong"
                     leadingIcon={
                       axis !== 'cookbook' ? undefined
                         // 공식과 내 레시피북은 아이콘이 다르다(둘러보기와 같은 기준)

@@ -12,9 +12,17 @@ import {SvgProps} from 'react-native-svg';
 /** 진도 게이지 너비 */
 const PROGRESS_WIDTH = 64;
 
+/**
+ * 타이틀 톤.
+ * - 'muted'(기본): 목록 위 구분선 같은 가벼운 머리말
+ * - 'strong': 그 섹션 자체가 콘텐츠일 때(스탬프북의 레시피북 등)
+ */
+export type SectionHeaderVariant = 'muted' | 'strong';
+
 export interface SectionHeaderProps {
   /** 섹션 타이틀 */
   title: string;
+  variant?: SectionHeaderVariant;
   /** 브레드크럼 (타이틀 > 브레드크럼) */
   breadcrumb?: string;
   /** 브레드크럼 구분 아이콘 */
@@ -38,6 +46,7 @@ export interface SectionHeaderProps {
 
 export function SectionHeader({
   title,
+  variant = 'muted',
   breadcrumb,
   breadcrumbIcon: BreadcrumbIcon,
   actionLabel,
@@ -66,12 +75,12 @@ export function SectionHeader({
         )}
         {breadcrumb && BreadcrumbIcon ? (
           <View style={styles.breadcrumbRow}>
-            <Text style={styles.title}>{title}</Text>
+            <Text style={[styles.title, variant === 'strong' && styles.titleStrong]}>{title}</Text>
             <BreadcrumbIcon width={8} height={8} color={colors['foreground/on-surface-muted']} />
-            <Text style={styles.title}>{breadcrumb}</Text>
+            <Text style={[styles.title, variant === 'strong' && styles.titleStrong]}>{breadcrumb}</Text>
           </View>
         ) : (
-          <Text style={styles.title}>{title}</Text>
+          <Text style={[styles.title, variant === 'strong' && styles.titleStrong]}>{title}</Text>
         )}
         {showProgress && (
           <>
@@ -115,6 +124,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontWeight: Typography.label.large.fontWeight as '500',
     lineHeight: Typography.label.large.lineHeight,
     color: colors['foreground/on-surface-muted'],
+  },
+  titleStrong: {
+    color: colors['foreground/on-surface'],
   },
   leadRow: {
     flexDirection: 'row',
