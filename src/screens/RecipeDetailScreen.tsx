@@ -786,7 +786,9 @@ export function RecipeDetailScreen({
                 style={styles.heroImage}
                 onLongPress={() => { triggerHaptic('medium'); openPhotoViewer(heroPhotos, 0); }}
               />
-              <View style={styles.heroTextOverlay} />
+              {/* 장식용 어둡기 레이어 — Pressable 위에 덮이므로 터치를 통과시킨다.
+                  (웹은 DOM 이벤트라 이게 없으면 롱프레스가 이 레이어에 먹혀 뷰어가 안 열린다) */}
+              <View style={styles.heroTextOverlay} pointerEvents="none" />
               {/* 여러 장이면 장수 배지 — 롱프레스 뷰어에서 스와이프로 넘길 수 있음을 알린다
                   (배지가 없으면 추가 이미지가 있는지 알 방법이 없다) */}
               {heroPhotos.length > 1 && (
@@ -822,6 +824,7 @@ export function RecipeDetailScreen({
                 colors={[colors['surface/dim'] + '00', colors['surface/dim']]}
                 locations={[0.5, 0.85]}
                 style={styles.heroGradient}
+                pointerEvents="none"
               />
             </>
           ) : null}

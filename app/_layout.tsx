@@ -492,6 +492,7 @@ function NavigationContent() {
         <Stack.Screen name="labs" />
         <Stack.Screen name="recipe/[id]" />
         <Stack.Screen name="u/[handle]" options={{animation: 'slide_from_right'}} />
+        <Stack.Screen name="stamps" options={{animation: 'slide_from_right'}} />
         <Stack.Screen name="admin/submissions" options={{animation: 'slide_from_right'}} />
         {/* 편집은 페이드 — 상세와 같은 자리에서 그대로 편집되는 것처럼 보이게.
             slide_from_bottom은 화면이 위아래로 올라와 다른 화면으로 이동한 인상을 준다. */}

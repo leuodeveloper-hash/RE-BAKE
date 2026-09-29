@@ -346,11 +346,14 @@ export function useRecipeStorage() {
             localWritePending.current = false;
           })();
         }
-        // AsyncStorage에도 항상 백업
+        // AsyncStorage에도 항상 백업.
+        // 실패를 삼키지 않는다 — 웹은 localStorage(보통 5MB)라 사진이 data: URL로
+        // 쌓이면 QuotaExceededError가 나는데, 조용히 넘기면 메모리에만 남아
+        // "그 화면에선 보이는데 목록 갔다 오면 사라지는" 증상이 된다.
         AsyncStorage.setItem(
           STORAGE_KEY,
           JSON.stringify(next),
-        ).catch(() => {});
+        ).catch(e => console.error('[Storage] 로컬 저장 실패 — 앱을 다시 열면 최근 변경이 사라집니다:', e));
 
         return next;
       });
