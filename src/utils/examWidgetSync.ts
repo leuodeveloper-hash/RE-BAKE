@@ -1,7 +1,6 @@
 import {Platform} from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
 import {fetchExamSchedules} from '@utils/examSchedules';
-import {getExamTypes, toExamType, scheduleExamLabel, type ExamType} from '@constants/examTypes';
+import {getExamTypes, toExamType, scheduleExamLabel} from '@constants/examTypes';
 import {translate, deviceLanguage} from '../i18n';
 
 const APP_GROUP = 'group.com.bakle.app';
@@ -25,10 +24,6 @@ function nextMomentOf(e: ExamWidgetData): number {
     .filter(v => !Number.isNaN(v) && v > Date.now());
   return times.length > 0 ? Math.min(...times) : Infinity;
 }
-// 설정을 쓰는 쪽(useExamNotificationPrefs)과 반드시 같은 키여야 한다 —
-// 어긋나면 설정을 켜도 빈 값을 읽어 배너·위젯이 조용히 안 뜬다.
-const PREFS_KEY = '@bakle_exam_notif_prefs';
-
 const t = (key: string, params?: Record<string, string | number>) =>
   translate(deviceLanguage(), key, params);
 
@@ -58,17 +53,13 @@ export async function syncExamWidget(): Promise<void> {
   if (Platform.OS !== 'ios') return;
 
   try {
-    // 알림 설정을 그대로 따른다 — 끄면 위젯 배너도 사라진다
-    const raw = await AsyncStorage.getItem(PREFS_KEY);
-    const prefs = raw ? JSON.parse(raw) : null;
-    const targets: ExamType[] = prefs?.enabled ? (prefs.targets ?? []) : [];
-
-    // 종목(제과/제빵)별로 따로 담는다 — 위젯이 두 종류라 각자 자기 것을 읽는다.
-    // 한 칸에 몰아넣으면 접수가 급한 한 종목이 다른 종목을 가린다.
+    // 위젯은 알림 설정과 무관하다 — 홈 화면에 올려 둔 것을 고른 사람이
+    // 알림까지 켜야 보이면 "왜 안 뜨지"가 된다. 종목은 위젯 편집에서 고른다.
     const byDiscipline: Record<WidgetDiscipline, ExamWidgetData | null> = {pastry: null, baking: null};
 
-    if (targets.length > 0) {
-      const schedules = await fetchExamSchedules(targets);
+    {
+      // 실기·필기를 모두 가져온다 — 어느 쪽이든 가장 급한 일정을 보여준다
+      const schedules = await fetchExamSchedules(['practical', 'written']);
       const labelByType = Object.fromEntries(getExamTypes(t).map(e => [e.id, e.label]));
       const now = Date.now();
 
