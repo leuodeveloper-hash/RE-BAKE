@@ -371,7 +371,7 @@ export default function StampsRoute() {
               subtitle={t('stamps.emptySubtitle')}
             />
           ) : (
-            <ContentContainer>
+            <ContentContainer style={styles.content}>
               <InlineBanner
                 icon={IconBookFilled}
                 label={t('stamps.banner')}
@@ -484,6 +484,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   safeArea: {flex: 1},
   scrollView: {flex: 1},
   scrollContent: {paddingBottom: 80},
+  // 앱바 아래·화면 끝과 붙지 않게
+  content: {paddingVertical: Spacing.sm},
   banner: {marginBottom: Spacing.lg},
   section: {marginBottom: Spacing.xl},
   sectionHeader: {
