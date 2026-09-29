@@ -51,7 +51,9 @@ export function SlideToConfirm({
 
   const onLayout = useCallback((e: LayoutChangeEvent) => {
     const w = e.nativeEvent.layout.width;
-    maxRef.current = Math.max(0, w - TRACK_H - KNOB_M * 2);
+    // 손잡이는 left:KNOB_M에서 시작하고 폭이 TRACK_H - KNOB_M*2 이므로,
+    // 오른쪽 끝까지 가는 거리는 w - TRACK_H 다(KNOB_M을 두 번 빼면 그만큼 덜 간다)
+    maxRef.current = Math.max(0, w - TRACK_H);
     // 이미 완료 상태면 손잡이를 오른쪽 끝에 둔다(되돌리기 시작 위치)
     if (doneRef.current) x.setValue(maxRef.current);
   }, [x]);
@@ -64,7 +66,7 @@ export function SlideToConfirm({
 
   // next: 이동 후 확정 상태(true=숙지, false=미숙지, null=상태 변화 없음)
   const settle = useCallback((toValue: number, next: boolean | null) => {
-    Animated.spring(x, {toValue, useNativeDriver: true, bounciness: 0, speed: 14}).start(() => {
+    Animated.spring(x, {toValue, useNativeDriver: true, friction: 9, tension: 90}).start(() => {
       if (next === null) return;
       setDone(next);
       triggerHaptic(next ? 'success' : 'light');
@@ -104,8 +106,16 @@ export function SlideToConfirm({
   ).current;
 
   const isDone = done || confirmed;
-  // 문구는 흐리지 않는다 — 진행은 손잡이가 보여주고, 흐렸다가 되돌아올 때
-  // 다시 또렷해지는 왕복이 오히려 눈에 거슬린다
+  // 절반을 넘으면 완료 문구로 — 놓으면 확정된다는 예고가 된다.
+  // (문구를 흐리지는 않는다. 흐렸다 다시 또렷해지는 왕복이 눈에 거슬린다)
+  const [past, setPast] = useState(false);
+  useEffect(() => {
+    const id = x.addListener(({value}) => {
+      const half = maxRef.current * 0.5;
+      setPast(maxRef.current > 0 && value >= half);
+    });
+    return () => x.removeListener(id);
+  }, [x]);
 
   return (
     <View
@@ -118,7 +128,7 @@ export function SlideToConfirm({
         </View>
       ) : (
         <Text style={styles.label} numberOfLines={1}>
-          {label}
+          {past ? (confirmedLabel ?? label) : label}
         </Text>
       )}
       {/* 손잡이는 항상 렌더 — 완료 상태에선 오른쪽 끝에서 왼쪽으로 밀어 되돌린다 */}
