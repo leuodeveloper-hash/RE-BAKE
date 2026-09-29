@@ -32,7 +32,8 @@ import {Snackbar} from '@components/Snackbar';
 import {IconButton} from '@components/IconButton';
 import {Selector} from '@components/Selector';
 import {navPillStyle, RulerSlider, NavPillButton, FloatingNavBar} from '@components/Navigation';
-import {Menu, MenuItem, Subheader, type MenuItemData} from '@components/Menu';
+import {Menu, MenuItem, type MenuItemData} from '@components/Menu';
+import {SectionHeader} from '@components/SectionHeader';
 import {SearchCommandBar} from '@components/SearchCommandBar';
 import {Button} from '@components/Button';
 import {EditableChip} from '@components/EditableChip/EditableChip';
@@ -2109,7 +2110,7 @@ export function CookingMode({
           {ingredientGroups?.map((group, gIdx) => (
             <React.Fragment key={gIdx}>
               {(ingredientGroups?.length ?? 0) > 1 && group.title ? (
-                <Subheader title={group.title} />
+                <SectionHeader title={group.title} style={styles.ingredientGroupHeader} />
               ) : null}
               {/* 타일 3열 — 요리 중엔 손이 바빠 한 줄짜리 목록은 누르기 어렵다 */}
               <View style={styles.ingredientTiles}>
@@ -2202,6 +2203,10 @@ export function CookingMode({
 
 const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
+    ingredientGroupHeader: {
+      // 타일 그리드와 좌우를 맞춘다
+      paddingHorizontal: Spacing.sm,
+    },
     ingredientTiles: {
       flexDirection: 'row',
       flexWrap: 'wrap',
