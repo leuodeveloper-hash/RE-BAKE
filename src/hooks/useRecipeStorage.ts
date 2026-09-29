@@ -312,7 +312,7 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
         // "저장됐다"고 오해하게 된다
         if (!cloudEnabled) {
           console.warn('[Storage] cloud sync off — user:', !!user, 'isPro:', isPro);
-          showSnackbarRef.current?.(`로컬에만 저장됨 (로그인:${!!user} 프로:${isPro})`);
+          showSnackbarRef.current?.(`로컬 저장 (프로:${isPro} 이메일:${user?.email ?? '없음'})`);
         }
         if (cloudEnabled && user) {
           // Firestore에 동기화 (이미지 업로드 → 동기화)

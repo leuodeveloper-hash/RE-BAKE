@@ -124,8 +124,11 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
         } else {
           try {
             const adminDoc = await getDoc(doc(db, 'admin', firebaseUser.uid));
+            // 조용히 false로 두면 Pro가 아니게 돼 클라우드 동기화가 통째로 꺼진다
+            console.log('[Auth] admin 조회:', firebaseUser.uid, '→', adminDoc.exists(), '| email:', firebaseUser.email);
             setIsAdmin(adminDoc.exists());
-          } catch {
+          } catch (e) {
+            console.warn('[Auth] admin 조회 실패 — 비어드민으로 둔다:', e);
             setIsAdmin(false);
           }
         }
