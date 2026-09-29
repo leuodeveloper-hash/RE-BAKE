@@ -78,27 +78,24 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, p
   const inner = Math.max(0, size - padding * 2);
 
   if (outline) {
+    // 선은 path를 중심으로 양쪽으로 퍼진다 — viewBox를 그만큼 넓혀
+    // 바깥 절반이 잘리지 않게 한다(클립으로 자르면 모양 경계에서 끊겨 보인다)
+    const pad = OUTLINE_STROKE;
     return (
       <View style={wrapStyle}>
-        <Svg width={inner} height={inner} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
-          <Defs>
-            {/* 같은 path로 잘라 선의 바깥쪽 절반을 버린다 — 선이 모양 안쪽에만 남아
-                칸 경계로 삐져나가지 않는다 */}
-            <ClipPath id={clipId}>
-              <Path d={d} />
-            </ClipPath>
-          </Defs>
+        <Svg
+          width={inner}
+          height={inner}
+          viewBox={`${-pad} ${-pad} ${STAMP_VIEWBOX + pad * 2} ${STAMP_VIEWBOX + pad * 2}`}>
           <Path
             d={d}
             // 안도 옅게 채운다 — 선만 있으면 배경과 구분이 약하다
             fill={colors['fill/faint']}
             stroke={colors['border/normal']}
-            // 안쪽 절반만 보이므로 굵기를 두 배로 줘야 의도한 두께가 된다
-            strokeWidth={OUTLINE_STROKE * 2}
+            strokeWidth={OUTLINE_STROKE}
             // 각진 끝 — round면 양끝에 반원이 붙어 선이 strokeWidth만큼 길어진다
             strokeDasharray="1.8 1.8"
             strokeLinecap="butt"
-            clipPath={`url(#${clipId})`}
           />
         </Svg>
       </View>
