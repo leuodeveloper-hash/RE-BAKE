@@ -339,15 +339,16 @@ const handleDelete = useCallback(async () => {
       .filter(r => r.remakeGroupId === recipe.remakeGroupId || r.id === recipe.remakeGroupId)
       .sort((a, b) => parseSession(a.session).current - parseSession(b.session).current);
     if (group.length < 2) return undefined;
+    // 계정에 보관한 회고까지 합친다 — 회차별 화면에서도 스탬프 시트에서 쓴 것이 보여야 한다
     const items = group
-      .filter(r => r.reviews?.some(rv => rv.evaluation || rv.improvement))
       .map(r => ({
         id: r.id,
         label: t('id.sessionLabel', {current: parseSession(r.session).current}),
-        reviews: r.reviews!,
-      }));
+        reviews: reviewsOf(r),
+      }))
+      .filter(x => x.reviews.length > 0);
     return items.length > 0 ? items : undefined;
-  }, [recipe, recipes, t]);
+  }, [recipe, recipes, reviewsOf, t]);
 
   // 2회차+ 이면 1회차 원본 데이터를 비교 기준으로 전달 (1회차 자신을 볼 땐 null)
   const compareBaseline = useMemo(() => {
