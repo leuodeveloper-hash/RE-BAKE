@@ -2255,6 +2255,10 @@ const createStyles = (colors: SemanticColors) =>
     ingredientTile: {
       // 폭은 실제 줄 너비를 재서 준다(onLayout) — %는 gap을 못 빼 4칸이
       // 한 줄에 안 들어가고, calc()는 웹에서만 동작한다.
+      // OptionTile 바깥 래퍼가 flex:1이라 그대로 두면 flex가 폭을 이겨
+      // 재료 수만큼 한 줄에 다 들어간다(7개가 한 줄로 늘어났다).
+      flexGrow: 0,
+      flexShrink: 0,
       // 이름이 길고 짧아도 칸 크기가 같아 보이도록 높이를 고정한다
       height: 76,
     },
