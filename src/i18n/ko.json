@@ -771,7 +771,7 @@
   "shareRecipe.recipeWithTitle": "'{{title}}' 레시피",
   "shareRecipe.shareFailed": "공유에 실패했습니다",
   "stampDetail.madeOn": "{{year}}년 {{month}}월 {{day}}일에 만들었어요",
-  "stampDetail.notMadeYet": "아직 만들지 않았어요",
+  "stampDetail.notMadeYet": "만들어볼까요?",
   "stampDetail.openRecipe": "레시피 보기",
   "stampDetail.writeReview": "회고 남기기",
   "stamps.axisCookbook": "레시피 북",

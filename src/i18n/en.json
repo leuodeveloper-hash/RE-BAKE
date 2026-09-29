@@ -786,7 +786,7 @@
   "shareRecipe.recipeWithTitle": "'{{title}}' recipe",
   "shareRecipe.shareFailed": "Failed to share",
   "stampDetail.madeOn": "Made on {{month}}/{{day}}/{{year}}",
-  "stampDetail.notMadeYet": "Not made yet",
+  "stampDetail.notMadeYet": "Let's make it!",
   "stampDetail.openRecipe": "View recipe",
   "stampDetail.writeReview": "Write a reflection",
   "stamps.axisCookbook": "Recipe book",
