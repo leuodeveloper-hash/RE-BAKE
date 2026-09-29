@@ -4,6 +4,11 @@ import Svg, {ClipPath, Defs, Image as SvgImage, Path, Rect} from 'react-native-s
 import {useColors} from '@contexts/ThemeContext';
 import {STAMP_VIEWBOX, stampShapeAt} from './shapes';
 
+/** 점선 굵기(viewBox 24 기준) */
+const OUTLINE_STROKE = 1.2;
+/** 점선이 잘리지 않도록 viewBox에 더하는 여유 — 선 굵기의 절반 + 둥근 끝 */
+const OUTLINE_PAD = OUTLINE_STROKE;
+
 /** 스탬프 안쪽 여백 — 칸에 꽉 차면 옆 스탬프와 붙어 보인다 */
 const INNER_PADDING = 8;
 
@@ -72,13 +77,18 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
   if (outline) {
     return (
       <View style={wrapStyle}>
-        <Svg width={inner} height={inner} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
+        {/* 선은 path를 중심으로 양쪽으로 퍼지므로 viewBox를 그만큼 넓혀야
+            가장자리에서 잘리지 않는다(둥근 끝까지 고려해 여유를 둔다) */}
+        <Svg
+          width={inner}
+          height={inner}
+          viewBox={`${-OUTLINE_PAD} ${-OUTLINE_PAD} ${STAMP_VIEWBOX + OUTLINE_PAD * 2} ${STAMP_VIEWBOX + OUTLINE_PAD * 2}`}>
           <Path
             d={d}
             fill="none"
             stroke={colors['border/normal']}
             // viewBox가 24라 선 굵기·간격도 그 기준 — 얇으면 작은 칸에서 안 보인다
-            strokeWidth={1.2}
+            strokeWidth={OUTLINE_STROKE}
             strokeDasharray="2 1.6"
             strokeLinecap="round"
           />
