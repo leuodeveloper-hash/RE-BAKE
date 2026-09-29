@@ -189,6 +189,10 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
   // setRecipes는 useCallback으로 굳어 있어 최신 콜백을 ref로 본다
   const showSnackbarRef = useRef(showSnackbar);
   showSnackbarRef.current = showSnackbar;
+  // 동기화 조건도 ref로 — setRecipes는 useCallback이라 굳은 값을 보는데,
+  // 업데이터가 실행되는 시점엔 로그인·Pro가 이미 true로 바뀌어 있을 수 있다
+  const cloudRef = useRef({cloudEnabled, user, isPro, photoCloudBackup});
+  cloudRef.current = {cloudEnabled, user, isPro, photoCloudBackup};
   /** 게스트→로그인(Pro) 시 올릴 로컬 레시피 후보 (확인 팝업 대기) */
   const migrationRecipesRef = useRef<Recipe[] | null>(null);
   const [migrationCount, setMigrationCount] = useState(0);
@@ -310,11 +314,8 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
 
         // 진단: 클라우드가 꺼져 있으면 로컬에만 남는데 아무 표시가 없어
         // "저장됐다"고 오해하게 된다
-        if (!cloudEnabled) {
-          console.warn('[Storage] cloud sync off — user:', !!user, 'isPro:', isPro);
-          showSnackbarRef.current?.(`로컬 저장 (user:${!!user} pro:${isPro} cloud:${cloudEnabled})`);
-        }
-        if (cloudEnabled && user) {
+        const {cloudEnabled: cloudNow, user: userNow, photoCloudBackup: backupNow} = cloudRef.current;
+        if (cloudNow && userNow) {
           // Firestore에 동기화 (이미지 업로드 → 동기화)
           localWritePending.current = true;
           const nextIds = new Set(next.map(r => r.id));
@@ -323,7 +324,7 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
           (async () => {
             try {
               // 사진 클라우드 백업 ON일 때만 로컬 이미지 → Storage 업로드. OFF면 로컬 URI 유지(이 기기 전용).
-              const uploaded = photoCloudBackup
+              const uploaded = backupNow
                 ? await Promise.all(next.map(uploadLocalImages))
                 : next;
               const hasUploads = JSON.stringify(uploaded) !== JSON.stringify(next);
@@ -332,7 +333,7 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
                 AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(uploaded)).catch(() => {});
               }
               // Firestore 동기화 (URL 포함)
-              await syncToFirestore(user.uid, uploaded);
+              await syncToFirestore(userNow.uid, uploaded);
               setLastSyncedAt(new Date());
               setLastSyncedDevice(getDeviceName());
             } catch (e: any) {
@@ -343,18 +344,18 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
                 try { return JSON.stringify(e); } catch { return String(e); }
               })();
               showSnackbarRef.current?.(`동기화 실패: ${detail}`);
-              addToQueue({type: 'sync', uid: user.uid, data: next});
+              addToQueue({type: 'sync', uid: userNow.uid, data: next});
             }
 
             // 삭제 처리
             if (removed.length > 0) {
-              const colRef = collection(db, 'user_recipes', user.uid, 'recipes');
+              const colRef = collection(db, 'user_recipes', userNow.uid, 'recipes');
               const batch = writeBatch(db);
               removed.forEach(r => batch.delete(doc(colRef, r.id)));
               try {
                 await batch.commit();
               } catch {
-                addToQueue({type: 'delete', uid: user.uid, data: removed.map(r => r.id)});
+                addToQueue({type: 'delete', uid: userNow.uid, data: removed.map(r => r.id)});
               }
             }
 
