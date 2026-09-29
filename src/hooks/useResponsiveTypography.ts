@@ -1,5 +1,6 @@
 import {useWindowDimensions} from 'react-native';
 import {Typography} from '@constants/typography';
+import {TABLET_BREAKPOINT} from '@constants/breakpoints';
 
 /**
  * 반응형 타이포그래피 토큰.
@@ -8,7 +9,7 @@ import {Typography} from '@constants/typography';
  * - 사용처는 useThemedStyles와 별개로, 컴포넌트에서 호출해 inline으로 머지해 쓴다
  *   (StyleSheet는 폭 변화를 모르므로 폭 의존 값은 훅으로 주입).
  */
-export const TABLET_BREAKPOINT = 600;
+export {TABLET_BREAKPOINT};
 // 태블릿 확대 배수 (headline-medium 24 → 28)
 const TABLET_SCALE = 7 / 6;
 

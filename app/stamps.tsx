@@ -13,6 +13,7 @@ import {getColorVarKey} from '@components/ColorPicker';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import {useColors} from '@contexts/ThemeContext';
 import {useThemedStyles} from '@hooks/useThemedStyles';
+import {TABLET_BREAKPOINT} from '@constants/breakpoints';
 import {useTranslation} from '@contexts/LanguageContext';
 import {useAuth} from '@contexts/AuthContext';
 import {useAuthSheet} from '@contexts/AuthSheetContext';
@@ -32,7 +33,7 @@ import type {Recipe} from '../src/types/recipe';
  */
 function columnsFor(width: number): number {
   // 콘텐츠 폭이 800으로 제한돼 더 늘리면 스탬프만 작아진다 — 8이 상한
-  return width >= 600 ? 8 : 6;
+  return width >= TABLET_BREAKPOINT ? 8 : 6;
 }
 const GRID_GAP = Spacing.sm;
 

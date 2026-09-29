@@ -102,7 +102,7 @@ export const SizingV2 = {
 export type SizingV2Key = keyof typeof SizingV2;
 
 // ---- Layout (responsive: over-360 vs under-360) ----
-// 사용처에서 Dimensions.get('window').width >= 360 으로 분기.
+// 사용처에서 width >= NARROW_PHONE_BREAKPOINT(@constants/breakpoints)로 분기.
 
 export const LayoutV2 = {
   width: 393,

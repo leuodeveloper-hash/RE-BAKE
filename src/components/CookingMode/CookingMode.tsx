@@ -78,6 +78,7 @@ import {useTranslation} from '@contexts/LanguageContext';
 import {useResponsiveTypography} from '@hooks/useResponsiveTypography';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
+import {TABLET_BREAKPOINT} from '@constants/breakpoints';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 
 /**
@@ -1950,7 +1951,7 @@ export function CookingMode({
                           <StepPhotos
                             photos={normalizeStepPhotos(photos)}
                             mode={editingAdvice ? 'edit' : 'view'}
-                            size={containerWidth >= 600 ? 140 : 96}
+                            size={containerWidth >= TABLET_BREAKPOINT ? 140 : 96}
                             gap={Spacing.sm}
                             paddingTop={false}
                             showArrow
