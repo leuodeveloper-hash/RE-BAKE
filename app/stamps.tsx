@@ -522,12 +522,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     color: colors['foreground/on-surface-muted'],
   },
   highlight: {
-    // 방금 붙인 스탬프 — 테두리 대신 그림자로 띄워 모양(마스크)을 가리지 않는다
-    shadowColor: '#0E0E0D',
-    shadowOffset: {width: 0, height: 2},
-    shadowOpacity: 0.28,
-    shadowRadius: 8,
-    elevation: 4,
+    // 방금 붙인 스탬프 — 살짝 키워 눈에 띄게 한다.
+    // 그림자를 주면 RN이 배경을 칠해야 해서 마스크 뒤에 사각형이 생긴다.
+    transform: [{scale: 1.12}],
   },
   emptyDot: {
     width: 6,
