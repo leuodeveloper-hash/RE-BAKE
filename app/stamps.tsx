@@ -25,7 +25,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconList, IconLayoutGrid, IconNoteFilled} from '@components/Icon/IconIndex';
+import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconList, IconLayoutGrid, IconNoteFilled, IconCircleCheckFilled} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import type {Recipe} from '../src/types/recipe';
 
@@ -119,6 +119,8 @@ export default function StampsRoute() {
   const [reviewTarget, setReviewTarget] = useState<Recipe | null>(null);
   // 그리드가 기본 — 스탬프가 늘어선 모습 자체가 이 화면의 내용이다
   const [layout, setLayout] = useState<'list' | 'grid'>('grid');
+  // 빈 칸까지 보이면 길어진다 — 모은 것만 보고 싶을 때
+  const [madeOnly, setMadeOnly] = useState(false);
 
   /**
    * 레시피 하나를 "만들었는지" 판단한다.
@@ -269,7 +271,14 @@ export default function StampsRoute() {
     return hasReview ? undefined : r;
   }, [just, recipes]);
 
-  const sections = axis === 'cookbook' ? cookbookSections : dateSections;
+  const allSections = axis === 'cookbook' ? cookbookSections : dateSections;
+  // "만든 것만" — 빈 칸을 걷어낸다. 진도(done/total)는 그대로 둬야 몇 개 남았는지 보인다.
+  const sections = useMemo(() => {
+    if (!madeOnly) return allSections;
+    return allSections
+      .map(sec => ({...sec, slots: sec.slots.filter(sl => sl.madeAt)}))
+      .filter(sec => sec.slots.length > 0);
+  }, [allSections, madeOnly]);
   const madeCount = useMemo(() => recipes.filter(r => r.madeAt).length, [recipes]);
 
   // 화면 폭에 맞춰 칸 크기 산출 — 고정 px이면 넓은 화면에서 성기게 흩어진다
@@ -282,6 +291,10 @@ export default function StampsRoute() {
   const axisMenuItems = useMemo(() => [
     {id: 'cookbook', label: t('stamps.axisCookbook'), icon: IconBookFilled},
     {id: 'date', label: t('stamps.axisDate'), icon: IconClockFilled},
+  ], [t]);
+
+  const filterMenuItems = useMemo(() => [
+    {id: 'madeOnly', label: t('stamps.filterMadeOnly'), icon: IconCircleCheckFilled},
   ], [t]);
 
   const layoutMenuItems = useMemo(() => [
@@ -310,10 +323,12 @@ export default function StampsRoute() {
             sections={[
               {title: t('stamps.sectionAxis'), items: axisMenuItems, selectedId: axis},
               {title: t('stamps.sectionLayout'), items: layoutMenuItems, selectedId: layout},
+              {title: t('stamps.sectionFilter'), items: filterMenuItems, selectedId: madeOnly ? 'madeOnly' : undefined},
             ]}
             visible={axisMenu}
             onSelect={(id) => {
-              if (id === 'list' || id === 'grid') setLayout(id);
+              if (id === 'madeOnly') setMadeOnly(v => !v);
+              else if (id === 'list' || id === 'grid') setLayout(id);
               else setAxis(id as StampAxis);
               setAxisMenu(false);
             }}
