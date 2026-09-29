@@ -113,11 +113,20 @@ export function SlideToConfirm({
   const half = Math.max(1, (trackW - TRACK_H) * 0.5);
   const fadeIn = x.interpolate({inputRange: [half, half * 2], outputRange: [0, 1], extrapolate: 'clamp'});
   const fadeOut = x.interpolate({inputRange: [half, half * 2], outputRange: [1, 0], extrapolate: 'clamp'});
+  // 밀수록 트랙이 accent로 물든다 — 확정에 가까워지는 걸 색으로도 보여준다.
+  // useNativeDriver는 색을 다루지 못하므로 accent 레이어의 투명도를 움직인다.
+  const accentIn = x.interpolate({inputRange: [0, Math.max(1, half * 2)], outputRange: [0, 1], extrapolate: 'clamp'});
 
   return (
     <View
       style={[styles.track, isDone && styles.trackDone, disabled && styles.trackDisabled]}
       onLayout={onLayout}>
+      {!isDone && (
+        <Animated.View
+          pointerEvents="none"
+          style={[StyleSheet.absoluteFill, styles.accentFill, {opacity: accentIn}]}
+        />
+      )}
       {isDone ? (
         // 손잡이가 오른쪽 끝에 있으므로 그만큼 비워 텍스트가 가려지지 않게
         <View style={[styles.doneRow, {paddingRight: TRACK_H}]}>
@@ -161,8 +170,12 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     justifyContent: 'center',
     overflow: 'hidden',
   },
+  accentFill: {
+    backgroundColor: colors['background/accent'],
+  },
   trackDone: {
-    backgroundColor: colors['background/primary'],
+    // 미는 동안 accent로 물들다가 완료에서 primary로 돌아가면 어색하다
+    backgroundColor: colors['background/accent'],
   },
   trackDisabled: {
     opacity: 0.5,
