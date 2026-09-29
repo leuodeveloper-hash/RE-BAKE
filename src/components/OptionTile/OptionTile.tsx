@@ -10,24 +10,42 @@ import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 
 export interface OptionTileProps {
-  icon: React.FC<SvgProps>;
+  /** 없으면 아이콘 없이 글자만 — 재료처럼 그림이 없는 항목용 */
+  icon?: React.FC<SvgProps>;
   iconSize?: AppIconSize;
   label: string;
+  /** 라벨 아래 보조 글자 (예: 분량) */
+  sublabel?: string;
+  /** 고를 수 있는 타일일 때의 선택 상태 — 색으로 드러낸다 */
+  selected?: boolean;
   style?: ViewStyle;
   onPress?: () => void;
 }
 
-export function OptionTile({icon, iconSize = 'sm', label, style, onPress}: OptionTileProps) {
+export function OptionTile({
+  icon,
+  iconSize = 'sm',
+  label,
+  sublabel,
+  selected = false,
+  style,
+  onPress,
+}: OptionTileProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const content = (
-    <Card style={[styles.card, style]}>
-      <AppIcon
-        icon={icon}
-        size={iconSize}
-        color={colors['foreground/on-surface-muted']}
-      />
-      <Text style={styles.label}>{label}</Text>
+    <Card style={[styles.card, selected && styles.cardSelected, style]}>
+      {icon && (
+        <AppIcon
+          icon={icon}
+          size={iconSize}
+          color={selected ? colors['foreground/on-accent-container'] : colors['foreground/on-surface-muted']}
+        />
+      )}
+      <Text style={[styles.label, selected && styles.labelSelected]} numberOfLines={2}>{label}</Text>
+      {sublabel ? (
+        <Text style={[styles.sublabel, selected && styles.labelSelected]} numberOfLines={1}>{sublabel}</Text>
+      ) : null}
     </Card>
   );
   if (onPress) {
@@ -45,7 +63,22 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     paddingVertical: Spacing.sm,
-    gap: Spacing.sm,
+    gap: Spacing.xs,
+  },
+  cardSelected: {
+    backgroundColor: colors['fill/accent'],
+    borderColor: colors['border/accent-subtle'],
+  },
+  labelSelected: {
+    color: colors['foreground/on-accent-container'],
+  },
+  sublabel: {
+    fontFamily: Typography.label.small.fontFamily,
+    fontSize: Typography.label.small.fontSize,
+    fontWeight: Typography.label.small.fontWeight as '500',
+    lineHeight: Typography.label.small.lineHeight,
+    color: colors['foreground/on-surface-muted'],
+    textAlign: 'center',
   },
   label: {
     fontFamily: Typography.label.medium.fontFamily,

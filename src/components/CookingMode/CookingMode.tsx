@@ -26,6 +26,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {PhotoViewer} from '@components/PhotoViewer';
 import {stableStringify} from '@utils/stableStringify';
 import {GlassContainer, Card, MAX_CONTENT_WIDTH, ContentMask} from '@components/Container';
+import {OptionTile} from '@components/OptionTile';
 import {BottomSheet, MadeConfirmSheet} from '@components/BottomSheet';
 import {Snackbar} from '@components/Snackbar';
 import {IconButton} from '@components/IconButton';
@@ -2110,19 +2111,22 @@ export function CookingMode({
               {(ingredientGroups?.length ?? 0) > 1 && group.title ? (
                 <Subheader title={group.title} />
               ) : null}
-              {(group.ingredients ?? []).filter(ing => ing.name?.trim()).map(ing => {
-                const checked = checkedIngredients.has(ing.name);
-                return (
-                  <MenuItem
-                    key={`list-${gIdx}-${ing.name}`}
-                    id={`list-${gIdx}-${ing.name}`}
-                    label={ing.name}
-                    checked={checked}
-                    trailingText={ing.amount}
-                    onPress={() => toggleIngredient(ing.name)}
-                  />
-                );
-              })}
+              {/* 타일 3열 — 요리 중엔 손이 바빠 한 줄짜리 목록은 누르기 어렵다 */}
+              <View style={styles.ingredientTiles}>
+                {(group.ingredients ?? []).filter(ing => ing.name?.trim()).map(ing => {
+                  const checked = checkedIngredients.has(ing.name);
+                  return (
+                    <OptionTile
+                      key={`list-${gIdx}-${ing.name}`}
+                      label={ing.name}
+                      sublabel={ing.amount}
+                      selected={checked}
+                      onPress={() => toggleIngredient(ing.name)}
+                      style={styles.ingredientTile}
+                    />
+                  );
+                })}
+              </View>
             </React.Fragment>
           ))}
         </BottomSheet>
@@ -2198,6 +2202,18 @@ export function CookingMode({
 
 const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
+    ingredientTiles: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      gap: Spacing.sm,
+      paddingHorizontal: Spacing.sm,
+      paddingBottom: Spacing.sm,
+    },
+    ingredientTile: {
+      // 3열 — gap(8)을 빼고 나눈 폭
+      width: '31.5%',
+      minHeight: 72,
+    },
     topLeft: {
       flexDirection: 'row',
       alignItems: 'center',
