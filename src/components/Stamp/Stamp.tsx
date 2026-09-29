@@ -125,7 +125,8 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, p
             d={d}
             // 안도 옅게 채운다 — 선만 있으면 배경과 구분이 약하다
             fill={colors['fill/faint']}
-            stroke={colors['border/normal']}
+            // 아이폰에선 0.24 반투명(border/normal)이 점선으로 끊기며 거의 안 보인다
+            stroke={colors['border/strong']}
             strokeWidth={OUTLINE_STROKE}
             // 각진 끝 — round면 양끝에 반원이 붙어 선이 strokeWidth만큼 길어진다
             strokeDasharray="1.8 1.8"
