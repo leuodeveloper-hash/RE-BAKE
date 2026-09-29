@@ -174,7 +174,7 @@ async function syncToFirestore(uid: string, recipes: Recipe[]) {
 }
 
 export function useRecipeStorage(showSnackbar?: (message: string) => void) {
-  const {user} = useAuth();
+  const {user, isAdmin} = useAuth();
   const {isPro, photoCloudBackup} = useSubscription();
   const cloudEnabled = !!user && isPro;
   const isOnline = useOnlineStatus();
@@ -312,7 +312,7 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
         // "저장됐다"고 오해하게 된다
         if (!cloudEnabled) {
           console.warn('[Storage] cloud sync off — user:', !!user, 'isPro:', isPro);
-          showSnackbarRef.current?.(`로컬 저장 (프로:${isPro} 이메일:${user?.email ?? '없음'})`);
+          showSnackbarRef.current?.(`로컬 저장 (어드민:${isAdmin} 프로:${isPro})`);
         }
         if (cloudEnabled && user) {
           // Firestore에 동기화 (이미지 업로드 → 동기화)
