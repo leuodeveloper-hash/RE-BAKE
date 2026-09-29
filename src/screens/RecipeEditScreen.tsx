@@ -3158,7 +3158,10 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
           onGroupSplit={handleGroupSplit}
           canGroupSplit={canGroupSplit}
           onLink={handleLink}
-          canLink={isOcrField}
+          // 팁·주의 칩도 공통 TextInput이라 링크 배선이 이미 돼 있다 —
+          // OCR 필드에만 열어 두면 칩에서는 버튼이 꺼져 링크를 못 걸었다.
+          // 선택이 있으면 켠다(선택 없이는 링크를 걸 자리가 없다).
+          canLink={isOcrField || !!linkCtx?.hasSelection}
           subView={chipSubView}
           onDone={handleSave}
           onOcrStart={() => setOcrLoading(true)}
