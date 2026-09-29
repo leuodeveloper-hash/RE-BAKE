@@ -56,8 +56,9 @@ import {collection, deleteDoc, doc, getDocs, query, setDoc, updateDoc, where} fr
 import {db} from '@config/firebase';
 import {useRecipes} from '@contexts/RecipeContext';
 import type {AvatarColor} from '@components/Avatar/Avatar';
-import LogoBadge from '../assets/images/logo_badge_reddark.svg';
-import LogoIcon from '../assets/images/logo_badge.svg';
+// 로딩 화면 로고 — 버건디(reddark)는 브랜드색이지만 로딩 배경 위에서 과했다.
+// primary(#0E0E0D)인 기본 배지를 쓴다.
+import LogoBadge from '../assets/images/logo_badge.svg';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -380,7 +381,7 @@ function NavigationContent() {
       {id: 'recipe', label: t('layout.addRecipe'), icon: IconNoteFilled, iconColor: colors['custom/lime']},
     ];
     if (isAdmin) {
-      items.push({id: 'official', label: t('layout.addOfficialRecipe'), icon: LogoIcon, iconColor: colors['custom/yellow-var']});
+      items.push({id: 'official', label: t('layout.addOfficialRecipe'), icon: LogoBadge, iconColor: colors['custom/yellow-var']});
     }
     items.push({id: 'cookbook', label: t('layout.addCookbook'), icon: IconBookFilled, iconColor: colors['custom/brown-var']});
     if (isAdmin) {
