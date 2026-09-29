@@ -3258,6 +3258,8 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
           if (idx === 0) pickImage('gallery');
           else replaceExtraHeroAt(idx - 1);
         }}
+        // 3장을 채우면 감춘다 — 더 넣을 자리가 없다
+        onAdd={imageUris.length < MAX_EXTRA_HERO ? () => pickImage('gallery', 'extra') : undefined}
         onDelete={() => { if (heroViewerIndex !== null) removeHeroAt(heroViewerIndex); }}
       />
     </View>

@@ -4,7 +4,7 @@ import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {FloatingNavBar, navPillStyle, NavPillButton} from '@components/Navigation';
 import {GlassContainer} from '@components/Container';
 import {IconButton} from '@components/IconButton';
-import {IconClose, IconPhoto, IconTrash, IconArrowDownToLine} from '@components/Icon/IconIndex';
+import {IconClose, IconPhoto, IconTrash, IconArrowDownToLine, IconAdd} from '@components/Icon/IconIndex';
 import {ForceDarkTheme} from '@contexts/ThemeContext';
 
 const MAX_CONTENT_WIDTH = 800;
@@ -19,6 +19,8 @@ export interface PhotoViewerProps {
   /** 편집 가능하면 우측 상단에 교체·삭제 버튼 (없으면 읽기 전용) */
   onReplace?: () => void;
   onDelete?: () => void;
+  /** 사진 추가 — 뷰어 안에서 바로 한 장 더 올릴 때 */
+  onAdd?: () => void;
   /**
    * 우측 상단 다운로드 버튼. 주면 보이고, 없으면 감춘다.
    * 유료 여부 판단·유도는 호출부가 한다 — 공통 뷰어가 구독을 알 필요는 없다.
@@ -43,13 +45,14 @@ export function PhotoViewer({
   onClose,
   onReplace,
   onDelete,
+  onAdd,
   onDownload,
 }: PhotoViewerProps) {
   const {width: containerWidth} = useWindowDimensions();
   const swipeXRef = useRef(0);
 
   const total = photos.length;
-  const canEdit = !!onReplace || !!onDelete;
+  const canEdit = !!onReplace || !!onDelete || !!onAdd;
   const hasRightActions = canEdit || !!onDownload;
 
   const goNext = useCallback(() => {
@@ -102,6 +105,9 @@ export function PhotoViewer({
               title={`${index + 1} / ${total}`}
               right={hasRightActions ? (
                 <GlassContainer contentStyle={navPillStyle}>
+                  {onAdd && (
+                    <IconButton icon={IconAdd} onPress={onAdd} variant="ghost-primary" size="medium" />
+                  )}
                   {onReplace && (
                     <IconButton icon={IconPhoto} onPress={onReplace} variant="ghost-primary" size="medium" />
                   )}
