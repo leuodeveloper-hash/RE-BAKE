@@ -380,7 +380,8 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
               }
               // Firestore 동기화 (URL 포함)
               await syncToFirestore(userNow.uid, uploaded);
-              showSnackbarRef.current?.('진단: Firestore 쓰기 완료');
+              const stamped = uploaded.filter(r => r.madeAt).map(r => r.title);
+              showSnackbarRef.current?.(`진단: 쓰기 완료 (madeAt 있는 것: ${stamped.length ? stamped.join(',') : '없음'})`);
               setLastSyncedAt(new Date());
               setLastSyncedDevice(getDeviceName());
             } catch (e: any) {
