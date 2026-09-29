@@ -47,6 +47,8 @@ export interface BottomSheetProps {
   description?: string;
   headerGraphic?: React.ReactNode;
   headerType?: 'default' | 'center';
+  /** 타이틀 우측 슬롯 — SheetHeader로 그대로 넘긴다 */
+  headerRight?: React.ReactNode;
   height?: number | 'auto';
   enableDragToDismiss?: boolean;
   enableBackdropDismiss?: boolean;
@@ -84,6 +86,7 @@ export function BottomSheet({
   description,
   headerGraphic,
   headerType,
+  headerRight,
   height = 'auto',
   enableDragToDismiss = true,
   enableBackdropDismiss = true,
@@ -310,7 +313,7 @@ export function BottomSheet({
               onResponderRelease={onDragRelease}
               onResponderTerminate={onDragTerminate}
             >
-              {title && <SheetHeader title={title} description={description} onClose={() => animateClose()} headerGraphic={headerGraphic} headerType={headerType} />}
+              {title && <SheetHeader title={title} description={description} onClose={() => animateClose()} headerGraphic={headerGraphic} headerType={headerType} headerRight={headerRight} />}
               {header}
 
               {fullScreen ? (

@@ -65,6 +65,8 @@ import {
   IconArrowTopRight,
   IconChevronLeft,
   IconChevronRight,
+  IconList,
+  IconLayoutGrid,
 } from '@components/Icon/IconIndex';
 import {KEYBOARD_TOOLBAR_HEIGHT} from '@components/KeyboardToolbar';
 import {EditorToolbar} from '@components/EditorToolbar';
@@ -314,6 +316,12 @@ export function CookingMode({
   const [showPhotoSubmenu, setShowPhotoSubmenu] = useState(false);
   const [showIngredientPicker, setShowIngredientPicker] = useState(false);
   const [showIngredientList, setShowIngredientList] = useState(false);
+  // 타일 폭은 실제 줄 너비에서 gap을 빼고 나눈다 — %로는 gap이 안 빠져 3열로 접힌다
+  const [tileRowWidth, setTileRowWidth] = useState(0);
+  // 재료를 타일로 볼지 목록으로 볼지 — 이름이 길면 목록이 읽기 편하다
+  const [ingredientLayout, setIngredientLayout] = useState<'grid' | 'list'>('grid');
+  /** 4열 타일 한 칸 폭 — 줄 너비에서 gap(8) 세 칸을 빼고 나눈다 */
+  const tileWidth = tileRowWidth > 0 ? (tileRowWidth - Spacing.sm * 3) / 4 : 0;
   const [editAdvice, setEditAdvice] = useState(advice ?? '');
   const [editAdvicePhotos, setEditAdvicePhotos] = useState<string[]>(advicePhotos ?? []);
   const [isInitialIngredientSheet, setIsInitialIngredientSheet] = useState(false);
@@ -2098,6 +2106,14 @@ export function CookingMode({
           onClose={() => { setShowIngredientList(false); setIsInitialIngredientSheet(false); }}
           title={isInitialIngredientSheet ? t('cookingMode.prepareIngredients') : t('cookingMode.ingredients')}
           headerType="center"
+          headerRight={
+            <IconButton
+              icon={ingredientLayout === 'grid' ? IconList : IconLayoutGrid}
+              variant="tonal"
+              size="medium"
+              onPress={() => setIngredientLayout(p => (p === 'grid' ? 'list' : 'grid'))}
+            />
+          }
           bottomAction={
             <>
               <Button label={allIngredientsChecked ? t('cookingMode.deselectAll') : t('cookingMode.selectAll')} variant="soft" onPress={toggleAllIngredients} style={{flex: 1}} />
@@ -2112,8 +2128,11 @@ export function CookingMode({
               {(ingredientGroups?.length ?? 0) > 1 && group.title ? (
                 <SectionHeader title={group.title} style={styles.ingredientGroupHeader} />
               ) : null}
-              {/* 타일 3열 — 요리 중엔 손이 바빠 한 줄짜리 목록은 누르기 어렵다 */}
-              <View style={styles.ingredientTiles}>
+              {/* 타일 4열 — 요리 중엔 손이 바빠 한 줄짜리 목록은 누르기 어렵다.
+                  이름이 길면 목록이 읽기 편해 우측 버튼으로 바꿀 수 있다. */}
+              <View
+                style={ingredientLayout === 'grid' ? styles.ingredientTiles : styles.ingredientRows}
+                onLayout={e => setTileRowWidth(e.nativeEvent.layout.width)}>
                 {(group.ingredients ?? []).filter(ing => ing.name?.trim()).map(ing => {
                   const checked = checkedIngredients.has(ing.name);
                   return (
@@ -2123,7 +2142,12 @@ export function CookingMode({
                       sublabel={ing.amount}
                       selected={checked}
                       onPress={() => toggleIngredient(ing.name)}
-                      style={styles.ingredientTile}
+                      selectedStyle="outline"
+                      style={
+                        ingredientLayout === 'grid'
+                          ? [styles.ingredientTile, tileWidth ? {width: tileWidth} : null]
+                          : styles.ingredientRow
+                      }
                     />
                   );
                 })}
@@ -2214,9 +2238,17 @@ const createStyles = (colors: SemanticColors) =>
       paddingHorizontal: Spacing.sm,
       paddingBottom: Spacing.sm,
     },
+    ingredientRows: {
+      gap: Spacing.sm,
+      paddingHorizontal: Spacing.sm,
+      paddingBottom: Spacing.sm,
+    },
+    ingredientRow: {
+      width: '100%',
+    },
     ingredientTile: {
-      // 4열 — gap(8) 세 칸을 빼고 나눈 폭
-      width: '23%',
+      // 폭은 실제 줄 너비를 재서 준다(onLayout) — %는 gap을 못 빼 4칸이
+      // 한 줄에 안 들어가고, calc()는 웹에서만 동작한다.
       // 이름이 길고 짧아도 칸 크기가 같아 보이도록 높이를 고정한다
       height: 76,
     },

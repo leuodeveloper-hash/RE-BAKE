@@ -1,5 +1,5 @@
 import React from 'react';
-import {Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
+import {Pressable, StyleSheet, Text, View, ViewStyle, type StyleProp} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import type {SemanticColors} from '@constants/tokens';
 
@@ -33,7 +33,7 @@ export interface OptionTileProps {
    * - 'outline': 테두리만 — 사진·글자가 주인공이라 배경을 덮으면 안 될 때
    */
   selectedStyle?: OptionTileSelectedStyle;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   onPress?: () => void;
 }
 

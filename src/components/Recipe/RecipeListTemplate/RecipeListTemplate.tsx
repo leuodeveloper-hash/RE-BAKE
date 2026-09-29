@@ -15,6 +15,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import type {Recipe} from '../../../types/recipe';
+import {recipePreviewParts} from '@utils/recipePreview';
 import {parseSession} from '@utils/session';
 import {recipeToPdfData} from '@utils/generateRecipeHtml';
 import {
@@ -564,25 +565,7 @@ export function RecipeListTemplate({
     const isLocked = lockedRecipeIds?.has(item.id) ?? false;
 
     const paperPreview = (activeLayout === 'grid' || activeLayout === 'list')
-      ? (() => {
-          const parts: string[] = [];
-          item.ingredientGroups?.forEach(g => {
-            g.ingredients.forEach(i => {
-              parts.push(i.amount ? `${i.name} ${i.amount}` : i.name);
-            });
-          });
-          item.toolGroups?.forEach(g => g.tools.forEach(t => parts.push(t.name)));
-          item.tools?.forEach(t => parts.push(t.name));
-          const pushStep = (s: {description?: string; tip?: string; caution?: string}) => {
-            if (s.description) parts.push(s.description);
-            if (s.tip) parts.push(s.tip);
-            if (s.caution) parts.push(s.caution);
-          };
-          item.stepGroups?.forEach(g => g.steps.forEach(pushStep));
-          item.steps?.forEach(pushStep);
-          if (item.advice) parts.push(item.advice);
-          return parts;
-        })()
+      ? recipePreviewParts(item)
       : undefined;
 
     const card = (

@@ -32,6 +32,7 @@ import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconList, IconLayoutGrid, IconNoteFilled, IconEyeClosed} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
+import {recipePreviewParts} from '@utils/recipePreview';
 import type {Recipe} from '../src/types/recipe';
 
 /**
@@ -76,6 +77,17 @@ function HighlightPop({active, children}: {active: boolean; children: React.Reac
   return <Animated.View style={{transform: [{scale}]}}>{children}</Animated.View>;
 }
 
+/** 사진 없는 스탬프 안에 들어가는 내용 미리보기 — 카드와 같은 재료·과정 글 */
+function StampPreview({recipe, styles}: {recipe: Recipe; styles: ReturnType<typeof createStyles>}) {
+  const text = recipePreviewParts(recipe).join(' ');
+  if (!text) return null;
+  return (
+    <View style={styles.stampPreview} pointerEvents="none">
+      <Text style={styles.stampPreviewText}>{text}</Text>
+    </View>
+  );
+}
+
 /** 리스트 행의 스탬프 크기 */
 const LIST_STAMP = 36;
 
@@ -108,8 +120,10 @@ function SlotStamp({slot, size, styles, highlight, outline}: {
       <Stamp
         imageUri={slot.recipe.imageUri}
         size={size}
-        index={slot.order}
-      />
+        index={slot.order}>
+        {/* 사진이 없으면 카드와 같은 내용 미리보기를 모양 안에 넣는다 */}
+        <StampPreview recipe={slot.recipe} styles={styles} />
+      </Stamp>
     </HighlightPop>
   );
 }
@@ -147,7 +161,9 @@ export default function StampsRoute() {
   // 그리드가 기본 — 스탬프가 늘어선 모습 자체가 이 화면의 내용이다
   const [layout, setLayout] = useState<'list' | 'grid'>('grid');
   // 빈 칸까지 보이면 길어진다 — 모은 것만 보고 싶을 때
-  const [madeOnly, setMadeOnly] = useState(false);
+  // 기본 켬 — 하나라도 찍으면 빈 칸은 접어 둔다(모은 것이 먼저 보이게).
+  // 끄면 남은 칸까지 펼쳐져 무엇을 더 모을지 보인다.
+  const [madeOnly, setMadeOnly] = useState(true);
 
   /**
    * 레시피 하나를 "만들었는지" 판단한다.
@@ -317,7 +333,10 @@ export default function StampsRoute() {
       return {...sec, slots: made.length > 0 ? made : sec.slots.slice(0, 1)};
     });
   }, [allSections, madeOnly]);
-  const madeCount = useMemo(() => recipes.filter(r => r.madeAt).length, [recipes]);
+  const madeCount = useMemo(
+    () => [...recipes, ...exploreRecipes].filter(r => madeAtOf(r)).length,
+    [recipes, exploreRecipes, madeAtOf],
+  );
 
   // 화면 폭에 맞춰 칸 크기 산출 — 고정 px이면 넓은 화면에서 성기게 흩어진다
   const columns = columnsFor(width);
@@ -569,6 +588,18 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   listDate: {
     ...Typography.label.medium,
     color: colors['foreground/on-surface-muted'],
+  },
+  stampPreview: {
+    ...StyleSheet.absoluteFillObject,
+    padding: Spacing.xs,
+    justifyContent: 'center',
+  },
+  stampPreviewText: {
+    ...Typography.label.small,
+    color: colors['foreground/on-surface-muted'],
+    // 글이 그림 역할이라 촘촘하게 — 읽히기보다 "내용이 있다"가 보이면 된다
+    fontSize: 7,
+    lineHeight: 10,
   },
   emptyDot: {
     width: 6,

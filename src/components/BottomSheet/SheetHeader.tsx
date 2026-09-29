@@ -22,9 +22,11 @@ export interface SheetHeaderProps {
   headerGraphic?: React.ReactNode;
   /** 헤더 레이아웃: 'default' (좌측 정렬) | 'center' (중앙 정렬) */
   headerType?: 'default' | 'center';
+  /** 타이틀 우측 슬롯(예: 레이아웃 전환 버튼). center 모드의 빈 자리를 채운다 */
+  headerRight?: React.ReactNode;
 }
 
-export function SheetHeader({title, description, onClose, icon, avatarColor, headerGraphic, headerType = 'default'}: SheetHeaderProps) {
+export function SheetHeader({title, description, onClose, icon, avatarColor, headerGraphic, headerType = 'default', headerRight}: SheetHeaderProps) {
   const styles = useThemedStyles(createStyles);
 
   const hasGraphic = headerGraphic || icon;
@@ -74,7 +76,7 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
               />
             ) : <View style={styles.centerPlaceholder} />}
             <Text style={styles.titleCenter}>{title}</Text>
-            <View style={styles.centerPlaceholder} />
+            {headerRight ?? <View style={styles.centerPlaceholder} />}
           </View>
           {description && (
             <View style={styles.descriptionRow}>

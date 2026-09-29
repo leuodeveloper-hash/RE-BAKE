@@ -32,6 +32,11 @@ export interface StampProps {
    * "여기에 이런 게 붙는다"를 알려주는 용도.
    */
   outline?: boolean;
+  /**
+   * 사진 대신 모양 안에 넣을 내용(사진 없는 레시피의 내용 미리보기).
+   * imageUri가 있으면 무시된다.
+   */
+  children?: React.ReactNode;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -44,7 +49,7 @@ export interface StampProps {
  * 후자는 RN Web의 View가 비표준 스타일을 버려 마스크가 걸리지 않는다.
  * SVG clipPath는 네이티브·웹이 같은 구현을 쓴다.
  */
-export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, padding = INNER_PADDING, style}: StampProps) {
+export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, padding = INNER_PADDING, children, style}: StampProps) {
   const colors = useColors();
   const d = stampShapeAt(index);
   /**
@@ -109,6 +114,32 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, p
   }
 
   if (!imageUri) {
+    // 사진이 없으면 내용 미리보기를 모양대로 오려 넣는다.
+    // 일반 View는 SVG clipPath로 못 자르므로, 내용을 깔고 그 위에 모양의
+    // '바깥쪽'을 배경색으로 덮어 같은 결과를 만든다(네이티브·웹 공통).
+    if (children) {
+      return (
+        <View style={wrapStyle}>
+          <View style={[{width: inner, height: inner}, styles.clipBox]}>
+            <View style={[StyleSheet.absoluteFill, {backgroundColor: colors['fill/faint']}]} />
+            {children}
+            <Svg
+              style={StyleSheet.absoluteFill}
+              width={inner}
+              height={inner}
+              viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}
+              pointerEvents="none">
+              {/* evenodd: 바깥 사각형 − 모양 = 모양 밖만 칠해진다 */}
+              <Path
+                d={`M0 0H${STAMP_VIEWBOX}V${STAMP_VIEWBOX}H0Z ${d}`}
+                fill={colors['background/normal']}
+                fillRule="evenodd"
+              />
+            </Svg>
+          </View>
+        </View>
+      );
+    }
     return (
       <Animated.View style={[wrapStyle, {opacity: pulse}]}>
         <Svg width={inner} height={inner} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
@@ -160,6 +191,7 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, p
 
 const styles = StyleSheet.create({
   center: {alignItems: 'center', justifyContent: 'center'},
+  clipBox: {overflow: 'hidden'},
 });
 
 export default Stamp;
