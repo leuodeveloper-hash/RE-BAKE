@@ -278,9 +278,12 @@ export default function StampsRoute() {
    */
   const sections = useMemo(() => {
     if (!madeOnly) return allSections;
-    return allSections
-      .map(sec => ({...sec, slots: sec.slots.filter(sl => sl.madeAt)}))
-      .filter(sec => sec.slots.length > 0);
+    return allSections.map(sec => {
+      const made = sec.slots.filter(sl => sl.madeAt);
+      // 하나도 못 채운 섹션은 첫 칸(점선)을 남긴다 — 섹션째 사라지면
+      // "없다"는 빈 화면이 떠서 무엇을 모으는 곳인지조차 안 보인다
+      return {...sec, slots: made.length > 0 ? made : sec.slots.slice(0, 1)};
+    });
   }, [allSections, madeOnly]);
   const madeCount = useMemo(() => recipes.filter(r => r.madeAt).length, [recipes]);
 
