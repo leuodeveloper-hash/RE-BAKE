@@ -54,6 +54,9 @@ interface StampSlot {
 
 type StampAxis = 'cookbook' | 'date';
 
+/** 진도 바 너비 */
+const PROGRESS_WIDTH = 64;
+
 /** 리스트 행의 스탬프 크기 */
 const LIST_STAMP = 36;
 
@@ -472,8 +475,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     color: colors['foreground/on-surface'],
   },
   progressTrack: {
-    flex: 1,
-    maxWidth: 120,
+    width: PROGRESS_WIDTH,
     height: 6,
     borderRadius: Radius['radius-full'],
     backgroundColor: colors['fill/faint'],
