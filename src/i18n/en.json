@@ -799,6 +799,8 @@
   "stamps.monthLabel": "{{month}}",
   "stamps.noCookbook": "No recipe book",
   "stamps.notMade": "Not yet",
+  "stamps.reviewAction": "Write a reflection",
+  "stamps.reviewPrompt": "How was {{title}}?",
   "stamps.sectionAxis": "Group by",
   "stamps.sectionLayout": "Layout",
   "stamps.shortDate": "{{month}}/{{day}}",

@@ -784,6 +784,8 @@
   "stamps.monthLabel": "{{month}}월",
   "stamps.noCookbook": "레시피 북 없음",
   "stamps.notMade": "아직",
+  "stamps.reviewAction": "회고 남기기",
+  "stamps.reviewPrompt": "{{title}}, 어땠나요?",
   "stamps.sectionAxis": "분류",
   "stamps.sectionLayout": "보기 방식",
   "stamps.shortDate": "{{month}}월 {{day}}일",

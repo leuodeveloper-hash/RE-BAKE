@@ -527,8 +527,8 @@ const handleDelete = useCallback(async () => {
     } else {
       setRecipeMade(id, true);
     }
-    // 찍은 우표가 어디에 쌓이는지 바로 보여준다
-    router.push('/stamps' as any);
+    // 찍은 스탬프가 어디에 쌓이는지 바로 보여준다(방금 것을 강조하도록 id를 넘긴다)
+    router.push(`/stamps?just=${encodeURIComponent(id)}` as any);
   }, [isMyRecipe, id, setRecipes, setRecipeMade, router]);
 
   if (!recipe) return null;

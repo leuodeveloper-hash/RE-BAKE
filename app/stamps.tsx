@@ -1,7 +1,7 @@
 import React, {useCallback, useMemo, useState} from 'react';
 import {Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {useRouter} from 'expo-router';
+import {useLocalSearchParams, useRouter} from 'expo-router';
 import {AppBar} from '@components/Navigation';
 import {ContentContainer} from '@components/Container';
 import {InlineBanner} from '@components/InlineBanner';
@@ -17,7 +17,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {IconClose, IconFilter, IconBookFilled, IconClockFilled, IconChevronRight, IconList, IconLayoutGrid} from '@components/Icon/IconIndex';
+import {IconClose, IconFilter, IconBookFilled, IconClockFilled, IconChevronRight, IconList, IconLayoutGrid, IconNoteFilled} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import type {Recipe} from '../src/types/recipe';
 
@@ -46,15 +46,17 @@ type StampAxis = 'cookbook' | 'date';
 const LIST_STAMP = 36;
 
 /** 그리드·리스트가 같은 그림을 쓴다 — 채운 칸은 스탬프, 빈 칸은 점 */
-function SlotStamp({slot, size, tilt, styles}: {
+function SlotStamp({slot, size, tilt, styles, highlight}: {
   slot: StampSlot;
   size: number;
   tilt: number;
   styles: ReturnType<typeof createStyles>;
+  /** 방금 찍은 칸 — 어디에 붙었는지 눈에 띄게 */
+  highlight?: boolean;
 }) {
   if (!slot.madeAt) return <View style={styles.emptyDot} />;
   return (
-    <>
+    <View style={highlight ? styles.highlight : undefined}>
       {/* 회차가 여럿이면 뒤에 한 장 더 깔아 "여러 번 만들었음"을 보인다 */}
       {slot.count > 1 && (
         <Stamp
@@ -72,7 +74,7 @@ function SlotStamp({slot, size, tilt, styles}: {
         // 붙인 느낌 — 규칙적이면 인쇄물처럼 보여 살짝씩 다르게 준다
         rotate={((tilt * 37) % 9) - 4}
       />
-    </>
+    </View>
   );
 }
 
@@ -85,6 +87,8 @@ function formatMadeDate(iso: string, t: (k: string, p?: Record<string, unknown>)
 export default function StampsRoute() {
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
+  // 방금 찍고 넘어온 경우 — 그 스탬프를 강조하고 회고를 권한다
+  const {just} = useLocalSearchParams<{just?: string}>();
   const {t} = useTranslation();
   const {width} = useWindowDimensions();
   const {recipes} = useRecipes();
@@ -206,6 +210,15 @@ export default function StampsRoute() {
       }));
   }, [recipes, slotFor, t]);
 
+  // 방금 찍은 레시피 — 회고가 아직 없을 때만 권유를 띄운다(쓰고 나면 사라진다)
+  const justRecipe = useMemo(() => {
+    if (!just) return undefined;
+    const r = recipes.find(x => x.id === just);
+    if (!r) return undefined;
+    const hasReview = r.reviews?.some(rv => rv.evaluation?.trim() || rv.improvement?.trim());
+    return hasReview ? undefined : r;
+  }, [just, recipes]);
+
   const sections = axis === 'cookbook' ? cookbookSections : dateSections;
   const madeCount = useMemo(() => recipes.filter(r => r.madeAt).length, [recipes]);
 
@@ -250,6 +263,21 @@ export default function StampsRoute() {
                 style={styles.banner}
               />
 
+              {justRecipe && (
+                // 방금 찍은 것에만 붙는다 — 예전 스탬프에까지 붙으면 할 일 목록이 된다
+                <InlineBanner
+                  icon={IconNoteFilled}
+                  label={t('stamps.reviewPrompt', {title: justRecipe.title})}
+                  color="default"
+                  size="medium"
+                  action={{
+                    label: t('stamps.reviewAction'),
+                    onPress: () => router.push(`/recipe/edit/${justRecipe.id}` as any),
+                  }}
+                  style={styles.banner}
+                />
+              )}
+
               {sections.map(section => (
                 <View key={section.key} style={styles.section}>
                   <Pressable
@@ -283,7 +311,7 @@ export default function StampsRoute() {
                           key={slot.recipe.id}
                           onPress={() => setSelected(slot)}
                           style={[styles.gridCell, {width: slotSize, height: slotSize}]}>
-                          <SlotStamp slot={slot} size={slotSize} tilt={i} styles={styles} />
+                          <SlotStamp slot={slot} size={slotSize} tilt={i} styles={styles} highlight={slot.recipe.id === just} />
                         </Pressable>
                       ))}
                     </View>
@@ -295,7 +323,7 @@ export default function StampsRoute() {
                           onPress={() => setSelected(slot)}
                           style={styles.listRow}>
                           <View style={styles.listThumb}>
-                            <SlotStamp slot={slot} size={LIST_STAMP} tilt={i} styles={styles} />
+                            <SlotStamp slot={slot} size={LIST_STAMP} tilt={i} styles={styles} highlight={slot.recipe.id === just} />
                           </View>
                           <Text
                             style={[styles.listTitle, !slot.madeAt && styles.listTitleMuted]}
@@ -428,6 +456,14 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   listDate: {
     ...Typography.label.medium,
     color: colors['foreground/on-surface-muted'],
+  },
+  highlight: {
+    // 방금 붙인 스탬프 — 테두리 대신 그림자로 띄워 모양(마스크)을 가리지 않는다
+    shadowColor: '#0E0E0D',
+    shadowOffset: {width: 0, height: 2},
+    shadowOpacity: 0.28,
+    shadowRadius: 8,
+    elevation: 4,
   },
   emptyDot: {
     width: 6,

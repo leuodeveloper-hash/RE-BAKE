@@ -227,8 +227,8 @@ export function ExploreScreen({
     const target = madeSheetRecipe;
     if (!target) return;
     setRecipeMade(target.id, true);
-    // 찍은 우표가 어디에 쌓이는지 바로 보여준다
-    router.push('/stamps' as any);
+    // 찍은 스탬프가 어디에 쌓이는지 바로 보여준다(방금 것을 강조하도록 id를 넘긴다)
+    router.push(`/stamps?just=${encodeURIComponent(target.id)}` as any);
   }, [madeSheetRecipe, setRecipeMade, router]);
 
   const handleCardMenuSelect = useCallback((id: string, recipe: Recipe) => {

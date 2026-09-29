@@ -277,8 +277,8 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
     if (!target) return;
     // 핀과 같은 이유로 불린이 아니라 시각을 남긴다
     setRecipes(prev => prev.map(r => (r.id === target.id ? {...r, madeAt: new Date().toISOString()} : r)));
-    // 찍은 우표가 어디에 쌓이는지 바로 보여준다
-    router.push('/stamps' as any);
+    // 찍은 스탬프가 어디에 쌓이는지 바로 보여준다(방금 것을 강조하도록 id를 넘긴다)
+    router.push(`/stamps?just=${encodeURIComponent(target.id)}` as any);
   }, [madeSheetRecipe, setRecipes, router]);
 
   const handleCardMenuSelect = useCallback((id: string, recipe: Recipe): void => {
