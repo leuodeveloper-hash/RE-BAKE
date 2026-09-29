@@ -489,8 +489,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   banner: {marginBottom: Spacing.lg},
   section: {marginBottom: Spacing.xl},
   sectionHeader: {
-    // 공통 SectionHeader의 좌우 여백은 목록과 맞추기 위해 0으로
-    paddingHorizontal: 0,
     marginBottom: Spacing.xs,
   },
   grid: {
