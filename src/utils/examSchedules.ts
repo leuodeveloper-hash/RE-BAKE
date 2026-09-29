@@ -37,7 +37,9 @@ export async function fetchExamSchedules(
   // 실기/필기(ExamType) → Firestore 종목별 examType 목록으로 확장 (중복 제거).
   // 기능사 정기일정은 종목 공통이라 실기 알림이면 제과·제빵 실기 일정을 모두 가져온다.
   const scheduleTypes = Array.from(new Set(targets.flatMap(x => SCHEDULE_TYPES_FOR[x])));
-  const now = new Date().toISOString();
+  // 'YYYY-MM-DD'끼리 비교해야 한다 — examDate는 날짜만(10자)이라
+  // 전체 ISO와 비교하면 오늘 시험이 "이미 지났다"로 걸러진다.
+  const now = new Date().toISOString().slice(0, 10);
   const result: ExamSchedule[] = [];
   // examType 단일 in 필터만 사용 (Firestore in은 10개 제한 — examType 최대 4개라 안전).
   // examDate 범위까지 같이 걸면 복합 인덱스가 필요해 인덱스 미설정 시 쿼리가 throw →

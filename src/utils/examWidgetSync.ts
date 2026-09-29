@@ -51,13 +51,23 @@ export async function syncExamWidget(): Promise<void> {
       const labelByType = Object.fromEntries(getExamTypes(t).map(e => [e.id, e.label]));
       const now = Date.now();
 
-      // 아직 지나지 않은 시험 중 가장 가까운 것
+      /**
+       * 가장 먼저 알려야 할 시험 하나.
+       *
+       * 시험일만 보고 고르면 안 된다 — 접수가 코앞인 시험이, 시험일이 더 이른
+       * 다른 시험에 밀려 접수 D-day가 아예 안 뜬다(접수를 놓치면 시험을 못 본다).
+       * 아직 오지 않은 일정(접수 시작일 또는 시험일) 중 가장 가까운 것을 기준으로 정렬한다.
+       */
+      const nextMoment = (s: {examDate: string; registrationStart?: string}): number => {
+        const times = [s.registrationStart, s.examDate]
+          .map(v => (v ? new Date(v).getTime() : NaN))
+          .filter(v => !Number.isNaN(v) && v > now);
+        return times.length > 0 ? Math.min(...times) : Infinity;
+      };
+
       const upcoming = schedules
-        .filter(s => {
-          const d = new Date(s.examDate);
-          return !Number.isNaN(d.getTime()) && d.getTime() > now;
-        })
-        .sort((a, b) => new Date(a.examDate).getTime() - new Date(b.examDate).getTime())[0];
+        .filter(s => nextMoment(s) !== Infinity)
+        .sort((a, b) => nextMoment(a) - nextMoment(b))[0];
 
       if (upcoming) {
         payload = {
