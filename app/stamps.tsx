@@ -23,6 +23,7 @@ import {useAuth} from '@contexts/AuthContext';
 import {useAuthSheet} from '@contexts/AuthSheetContext';
 import {useRecipes, DEFAULT_COOKBOOK_COLOR} from '@contexts/RecipeContext';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
+import {useRecipeReviews} from '@hooks/useRecipeReviews';
 import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
@@ -127,7 +128,9 @@ export default function StampsRoute() {
   const {open: openAuthSheet} = useAuthSheet();
   const colors = useColors();
   const {width} = useWindowDimensions();
-  const {recipes, setRecipes, setSelectedExploreCookbook, cookbookColors} = useRecipes();
+  const {recipes, setSelectedExploreCookbook, cookbookColors} = useRecipes();
+  // 회고는 레시피가 아니라 계정에 — 공식 레시피에도 쓸 수 있어야 한다
+  const {saveReview, reviewOf} = useRecipeReviews();
   const {recipes: exploreRecipes, exploreCookbooks} = useExploreRecipeContext();
   const [axis, setAxis] = useState<StampAxis>('cookbook');
   const [axisMenu, setAxisMenu] = useState(false);
@@ -187,16 +190,9 @@ export default function StampsRoute() {
   }, [recipes]);
 
   const handleSaveReview = useCallback((review: {evaluation: string; improvement: string}) => {
-    const target = reviewTarget;
-    if (!target) return;
-    if (!review.evaluation && !review.improvement) return;
-    setRecipes(prev => prev.map(r => {
-      if (r.id !== target.id) return r;
-      // 마지막 회고를 고친다 — 회차마다 레시피가 따로라 한 레시피엔 회고 하나가 원칙
-      const reviews = r.reviews?.length ? [...r.reviews.slice(0, -1), review] : [review];
-      return {...r, reviews, reviewCount: reviews.length};
-    }));
-  }, [reviewTarget, setRecipes]);
+    if (!reviewTarget) return;
+    saveReview(reviewTarget.id, review);
+  }, [reviewTarget, saveReview]);
 
   const slotFor = useCallback((r: Recipe): StampSlot => {
     const key = r.remakeGroupId ?? r.id;
@@ -285,9 +281,10 @@ export default function StampsRoute() {
     const r = recipes.find(x => x.id === just);
     // 해제했으면 권유도 사라져야 한다 — 찍지도 않은 것에 회고를 권할 이유가 없다
     if (!r?.madeAt) return undefined;
-    const hasReview = r.reviews?.some(rv => rv.evaluation?.trim() || rv.improvement?.trim());
+    const rv = reviewOf(r.id);
+    const hasReview = !!(rv?.evaluation?.trim() || rv?.improvement?.trim());
     return hasReview ? undefined : r;
-  }, [just, recipes]);
+  }, [just, recipes, reviewOf]);
 
   const allSections = axis === 'cookbook' ? cookbookSections : dateSections;
   /**
@@ -327,7 +324,7 @@ export default function StampsRoute() {
       <ReviewDialog
         visible={!!reviewTarget}
         onClose={() => setReviewTarget(null)}
-        value={reviewTarget?.reviews?.[reviewTarget.reviews.length - 1]}
+        value={reviewTarget ? reviewOf(reviewTarget.id) : undefined}
         onConfirm={handleSaveReview}
       />
 
