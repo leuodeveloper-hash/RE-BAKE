@@ -448,6 +448,18 @@ export function RecipeDetailScreen({
   // 메뉴에서 "만들었어요"를 누르면 뜨는 확인 시트(목록과 같은 흐름)
   const [showMadeSheet, setShowMadeSheet] = useState(false);
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
+
+  /**
+   * 회고 쓰기 — 아직 스탬프를 찍지 않았으면 확인 시트를 먼저 띄운다.
+   * 해보지 않은 것에 회고만 남는 상태를 막고, 찍은 김에 이어서 쓰게 한다.
+   */
+  const handleWriteReview = useCallback(() => {
+    if (!isMade && onMadeChange) {
+      setShowMadeSheet(true);
+      return;
+    }
+    onEdit?.('review');
+  }, [isMade, onMadeChange, onEdit]);
   const [showCookingMode, setShowCookingMode] = useState(initialCookingMode ?? false);
   const [cookingModeInitialIndex, setCookingModeInitialIndex] = useState(0);
   const [cookingModeShowIngredients, setCookingModeShowIngredients] = useState(false);
@@ -1242,7 +1254,7 @@ export function RecipeDetailScreen({
                         <IconButton icon={IconChartNoAxesGantt} size="small" variant="ghost-secondary" onPress={handleOpenReviewSheet} />
                       ) : null}
                       {onEdit ? (
-                        <IconButton icon={IconEditFilled} size="small" variant="ghost-secondary" onPress={() => onEdit('review')} />
+                        <IconButton icon={IconEditFilled} size="small" variant="ghost-secondary" onPress={handleWriteReview} />
                       ) : null}
                     </View>
                   )} : undefined}
@@ -1276,7 +1288,7 @@ export function RecipeDetailScreen({
                         <IconButton icon={IconChartNoAxesGantt} size="small" variant="ghost-secondary" onPress={handleOpenReviewSheet} />
                       ) : null}
                       {onEdit ? (
-                        <IconButton icon={IconEditFilled} size="small" variant="ghost-secondary" onPress={() => onEdit('review')} />
+                        <IconButton icon={IconEditFilled} size="small" variant="ghost-secondary" onPress={handleWriteReview} />
                       ) : null}
                     </View>
                   )} : undefined}

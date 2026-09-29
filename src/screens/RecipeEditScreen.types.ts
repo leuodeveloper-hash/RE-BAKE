@@ -97,6 +97,8 @@ export interface RecipeEditScreenProps {
     imageUri?: string;
     /** 추가 상단 이미지(대표 뒤로 최대 2장) */
     imageUris?: string[];
+    /** 만든 시각 — 회고는 만든 뒤에만 쓸 수 있다 */
+    madeAt?: string;
     reviews?: ReviewData[];
     advice?: string;
     time?: string;
