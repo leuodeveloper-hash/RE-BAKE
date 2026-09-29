@@ -3,8 +3,6 @@ import {StyleSheet, Text, View} from 'react-native';
 import {BottomSheet} from './BottomSheet';
 import {SlideToConfirm} from '@components/SlideToConfirm/SlideToConfirm';
 import {Stamp} from '@components/Stamp';
-import {IconButton} from '@components/IconButton';
-import {IconClose} from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
 import type {SemanticColors} from '@constants/tokens';
@@ -49,11 +47,8 @@ export function MadeConfirmSheet({
   }, [onConfirm, onClose]);
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} hideHandle>
+    <BottomSheet visible={visible} onClose={onClose}>
       <View style={styles.body}>
-        <View style={styles.closeRow}>
-          <IconButton icon={IconClose} size="medium" variant="soft" onPress={onClose} />
-        </View>
 
         <View style={styles.stampWrap}>
           {/* 기울이지 않는다 — 하나만 크게 보여주는 자리라 반듯한 쪽이 낫다 */}
@@ -79,10 +74,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   body: {
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.sm,
-  },
-  closeRow: {
-    alignItems: 'flex-start',
-    paddingTop: Spacing.xs,
   },
   stampWrap: {
     alignItems: 'center',
