@@ -78,3 +78,10 @@ storybook-static
 # 웹 빌드 산출물 — 배포마다 바뀌어 diff만 늘어난다
 dist/
 .firebase/
+
+# Firebase CLI 디버그 로그 — 로컬 실행 흔적이라 공유할 것이 없다
+firebase-debug.log
+firestore-debug.log
+
+# 편집기 임시파일
+*.swp
