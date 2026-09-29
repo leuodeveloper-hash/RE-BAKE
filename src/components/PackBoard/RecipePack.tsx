@@ -153,9 +153,6 @@ export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom
     const BOOK_W = Math.round(188 * 1.44); // 271 (책만 1.44배)
     const BOOK_H = BOOK_W; // 정사각
     const BOOK_IMG = Math.round(85 * 1.44); // 122 (표지 안 정사각 썸넬)
-    // 스탬프만 2.5배 — 오려 낸 모양이라 표지를 넉넉히 채워야 산다.
-    // 표지를 넘으면 모서리가 잘리므로 표지 안에 가둔다.
-    const BOOK_STAMP = Math.min(Math.round(BOOK_IMG * 2.5), BOOK_W);
     const titleColor = iconColor ?? colors['foreground/on-surface'];
     // 표지 배경: 색상별 틴트 없이 모든 책을 옅은 크림(cream/96)으로 통일. (글자색만 레시피북 색 유지)
     const coverBg = PrimitiveColors['cream/96'];
@@ -170,7 +167,7 @@ export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom
           {/* 썸넬 중앙 — 사진이 있으면 스탬프 모양으로 오려낸다.
               모양은 제목으로 정해 북마다 다르되 매번 같게 한다(랜덤이면 다시 그릴 때 바뀐다) */}
           {typeof shown[0].imageUrl === 'string' && shown[0].imageUrl ? (
-            <Stamp imageUri={shown[0].imageUrl} size={BOOK_STAMP} index={shapeIndexOf(title)} padding={0} />
+            <Stamp imageUri={shown[0].imageUrl} size={BOOK_IMG} index={shapeIndexOf(title)} padding={0} />
           ) : (
             <StackedThumbnail
               size={BOOK_IMG}
