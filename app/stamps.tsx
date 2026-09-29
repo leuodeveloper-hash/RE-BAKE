@@ -46,15 +46,21 @@ type StampAxis = 'cookbook' | 'date';
 const LIST_STAMP = 36;
 
 /** 그리드·리스트가 같은 그림을 쓴다 — 채운 칸은 스탬프, 빈 칸은 점 */
-function SlotStamp({slot, size, tilt, styles, highlight}: {
+function SlotStamp({slot, size, tilt, styles, highlight, outline}: {
   slot: StampSlot;
   size: number;
   tilt: number;
   styles: ReturnType<typeof createStyles>;
   /** 방금 찍은 칸 — 어디에 붙었는지 눈에 띄게 */
   highlight?: boolean;
+  /** 점선 윤곽으로 — 한 칸도 못 채운 섹션의 첫 칸만 */
+  outline?: boolean;
 }) {
-  if (!slot.madeAt) return <View style={styles.emptyDot} />;
+  if (!slot.madeAt) {
+    // 아직 하나도 없으면 첫 칸만 점선으로 — 점만 늘어놓으면 너무 휑하다
+    if (outline) return <Stamp size={size} outline rotate={-4} />;
+    return <View style={styles.emptyDot} />;
+  }
   return (
     <View style={highlight ? styles.highlight : undefined}>
       {/* 회차가 여럿이면 뒤에 한 장 더 깔아 "여러 번 만들었음"을 보인다 */}
@@ -96,8 +102,8 @@ export default function StampsRoute() {
   const [axis, setAxis] = useState<StampAxis>('cookbook');
   const [axisMenu, setAxisMenu] = useState(false);
   const [selected, setSelected] = useState<StampSlot | null>(null);
-  // 리스트가 기본 — 이름과 날짜까지 한 번에 보이는 쪽이 기록을 훑기 좋다
-  const [layout, setLayout] = useState<'list' | 'grid'>('list');
+  // 그리드가 기본 — 스탬프가 늘어선 모습 자체가 이 화면의 내용이다
+  const [layout, setLayout] = useState<'list' | 'grid'>('grid');
 
   /**
    * 레시피 하나를 "만들었는지" 판단한다.
@@ -240,6 +246,29 @@ export default function StampsRoute() {
 
   return (
     <View style={styles.container}>
+      <AppBar
+        centered
+        title={t('stamps.title')}
+        leftIcon={IconClose}
+        onLeftPress={() => router.back()}
+        rightIcon={IconFilter}
+        onRightPress={() => setAxisMenu(v => !v)}
+        rightMenu={
+          <Menu
+            sections={[
+              {title: t('stamps.sectionAxis'), items: axisMenuItems, selectedId: axis},
+              {title: t('stamps.sectionLayout'), items: layoutMenuItems, selectedId: layout},
+            ]}
+            visible={axisMenu}
+            onSelect={(id) => {
+              if (id === 'list' || id === 'grid') setLayout(id);
+              else setAxis(id as StampAxis);
+              setAxisMenu(false);
+            }}
+            onClose={() => setAxisMenu(false)}
+          />
+        }
+      />
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         <ScrollView
           style={styles.scrollView}
@@ -311,7 +340,7 @@ export default function StampsRoute() {
                           key={slot.recipe.id}
                           onPress={() => setSelected(slot)}
                           style={[styles.gridCell, {width: slotSize, height: slotSize}]}>
-                          <SlotStamp slot={slot} size={slotSize} tilt={i} styles={styles} highlight={slot.recipe.id === just} />
+                          <SlotStamp slot={slot} size={slotSize} tilt={i} styles={styles} highlight={slot.recipe.id === just} outline={section.done === 0 && i === 0} />
                         </Pressable>
                       ))}
                     </View>
@@ -323,7 +352,7 @@ export default function StampsRoute() {
                           onPress={() => setSelected(slot)}
                           style={styles.listRow}>
                           <View style={styles.listThumb}>
-                            <SlotStamp slot={slot} size={LIST_STAMP} tilt={i} styles={styles} highlight={slot.recipe.id === just} />
+                            <SlotStamp slot={slot} size={LIST_STAMP} tilt={i} styles={styles} highlight={slot.recipe.id === just} outline={section.done === 0 && i === 0} />
                           </View>
                           <Text
                             style={[styles.listTitle, !slot.madeAt && styles.listTitleMuted]}
@@ -363,29 +392,6 @@ export default function StampsRoute() {
         }}
       />
 
-      <AppBar
-        centered
-        title={t('stamps.title')}
-        leftIcon={IconClose}
-        onLeftPress={() => router.back()}
-        rightIcon={IconFilter}
-        onRightPress={() => setAxisMenu(v => !v)}
-        rightMenu={
-          <Menu
-            sections={[
-              {title: t('stamps.sectionAxis'), items: axisMenuItems, selectedId: axis},
-              {title: t('stamps.sectionLayout'), items: layoutMenuItems, selectedId: layout},
-            ]}
-            visible={axisMenu}
-            onSelect={(id) => {
-              if (id === 'list' || id === 'grid') setLayout(id);
-              else setAxis(id as StampAxis);
-              setAxisMenu(false);
-            }}
-            onClose={() => setAxisMenu(false)}
-          />
-        }
-      />
     </View>
   );
 }

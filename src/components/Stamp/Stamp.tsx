@@ -18,6 +18,11 @@ export interface StampProps {
   index?: number;
   /** 살짝 기울임(도). 붙인 느낌 — 0이면 반듯하게 */
   rotate?: number;
+  /**
+   * 아직 채우지 않은 자리 — 사진 대신 점선 윤곽만 그린다.
+   * "여기에 이런 게 붙는다"를 알려주는 용도.
+   */
+  outline?: boolean;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -26,9 +31,34 @@ export interface StampProps {
  *
  * 사진 자체가 콘텐츠라 라벨을 따로 두지 않는다(이름·날짜는 눌렀을 때).
  */
-export function Stamp({imageUri, size, index = 0, rotate = 0, style}: StampProps) {
+export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, style}: StampProps) {
   const colors = useColors();
   const d = stampShapeAt(index);
+
+  if (outline) {
+    // 마스크로 사진을 자르는 대신 같은 path를 점선으로 그린다 — 빈 자리 표시
+    return (
+      <View
+        style={[
+          {width: size, height: size},
+          rotate !== 0 && {transform: [{rotate: `${rotate}deg`}]},
+          style,
+        ]}>
+        <Svg width={size} height={size} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
+          <Path
+            d={d}
+            fill="none"
+            stroke={colors['border/normal']}
+            // viewBox가 24라 선 굵기·간격도 그 기준 — size가 커져도 비율이 유지된다.
+            // 얇으면 작은 칸(약 50px)에서 거의 안 보인다.
+            strokeWidth={1.2}
+            strokeDasharray="2 1.6"
+            strokeLinecap="round"
+          />
+        </Svg>
+      </View>
+    );
+  }
 
   return (
     <View
