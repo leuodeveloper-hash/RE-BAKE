@@ -295,9 +295,13 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
       return;
     }
     if (id === 'unmade') {
-      // 해제는 확인이 필요 없다 — 되돌리기 쉬운 동작이라 바로 푼다
+      // 해제는 확인 없이 바로 — 대신 잘못 눌렀을 때를 위해 되돌릴 길을 남긴다
+      const prevMadeAt = recipe.madeAt;
       setRecipes(prev => prev.map(r => (r.id === recipe.id ? {...r, madeAt: undefined} : r)));
-      showSnackbar(t('home.unmarked'));
+      showSnackbar(t('home.unmarked'), {
+        label: t('home.undo'),
+        onPress: () => setRecipes(prev => prev.map(r => (r.id === recipe.id ? {...r, madeAt: prevMadeAt} : r))),
+      });
       return;
     }
     if (id === 'made') {

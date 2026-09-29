@@ -523,9 +523,13 @@ const handleDelete = useCallback(async () => {
   const handleMadeChange = useCallback((made: boolean) => {
     if (!isMyRecipe) return;
     if (!made) {
-      // 해제는 확인도 이동도 없다 — 되돌리기 쉬운 동작이다
+      // 해제는 확인 없이 바로 — 대신 잘못 눌렀을 때를 위해 되돌릴 길을 남긴다
+      const prevMadeAt = recipe?.madeAt;
       setRecipes(prev => prev.map(r => (r.id === id ? {...r, madeAt: undefined} : r)));
-      showSnackbar(t('home.unmarked'));
+      showSnackbar(t('home.unmarked'), {
+        label: t('home.undo'),
+        onPress: () => setRecipes(prev => prev.map(r => (r.id === id ? {...r, madeAt: prevMadeAt} : r))),
+      });
       return;
     }
     // 스탬프는 계정에 쌓이는 기록이라 로그인이 필요하다 —
@@ -542,7 +546,7 @@ const handleDelete = useCallback(async () => {
       label: t('home.undo'),
       onPress: () => setRecipes(prev => prev.map(r => (r.id === id ? {...r, madeAt: undefined} : r))),
     });
-  }, [isMyRecipe, id, setRecipes, router, user, openAuthSheet, showSnackbar, t]);
+  }, [isMyRecipe, id, recipe?.madeAt, setRecipes, router, user, openAuthSheet, showSnackbar, t]);
 
   if (!recipe) return null;
 
