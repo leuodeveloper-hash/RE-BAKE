@@ -118,9 +118,14 @@ export function StampDetailSheet({
               label={t('stampDetail.writeReview')}
               variant="soft"
               onPress={onWriteReview}
+              style={styles.action}
             />
           )}
-          <Button label={t('stampDetail.openRecipe')} onPress={onOpenRecipe} />
+          <Button
+            label={t('stampDetail.openRecipe')}
+            onPress={onOpenRecipe}
+            style={styles.action}
+          />
         </View>
       </View>
     </BottomSheet>
@@ -168,8 +173,13 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flex: 1,
   },
   actions: {
+    // 좌우로 나란히 — 회고가 없으면 버튼 하나가 폭을 다 쓴다
+    flexDirection: 'row',
     paddingTop: Spacing.xl,
     gap: Spacing.sm,
+  },
+  action: {
+    flex: 1,
   },
 });
 
