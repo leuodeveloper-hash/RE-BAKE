@@ -85,7 +85,8 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
           viewBox={`${-OUTLINE_PAD} ${-OUTLINE_PAD} ${STAMP_VIEWBOX + OUTLINE_PAD * 2} ${STAMP_VIEWBOX + OUTLINE_PAD * 2}`}>
           <Path
             d={d}
-            fill="none"
+            // 안도 옅게 채운다 — 선만 있으면 배경과 구분이 약하다
+            fill={colors['fill/subtle']}
             stroke={colors['border/normal']}
             // viewBox가 24라 선 굵기·간격도 그 기준 — 얇으면 작은 칸에서 안 보인다
             strokeWidth={OUTLINE_STROKE}
