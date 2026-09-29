@@ -49,6 +49,7 @@ export interface StampProps {
   /**
    * 모양 안에서 사진을 확대하는 배수(1 = 모양에 꼭 맞게).
    * 키우면 피사체가 크게 들어오고 그만큼 가장자리가 더 잘린다.
+   * 기본 2 — 목록·시트·표지가 같은 비율이라야 같은 스탬프로 보인다.
    */
   imageScale?: number;
   /**
@@ -69,7 +70,7 @@ export interface StampProps {
  * 후자는 RN Web의 View가 비표준 스타일을 버려 마스크가 걸리지 않는다.
  * SVG clipPath는 네이티브·웹이 같은 구현을 쓴다.
  */
-export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, padding = INNER_PADDING, children, recipe, previewFontSize, imageScale = 1, cutoutColor, style}: StampProps) {
+export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, padding = INNER_PADDING, children, recipe, previewFontSize, imageScale = 2, cutoutColor, style}: StampProps) {
   const colors = useColors();
   const d = stampShapeAt(index);
   /**

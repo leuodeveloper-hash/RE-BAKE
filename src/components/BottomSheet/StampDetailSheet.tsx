@@ -89,8 +89,7 @@ export function StampDetailSheet({
             imageUri={recipe?.imageUri}
             size={STAMP_SIZE}
             index={stampIndex}
-            // 모양 안에서 사진을 키운다 — 표지와 같은 기준
-            imageScale={2}
+           
             // 사진이 없으면 목록과 같이 내용 미리보기로 채운다(크게 보는 자리라 글자도 키운다)
             recipe={recipe}
             previewFontSize={9}
