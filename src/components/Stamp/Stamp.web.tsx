@@ -1,6 +1,5 @@
 import React, {useEffect, useRef} from 'react';
 import {Animated, Easing, View, type StyleProp, type ViewStyle} from 'react-native';
-import {Image as ExpoImage} from 'expo-image';
 import Svg, {Path} from 'react-native-svg';
 import {useColors} from '@contexts/ThemeContext';
 import {STAMP_VIEWBOX, stampShapeAt} from './shapes';
@@ -56,41 +55,47 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
 
   // path를 그대로 담은 SVG를 마스크 이미지로 — 크기는 CSS가 맞춘다
   const maskSvg =
-    `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}">` +
+    `<svg xmlns="http://www.w3.org/2000/svg" width="${STAMP_VIEWBOX}" height="${STAMP_VIEWBOX}" ` +
+    `viewBox="0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}">` +
     `<path d="${d}" fill="black"/></svg>`;
   const maskUri = `url("data:image/svg+xml;utf8,${encodeURIComponent(maskSvg)}")`;
-  const maskStyle = {
-    maskImage: maskUri,
-    WebkitMaskImage: maskUri,
-    maskSize: '100% 100%',
-    WebkitMaskSize: '100% 100%',
-    maskRepeat: 'no-repeat',
-    WebkitMaskRepeat: 'no-repeat',
-  } as unknown as ViewStyle;
 
+  // RN Web의 View는 인라인 스타일을 자체 변환하면서 maskImage 같은 비표준
+  // 속성을 버린다 → 마스크가 걸리지 않는다. div에 직접 준다.
   return (
-    <View
-      style={[
-        {width: size, height: size, overflow: 'hidden'},
-        rotate !== 0 && {transform: [{rotate: `${rotate}deg`}]},
-        maskStyle,
-        style,
-      ]}>
+    <div
+      style={{
+        width: size,
+        height: size,
+        overflow: 'hidden',
+        WebkitMaskImage: maskUri,
+        maskImage: maskUri,
+        WebkitMaskSize: '100% 100%',
+        maskSize: '100% 100%',
+        WebkitMaskRepeat: 'no-repeat',
+        maskRepeat: 'no-repeat',
+        ...(rotate !== 0 ? {transform: `rotate(${rotate}deg)`} : null),
+      }}>
       {imageUri ? (
-        <ExpoImage
-          source={{uri: imageUri}}
-          // 네이티브와 같은 규칙: 2배로 그리고 가운데로 당긴다
-          style={{width: size * 2, height: size * 2, marginLeft: -size / 2, marginTop: -size / 2}}
-          contentFit="cover"
-          cachePolicy="memory-disk"
-          transition={200}
+        // 2배로 그리고 가운데로 당긴다 — 마스크가 불규칙해 가장자리가 잘린다
+        <img
+          src={imageUri}
+          alt=""
+          style={{
+            width: size * 2,
+            height: size * 2,
+            marginLeft: -size / 2,
+            marginTop: -size / 2,
+            objectFit: 'cover',
+            display: 'block',
+          }}
         />
       ) : (
         <Animated.View
           style={{width: size, height: size, backgroundColor: colors['fill/faint'], opacity: pulse}}
         />
       )}
-    </View>
+    </div>
   );
 }
 
