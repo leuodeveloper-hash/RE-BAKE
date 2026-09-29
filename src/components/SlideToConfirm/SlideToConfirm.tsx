@@ -185,8 +185,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    ...Typography.label.large,
-    fontWeight: Typography.label.large.fontWeight as '500',
+    ...Typography.title.medium,
     color: colors['foreground/on-primary'],
     textAlign: 'center',
   },
@@ -208,8 +207,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     gap: Spacing.sm,
   },
   doneText: {
-    ...Typography.label.large,
-    fontWeight: Typography.label.large.fontWeight as '500',
+    ...Typography.title.medium,
     color: colors['foreground/on-primary'],
   },
 });
