@@ -15,6 +15,7 @@ import type {Recipe} from '../types/recipe';
 import {getRecipeMenuItems} from '@utils/recipeMenuItems';
 import {useExplorePins} from '@hooks/useExplorePins';
 import {useExploreMade} from '@hooks/useExploreMade';
+import {useMadeCount} from '@hooks/useMadeCount';
 import {MadeConfirmSheet} from '@components/BottomSheet';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {
@@ -118,6 +119,7 @@ export function ExploreScreen({
   const [pdfRecipe, setPdfRecipe] = useState<Recipe | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
   const [madeSheetRecipe, setMadeSheetRecipe] = useState<Recipe | null>(null);
+  const madeCount = useMadeCount();
 
   // 핀 상태가 레시피마다 달라 함수 형태로 넘긴다(고정/해제 라벨이 바뀐다)
   const cardMenuItems = useCallback(
@@ -507,6 +509,7 @@ export function ExploreScreen({
       visible={!!madeSheetRecipe}
       onClose={() => setMadeSheetRecipe(null)}
       imageUri={madeSheetRecipe?.imageUri}
+      stampIndex={madeCount}
       onConfirm={handleMadeConfirm}
     />
 

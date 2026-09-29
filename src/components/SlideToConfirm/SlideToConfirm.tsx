@@ -132,7 +132,8 @@ export function SlideToConfirm({
         <AppIcon
           icon={isDone ? IconCircleCheck : IconArrowRight}
           size="sm"
-          color={colors['foreground/on-accent']}
+          // 손잡이가 흰 원이라 아이콘은 트랙과 같은 어두운 색이어야 보인다
+          color={colors['background/accent']}
         />
       </Animated.View>
     </View>
@@ -166,8 +167,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     width: TRACK_H - KNOB_M * 2,
     height: TRACK_H - KNOB_M * 2,
     borderRadius: Radius['radius-full'],
-    // 트랙 위에 얹힌 반투명 흰 원
-    backgroundColor: 'rgba(255,255,255,0.28)',
+    // 트랙 위에 얹힌 흰 원 — 반투명이면 트랙 색이 비쳐 손잡이가 덜 또렷하다
+    backgroundColor: '#FFFFFF',
     alignItems: 'center',
     justifyContent: 'center',
   },

@@ -18,6 +18,8 @@ export interface MadeConfirmSheetProps {
   onClose: () => void;
   /** 우표에 들어갈 사진(레시피 대표 이미지). 없으면 빈 우표 */
   imageUri?: string;
+  /** 이번에 찍힐 우표가 몇 번째인지 — 프리뷰와 실제 모양이 같아야 한다 */
+  stampIndex?: number;
   /** 밀어서 확정 — 우표가 찍힌다 */
   onConfirm: () => void;
 }
@@ -34,6 +36,7 @@ export function MadeConfirmSheet({
   visible,
   onClose,
   imageUri,
+  stampIndex = 0,
   onConfirm,
 }: MadeConfirmSheetProps) {
   const styles = useThemedStyles(createStyles);
@@ -53,7 +56,7 @@ export function MadeConfirmSheet({
 
         <View style={styles.stampWrap}>
           {/* 살짝 기울여 붙인 느낌 — 우표첩의 우표와 같은 결 */}
-          <Stamp imageUri={imageUri} size={STAMP_SIZE} rotate={-4} />
+          <Stamp imageUri={imageUri} size={STAMP_SIZE} index={stampIndex} rotate={-4} />
         </View>
 
         <Text style={styles.title}>{t('madeSheet.title')}</Text>

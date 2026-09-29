@@ -154,6 +154,8 @@ export interface CookingModeProps {
   isMade?: boolean;
   /** 레시피 대표 이미지 — 확인 시트의 우표 미리보기에 쓴다 */
   imageUri?: string;
+  /** 이번에 찍힐 우표 순번 — 미리보기와 실제 모양을 맞춘다 */
+  stampIndex?: number;
   /** 마지막 카드까지 오면 확인 시트를 띄우고, 밀어서 확정하면 호출 */
   onMadeChange?: () => void;
 }
@@ -249,6 +251,7 @@ export function CookingMode({
   advicePhotos,
   isMade = false,
   imageUri,
+  stampIndex,
   onMadeChange,
   referenceUrl,
 }: CookingModeProps) {
@@ -2185,6 +2188,7 @@ export function CookingMode({
         visible={showMadeSheet}
         onClose={() => setShowMadeSheet(false)}
         imageUri={imageUri}
+        stampIndex={stampIndex}
         onConfirm={() => onMadeChange?.()}
       />
     </BottomSheet>

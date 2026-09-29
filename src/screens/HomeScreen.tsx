@@ -29,6 +29,7 @@ import {Spacing} from '@constants/spacing';
 import {generateRecipeListHtml, generateRecipeHtml} from '@utils/generateRecipeHtml';
 import {parseSession, formatSession} from '@utils/session';
 import {getRecipeMenuItems} from '@utils/recipeMenuItems';
+import {useMadeCount} from '@hooks/useMadeCount';
 import {CookbookSelectSheet, MadeConfirmSheet} from '@components/BottomSheet';
 import {
   IconTrash,
@@ -149,6 +150,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   const [pdfHtml, setPdfHtml] = useState('');
   const [cookbookSheetRecipe, setCookbookSheetRecipe] = useState<Recipe | null>(null);
   const [madeSheetRecipe, setMadeSheetRecipe] = useState<Recipe | null>(null);
+  const madeCount = useMadeCount();
   const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
 
   // 홈 타이틀 드롭다운 = 그룹화 축 선택 (공통 모듈, 전체/레시피북/공법/회고)
@@ -676,6 +678,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
         visible={!!madeSheetRecipe}
         onClose={() => setMadeSheetRecipe(null)}
         imageUri={madeSheetRecipe?.imageUri}
+        stampIndex={madeCount}
         onConfirm={handleMadeConfirm}
       />
 

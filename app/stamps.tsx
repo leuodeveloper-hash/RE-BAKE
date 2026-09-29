@@ -8,33 +8,79 @@ import {InlineBanner} from '@components/InlineBanner';
 import {EmptyState} from '@components/EmptyState';
 import {Menu} from '@components/Menu';
 import {Stamp} from '@components/Stamp';
+import {StampDetailSheet} from '@components/BottomSheet';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
-import {useExploreMade} from '@hooks/useExploreMade';
 import type {SemanticColors} from '@constants/tokens';
+import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {IconArrowLeft, IconFilter, IconBookFilled, IconClockFilled} from '@components/Icon/IconIndex';
+import {IconClose, IconFilter, IconBookFilled, IconClockFilled, IconChevronRight, IconList, IconLayoutGrid} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import type {Recipe} from '../src/types/recipe';
 
-/** 한 줄에 놓을 우표 수 */
-const COLUMNS = 4;
+/** 한 줄에 놓을 칸 수 */
+const COLUMNS = 6;
 const GRID_GAP = Spacing.sm;
 
-/** 우표 하나 = 만든 레시피 하나. 회차는 묶어서 겹쳐 보여준다. */
-interface StampEntry {
-  /** 대표(최신) 레시피 */
+/**
+ * 스탬프 칸 하나. 레시피북의 레시피 하나에 대응한다.
+ * 아직 안 만든 칸도 자리를 차지한다 — 쿠폰처럼 "채울 자리"가 보여야 채우고 싶어진다.
+ */
+interface StampSlot {
+  /** 이 칸이 가리키는 레시피(공식 레시피북 기준) */
   recipe: Recipe;
-  /** 만든 시각 — 정렬·날짜 표시용 */
-  madeAt: string;
-  /** 같은 회차 그룹에서 만든 횟수(2 이상이면 겹쳐 표시) */
+  /** 만든 시각(ISO). 없으면 아직 안 만든 칸 */
+  madeAt?: string;
+  /** 만든 횟수(회차 포함). 2 이상이면 겹쳐 표시 */
   count: number;
+  /** 모은 순번 — 스탬프 모양을 정한다. 안 만든 칸은 의미 없음 */
+  order: number;
 }
 
 type StampAxis = 'cookbook' | 'date';
+
+/** 리스트 행의 스탬프 크기 */
+const LIST_STAMP = 36;
+
+/** 그리드·리스트가 같은 그림을 쓴다 — 채운 칸은 스탬프, 빈 칸은 점 */
+function SlotStamp({slot, size, tilt, styles}: {
+  slot: StampSlot;
+  size: number;
+  tilt: number;
+  styles: ReturnType<typeof createStyles>;
+}) {
+  if (!slot.madeAt) return <View style={styles.emptyDot} />;
+  return (
+    <>
+      {/* 회차가 여럿이면 뒤에 한 장 더 깔아 "여러 번 만들었음"을 보인다 */}
+      {slot.count > 1 && (
+        <Stamp
+          imageUri={slot.recipe.imageUri}
+          size={size}
+          index={slot.order}
+          rotate={-6}
+          style={StyleSheet.absoluteFill}
+        />
+      )}
+      <Stamp
+        imageUri={slot.recipe.imageUri}
+        size={size}
+        index={slot.order}
+        // 붙인 느낌 — 규칙적이면 인쇄물처럼 보여 살짝씩 다르게 준다
+        rotate={((tilt * 37) % 9) - 4}
+      />
+    </>
+  );
+}
+
+function formatMadeDate(iso: string, t: (k: string, p?: Record<string, unknown>) => string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return t('stamps.shortDate', {month: d.getMonth() + 1, day: d.getDate()});
+}
 
 export default function StampsRoute() {
   const styles = useThemedStyles(createStyles);
@@ -43,94 +89,140 @@ export default function StampsRoute() {
   const {width} = useWindowDimensions();
   const {recipes} = useRecipes();
   const {recipes: exploreRecipes} = useExploreRecipeContext();
-  const {made: exploreMade} = useExploreMade();
   const [axis, setAxis] = useState<StampAxis>('cookbook');
   const [axisMenu, setAxisMenu] = useState(false);
+  const [selected, setSelected] = useState<StampSlot | null>(null);
+  // 리스트가 기본 — 이름과 날짜까지 한 번에 보이는 쪽이 기록을 훑기 좋다
+  const [layout, setLayout] = useState<'list' | 'grid'>('list');
 
-  // 만든 레시피만 모은다. 둘러보기는 레시피 바깥(계정)에 기록이 있어 따로 합친다.
-  const entries = useMemo<StampEntry[]>(() => {
-    const byGroup = new Map<string, StampEntry>();
-
-    const add = (r: Recipe, madeAt: string) => {
-      // 회차(remakeGroup)는 한 자리에 겹쳐 쌓는다 — 대표는 최신 회차
-      const key = r.remakeGroupId ?? r.id;
-      const prev = byGroup.get(key);
-      if (!prev) {
-        byGroup.set(key, {recipe: r, madeAt, count: 1});
-        return;
-      }
-      const newer = parseSession(r.session).current > parseSession(prev.recipe.session).current;
-      byGroup.set(key, {
-        recipe: newer ? r : prev.recipe,
+  /**
+   * 레시피 하나를 "만들었는지" 판단한다.
+   *
+   * 둘러보기 레시피는 가져와야 요리할 수 있으므로, 내 레시피 중 sourceId가 그것을
+   * 가리키는 것에 스탬프가 있으면 원본 칸도 채워진 것으로 본다.
+   * (가져와서 고쳐 만들어도 그 품목을 해낸 것이므로)
+   */
+  const madeIndex = useMemo(() => {
+    const byRecipeId = new Map<string, {madeAt: string; count: number}>();
+    const bump = (key: string, madeAt: string) => {
+      const prev = byRecipeId.get(key);
+      if (!prev) byRecipeId.set(key, {madeAt, count: 1});
+      else byRecipeId.set(key, {
         madeAt: madeAt > prev.madeAt ? madeAt : prev.madeAt,
         count: prev.count + 1,
       });
     };
-
-    for (const r of recipes) if (r.madeAt) add(r, r.madeAt);
-    for (const r of exploreRecipes) {
-      const at = exploreMade[r.id];
-      if (at) add(r, at);
+    for (const r of recipes) {
+      if (!r.madeAt) continue;
+      // 내 레시피 자체로도, 원본(가져온 출처)으로도 센다
+      bump(r.remakeGroupId ?? r.id, r.madeAt);
+      if (r.sourceId) bump(r.sourceId, r.madeAt);
     }
-    return [...byGroup.values()].sort((a, b) => b.madeAt.localeCompare(a.madeAt));
-  }, [recipes, exploreRecipes, exploreMade]);
+    return byRecipeId;
+  }, [recipes]);
 
-  // 섹션: 레시피북별(진도 표시) 또는 만든 월별
-  const sections = useMemo(() => {
-    if (axis === 'date') {
-      const byMonth = new Map<string, StampEntry[]>();
-      for (const e of entries) {
-        const key = e.madeAt.slice(0, 7); // YYYY-MM
-        (byMonth.get(key) ?? byMonth.set(key, []).get(key)!).push(e);
-      }
-      return [...byMonth.entries()]
-        .sort((a, b) => b[0].localeCompare(a[0]))
-        .map(([key, items]) => ({
-          key,
-          title: t('stamps.monthLabel', {month: Number(key.slice(5, 7))}),
-          progress: undefined as string | undefined,
-          items,
-        }));
+  /** 모은 순번 — 만든 시각 순으로 매긴다(스탬프 모양이 흔들리지 않게) */
+  const orderIndex = useMemo(() => {
+    const made = recipes.filter(r => r.madeAt);
+    const byGroup = new Map<string, string>();
+    for (const r of made) {
+      const key = r.remakeGroupId ?? r.id;
+      const prev = byGroup.get(key);
+      if (!prev || r.madeAt! < prev) byGroup.set(key, r.madeAt!);
     }
+    const sorted = [...byGroup.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+    return new Map(sorted.map(([key], i) => [key, i]));
+  }, [recipes]);
 
-    // 레시피북별 — 분모는 그 북의 레시피 수(회차는 1개로 묶어 센다)
-    const totalOf = (cookbook: string) => {
-      const groups = new Set<string>();
-      for (const r of [...recipes, ...exploreRecipes]) {
-        if ((r.cookbook || '') !== cookbook) continue;
-        groups.add(r.remakeGroupId ?? r.id);
-      }
-      return groups.size;
+  /** 같은 회차 그룹의 내 레시피들 — 시트에서 회차별 회고를 보여준다 */
+  const sessionsOf = useCallback((r: Recipe) => {
+    const gid = r.remakeGroupId;
+    if (!gid) return undefined;
+    const group = recipes.filter(x => x.remakeGroupId === gid || x.id === gid);
+    return group.length > 1 ? group : undefined;
+  }, [recipes]);
+
+  const slotFor = useCallback((r: Recipe): StampSlot => {
+    const key = r.remakeGroupId ?? r.id;
+    const hit = madeIndex.get(key) ?? madeIndex.get(r.id);
+    return {
+      recipe: r,
+      madeAt: hit?.madeAt,
+      count: hit?.count ?? 0,
+      order: orderIndex.get(key) ?? 0,
     };
+  }, [madeIndex, orderIndex]);
 
-    const byBook = new Map<string, StampEntry[]>();
-    for (const e of entries) {
-      const key = e.recipe.cookbook || '';
-      (byBook.get(key) ?? byBook.set(key, []).get(key)!).push(e);
+  // 레시피북별 — 그 북의 레시피 전부가 칸이 된다(안 만든 것 포함)
+  const cookbookSections = useMemo(() => {
+    const byBook = new Map<string, Recipe[]>();
+    // 회차는 한 칸으로 — 3회차까지 만들어도 품목은 하나다
+    const seen = new Set<string>();
+    for (const r of exploreRecipes) {
+      const key = r.remakeGroupId ?? r.id;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      const book = r.cookbook || '';
+      if (!book) continue;
+      const list = byBook.get(book);
+      if (list) list.push(r); else byBook.set(book, [r]);
     }
-    return [...byBook.entries()]
-      .sort((a, b) => b[1].length - a[1].length)
-      .map(([key, items]) => ({
-        key: key || '__none__',
-        title: key || t('stamps.noCookbook'),
-        progress: `${items.length}/${totalOf(key)}`,
-        items,
-      }));
-  }, [axis, entries, recipes, exploreRecipes, t]);
 
-  // 화면 폭에 맞춰 우표 크기 산출 — 고정 px이면 넓은 화면에서 성기게 흩어진다
-  const stampSize = useMemo(() => {
+    return [...byBook.entries()]
+      .map(([book, list]) => {
+        const slots = list.map(slotFor);
+        const done = slots.filter(s => s.madeAt).length;
+        return {key: book, title: book, slots, done, total: slots.length};
+      })
+      // 많이 채운 북이 위로 — 진행 중인 것을 먼저 보여준다
+      .sort((a, b) => b.done - a.done || a.title.localeCompare(b.title));
+  }, [exploreRecipes, slotFor]);
+
+  // 날짜별 — 만든 것만 월별로(안 만든 칸은 날짜가 없으니 자리도 없다)
+  const dateSections = useMemo(() => {
+    const made: StampSlot[] = [];
+    const seen = new Set<string>();
+    for (const r of recipes) {
+      if (!r.madeAt) continue;
+      const key = r.remakeGroupId ?? r.id;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      made.push(slotFor(r));
+    }
+    const byMonth = new Map<string, StampSlot[]>();
+    for (const s of made) {
+      const key = s.madeAt!.slice(0, 7); // YYYY-MM
+      const list = byMonth.get(key);
+      if (list) list.push(s); else byMonth.set(key, [s]);
+    }
+    return [...byMonth.entries()]
+      .sort((a, b) => b[0].localeCompare(a[0]))
+      .map(([key, slots]) => ({
+        key,
+        title: t('stamps.monthLabel', {month: Number(key.slice(5, 7))}),
+        slots: slots.sort((a, b) => b.madeAt!.localeCompare(a.madeAt!)),
+        done: slots.length,
+        total: 0, // 날짜 축은 분모가 없다 — 진도 바를 감춘다
+      }));
+  }, [recipes, slotFor, t]);
+
+  const sections = axis === 'cookbook' ? cookbookSections : dateSections;
+  const madeCount = useMemo(() => recipes.filter(r => r.madeAt).length, [recipes]);
+
+  // 화면 폭에 맞춰 칸 크기 산출 — 고정 px이면 넓은 화면에서 성기게 흩어진다
+  const slotSize = useMemo(() => {
     const maxContent = Math.min(width, 800) - Spacing.md * 2;
     return Math.floor((maxContent - GRID_GAP * (COLUMNS - 1)) / COLUMNS);
   }, [width]);
 
-  const handleStampPress = useCallback((entry: StampEntry) => {
-    router.push(`/recipe/${entry.recipe.id}` as any);
-  }, [router]);
-
   const axisMenuItems = useMemo(() => [
     {id: 'cookbook', label: t('stamps.axisCookbook'), icon: IconBookFilled},
     {id: 'date', label: t('stamps.axisDate'), icon: IconClockFilled},
+  ], [t]);
+
+  const layoutMenuItems = useMemo(() => [
+    {id: 'list', label: t('stamps.layoutList'), icon: IconList},
+    {id: 'grid', label: t('stamps.layoutGrid'), icon: IconLayoutGrid},
   ], [t]);
 
   return (
@@ -142,7 +234,7 @@ export default function StampsRoute() {
           showsVerticalScrollIndicator={false}>
           <View style={{height: 80}} />
 
-          {entries.length === 0 ? (
+          {sections.length === 0 ? (
             <EmptyState
               category="no-recipe"
               title={t('stamps.emptyTitle')}
@@ -153,43 +245,70 @@ export default function StampsRoute() {
               <InlineBanner
                 icon={IconBookFilled}
                 label={t('stamps.banner')}
-                color="warning"
+                color="accent"
                 size="medium"
                 style={styles.banner}
               />
 
               {sections.map(section => (
                 <View key={section.key} style={styles.section}>
-                  <View style={styles.sectionHeader}>
+                  <Pressable
+                    style={styles.sectionHeader}
+                    disabled={axis !== 'cookbook'}
+                    onPress={() => router.push(`/(tabs)/explore?cookbook=${encodeURIComponent(section.key)}` as any)}>
                     <Text style={styles.sectionTitle}>{section.title}</Text>
-                    {section.progress && (
-                      <Text style={styles.sectionProgress}>{section.progress}</Text>
-                    )}
-                  </View>
-                  <View style={styles.grid}>
-                    {section.items.map((entry, i) => (
-                      <Pressable
-                        key={entry.recipe.id}
-                        onPress={() => handleStampPress(entry)}
-                        style={{width: stampSize, height: stampSize}}>
-                        {/* 회차가 여럿이면 뒤에 한 장 더 깔아 "여러 번 만들었음"을 보인다 */}
-                        {entry.count > 1 && (
-                          <Stamp
-                            imageUri={entry.recipe.imageUri}
-                            size={stampSize}
-                            rotate={-6}
-                            style={StyleSheet.absoluteFill}
+                    {section.total > 0 && (
+                      <>
+                        {/* 진도 바 — 숫자만으로는 얼마나 남았는지 한눈에 안 온다 */}
+                        <View style={styles.progressTrack}>
+                          <View
+                            style={[
+                              styles.progressFill,
+                              {width: `${Math.round((section.done / section.total) * 100)}%`},
+                            ]}
                           />
-                        )}
-                        <Stamp
-                          imageUri={entry.recipe.imageUri}
-                          size={stampSize}
-                          // 붙인 느낌 — 규칙적이면 인쇄물처럼 보여 살짝씩 다르게 준다
-                          rotate={((i * 37) % 9) - 4}
-                        />
-                      </Pressable>
-                    ))}
-                  </View>
+                        </View>
+                        <Text style={styles.sectionProgress}>
+                          {section.done}/{section.total}
+                        </Text>
+                        <IconChevronRight width={16} height={16} color={styles.sectionProgress.color as string} />
+                      </>
+                    )}
+                  </Pressable>
+
+                  {layout === 'grid' ? (
+                    <View style={styles.grid}>
+                      {section.slots.map((slot, i) => (
+                        <Pressable
+                          key={slot.recipe.id}
+                          onPress={() => setSelected(slot)}
+                          style={[styles.gridCell, {width: slotSize, height: slotSize}]}>
+                          <SlotStamp slot={slot} size={slotSize} tilt={i} styles={styles} />
+                        </Pressable>
+                      ))}
+                    </View>
+                  ) : (
+                    <View>
+                      {section.slots.map((slot, i) => (
+                        <Pressable
+                          key={slot.recipe.id}
+                          onPress={() => setSelected(slot)}
+                          style={styles.listRow}>
+                          <View style={styles.listThumb}>
+                            <SlotStamp slot={slot} size={LIST_STAMP} tilt={i} styles={styles} />
+                          </View>
+                          <Text
+                            style={[styles.listTitle, !slot.madeAt && styles.listTitleMuted]}
+                            numberOfLines={1}>
+                            {slot.recipe.title}
+                          </Text>
+                          <Text style={styles.listDate}>
+                            {slot.madeAt ? formatMadeDate(slot.madeAt, t) : t('stamps.notMade')}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                  )}
                 </View>
               ))}
             </ContentContainer>
@@ -197,19 +316,44 @@ export default function StampsRoute() {
         </ScrollView>
       </SafeAreaView>
 
+      <StampDetailSheet
+        visible={!!selected}
+        onClose={() => setSelected(null)}
+        recipe={selected?.recipe}
+        madeAt={selected?.madeAt}
+        stampIndex={selected?.order ?? 0}
+        sessions={selected ? sessionsOf(selected.recipe) : undefined}
+        onOpenRecipe={() => {
+          const id = selected?.recipe.id;
+          setSelected(null);
+          if (id) router.push(`/recipe/${id}` as any);
+        }}
+        onWriteReview={() => {
+          const id = selected?.recipe.id;
+          setSelected(null);
+          if (id) router.push(`/recipe/edit/${id}` as any);
+        }}
+      />
+
       <AppBar
         centered
         title={t('stamps.title')}
-        leftIcon={IconArrowLeft}
+        leftIcon={IconClose}
         onLeftPress={() => router.back()}
         rightIcon={IconFilter}
         onRightPress={() => setAxisMenu(v => !v)}
         rightMenu={
           <Menu
-            items={axisMenuItems}
-            selectedId={axis}
+            sections={[
+              {title: t('stamps.sectionAxis'), items: axisMenuItems, selectedId: axis},
+              {title: t('stamps.sectionLayout'), items: layoutMenuItems, selectedId: layout},
+            ]}
             visible={axisMenu}
-            onSelect={(id) => { setAxis(id as StampAxis); setAxisMenu(false); }}
+            onSelect={(id) => {
+              if (id === 'list' || id === 'grid') setLayout(id);
+              else setAxis(id as StampAxis);
+              setAxisMenu(false);
+            }}
             onClose={() => setAxisMenu(false)}
           />
         }
@@ -223,17 +367,30 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   safeArea: {flex: 1},
   scrollView: {flex: 1},
   scrollContent: {paddingBottom: 80},
-  banner: {marginBottom: Spacing.md},
+  banner: {marginBottom: Spacing.lg},
   section: {marginBottom: Spacing.xl},
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.xs,
+    gap: Spacing.sm,
     marginBottom: Spacing.smd,
   },
   sectionTitle: {
     ...Typography.label.large,
-    color: colors['foreground/on-surface-muted'],
+    color: colors['foreground/on-surface'],
+  },
+  progressTrack: {
+    flex: 1,
+    maxWidth: 120,
+    height: 6,
+    borderRadius: Radius['radius-full'],
+    backgroundColor: colors['fill/faint'],
+    overflow: 'hidden',
+  },
+  progressFill: {
+    height: '100%',
+    borderRadius: Radius['radius-full'],
+    backgroundColor: colors['foreground/on-surface-muted'],
   },
   sectionProgress: {
     ...Typography.label.large,
@@ -243,5 +400,39 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flexDirection: 'row',
     flexWrap: 'wrap',
     gap: GRID_GAP,
+  },
+  gridCell: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  listRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    paddingVertical: Spacing.sm,
+  },
+  listThumb: {
+    width: LIST_STAMP,
+    height: LIST_STAMP,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  listTitle: {
+    ...Typography.body.medium,
+    color: colors['foreground/on-surface'],
+    flex: 1,
+  },
+  listTitleMuted: {
+    color: colors['foreground/on-surface-muted'],
+  },
+  listDate: {
+    ...Typography.label.medium,
+    color: colors['foreground/on-surface-muted'],
+  },
+  emptyDot: {
+    width: 6,
+    height: 6,
+    borderRadius: Radius['radius-full'],
+    backgroundColor: colors['fill/normal'],
   },
 });

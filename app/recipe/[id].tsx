@@ -5,6 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {doc, updateDoc, setDoc, deleteField} from 'firebase/firestore';
 import {RecipeDetailScreen} from '@screens/RecipeDetailScreen';
 import {useExploreMade} from '@hooks/useExploreMade';
+import {useMadeCount} from '@hooks/useMadeCount';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useAddSheet} from '@contexts/AddSheetContext';
@@ -102,6 +103,7 @@ export default function RecipeDetailRoute() {
   }, [recipe, id, findRecipeById, exploreRecipes, router]);
 
   const {isMade: isExploreMade, setRecipeMade} = useExploreMade();
+  const madeCount = useMadeCount();
   const isMyRecipe = recipes.some(r => r.id === id);
   const isExploreRecipe = !isMyRecipe && exploreRecipes.some(r => r.id === id);
   const alreadyImported = recipes.some(r => r.sourceId === id);
@@ -567,6 +569,7 @@ const handleDelete = useCallback(async () => {
         activeFieldIds={recipe.activeFieldIds}
         referenceUrl={recipe.referenceUrl}
         isMade={isMade}
+        stampIndex={madeCount}
         onMadeChange={handleMadeChange}
         onBack={handleBack}
         onComingSoon={handleComingSoon}

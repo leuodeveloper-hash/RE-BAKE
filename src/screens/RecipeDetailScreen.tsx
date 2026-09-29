@@ -211,6 +211,8 @@ export interface RecipeDetailScreenProps {
   referenceUrl?: string;
   /** 이미 "만들었어요"로 표시된 레시피인지 */
   isMade?: boolean;
+  /** 이번에 찍힐 우표 순번 */
+  stampIndex?: number;
   /** 요리모드 마지막 카드 확인 시트에서 밀어서 확정 */
   onMadeChange?: () => void;
   /** 원본 출처 URL — 외부 사이트(만개의레시피 등)에서 가져온 경우 */
@@ -381,6 +383,7 @@ export function RecipeDetailScreen({
   showDeleteConfirm = false,
   referenceUrl,
   isMade,
+  stampIndex,
   onMadeChange,
   sourceUrl,
   sourceHandle,
@@ -1458,6 +1461,7 @@ export function RecipeDetailScreen({
         referenceUrl={referenceUrl}
         isMade={isMade}
         imageUri={imageUri}
+        stampIndex={stampIndex}
         onMadeChange={onMadeChange}
       />
 

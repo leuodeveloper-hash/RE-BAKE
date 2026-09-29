@@ -8,3 +8,5 @@ export {ReviewLogSheet} from './ReviewLogSheet';
 export type {ReviewLogSheetProps} from './ReviewLogSheet';
 export {MadeConfirmSheet} from './MadeConfirmSheet';
 export type {MadeConfirmSheetProps} from './MadeConfirmSheet';
+export {StampDetailSheet} from './StampDetailSheet';
+export type {StampDetailSheetProps} from './StampDetailSheet';
