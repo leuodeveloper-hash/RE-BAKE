@@ -83,11 +83,12 @@ export function StampDetailSheet({
       <View style={styles.body}>
         <View style={styles.stampWrap}>
           {/* 아직 안 만든 칸도 찍었을 때와 같게 보여준다 — 무엇이 채워지는지 알려준다 */}
+          {/* 기울이지 않는다 — 목록에선 붙인 느낌을 주려고 조금씩 돌리지만
+              여기선 하나만 크게 보여주는 자리라 반듯한 쪽이 낫다 */}
           <Stamp
             imageUri={recipe?.imageUri}
             size={STAMP_SIZE}
             index={stampIndex}
-            rotate={-4}
           />
         </View>
 

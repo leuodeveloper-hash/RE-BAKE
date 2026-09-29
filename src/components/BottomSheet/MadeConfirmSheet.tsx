@@ -55,8 +55,8 @@ export function MadeConfirmSheet({
         </View>
 
         <View style={styles.stampWrap}>
-          {/* 살짝 기울여 붙인 느낌 — 우표첩의 우표와 같은 결 */}
-          <Stamp imageUri={imageUri} size={STAMP_SIZE} index={stampIndex} rotate={-4} />
+          {/* 기울이지 않는다 — 하나만 크게 보여주는 자리라 반듯한 쪽이 낫다 */}
+          <Stamp imageUri={imageUri} size={STAMP_SIZE} index={stampIndex} />
         </View>
 
         <Text style={styles.title}>{t('madeSheet.title')}</Text>
