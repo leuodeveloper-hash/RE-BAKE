@@ -359,19 +359,10 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
         // {uri, caption: undefined}와 {uri}가 같아진다 → 실제 변경이 "변경 없음"으로
         // 판정돼 저장이 스킵됐다(요리모드 수정이 반영 안 되던 문제).
         const hasChange = stableStringify(next) !== stableStringify(prev);
-        if (!hasChange) {
-          showSnackbarRef.current?.('진단: 변경 없음으로 판정돼 저장 안 함');
-          return prev;
-        }
+        if (!hasChange) return prev;
 
-        // 진단: 클라우드가 꺼져 있으면 로컬에만 남는데 아무 표시가 없어
-        // "저장됐다"고 오해하게 된다
+        // 최신 값을 ref에서 읽는다 — setState 콜백 안이라 클로저가 낡는다
         const {cloudEnabled: cloudNow, user: userNow, photoCloudBackup: backupNow} = cloudRef.current;
-        if (!cloudNow || !userNow) {
-          showSnackbarRef.current?.(`진단: 클라우드 건너뜀 (cloud:${cloudNow} user:${!!userNow})`);
-        } else {
-          showSnackbarRef.current?.('진단: 업로드 시작');
-        }
         if (cloudNow && userNow) {
           // Firestore에 동기화 (이미지 업로드 → 동기화)
           localWritePending.current = true;
@@ -384,7 +375,6 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
               const uploaded = backupNow
                 ? await Promise.all(next.map(uploadLocalImages))
                 : next;
-              showSnackbarRef.current?.('진단: 이미지 단계 통과');
               const hasUploads = JSON.stringify(uploaded) !== JSON.stringify(next);
               if (hasUploads) {
                 setRecipesState(uploaded);
@@ -392,8 +382,6 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
               }
               // Firestore 동기화 (URL 포함)
               await syncToFirestore(userNow.uid, uploaded);
-              const stamped = uploaded.filter(r => r.madeAt).map(r => r.title);
-              showSnackbarRef.current?.(`진단: 쓰기 완료 (madeAt 있는 것: ${stamped.length ? stamped.join(',') : '없음'})`);
               setLastSyncedAt(new Date());
               setLastSyncedDevice(getDeviceName());
             } catch (e: any) {

@@ -31,6 +31,7 @@ import {parseSession, formatSession} from '@utils/session';
 import {getRecipeMenuItems} from '@utils/recipeMenuItems';
 import {useMadeCount} from '@hooks/useMadeCount';
 import {useRecipeReviews} from '@hooks/useRecipeReviews';
+import {useMadeStamps} from '@hooks/useMadeStamps';
 import {CookbookSelectSheet, MadeConfirmSheet} from '@components/BottomSheet';
 import {
   IconTrash,
@@ -49,14 +50,14 @@ const makeMoreMenuItems = (t: (key: string) => string) => [
   {id: 'deleteAll', label: t('home.deleteAll'), icon: IconTrash, destructive: true},
 ];
 
-const getDefaultCardMenuItems = (recipe: Recipe, t: (key: string, params?: Record<string, unknown>) => string) =>
+const getDefaultCardMenuItems = (recipe: Recipe, t: (key: string, params?: Record<string, unknown>) => string, isMadeOf: (r: Recipe) => boolean) =>
   getRecipeMenuItems({
     t,
     session: recipe.session,
     showPin: true,
     isPinned: !!recipe.pinnedAt,
     showMade: true,
-    isMade: !!recipe.madeAt,
+    isMade: isMadeOf(recipe),
     showRemake: true, showEdit: true, showDelete: true, showCookbook: true,
   });
 
@@ -153,6 +154,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   const [madeSheetRecipe, setMadeSheetRecipe] = useState<Recipe | null>(null);
   const madeCount = useMadeCount();
   const {saveReview, reviewsOf} = useRecipeReviews();
+  const {setMade, madeAtOf} = useMadeStamps();
   const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
 
   // 홈 타이틀 드롭다운 = 그룹화 축 선택 (공통 모듈, 전체/레시피북/공법/회고)
@@ -277,16 +279,14 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   const handleMadeConfirm = useCallback(() => {
     const target = madeSheetRecipe;
     if (!target) return;
-    // 핀과 같은 이유로 불린이 아니라 시각을 남긴다
-    setRecipes(prev => prev.map(r => (r.id === target.id ? {...r, madeAt: new Date().toISOString()} : r)));
-    // 찍은 스탬프가 어디에 쌓이는지 바로 보여준다(방금 것을 강조하도록 id를 넘긴다)
+    // 스탬프는 계정에 보관한다 — 공식/내 레시피 경로를 하나로 둔다
+    setMade(target.id, true);
     router.push(`/stamps?just=${encodeURIComponent(target.id)}` as any);
-    // 잘못 눌렀을 수 있으니 되돌릴 길을 둔다 — 스낵바는 화면을 옮겨도 남는다
     showSnackbar(t('home.marked'), {
       label: t('home.undo'),
-      onPress: () => setRecipes(prev => prev.map(r => (r.id === target.id ? {...r, madeAt: undefined} : r))),
+      onPress: () => setMade(target.id, false),
     });
-  }, [madeSheetRecipe, setRecipes, router, showSnackbar, t]);
+  }, [madeSheetRecipe, setMade, router, showSnackbar, t]);
 
   const handleCardMenuSelect = useCallback((id: string, recipe: Recipe): void => {
     if (id === 'pin' || id === 'unpin') {
@@ -297,12 +297,10 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
       return;
     }
     if (id === 'unmade') {
-      // 해제는 확인 없이 바로 — 대신 잘못 눌렀을 때를 위해 되돌릴 길을 남긴다
-      const prevMadeAt = recipe.madeAt;
-      setRecipes(prev => prev.map(r => (r.id === recipe.id ? {...r, madeAt: undefined} : r)));
+      setMade(recipe.id, false);
       showSnackbar(t('home.unmarked'), {
         label: t('home.undo'),
-        onPress: () => setRecipes(prev => prev.map(r => (r.id === recipe.id ? {...r, madeAt: prevMadeAt} : r))),
+        onPress: () => setMade(recipe.id, true),
       });
       return;
     }
@@ -511,7 +509,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
       data={isLoading ? [] : filteredRecipes}
       loading={isLoading}
       onRecipePress={(item) => router.push(`/recipe/${item.id}`)}
-      cardMenuItems={(recipe) => getDefaultCardMenuItems(recipe, t)}
+      cardMenuItems={(recipe) => getDefaultCardMenuItems(recipe, t, r => !!madeAtOf(r))}
       onCardMenuSelect={handleCardMenuSelect}
       onOverlayPress={closeLocalMenus}
       extraOverlayVisible={showMoreMenu || crumbMenu !== null}

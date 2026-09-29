@@ -25,6 +25,7 @@ import {useAuthSheet} from '@contexts/AuthSheetContext';
 import {useRecipes, DEFAULT_COOKBOOK_COLOR} from '@contexts/RecipeContext';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {useRecipeReviews} from '@hooks/useRecipeReviews';
+import {useMadeStamps} from '@hooks/useMadeStamps';
 import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
@@ -119,6 +120,9 @@ function formatMadeDate(iso: string, t: (k: string, p?: Record<string, unknown>)
   return t('stamps.shortDate', {month: d.getMonth() + 1, day: d.getDate()});
 }
 
+/** 레시피북이 없는 레시피를 모으는 섹션 키 — 실제 북 이름과 겹치지 않게 */
+const NO_BOOK = '\u0000no-book';
+
 export default function StampsRoute() {
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
@@ -132,6 +136,8 @@ export default function StampsRoute() {
   const {recipes, setSelectedExploreCookbook, cookbookColors} = useRecipes();
   // 회고는 레시피가 아니라 계정에 — 공식 레시피에도 쓸 수 있어야 한다
   const {saveReview, reviewOf} = useRecipeReviews();
+  // 스탬프도 계정에 — 공식 레시피는 Recipe.madeAt에 쓸 수 없다
+  const {madeAtOf} = useMadeStamps();
   const {recipes: exploreRecipes, exploreCookbooks} = useExploreRecipeContext();
   const [axis, setAxis] = useState<StampAxis>('cookbook');
   const [axisMenu, setAxisMenu] = useState(false);
@@ -160,27 +166,29 @@ export default function StampsRoute() {
         count: prev.count + 1,
       });
     };
-    for (const r of recipes) {
-      if (!r.madeAt) continue;
+    for (const r of [...recipes, ...exploreRecipes]) {
+      const madeAt = madeAtOf(r);
+      if (!madeAt) continue;
       // 내 레시피 자체로도, 원본(가져온 출처)으로도 센다
-      bump(r.remakeGroupId ?? r.id, r.madeAt);
-      if (r.sourceId) bump(r.sourceId, r.madeAt);
+      bump(r.remakeGroupId ?? r.id, madeAt);
+      if (r.sourceId) bump(r.sourceId, madeAt);
     }
     return byRecipeId;
-  }, [recipes]);
+  }, [recipes, exploreRecipes, madeAtOf]);
 
   /** 모은 순번 — 만든 시각 순으로 매긴다(스탬프 모양이 흔들리지 않게) */
   const orderIndex = useMemo(() => {
-    const made = recipes.filter(r => r.madeAt);
     const byGroup = new Map<string, string>();
-    for (const r of made) {
+    for (const r of [...recipes, ...exploreRecipes]) {
+      const madeAt = madeAtOf(r);
+      if (!madeAt) continue;
       const key = r.remakeGroupId ?? r.id;
       const prev = byGroup.get(key);
-      if (!prev || r.madeAt! < prev) byGroup.set(key, r.madeAt!);
+      if (!prev || madeAt < prev) byGroup.set(key, madeAt);
     }
     const sorted = [...byGroup.entries()].sort((a, b) => a[1].localeCompare(b[1]));
     return new Map(sorted.map(([key], i) => [key, i]));
-  }, [recipes]);
+  }, [recipes, exploreRecipes, madeAtOf]);
 
   /** 같은 회차 그룹의 내 레시피들 — 시트에서 회차별 회고를 보여준다 */
   const sessionsOf = useCallback((r: Recipe) => {
@@ -229,8 +237,8 @@ export default function StampsRoute() {
       const key = r.remakeGroupId ?? r.id;
       if (seen.has(key)) continue;
       seen.add(key);
-      const book = r.cookbook || '';
-      if (!book) continue;
+      // 레시피북이 없는 레시피도 스탬프가 찍힌다 — 묶지 않으면 아예 안 보인다
+      const book = r.cookbook || NO_BOOK;
       const list = byBook.get(book);
       if (list) list.push(r); else byBook.set(book, [r]);
     }
@@ -240,19 +248,27 @@ export default function StampsRoute() {
         const slots = list.map(slotFor);
         const done = slots.filter(s => s.madeAt).length;
         // 공식 레시피북인지 — explore_cookbooks에 등록된 이름이면 공식
-        const official = exploreCookbooks.some(c => c.name === book);
-        return {key: book, title: book, slots, done, total: slots.length, official};
+        const official = book !== NO_BOOK && exploreCookbooks.some(c => c.name === book);
+        return {
+          key: book,
+          title: book === NO_BOOK ? t('stamps.noCookbook') : book,
+          slots,
+          done,
+          total: slots.length,
+          official,
+          noBook: book === NO_BOOK,
+        };
       })
-      // 많이 채운 북이 위로 — 진행 중인 것을 먼저 보여준다
-      .sort((a, b) => b.done - a.done || a.title.localeCompare(b.title));
-  }, [exploreRecipes, recipes, slotFor, exploreCookbooks]);
+      // 많이 채운 북이 위로 — 진행 중인 것을 먼저 보여준다. 북 없음은 항상 맨 아래.
+      .sort((a, b) => Number(a.noBook) - Number(b.noBook) || b.done - a.done || a.title.localeCompare(b.title));
+  }, [exploreRecipes, recipes, slotFor, exploreCookbooks, t]);
 
   // 날짜별 — 만든 것만 월별로(안 만든 칸은 날짜가 없으니 자리도 없다)
   const dateSections = useMemo(() => {
     const made: StampSlot[] = [];
     const seen = new Set<string>();
-    for (const r of recipes) {
-      if (!r.madeAt) continue;
+    for (const r of [...recipes, ...exploreRecipes]) {
+      if (!madeAtOf(r)) continue;
       const key = r.remakeGroupId ?? r.id;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -274,7 +290,7 @@ export default function StampsRoute() {
         total: 0, // 날짜 축은 분모가 없다 — 진도 바를 감춘다
         official: false,
       }));
-  }, [recipes, slotFor, t]);
+  }, [recipes, exploreRecipes, madeAtOf, slotFor, t]);
 
   // 방금 찍은 레시피 — 회고가 아직 없을 때만 권유를 띄운다(쓰고 나면 사라진다)
   const justRecipe = useMemo(() => {

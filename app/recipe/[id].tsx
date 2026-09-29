@@ -7,6 +7,7 @@ import {RecipeDetailScreen} from '@screens/RecipeDetailScreen';
 import {sendRecipeFeedback, type FeedbackKind} from '@utils/recipeFeedback';
 import {useMadeCount} from '@hooks/useMadeCount';
 import {useRecipeReviews} from '@hooks/useRecipeReviews';
+import {useMadeStamps} from '@hooks/useMadeStamps';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useAddSheet} from '@contexts/AddSheetContext';
@@ -105,6 +106,7 @@ export default function RecipeDetailRoute() {
 
   const madeCount = useMadeCount();
   const {saveReview, reviewsOf} = useRecipeReviews();
+  const {setMade, madeAtOf} = useMadeStamps();
   const isMyRecipe = recipes.some(r => r.id === id);
   const isExploreRecipe = !isMyRecipe && exploreRecipes.some(r => r.id === id);
   const alreadyImported = recipes.some(r => r.sourceId === id);
@@ -524,33 +526,27 @@ const handleDelete = useCallback(async () => {
 
   // 스탬프는 내 레시피에만 찍힌다 — 둘러보기 레시피는 가져와야 요리할 수 있고,
   // 가져오면 sourceId로 원본 칸이 채워진다(스탬프북이 그렇게 센다).
+  /**
+   * 스탬프는 내 레시피든 공식이든 계정에 보관한다(회고와 같은 자리).
+   * Recipe.madeAt에 박으면 공식 레시피엔 쓸 수 없고, 경로가 둘로 갈려
+   * 한쪽만 저장되는 일이 생긴다.
+   */
   const handleMadeChange = useCallback((made: boolean) => {
-    if (!isMyRecipe) return;
-    if (!made) {
-      // 해제는 확인 없이 바로 — 대신 잘못 눌렀을 때를 위해 되돌릴 길을 남긴다
-      const prevMadeAt = recipe?.madeAt;
-      setRecipes(prev => prev.map(r => (r.id === id ? {...r, madeAt: undefined} : r)));
+    if (!user) { openAuthSheet(); return; }
+    setMade(id, made);
+    if (made) {
+      router.push(`/stamps?just=${encodeURIComponent(id)}` as any);
+      showSnackbar(t('home.marked'), {
+        label: t('home.undo'),
+        onPress: () => setMade(id, false),
+      });
+    } else {
       showSnackbar(t('home.unmarked'), {
         label: t('home.undo'),
-        onPress: () => setRecipes(prev => prev.map(r => (r.id === id ? {...r, madeAt: prevMadeAt} : r))),
+        onPress: () => setMade(id, true),
       });
-      return;
     }
-    // 스탬프는 계정에 쌓이는 기록이라 로그인이 필요하다 —
-    // 게스트로 모아두면 기기를 바꿀 때 통째로 사라진다
-    if (!user) {
-      openAuthSheet();
-      return;
-    }
-    setRecipes(prev => prev.map(r => (r.id === id ? {...r, madeAt: new Date().toISOString()} : r)));
-    // 찍은 스탬프가 어디에 쌓이는지 바로 보여준다(방금 것을 강조하도록 id를 넘긴다)
-    router.push(`/stamps?just=${encodeURIComponent(id)}` as any);
-    // 잘못 눌렀을 수 있으니 되돌릴 길을 둔다 — 스낵바는 화면을 옮겨도 남는다
-    showSnackbar(t('home.marked'), {
-      label: t('home.undo'),
-      onPress: () => setRecipes(prev => prev.map(r => (r.id === id ? {...r, madeAt: undefined} : r))),
-    });
-  }, [isMyRecipe, id, recipe?.madeAt, setRecipes, router, user, openAuthSheet, showSnackbar, t]);
+  }, [id, setMade, router, user, openAuthSheet, showSnackbar, t]);
 
   // 의견은 공식(둘러보기) 레시피에만 — 내 레시피는 직접 고치면 된다
   const handleFeedback = useCallback(async (kind: string, message: string) => {
@@ -575,7 +571,7 @@ const handleDelete = useCallback(async () => {
 
   // 내 목록에 있으면 복사본이어도 편집 가능(원본 출처는 sourceId 등으로 계속 표시된다).
   // 기존엔 복사본을 막아 탭·롱프레스가 아무 반응 없이 먹통이었다.
-  const isMade = isMyRecipe && !!recipe.madeAt;
+  const isMade = !!madeAtOf(recipe);
   const canEdit = isMyRecipe || (isExploreRecipe && isAdmin);
   const canDelete = isMyRecipe || (isExploreRecipe && isAdmin);
 
