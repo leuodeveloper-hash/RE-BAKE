@@ -27,4 +27,48 @@ struct ExamWidgetIntent: WidgetConfigurationIntent {
 
   @Parameter(title: "종목", default: .pastry)
   var discipline: ExamDiscipline
+
+  /// 오늘의 레시피를 어느 북에서 고를지 — 비우면 전체에서 돈다
+  @Parameter(title: "레시피북")
+  var cookbook: CookbookOption?
+}
+
+/// 위젯에 띄울 레시피북 — 앱이 저장한 목록에서 고른다.
+///
+/// 종목(제과/제빵)만으로 가르면 북이 늘어날 때마다 코드를 고쳐야 한다.
+/// 앱이 `widgetCookbooks`에 현재 북 목록을 넣어 두고, 위젯 편집 화면이 그걸 읽는다.
+struct CookbookOption: AppEntity {
+  let id: String
+
+  static var typeDisplayRepresentation: TypeDisplayRepresentation = "레시피북"
+  static var defaultQuery = CookbookQuery()
+
+  var displayRepresentation: DisplayRepresentation {
+    // 빈 id는 "전체" — 고르지 않았을 때의 기본
+    DisplayRepresentation(title: "\(id.isEmpty ? "전체" : id)")
+  }
+}
+
+struct CookbookQuery: EntityQuery {
+  /// 앱이 App Group에 저장한 북 목록. 없으면 "전체" 하나만.
+  private func allBooks() -> [String] {
+    guard let defaults = UserDefaults(suiteName: appGroup),
+          let raw = defaults.string(forKey: "widgetCookbooks"),
+          let data = raw.data(using: .utf8),
+          let books = try? JSONDecoder().decode([String].self, from: data)
+    else { return [] }
+    return books
+  }
+
+  func entities(for identifiers: [String]) async throws -> [CookbookOption] {
+    identifiers.map(CookbookOption.init(id:))
+  }
+
+  func suggestedEntities() async throws -> [CookbookOption] {
+    [CookbookOption(id: "")] + allBooks().map(CookbookOption.init(id:))
+  }
+
+  func defaultResult() async -> CookbookOption? {
+    CookbookOption(id: "")
+  }
 }

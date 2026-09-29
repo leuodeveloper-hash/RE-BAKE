@@ -46,6 +46,9 @@ async function downloadImageFor(recipe: Recipe, dir: Directory, seed: number): P
  * - 결과를 dailySets[]로 저장(seed→제목·북·이미지). 위젯은 그날 seed에 맞는 세트를 그대로 쓴다.
  *   → 텍스트-이미지 항상 일치 + 다음날도 빈칸 없이 이미지 표시(앱 안 열어도 준비된 만큼).
  * - 후보는 호출부가 권한에 맞게 구성해 넘긴다. iOS 전용.
+ *
+ * 레시피북별로도 한 벌씩 만든다 — 위젯 편집에서 북을 고르면 그 북 것만 돈다.
+ * 전체는 빈 키('')에 둔다(고르지 않았을 때의 기본).
  */
 export async function syncTodayRecipeToWidget(candidates: Recipe[]): Promise<void> {
   if (Platform.OS !== 'ios') return;
@@ -84,19 +87,36 @@ export async function syncTodayRecipeToWidget(candidates: Recipe[]): Promise<voi
 
   // 앞으로 DAYS_AHEAD일: 안 본 것을 순서대로 각 날짜에 배정(오늘=unseen[0], 내일=unseen[1]...).
   // 이미지는 그 레시피 것 다운로드. seed는 날짜 기준(위젯이 그날 엔트리를 찾는 키).
-  const m = unseen.length;
   const validSeeds = new Set<number>();
-  const dailySets = await Promise.all(
-    Array.from({length: DAYS_AHEAD}, async (_, offset) => {
-      const day = new Date(startOfDay);
-      day.setDate(day.getDate() + offset);
-      const seed = dateSeed(day);
-      validSeeds.add(seed);
-      const r = unseen[offset % m];
-      const imagePath = await downloadImageFor(r, dir, seed);
-      return {seed, id: r.id, title: r.title, cookbook: r.cookbook ?? '', imagePath};
-    }),
-  );
+
+  /** 주어진 후보로 DAYS_AHEAD일치 세트를 만든다 */
+  const buildSets = async (list: Recipe[]) => {
+    if (list.length === 0) return [];
+    const m = list.length;
+    return Promise.all(
+      Array.from({length: DAYS_AHEAD}, async (_, offset) => {
+        const day = new Date(startOfDay);
+        day.setDate(day.getDate() + offset);
+        const seed = dateSeed(day);
+        validSeeds.add(seed);
+        const r = list[offset % m];
+        // 파일명에 레시피 id가 들어가므로 북이 달라도 서로 덮어쓰지 않는다
+        const imagePath = await downloadImageFor(r, dir, seed);
+        return {seed, id: r.id, title: r.title, cookbook: r.cookbook ?? '', imagePath};
+      }),
+    );
+  };
+
+  const dailySets = await buildSets(unseen);
+
+  // 레시피북별 세트 — 북 안에서도 "안 본 것 먼저" 순서를 그대로 따른다
+  const books = [...new Set(pool.map(r => r.cookbook).filter(Boolean) as string[])];
+  const byBook: Record<string, Awaited<ReturnType<typeof buildSets>>> = {};
+  for (const book of books) {
+    const inBook = unseen.filter(r => r.cookbook === book);
+    const list = inBook.length > 0 ? inBook : pool.filter(r => r.cookbook === book);
+    byBook[book] = await buildSets(list);
+  }
 
   // 오래된(범위 밖) day-{seed}-{id}.jpg 정리 — seed(첫 세그먼트)가 유효 범위 밖이면 삭제.
   try {
@@ -114,6 +134,12 @@ export async function syncTodayRecipeToWidget(candidates: Recipe[]): Promise<voi
     // (@bacons/apple-targets의 ExtensionStorage는 SDK54 platform 불일치로 링크 안 돼 대체.)
     const WidgetStorage = require('../../modules/widget-storage').default;
     WidgetStorage.setString('dailySets', JSON.stringify(dailySets), APP_GROUP);
+    // 북별 세트 — 위젯이 고른 북 이름으로 찾아 읽는다
+    for (const [book, sets] of Object.entries(byBook)) {
+      WidgetStorage.setString(`dailySets_${book}`, JSON.stringify(sets), APP_GROUP);
+    }
+    // 고를 수 있는 북 목록 — 위젯 편집 화면이 이걸 읽어 선택지를 만든다
+    WidgetStorage.setString('widgetCookbooks', JSON.stringify(books), APP_GROUP);
     WidgetStorage.reloadWidget(WIDGET_NAME);
     console.log(`[widgetSync] 저장 완료 — ${dailySets.length}일치, 오늘=${dailySets[0]?.title}, 이미지=${dailySets[0]?.imagePath ? 'O' : 'X'}`);
   } catch (e) {

@@ -133,7 +133,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingBottom: Spacing.xl,
   },
   title: {
-    ...Typography.title.medium,
+    ...Typography.headline.medium,
     color: colors['foreground/on-surface'],
     textAlign: 'center',
   },

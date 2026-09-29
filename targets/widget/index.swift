@@ -124,9 +124,12 @@ struct DailySet: Codable {
   let imagePath: String?
 }
 
-func readDailySets() -> [DailySet] {
+/// 고른 레시피북의 세트를 읽는다. 북을 안 골랐거나(빈 문자열) 그 북 세트가
+/// 없으면 전체 세트("dailySets")로 돌아간다.
+func readDailySets(cookbook: String = "") -> [DailySet] {
+  let key = cookbook.isEmpty ? "dailySets" : "dailySets_\(cookbook)"
   guard let defaults = UserDefaults(suiteName: appGroup),
-        let raw = defaults.string(forKey: "dailySets"),
+        let raw = defaults.string(forKey: key) ?? defaults.string(forKey: "dailySets"),
         let data = raw.data(using: .utf8),
         let sets = try? JSONDecoder().decode([DailySet].self, from: data)
   else { return [] }
@@ -170,20 +173,27 @@ struct Provider: AppIntentTimelineProvider {
   }
 
   func snapshot(for configuration: ExamWidgetIntent, in context: Context) async -> RecipeEntry {
-    entryFor(date: Date(), sets: readDailySets(), exam: readUpcomingExam(key: configuration.discipline.storageKey))
+    entryFor(
+      date: Date(),
+      sets: readDailySets(cookbook: configuration.cookbook?.id ?? ""),
+      exam: readUpcomingExam(key: configuration.discipline.storageKey),
+    )
   }
 
   func timeline(for configuration: ExamWidgetIntent, in context: Context) async -> Timeline<RecipeEntry> {
     await withCheckedContinuation { continuation in
-      buildTimeline(key: configuration.discipline.storageKey) { continuation.resume(returning: $0) }
+      buildTimeline(
+        key: configuration.discipline.storageKey,
+        cookbook: configuration.cookbook?.id ?? "",
+      ) { continuation.resume(returning: $0) }
     }
   }
 
-  private func buildTimeline(key: String, completion: @escaping (Timeline<RecipeEntry>) -> Void) {
+  private func buildTimeline(key: String, cookbook: String, completion: @escaping (Timeline<RecipeEntry>) -> Void) {
     // 날짜별 세트(제목+이미지 일치)를 각 날짜 00:00 엔트리로. 매일 자정에 다음 세트로 전환.
     let cal = Calendar.current
     let startOfToday = cal.startOfDay(for: Date())
-    let sets = readDailySets()
+    let sets = readDailySets(cookbook: cookbook)
     // 시험 정보는 하루 단위로 D-day가 바뀐다. 엔트리마다 같은 값을 넣되,
     // 각 엔트리의 date를 기준으로 뷰가 남은 일수를 다시 계산한다.
     let exam = readUpcomingExam(key: key)
