@@ -12,3 +12,5 @@ export {StampDetailSheet} from './StampDetailSheet';
 export type {StampDetailSheetProps} from './StampDetailSheet';
 export {RecipeFeedbackSheet} from './RecipeFeedbackSheet';
 export type {RecipeFeedbackSheetProps} from './RecipeFeedbackSheet';
+export {InquirySheet} from './InquirySheet';
+export type {InquirySheetProps} from './InquirySheet';

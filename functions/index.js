@@ -104,3 +104,47 @@ export const onRecipeFeedback = onDocumentCreated(
     }
   },
 );
+
+/**
+ * app_inquiries에 글이 생기면 메일로 보낸다.
+ * 레시피 의견과 같은 이유 — 앱에 주소를 두지 않는다.
+ */
+export const onAppInquiry = onDocumentCreated(
+  {
+    document: 'app_inquiries/{docId}',
+    region: 'asia-northeast3',
+    secrets: [GMAIL_APP_PASSWORD],
+    memory: '256MiB',
+  },
+  async (event) => {
+    const d = event.data?.data();
+    if (!d) return;
+
+    const transporter = nodemailer.createTransport({
+      service: 'gmail',
+      auth: {user: MAIL_FROM, pass: GMAIL_APP_PASSWORD.value()},
+    });
+
+    const rows = [
+      ['종류', d.kind],
+      ['보낸 사람', d.handle ?? d.uid ?? '비로그인'],
+      ['답장받을 주소', d.replyTo ?? '-'],
+      ['플랫폼', d.platform],
+    ]
+      .map(([k, v]) => `<tr><td style="padding:4px 12px 4px 0;color:#888">${escapeHtml(k)}</td><td>${escapeHtml(v)}</td></tr>`)
+      .join('');
+
+    try {
+      await transporter.sendMail({
+        from: `베이클 문의 <${MAIL_FROM}>`,
+        to: MAIL_TO,
+        // 답장 주소를 적었으면 바로 회신되게 한다
+        replyTo: d.replyTo || undefined,
+        subject: `[베이클] 문의 (${d.kind})`,
+        html: `<table>${rows}</table><hr><p style="white-space:pre-wrap">${escapeHtml(d.message)}</p>`,
+      });
+    } catch (e) {
+      console.error('[onAppInquiry] 메일 전송 실패:', e);
+    }
+  },
+);

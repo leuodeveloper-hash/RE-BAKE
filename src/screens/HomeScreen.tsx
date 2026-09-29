@@ -18,7 +18,6 @@ import {useTranslation} from '@contexts/LanguageContext';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useAuthSheet} from '@contexts/AuthSheetContext';
-import {CONTACT_URL} from '@constants/contact';
 import {useColors} from '@contexts/ThemeContext';
 import {useSubscription} from '@contexts/SubscriptionContext';
 import {useAuth} from '@contexts/AuthContext';
@@ -32,7 +31,8 @@ import {getRecipeMenuItems} from '@utils/recipeMenuItems';
 import {useMadeCount} from '@hooks/useMadeCount';
 import {useRecipeReviews} from '@hooks/useRecipeReviews';
 import {useMadeStamps} from '@hooks/useMadeStamps';
-import {CookbookSelectSheet, MadeConfirmSheet} from '@components/BottomSheet';
+import {CookbookSelectSheet, MadeConfirmSheet, InquirySheet} from '@components/BottomSheet';
+import {sendAppInquiry} from '@utils/appInquiry';
 import {
   IconTrash,
   IconTrashTwotone,
@@ -152,6 +152,8 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   const [pdfHtml, setPdfHtml] = useState('');
   const [cookbookSheetRecipe, setCookbookSheetRecipe] = useState<Recipe | null>(null);
   const [madeSheetRecipe, setMadeSheetRecipe] = useState<Recipe | null>(null);
+  // 문의는 메일 앱을 열지 않고 앱 안에서 받는다(주소 비노출)
+  const [inquiryOpen, setInquiryOpen] = useState(false);
   const madeCount = useMadeCount();
   const {saveReview, reviewsOf} = useRecipeReviews();
   const {setMade, madeAtOf} = useMadeStamps();
@@ -435,7 +437,8 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
         showSnackbar(t('home.proRecipeLimit'), {
           tone: 'error',
           label: t('home.contact'),
-          onPress: () => { Linking.openURL(CONTACT_URL).catch(() => {}); },
+          // 메일 앱을 열면 받는 주소가 그대로 보인다 — 앱 안에서 쓰고 서버가 전달한다
+          onPress: () => setInquiryOpen(true),
         });
       } else {
         showSnackbar(t('home.maxRecipesLimit'), {tone: 'error'});
@@ -692,6 +695,17 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
       />
 
       {/* 만들었어요 확인 바텀시트 — 요리모드와 같은 시트를 쓴다 */}
+      <InquirySheet
+        visible={inquiryOpen}
+        onClose={() => setInquiryOpen(false)}
+        initialKind="recipeLimit"
+        onSubmit={(kind, message, replyTo) => {
+          sendAppInquiry({kind, message, replyTo: replyTo || undefined, uid: user?.uid})
+            .then(() => showSnackbar(t('inquiry.sent'), {tone: 'positive'}))
+            .catch(() => showSnackbar(t('inquiry.failed'), {tone: 'error'}));
+        }}
+      />
+
       <MadeConfirmSheet
         visible={!!madeSheetRecipe}
         onClose={() => setMadeSheetRecipe(null)}

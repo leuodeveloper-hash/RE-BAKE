@@ -18,7 +18,9 @@ import {Button} from '@components/Button';
 import {PlanSheet} from '@components/PlanSheet';
 import {getInstalledWidgetCount} from '@utils/examWidgetSync';
 import {useSnackbar} from '@contexts/SnackbarContext';
-import {BottomSheet} from '@components/BottomSheet';
+import {useAuth} from '@contexts/AuthContext';
+import {BottomSheet, InquirySheet} from '@components/BottomSheet';
+import {sendAppInquiry} from '@utils/appInquiry';
 import {useExamNotificationPrefs} from '@hooks/useExamNotificationPrefs';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors, useTheme} from '@contexts/ThemeContext';
@@ -226,6 +228,9 @@ export function ProfileScreen({
 
   const {open: openAuthSheet} = useAuthSheet();
   const {showSnackbar} = useSnackbar();
+  const {user} = useAuth();
+  // 문의는 메일 앱을 열지 않고 앱 안에서 받는다(주소 비노출)
+  const [inquiryOpen, setInquiryOpen] = useState(false);
   const [showHandleSheet, setShowHandleSheet] = useState(false);
   const [handleInput, setHandleInput] = useState('');
   const [showDisplayNameSheet, setShowDisplayNameSheet] = useState(false);
@@ -674,11 +679,24 @@ export function ProfileScreen({
                 <Text style={styles.footerLink} onPress={onTermsPress}>{t('profile.termsOfService')}</Text>
                 <Text style={styles.footerDot}>·</Text>
                 <Text style={styles.footerLink} onPress={onPrivacyPress}>{t('profile.privacyPolicy')}</Text>
+                <Text style={styles.footerDot}>·</Text>
+                {/* 문의는 여기 한 곳 — 메일 앱을 열지 않고 앱 안에서 쓴다 */}
+                <Text style={styles.footerLink} onPress={() => setInquiryOpen(true)}>{t('profile.inquiry')}</Text>
               </View>
             </View>
           </View>
         </ScrollView>
       </SafeAreaView>
+
+      <InquirySheet
+        visible={inquiryOpen}
+        onClose={() => setInquiryOpen(false)}
+        onSubmit={(kind, message, replyTo) => {
+          sendAppInquiry({kind, message, replyTo: replyTo || undefined, uid: user?.uid, handle})
+            .then(() => showSnackbar(t('inquiry.sent'), {tone: 'positive'}))
+            .catch(() => showSnackbar(t('inquiry.failed'), {tone: 'error'}));
+        }}
+      />
 
       {/* 로그인 시트는 공통 AuthSheet(useAuthSheet)로 통합 — app/_layout.tsx에서 렌더 */}
 
