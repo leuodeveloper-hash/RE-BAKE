@@ -79,6 +79,8 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, p
    * (겹침 표시용 뒷장까지 더하면 한 칸 안에서도 겹친다).
    */
   const uid = useId().replace(/:/g, '');
+  /** 확대 중심 — viewBox 가운데 */
+  const c = STAMP_VIEWBOX / 2;
   const clipId = `stamp-clip-${uid}`;
 
   // 사진이 없을 때 은은하게 깜빡인다 — 빈 칸이 아니라 "아직 채워지지 않은 자리"로
@@ -200,24 +202,21 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, p
             clipPath={`url(#${clipId})`}
           />
         )}
-        {/* 확대는 transform scale로 — 사진 자체를 viewBox보다 크게 그리면
-            SVG 캔버스 밖이 잘려 모양 대신 네모난 변이 생긴다.
-            모양대로 자른 뒤(그룹의 clipPath) 그 안에서 확대해야 한다. */}
+        {/* 모양대로 자른 그룹 안에 사진을 넣는다.
+            확대는 x/y/width/height로 직접 준다 — transform·origin은 네이티브와
+            웹이 다르게 해석해 중심이 어긋났고, 그 탓에 가장자리가 잘려
+            모양이 깨져 보였다. 좌표 계산은 두 플랫폼이 같다. */}
         <G clipPath={`url(#${clipId})`}>
-          <G
-            scale={imageScale}
-            // 확대한 만큼 가운데로 당긴다 — 안 그러면 우하단으로 쏠린다
-            originX={STAMP_VIEWBOX / 2}
-            originY={STAMP_VIEWBOX / 2}>
-            <SvgImage
-              href={{uri: imageUri}}
-              width={STAMP_VIEWBOX}
-              height={STAMP_VIEWBOX}
-              // 가장자리가 잘리므로 피사체가 가운데 크게 들어오도록 채운다
-              preserveAspectRatio="xMidYMid slice"
-              onLoad={() => setLoaded(true)}
-            />
-          </G>
+          <SvgImage
+            href={{uri: imageUri}}
+            x={c - c * imageScale}
+            y={c - c * imageScale}
+            width={STAMP_VIEWBOX * imageScale}
+            height={STAMP_VIEWBOX * imageScale}
+            // 가장자리가 잘리므로 피사체가 가운데 크게 들어오도록 채운다
+            preserveAspectRatio="xMidYMid slice"
+            onLoad={() => setLoaded(true)}
+          />
         </G>
       </Svg>
     </View>
