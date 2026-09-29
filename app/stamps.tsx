@@ -7,6 +7,7 @@ import {ContentContainer} from '@components/Container';
 import {InlineBanner} from '@components/InlineBanner';
 import {EmptyState} from '@components/EmptyState';
 import {Menu} from '@components/Menu';
+import {Tabs} from '@components/Tabs';
 import {ListItem} from '@components/ListItem';
 import {Switch} from '@components/Switch';
 import {SectionHeader} from '@components/SectionHeader';
@@ -339,7 +340,22 @@ export default function StampsRoute() {
           <Menu
             sections={[
               {title: t('stamps.sectionAxis'), items: axisMenuItems, selectedId: axis},
-              {title: t('stamps.sectionLayout'), items: layoutMenuItems, selectedId: layout},
+              {
+                title: t('stamps.sectionLayout'),
+                // 아이콘 탭 한 줄 — 라벨 목록이면 메뉴가 길어진다(홈·둘러보기와 같은 방식)
+                content: (
+                  <View style={styles.layoutTabs}>
+                    <Tabs
+                      variant="icon"
+                      size="large"
+                      fullWidth
+                      tabs={layoutMenuItems.map(i => ({id: i.id, label: '', icon: i.icon}))}
+                      selectedId={layout}
+                      onSelect={(id) => { setLayout(id as 'list' | 'grid'); setAxisMenu(false); }}
+                    />
+                  </View>
+                ),
+              },
               {
                 title: t('stamps.sectionFilter'),
                 // 켜고 끄는 값이라 스위치 — 행 전체를 눌러도 토글된다(프로필 설정과 같은 방식)
@@ -359,8 +375,7 @@ export default function StampsRoute() {
             ]}
             visible={axisMenu}
             onSelect={(id) => {
-              if (id === 'list' || id === 'grid') setLayout(id);
-              else setAxis(id as StampAxis);
+              setAxis(id as StampAxis);
               setAxisMenu(false);
             }}
             onClose={() => setAxisMenu(false)}
@@ -496,6 +511,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   scrollContent: {paddingBottom: 80},
   // 앱바 아래·화면 끝과 붙지 않게
   content: {paddingVertical: Spacing.sm},
+  layoutTabs: {
+    // 메뉴 항목과 좌우 정렬 (GlassContainer 패딩만 적용되도록)
+    paddingHorizontal: 0,
+    paddingBottom: 4,
+  },
   banner: {marginBottom: Spacing.lg},
   section: {marginBottom: Spacing.xl},
   sectionHeader: {
