@@ -53,6 +53,7 @@ export function SlideToConfirm({
     const w = e.nativeEvent.layout.width;
     // 손잡이는 left:KNOB_M에서 시작하고 폭이 TRACK_H - KNOB_M*2 이므로,
     // 오른쪽 끝까지 가는 거리는 w - TRACK_H 다(KNOB_M을 두 번 빼면 그만큼 덜 간다)
+    setTrackW(w);
     maxRef.current = Math.max(0, w - TRACK_H);
     // 이미 완료 상태면 손잡이를 오른쪽 끝에 둔다(되돌리기 시작 위치)
     if (doneRef.current) x.setValue(maxRef.current);
@@ -106,16 +107,12 @@ export function SlideToConfirm({
   ).current;
 
   const isDone = done || confirmed;
-  // 절반을 넘으면 완료 문구로 — 놓으면 확정된다는 예고가 된다.
-  // (문구를 흐리지는 않는다. 흐렸다 다시 또렷해지는 왕복이 눈에 거슬린다)
-  const [past, setPast] = useState(false);
-  useEffect(() => {
-    const id = x.addListener(({value}) => {
-      const half = maxRef.current * 0.5;
-      setPast(maxRef.current > 0 && value >= half);
-    });
-    return () => x.removeListener(id);
-  }, [x]);
+  // 절반을 지나면 두 문구가 교차한다 — 완료 문구가 차오르고 원래 문구는 사라진다.
+  // 놓으면 확정된다는 예고를, 딱 바뀌는 대신 손잡이 위치에 붙여 보여준다.
+  const [trackW, setTrackW] = useState(0);
+  const half = Math.max(1, (trackW - TRACK_H) * 0.5);
+  const fadeIn = x.interpolate({inputRange: [half, half * 2], outputRange: [0, 1], extrapolate: 'clamp'});
+  const fadeOut = x.interpolate({inputRange: [half, half * 2], outputRange: [1, 0], extrapolate: 'clamp'});
 
   return (
     <View
@@ -127,9 +124,14 @@ export function SlideToConfirm({
           <Text style={styles.doneText}>{confirmedLabel ?? label}</Text>
         </View>
       ) : (
-        <Text style={styles.label} numberOfLines={1}>
-          {past ? (confirmedLabel ?? label) : label}
-        </Text>
+        <View style={styles.labelStack} pointerEvents="none">
+          <Animated.Text style={[styles.label, {opacity: fadeOut}]} numberOfLines={1}>
+            {label}
+          </Animated.Text>
+          <Animated.Text style={[styles.label, styles.labelOverlay, {opacity: fadeIn}]} numberOfLines={1}>
+            {confirmedLabel ?? label}
+          </Animated.Text>
+        </View>
       )}
       {/* 손잡이는 항상 렌더 — 완료 상태에선 오른쪽 끝에서 왼쪽으로 밀어 되돌린다 */}
       <Animated.View
@@ -160,6 +162,13 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   trackDisabled: {
     opacity: 0.5,
+  },
+  labelStack: {
+    justifyContent: 'center',
+  },
+  labelOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    textAlignVertical: 'center',
   },
   label: {
     ...Typography.label.large,
