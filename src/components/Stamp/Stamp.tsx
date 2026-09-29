@@ -6,8 +6,6 @@ import {STAMP_VIEWBOX, stampShapeAt} from './shapes';
 
 /** 점선 굵기(viewBox 24 기준) */
 const OUTLINE_STROKE = 0.8;
-/** 점선이 잘리지 않도록 viewBox에 더하는 여유 — 선 굵기의 절반 + 둥근 끝 */
-const OUTLINE_PAD = OUTLINE_STROKE;
 
 /** 스탬프 안쪽 여백 — 칸에 꽉 차면 옆 스탬프와 붙어 보인다 */
 const INNER_PADDING = 8;
@@ -77,22 +75,25 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
   if (outline) {
     return (
       <View style={wrapStyle}>
-        {/* 선은 path를 중심으로 양쪽으로 퍼지므로 viewBox를 그만큼 넓혀야
-            가장자리에서 잘리지 않는다(둥근 끝까지 고려해 여유를 둔다) */}
-        <Svg
-          width={inner}
-          height={inner}
-          viewBox={`${-OUTLINE_PAD} ${-OUTLINE_PAD} ${STAMP_VIEWBOX + OUTLINE_PAD * 2} ${STAMP_VIEWBOX + OUTLINE_PAD * 2}`}>
+        <Svg width={inner} height={inner} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
+          <Defs>
+            {/* 같은 path로 잘라 선의 바깥쪽 절반을 버린다 — 선이 모양 안쪽에만 남아
+                칸 경계로 삐져나가지 않는다 */}
+            <ClipPath id={clipId}>
+              <Path d={d} />
+            </ClipPath>
+          </Defs>
           <Path
             d={d}
             // 안도 옅게 채운다 — 선만 있으면 배경과 구분이 약하다
             fill={colors['fill/faint']}
             stroke={colors['border/normal']}
-            // viewBox가 24라 선 굵기·간격도 그 기준 — 얇으면 작은 칸에서 안 보인다
-            strokeWidth={OUTLINE_STROKE}
+            // 안쪽 절반만 보이므로 굵기를 두 배로 줘야 의도한 두께가 된다
+            strokeWidth={OUTLINE_STROKE * 2}
             // 각진 끝 — round면 양끝에 반원이 붙어 선이 strokeWidth만큼 길어진다
             strokeDasharray="1.8 1.8"
             strokeLinecap="butt"
+            clipPath={`url(#${clipId})`}
           />
         </Svg>
       </View>
