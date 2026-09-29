@@ -27,7 +27,7 @@ export function recipeCoverCards(recipes: Recipe[], max = 3): PackCardData[] {
   return [...recipes]
     .sort((a, b) => (a.imageUri ? 0 : 1) - (b.imageUri ? 0 : 1))
     .slice(0, max)
-    .map(r => ({imageUrl: r.imageUri, title: r.title, paperPreview: buildPaperPreview(r)}));
+    .map(r => ({id: r.id, imageUrl: r.imageUri, title: r.title, paperPreview: buildPaperPreview(r)}));
 }
 
 /** 비었으면 빈 종이 커버, 아니면 레시피 표지 카드 */

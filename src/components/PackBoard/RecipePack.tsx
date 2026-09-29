@@ -5,7 +5,7 @@ import Animated, {useAnimatedStyle, type SharedValue} from 'react-native-reanima
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors, useTheme} from '@contexts/ThemeContext';
 import {StackedThumbnail} from '@components/Recipe/RecipeCard';
-import {Stamp} from '@components/Stamp';
+import {Stamp, stampShapeSeed} from '@components/Stamp';
 import {IconLockFilled, IconEyeClosed} from '@components/Icon/IconIndex';
 import {type SemanticColors, PrimitiveColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
@@ -47,6 +47,8 @@ export interface PackOriginRect {
 }
 
 export interface PackCardData {
+  /** 레시피 id — 표지 스탬프 모양을 이 레시피 기준으로 고른다(스탬프북과 같게) */
+  id?: string;
   /** 원격 uri 문자열 또는 require() 로컬 에셋 모듈 */
   imageUrl?: string | number;
   /** 종이에 표시할 레시피 제목 */
@@ -98,13 +100,6 @@ export interface BookAuthor {
   authorId?: string;
   displayName: string;
   avatarSeed: string | number;
-}
-
-/** 제목으로 모양을 정한다 — 북마다 다르되 다시 그려도 같은 모양이 나온다 */
-function shapeIndexOf(key: string): number {
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
-  return Math.abs(h);
 }
 
 export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom, pillCorner, pillProgress, icon: PillIcon, iconColor, locked, variant = 'default', footerLeft, footerRight, emptyCover, hidden, authors}: RecipePackProps) {
@@ -167,7 +162,11 @@ export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom
           {/* 썸넬 중앙 — 사진이 있으면 스탬프 모양으로 오려낸다.
               모양은 제목으로 정해 북마다 다르되 매번 같게 한다(랜덤이면 다시 그릴 때 바뀐다) */}
           {typeof shown[0].imageUrl === 'string' && shown[0].imageUrl ? (
-            <Stamp imageUri={shown[0].imageUrl} size={BOOK_IMG} index={shapeIndexOf(title)} padding={0} />
+            <Stamp imageUri={shown[0].imageUrl} size={BOOK_IMG} index={
+                // 스탬프북에서 이 레시피가 찍히는 모양과 같아야 한다 —
+                // 북 제목으로 정하면 북마다 모양이 하나로 고정된다
+                stampShapeSeed(shown[0].id ?? shown[0].title)
+              } padding={0} />
           ) : (
             <StackedThumbnail
               size={BOOK_IMG}

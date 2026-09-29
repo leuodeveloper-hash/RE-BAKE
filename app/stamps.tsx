@@ -12,7 +12,7 @@ import {ListItem} from '@components/ListItem';
 import {Switch} from '@components/Switch';
 import {SectionHeader} from '@components/SectionHeader';
 import {ReviewDialog} from '@components/Dialog';
-import {Stamp} from '@components/Stamp';
+import {Stamp, stampShapeSeed} from '@components/Stamp';
 import {StampDetailSheet} from '@components/BottomSheet';
 import {getColorVarKey} from '@components/ColorPicker';
 import type {AvatarColor} from '@components/Avatar/Avatar';
@@ -126,13 +126,6 @@ function formatMadeDate(iso: string, t: (k: string, p?: Record<string, unknown>)
 /** 레시피북이 없는 레시피를 모으는 섹션 키 — 실제 북 이름과 겹치지 않게 */
 const NO_BOOK = '\u0000no-book';
 
-/** 빈 슬롯의 모양을 레시피마다 다르게 — id로 만든 안정적인 숫자(새로 고쳐도 같다) */
-function shapeSeed(key: string): number {
-  let h = 0;
-  for (let i = 0; i < key.length; i++) h = (h * 31 + key.charCodeAt(i)) | 0;
-  return Math.abs(h);
-}
-
 export default function StampsRoute() {
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
@@ -188,20 +181,6 @@ export default function StampsRoute() {
     return byRecipeId;
   }, [recipes, exploreRecipes, madeAtOf]);
 
-  /** 모은 순번 — 만든 시각 순으로 매긴다(스탬프 모양이 흔들리지 않게) */
-  const orderIndex = useMemo(() => {
-    const byGroup = new Map<string, string>();
-    for (const r of [...recipes, ...exploreRecipes]) {
-      const madeAt = madeAtOf(r);
-      if (!madeAt) continue;
-      const key = r.remakeGroupId ?? r.id;
-      const prev = byGroup.get(key);
-      if (!prev || madeAt < prev) byGroup.set(key, madeAt);
-    }
-    const sorted = [...byGroup.entries()].sort((a, b) => a[1].localeCompare(b[1]));
-    return new Map(sorted.map(([key], i) => [key, i]));
-  }, [recipes, exploreRecipes, madeAtOf]);
-
   /** 같은 회차 그룹의 내 레시피들 — 시트에서 회차별 회고를 보여준다 */
   const sessionsOf = useCallback((r: Recipe) => {
     const gid = r.remakeGroupId;
@@ -222,12 +201,11 @@ export default function StampsRoute() {
       recipe: r,
       madeAt: hit?.madeAt,
       count: hit?.count ?? 0,
-      // 만든 칸은 모은 순서로 모양이 정해진다(shapes.ts 참고).
-      // 아직 안 만든 칸은 순서가 없으니 레시피 id로 고르게 흩는다 —
-      // 0으로 두면 빈 실루엣이 전부 같은 모양이 된다.
-      order: orderIndex.get(key) ?? shapeSeed(key),
+      // 모양은 레시피마다 고정 — 빈 칸이든 찍힌 칸이든, 목록이든 표지든
+      // 같은 레시피면 같은 모양이라야 "그 스탬프"로 알아본다.
+      order: stampShapeSeed(key),
     };
-  }, [madeIndex, orderIndex]);
+  }, [madeIndex]);
 
   // 레시피북별 — 그 북의 레시피 전부가 칸이 된다(안 만든 것 포함)
   /**

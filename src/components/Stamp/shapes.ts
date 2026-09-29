@@ -1,6 +1,9 @@
 /**
  * 스탬프 모양 마스크 — assets/stamps/mask-01~07.svg에서 뽑은 path.
  *
+ * 모양은 레시피마다 고정이다(stampShapeSeed) — 모은 순서로 정하면 같은 레시피가
+ * 스탬프북·북 표지·시트에서 저마다 다른 모양으로 보여 "그 스탬프"로 못 알아본다.
+ *
  * 파일을 런타임에 읽지 않고 path만 상수로 둔다: 네이티브·웹이 같은 값을 쓰고,
  * 크기가 달라져도(그리드·시트·공유 이미지) viewBox로 늘어나 선명하다.
  * 모양을 바꾸려면 SVG를 다시 내보내 이 배열만 갈아끼우면 된다(개수는 자유).
@@ -25,4 +28,19 @@ export const STAMP_SHAPES: string[] = [
 export function stampShapeAt(index: number): string {
   const n = STAMP_SHAPES.length;
   return STAMP_SHAPES[((index % n) + n) % n];
+}
+
+/**
+ * 이름·id로 모양을 고른다 — 대상마다 다르되 다시 그려도 같은 모양이 나온다.
+ *
+ * FNV-1a를 쓰는 이유: 단순 h*31 해시는 "제과기능사"와 "제빵기능사"처럼
+ * 한 글자만 다른 이름이 같은 값으로 뭉쳐 모양이 겹쳤다.
+ */
+export function stampShapeSeed(key: string): number {
+  let h = 2166136261 >>> 0;
+  for (let i = 0; i < key.length; i++) {
+    h ^= key.charCodeAt(i);
+    h = Math.imul(h, 16777619) >>> 0;
+  }
+  return h;
 }
