@@ -4,6 +4,9 @@ import Svg, {ClipPath, Defs, Image as SvgImage, Path, Rect} from 'react-native-s
 import {useColors} from '@contexts/ThemeContext';
 import {STAMP_VIEWBOX, stampShapeAt} from './shapes';
 
+/** 스탬프 안쪽 여백 — 칸에 꽉 차면 옆 스탬프와 붙어 보인다 */
+const INNER_PADDING = 8;
+
 export interface StampProps {
   /** 스탬프에 들어갈 사진. 없으면 빈 스탬프 */
   imageUri?: string;
@@ -54,15 +57,18 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
   }, [idle, pulse]);
 
   const wrapStyle: StyleProp<ViewStyle> = [
-    {width: size, height: size},
+    // 안쪽 여백 — 칸 크기는 그대로 두고 스탬프만 작게 그려 서로 붙지 않게
+    {width: size, height: size, padding: INNER_PADDING, alignItems: 'center', justifyContent: 'center'},
     rotate !== 0 && {transform: [{rotate: `${rotate}deg`}]},
     style,
   ];
+  // 여백을 뺀 실제 그림 크기
+  const inner = Math.max(0, size - INNER_PADDING * 2);
 
   if (outline) {
     return (
       <View style={wrapStyle}>
-        <Svg width={size} height={size} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
+        <Svg width={inner} height={inner} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
           <Path
             d={d}
             fill="none"
@@ -80,7 +86,7 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
   if (!imageUri) {
     return (
       <Animated.View style={[wrapStyle, {opacity: pulse}]}>
-        <Svg width={size} height={size} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
+        <Svg width={inner} height={inner} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
           <Path d={d} fill={colors['fill/faint']} />
         </Svg>
       </Animated.View>
@@ -89,7 +95,7 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
 
   return (
     <View style={wrapStyle}>
-      <Svg width={size} height={size} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
+      <Svg width={inner} height={inner} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
         <Defs>
           <ClipPath id={clipId}>
             <Path d={d} />
