@@ -62,8 +62,10 @@ export function OptionTile({
     <Card
       style={[
         styles.card,
+        // outline은 "테두리가 있는 타입" — 고르기 전에도 선이 보이고,
+        // 고르면 그 선이 진해진다. 선이 아예 없으면 어디가 칸인지 모른다.
+        selectedStyle === 'outline' && styles.cardOutline,
         selected && (selectedStyle === 'outline'
-          // 테두리만 — 배경은 그대로 두고 선을 진하게 해 고른 것을 표시한다
           ? {borderColor: colors[tone.fg], borderWidth: 1.5}
           : {backgroundColor: colors[tone.bg], borderColor: colors[tone.border]}),
       ]}>
@@ -91,6 +93,10 @@ export function OptionTile({
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   pressable: {
     flex: 1,
+  },
+  cardOutline: {
+    borderWidth: 1,
+    borderColor: colors['border/normal'],
   },
   card: {
     flex: 1,
