@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {useEffect, useId, useRef, useState} from 'react';
 import {Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle} from 'react-native';
 import Svg, {ClipPath, Defs, Image as SvgImage, Path, Rect} from 'react-native-svg';
 import {useColors} from '@contexts/ThemeContext';
@@ -47,7 +47,13 @@ export interface StampProps {
 export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, padding = INNER_PADDING, style}: StampProps) {
   const colors = useColors();
   const d = stampShapeAt(index);
-  const clipId = `stamp-clip-${index}`;
+  /**
+   * clipPath id는 인스턴스마다 달라야 한다 — url(#id)는 문서 전체에서 찾으므로
+   * 같은 모양(index)을 쓰는 스탬프가 둘 이상이면 id가 겹쳐 웹에서 클립이 풀린다
+   * (겹침 표시용 뒷장까지 더하면 한 칸 안에서도 겹친다).
+   */
+  const uid = useId().replace(/:/g, '');
+  const clipId = `stamp-clip-${uid}`;
 
   // 사진이 없을 때 은은하게 깜빡인다 — 빈 칸이 아니라 "아직 채워지지 않은 자리"로
   const pulse = useRef(new Animated.Value(0.45)).current;
