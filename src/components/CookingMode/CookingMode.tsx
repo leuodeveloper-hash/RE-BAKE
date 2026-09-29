@@ -327,7 +327,7 @@ export function CookingMode({
   // onLayout이 주는 폭에는 컨테이너 자신의 좌우 패딩이 들어 있다 —
   // 빼지 않으면 칸이 그만큼 넓어져 4칸이 한 줄에 안 들어간다.
   const tileWidth = tileRowWidth > 0
-    ? Math.floor((tileRowWidth - Spacing.md * 2 - Spacing.sm * 3) / 4)
+    ? Math.floor((tileRowWidth - Spacing.smd * 2 - Spacing.sm * 3) / 4)
     : 0;
   const [editAdvice, setEditAdvice] = useState(advice ?? '');
   const [editAdvicePhotos, setEditAdvicePhotos] = useState<string[]>(advicePhotos ?? []);
@@ -2249,20 +2249,20 @@ export function CookingMode({
 const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
     ingredientGroupHeader: {
-      // 타일 그리드와 좌우를 맞춘다
-      paddingHorizontal: Spacing.sm,
+      // SectionHeader가 이미 좌우 smd(12)를 갖고 있다 — 여기서 또 주면
+      // 이중으로 들어가 라벨만 안쪽으로 밀린다. 타일 쪽을 같은 12로 맞춘다.
     },
     ingredientTiles: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: Spacing.sm,
-      // 시트 가장자리에 붙지 않게 — 좌우로 한 단계 더 띄운다
-      paddingHorizontal: Spacing.md,
+      // 그룹 라벨(SectionHeader 내부 패딩)과 같은 값이라야 좌우가 맞는다
+      paddingHorizontal: Spacing.smd,
       paddingBottom: Spacing.sm,
     },
     // 목록도 같은 좌우 여백 — 없으면 행이 시트 끝에 붙는다
     ingredientRows: {
-      paddingHorizontal: Spacing.sm,
+      paddingHorizontal: Spacing.smd,
       paddingBottom: Spacing.sm,
     },
     ingredientTile: {
