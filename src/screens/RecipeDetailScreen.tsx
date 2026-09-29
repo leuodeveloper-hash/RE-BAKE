@@ -621,7 +621,7 @@ export function RecipeDetailScreen({
     }
     return items;
   },
-  [onImport, onRemake, onEdit, onDelete, onCookbookChange, onCopyToExplore, onSubmitToExplore, onShare, session, compareBaseline, showDiff, t]);
+  [onImport, onRemake, onEdit, onDelete, onCookbookChange, onCopyToExplore, onSubmitToExplore, onShare, onMadeChange, isMade, session, compareBaseline, showDiff, t]);
 
   const cookbookSubmenu = useMemo(() => {
     if (!onCookbookChange || !availableCookbooks) return null;
