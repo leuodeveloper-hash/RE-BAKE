@@ -96,7 +96,12 @@ export function InlineBanner({
         {backgroundColor: colors[scheme.bg]},
         style,
       ]}>
-      <View style={[styles.content, isMedium ? styles.contentMedium : styles.contentSmall]}>
+      <View style={[
+        styles.content,
+        isMedium ? styles.contentMedium : styles.contentSmall,
+        // 우측에 아무것도 없으면 좁힐 이유가 없다 — 좌우를 같게 둔다
+        isMedium && !action && !onClose && styles.contentMediumNoAction,
+      ]}>
         {icon && (
           <AppIcon
             icon={icon}
@@ -163,8 +168,12 @@ const styles = StyleSheet.create({
   },
   contentMedium: {
     paddingLeft: 16,
+    // 버튼이 붙을 자리 — 버튼이 없으면 contentMediumNoAction이 덮는다
     paddingRight: 4,
     paddingVertical: 12,
+  },
+  contentMediumNoAction: {
+    paddingRight: 16,
   },
   contentSmall: {
     paddingHorizontal: 16,
