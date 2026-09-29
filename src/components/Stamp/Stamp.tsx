@@ -5,7 +5,7 @@ import {useColors} from '@contexts/ThemeContext';
 import {STAMP_VIEWBOX, stampShapeAt} from './shapes';
 
 /** 점선 굵기(viewBox 24 기준) */
-const OUTLINE_STROKE = 0.8;
+const OUTLINE_STROKE = 0.5;
 
 /** 스탬프 안쪽 여백 — 칸에 꽉 차면 옆 스탬프와 붙어 보인다 */
 const INNER_PADDING = 8;
