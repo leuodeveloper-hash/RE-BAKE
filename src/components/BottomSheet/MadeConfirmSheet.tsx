@@ -78,7 +78,7 @@ export function MadeConfirmSheet({
       <View style={styles.body}>
         <View style={styles.stampWrap}>
           {/* 기울이지 않는다 — 하나만 크게 보여주는 자리라 반듯한 쪽이 낫다 */}
-          <Stamp imageUri={imageUri} size={STAMP_SIZE} index={stampIndex} />
+          <Stamp imageUri={imageUri} size={STAMP_SIZE} index={stampIndex} imageScale={2} />
         </View>
 
         <Text style={styles.title}>

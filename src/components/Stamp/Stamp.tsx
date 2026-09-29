@@ -3,6 +3,8 @@ import {Animated, Easing, StyleSheet, View, type StyleProp, type ViewStyle} from
 import Svg, {ClipPath, Defs, Image as SvgImage, Path, Rect} from 'react-native-svg';
 import {useColors} from '@contexts/ThemeContext';
 import {STAMP_VIEWBOX, stampShapeAt} from './shapes';
+import {StampPreview} from './StampPreview';
+import type {Recipe} from '../../types/recipe';
 
 /** 점선 굵기(viewBox 24 기준) */
 const OUTLINE_STROKE = 0.5;
@@ -38,8 +40,21 @@ export interface StampProps {
    */
   children?: React.ReactNode;
   /**
-   * 모양 바깥을 덮을 색 — children을 오려 낼 때 쓴다.
-   * 칸이 놓인 배경과 같아야 파낸 것처럼 보인다(기본: 화면 배경).
+   * 사진이 없을 때 모양 안을 채울 레시피 — 재료·과정 글이 들어간다.
+   * children을 직접 넘기면 그쪽이 우선한다.
+   */
+  recipe?: Partial<Recipe>;
+  /** 미리보기 글자 크기 — 큰 스탬프(시트)에선 키운다 */
+  previewFontSize?: number;
+  /**
+   * 모양 안에서 사진을 확대하는 배수(1 = 모양에 꼭 맞게).
+   * 키우면 피사체가 크게 들어오고 그만큼 가장자리가 더 잘린다.
+   */
+  imageScale?: number;
+  /**
+   * 모양 바깥을 덮을 색 — 미리보기를 오려 낼 때 쓴다.
+   * 스탬프가 놓인 바탕과 같아야 파낸 것처럼 보인다.
+   * 기본은 시트·카드 바탕(surface/bright) — 목록처럼 바탕이 다르면 넘긴다.
    */
   cutoutColor?: string;
   style?: StyleProp<ViewStyle>;
@@ -54,7 +69,7 @@ export interface StampProps {
  * 후자는 RN Web의 View가 비표준 스타일을 버려 마스크가 걸리지 않는다.
  * SVG clipPath는 네이티브·웹이 같은 구현을 쓴다.
  */
-export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, padding = INNER_PADDING, children, cutoutColor, style}: StampProps) {
+export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, padding = INNER_PADDING, children, recipe, previewFontSize, imageScale = 1, cutoutColor, style}: StampProps) {
   const colors = useColors();
   const d = stampShapeAt(index);
   /**
@@ -118,17 +133,19 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, p
     );
   }
 
+  const preview = children ?? (recipe ? <StampPreview recipe={recipe} fontSize={previewFontSize} /> : null);
+
   if (!imageUri) {
     // 사진이 없으면 내용 미리보기를 모양대로 오려 넣는다.
     // 일반 View는 SVG clipPath로 못 자르므로, 내용을 깔고 그 위에 모양의
     // '바깥쪽'을 배경색으로 덮어 같은 결과를 만든다(네이티브·웹 공통).
-    if (children) {
+    if (preview) {
       return (
         <View style={wrapStyle}>
           <View style={[{width: inner, height: inner}, styles.clipBox]}>
             {/* 글만 있는 스탬프 — 바탕은 밝게 둬야 글이 읽힌다(사진 자리와 같은 톤) */}
             <View style={[StyleSheet.absoluteFill, {backgroundColor: colors['surface/bright']}]} />
-            <View style={StyleSheet.absoluteFill} pointerEvents="none">{children}</View>
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">{preview}</View>
             <Svg
               style={StyleSheet.absoluteFill}
               width={inner}
@@ -139,7 +156,7 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, p
                   배경과 같은 색이라야 파낸 것처럼 보인다 — 칸 배경색을 받는다. */}
               <Path
                 d={`M0 0H${STAMP_VIEWBOX}V${STAMP_VIEWBOX}H0Z ${d}`}
-                fill={cutoutColor ?? colors['background/normal']}
+                fill={cutoutColor ?? colors['surface/bright']}
                 fillRule="evenodd"
               />
             </Svg>
@@ -182,10 +199,14 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, p
             clipPath={`url(#${clipId})`}
           />
         )}
+        {/* 확대한 만큼 위·왼쪽으로 당겨 가운데를 유지한다 —
+            그냥 키우면 우하단으로 쏠려 피사체가 화면 밖으로 밀린다 */}
         <SvgImage
           href={{uri: imageUri}}
-          width={STAMP_VIEWBOX}
-          height={STAMP_VIEWBOX}
+          x={(STAMP_VIEWBOX - STAMP_VIEWBOX * imageScale) / 2}
+          y={(STAMP_VIEWBOX - STAMP_VIEWBOX * imageScale) / 2}
+          width={STAMP_VIEWBOX * imageScale}
+          height={STAMP_VIEWBOX * imageScale}
           // 가장자리가 잘리므로 피사체가 가운데 크게 들어오도록 채운다
           preserveAspectRatio="xMidYMid slice"
           clipPath={`url(#${clipId})`}

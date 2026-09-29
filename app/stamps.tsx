@@ -32,7 +32,6 @@ import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconList, IconLayoutGrid, IconNoteFilled, IconEyeClosed} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
-import {recipePreviewParts} from '@utils/recipePreview';
 import type {Recipe} from '../src/types/recipe';
 
 /**
@@ -77,23 +76,6 @@ function HighlightPop({active, children}: {active: boolean; children: React.Reac
   return <Animated.View style={{transform: [{scale}]}}>{children}</Animated.View>;
 }
 
-/** 사진 없는 스탬프 안에 들어가는 내용 미리보기 — 카드와 같은 재료·과정 글 */
-function StampPreview({recipe, styles}: {recipe: Recipe; styles: ReturnType<typeof createStyles>}) {
-  // 글이 그림 역할이라 칸을 꽉 채워야 '내용이 있다'로 보인다.
-  // 토막을 한 줄로 이어 흘리고 넘치는 만큼은 잘라 낸다(중앙 정렬로
-  // 위아래를 띄우면 가운데만 덩그러니 남는다).
-  const text = recipePreviewParts(recipe)
-    .map(p => p.trim())
-    .filter(Boolean)
-    .join('  ');
-  if (!text) return null;
-  return (
-    <View style={styles.stampPreview} pointerEvents="none">
-      <Text style={styles.stampPreviewText}>{text}</Text>
-    </View>
-  );
-}
-
 /** 리스트 행의 스탬프 크기 */
 const LIST_STAMP = 36;
 
@@ -126,11 +108,11 @@ function SlotStamp({slot, size, styles, colors, highlight}: {
         imageUri={slot.recipe.imageUri}
         size={size}
         index={slot.order}
-        cutoutColor={colors['surface/dim']}>
-        {/* 사진이 없으면 카드와 같은 내용 미리보기를 모양 안에 넣는다.
-            리스트의 작은 칸에선 글이 뭉개지기만 해 넣지 않는다 */}
-        {size >= 64 ? <StampPreview recipe={slot.recipe} styles={styles} /> : null}
-      </Stamp>
+        cutoutColor={colors['surface/dim']}
+        // 사진이 없으면 내용 미리보기가 모양을 채운다.
+        // 리스트의 작은 칸에선 글이 뭉개지기만 해 넣지 않는다
+        recipe={size >= 64 ? slot.recipe : undefined}
+      />
     </HighlightPop>
   );
 }
@@ -596,23 +578,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     height: LIST_STAMP,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  stampPreview: {
-    ...StyleSheet.absoluteFillObject,
-    // 위에서부터 꽉 채운다 — 가운데 정렬하면 위아래가 비어 덩그러니 남는다.
-    // 모양 경계에 글자가 반쯤 물리는 건 오려 낸 질감이라 그대로 둔다.
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: Spacing.xs,
-    overflow: 'hidden',
-  },
-  stampPreviewText: {
-    ...Typography.label.small,
-    color: colors['foreground/on-surface-muted'],
-    textAlign: 'justify',
-    // 글이 그림 역할이라 촘촘하게 — 읽히기보다 "내용이 있다"가 보이면 된다
-    fontSize: 6,
-    lineHeight: 8,
-    opacity: 0.7,
   },
   listTitle: {
     ...Typography.body.medium,
