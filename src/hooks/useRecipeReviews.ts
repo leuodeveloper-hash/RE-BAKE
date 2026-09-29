@@ -81,5 +81,18 @@ export function useRecipeReviews() {
 
   const reviewOf = useCallback((recipeId: string) => reviews[recipeId], [reviews]);
 
-  return {reviews, saveReview, reviewOf, loaded};
+  /**
+   * 레시피 하나의 회고 전부 — 계정(여기)과 레시피 자체(Recipe.reviews)를 합친다.
+   *
+   * 회고를 계정으로 옮기기 전에 쓰인 것들이 레시피에 남아 있다. 읽는 쪽이 한 곳만
+   * 보면 그중 절반이 사라져 보이므로, 세는 것도 보여주는 것도 이 함수를 쓴다.
+   */
+  const reviewsOf = useCallback((recipe?: {id: string; reviews?: ReviewData[]}): ReviewData[] => {
+    if (!recipe) return [];
+    const own = (recipe.reviews ?? []).filter(rv => rv.evaluation?.trim() || rv.improvement?.trim());
+    const mine = reviews[recipe.id];
+    return mine ? [...own, mine] : own;
+  }, [reviews]);
+
+  return {reviews, saveReview, reviewOf, reviewsOf, loaded};
 }

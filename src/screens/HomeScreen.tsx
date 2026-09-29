@@ -152,7 +152,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   const [cookbookSheetRecipe, setCookbookSheetRecipe] = useState<Recipe | null>(null);
   const [madeSheetRecipe, setMadeSheetRecipe] = useState<Recipe | null>(null);
   const madeCount = useMadeCount();
-  const {saveReview} = useRecipeReviews();
+  const {saveReview, reviewsOf} = useRecipeReviews();
   const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
 
   // 홈 타이틀 드롭다운 = 그룹화 축 선택 (공통 모듈, 전체/레시피북/공법/회고)
@@ -206,7 +206,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
       }
       // 그룹 전체 회고 합산
       const prev = reviewsByGroup.get(r.remakeGroupId) ?? 0;
-      reviewsByGroup.set(r.remakeGroupId, prev + (r.reviews?.length ?? 0));
+      reviewsByGroup.set(r.remakeGroupId, prev + reviewsOf(r).length);
       // 최신 회차 추적
       const existing = latestByGroup.get(r.remakeGroupId);
       if (!existing) {
@@ -224,7 +224,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
       result.push({...recipe, reviewCount: totalReviews});
     }
     return result;
-  }, [recipes]);
+  }, [recipes, reviewsOf]);
 
   const filteredRecipes = useMemo(() => {
     let result = visibleRecipes;

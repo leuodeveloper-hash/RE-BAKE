@@ -9,6 +9,7 @@ import {SectionHeader} from '@components/SectionHeader';
 import {RecipeCard} from '@components/Recipe/RecipeCard';
 import {PackCanvas, CookbookCarousel, GroupExpandOverlay, SessionFlow, type SessionFlowItem, type PackBoardItem, type PackOriginRect} from '@components/PackBoard';
 import {Menu, type MenuItemData} from '@components/Menu';
+import {useRecipeReviews} from '@hooks/useRecipeReviews';
 import {Tabs} from '@components/Tabs';
 import {Dialog} from '@components/Dialog';
 import {Button} from '@components/Button';
@@ -97,6 +98,7 @@ type ViewMode = 'list' | 'pack';
 export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComingSoon, onDeleteCookbook, onCookbookPress, onMethodPress, onMethodGuidePress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress, availableAxes = DEFAULT_AXES, axisOverrides, showAddButton = true, bookCarousel = false, addAsOfficial = false, cookbooksAreOfficial = false, onDownloadPdf, onAddRecipeToCookbook, authorBadge, menuHeaderNode, onBack}: GroupScreenProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
+  const {reviewsOf} = useRecipeReviews();
   const colors = useColors();
   const COOKBOOK_MENU_ITEMS = useMemo(() => [
     {id: 'rename', label: t('group.edit'), icon: IconEdit},
@@ -266,7 +268,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
       const isUngrouped = cb.name === '레시피 북 없음';
       // 공통 헬퍼: 비었으면 빈 종이, 아니면 레시피 표지(사진/종이). 일러스트 이미지 안 씀.
       const cards = coverCards(cb.items, cb.name);
-      const reviewTotal = cb.items.reduce((sum, r) => sum + (r.reviewCount ?? r.reviews?.length ?? 0), 0);
+      const reviewTotal = cb.items.reduce((sum, r) => sum + reviewsOf(r).length, 0);
       return {
         id: `cb_${cb.name}`,
         title: cb.name,
@@ -288,7 +290,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
         onPress: (rect: PackOriginRect) => { setExpandedOrigin(rect); setExpandedMethod(cb.name); },
       };
     });
-  }, [cookbooks, cookbookColors, colors, cookbooksAreOfficial, exploreCookbookHiddenMap, t]);
+  }, [cookbooks, cookbookColors, colors, cookbooksAreOfficial, exploreCookbookHiddenMap, t, reviewsOf]);
 
   // 회고 노트 기준: 실제 작성된 회고가 있는 레시피만 (같은 remakeGroup은 회고 유무 합산 후 최신 회차 하나로 대표)
   const retrospectives = useMemo(() => {
@@ -296,7 +298,8 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
     const groupHasReview = new Map<string, boolean>();
     for (const r of recipes) {
       const groupKey = r.remakeGroupId ?? r.id;
-      const has = (r.reviews?.length ?? 0) > 0;
+      // 계정에 보관한 회고까지 센다 — 한쪽만 보면 회고 노트에서 빠진다
+      const has = reviewsOf(r).length > 0;
       groupHasReview.set(groupKey, (groupHasReview.get(groupKey) ?? false) || has);
     }
     // 회고가 있는 그룹만, 대표는 최신 회차
@@ -311,7 +314,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
       result.push(r);
     }
     return result;
-  }, [recipes]);
+  }, [recipes, reviewsOf]);
 
   // 회고 노트 팩: 회고들을 하나의 노트 카드에 담아 ‹ ›로 미리보기 페이징 (탭=회고 바텀시트 열기)
   const retrospectivePacks = useMemo<PackBoardItem[]>(() => {
@@ -358,11 +361,11 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
     }
     const stats = new Map<string, {totalReviews: number; totalSessions: number}>();
     for (const [key, group] of groupMap) {
-      const totalReviews = group.reduce((sum, r) => sum + (r.reviews?.length ?? 0), 0);
+      const totalReviews = group.reduce((sum, r) => sum + reviewsOf(r).length, 0);
       stats.set(key, {totalReviews, totalSessions: group.length});
     }
     return stats;
-  }, [recipes]);
+  }, [recipes, reviewsOf]);
 
   const exploreCookbookColorMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -612,7 +615,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
                                 <RecipeCard
                                   title={cookbook.name}
                                   cookbook={t('group.recipeCount', {count: cookbook.items.length})}
-                                  reviewCount={cookbook.items.reduce((sum, r) => sum + (r.reviews?.length ?? 0), 0)}
+                                  reviewCount={cookbook.items.reduce((sum, r) => sum + reviewsOf(r).length, 0)}
                                   layout="list"
                                   placeholderIcon={axisOverrides?.cookbook?.icon ?? IconBookFilled}
                                   placeholderIconColor={isUngrouped ? colors['foreground/on-surface-muted'] : colors[getColorVarKey(cookbookColors[cookbook.name] || DEFAULT_COOKBOOK_COLOR)]}
@@ -635,7 +638,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
                                 <RecipeCard
                                   title={cookbook.name}
                                   cookbook={t('group.recipeCount', {count: cookbook.items.length})}
-                                  reviewCount={cookbook.items.reduce((sum: number, r) => sum + (r.reviews?.length ?? 0), 0)}
+                                  reviewCount={cookbook.items.reduce((sum: number, r) => sum + reviewsOf(r).length, 0)}
                                   layout="list"
                                   placeholderIcon={IconExprolerBookFilled}
                                   placeholderIconColor={isExploreUngrouped ? colors['foreground/on-surface-muted'] : colors[getColorVarKey(ecColor)]}

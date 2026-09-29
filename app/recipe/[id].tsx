@@ -104,7 +104,7 @@ export default function RecipeDetailRoute() {
   }, [recipe, id, findRecipeById, exploreRecipes, router]);
 
   const madeCount = useMadeCount();
-  const {saveReview} = useRecipeReviews();
+  const {saveReview, reviewsOf} = useRecipeReviews();
   const isMyRecipe = recipes.some(r => r.id === id);
   const isExploreRecipe = !isMyRecipe && exploreRecipes.some(r => r.id === id);
   const alreadyImported = recipes.some(r => r.sourceId === id);
@@ -593,7 +593,8 @@ const handleDelete = useCallback(async () => {
         method={recipe.method}
         ratio={recipe.specificGravity}
         reviewCount={recipe.reviewCount}
-        reviews={recipe.reviews}
+        // 계정에 보관한 회고까지 합쳐서 넘긴다 — 한쪽만 보면 절반이 사라져 보인다
+        reviews={reviewsOf(recipe)}
         advice={recipe.advice}
         imageUri={recipe.imageUri}
         imageUris={recipe.imageUris}
