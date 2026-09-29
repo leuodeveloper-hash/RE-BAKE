@@ -89,9 +89,9 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
             stroke={colors['border/normal']}
             // viewBox가 24라 선 굵기·간격도 그 기준 — 얇으면 작은 칸에서 안 보인다
             strokeWidth={OUTLINE_STROKE}
-            // 선과 빈 칸을 같은 길이로 — 다르면 점선이 고르지 않아 보인다
+            // 각진 끝 — round면 양끝에 반원이 붙어 선이 strokeWidth만큼 길어진다
             strokeDasharray="1.8 1.8"
-            strokeLinecap="round"
+            strokeLinecap="butt"
           />
         </Svg>
       </View>
