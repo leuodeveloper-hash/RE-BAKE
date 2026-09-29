@@ -54,10 +54,9 @@ type StampAxis = 'cookbook' | 'date';
 const LIST_STAMP = 36;
 
 /** 그리드·리스트가 같은 그림을 쓴다 — 채운 칸은 스탬프, 빈 칸은 점 */
-function SlotStamp({slot, size, tilt, styles, highlight, outline}: {
+function SlotStamp({slot, size, styles, highlight, outline}: {
   slot: StampSlot;
   size: number;
-  tilt: number;
   styles: ReturnType<typeof createStyles>;
   /** 방금 찍은 칸 — 어디에 붙었는지 눈에 띄게 */
   highlight?: boolean;
@@ -66,7 +65,7 @@ function SlotStamp({slot, size, tilt, styles, highlight, outline}: {
 }) {
   if (!slot.madeAt) {
     // 아직 하나도 없으면 첫 칸만 점선으로 — 점만 늘어놓으면 너무 휑하다
-    if (outline) return <Stamp size={size} outline rotate={-4} />;
+    if (outline) return <Stamp size={size} outline />;
     return <View style={styles.emptyDot} />;
   }
   return (
@@ -77,7 +76,6 @@ function SlotStamp({slot, size, tilt, styles, highlight, outline}: {
           imageUri={slot.recipe.imageUri}
           size={size}
           index={slot.order}
-          rotate={-6}
           style={StyleSheet.absoluteFill}
         />
       )}
@@ -85,8 +83,6 @@ function SlotStamp({slot, size, tilt, styles, highlight, outline}: {
         imageUri={slot.recipe.imageUri}
         size={size}
         index={slot.order}
-        // 붙인 느낌 — 규칙적이면 인쇄물처럼 보여 살짝씩 다르게 준다
-        rotate={((tilt * 37) % 9) - 4}
       />
     </View>
   );
@@ -386,7 +382,7 @@ export default function StampsRoute() {
                           key={slot.recipe.id}
                           onPress={() => setSelected(slot)}
                           style={[styles.gridCell, {width: slotSize, height: slotSize}]}>
-                          <SlotStamp slot={slot} size={slotSize} tilt={i} styles={styles} highlight={slot.recipe.id === just} outline={section.done === 0 && i === 0} />
+                          <SlotStamp slot={slot} size={slotSize} styles={styles} highlight={slot.recipe.id === just} outline={section.done === 0 && i === 0} />
                         </Pressable>
                       ))}
                     </View>
@@ -398,7 +394,7 @@ export default function StampsRoute() {
                           onPress={() => setSelected(slot)}
                           style={styles.listRow}>
                           <View style={styles.listThumb}>
-                            <SlotStamp slot={slot} size={LIST_STAMP} tilt={i} styles={styles} highlight={slot.recipe.id === just} outline={section.done === 0 && i === 0} />
+                            <SlotStamp slot={slot} size={LIST_STAMP} styles={styles} highlight={slot.recipe.id === just} outline={section.done === 0 && i === 0} />
                           </View>
                           <Text
                             style={[styles.listTitle, !slot.madeAt && styles.listTitleMuted]}
