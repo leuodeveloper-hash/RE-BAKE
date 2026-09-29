@@ -183,7 +183,7 @@ export default function RecipeDetailRoute() {
       else openPlanSheet();
       return;
     }
-    savePhoto(uri).then(ok => { if (!ok) showSnackbar(t('photoSave.failed')); });
+    savePhoto(uri).then(ok => { if (!ok) showSnackbar(t('photoSave.failed'), {tone: 'error'}); });
   }, [tier, user, showSnackbar, t, openAuthSheet, openPlanSheet]);
 
   const handleEdit = useCallback((section?: string) => {
@@ -238,13 +238,13 @@ const handleDelete = useCallback(async () => {
                   deletedAt: deleteField(),
                 });
               } catch {
-                showSnackbar(t('id.restoreFailed'));
+                showSnackbar(t('id.restoreFailed'), {tone: 'error'});
               }
             },
           },
         });
       } catch {
-        showSnackbar(t('id.deleteFailed'));
+        showSnackbar(t('id.deleteFailed'), {tone: 'error'});
       }
     }
     if (router.canGoBack()) {
@@ -277,6 +277,7 @@ const handleDelete = useCallback(async () => {
     };
     setRecipes(prev => [...prev, copied]);
     showSnackbar(t('id.savedToMyRecipes'), {
+      tone: 'positive',
       label: t('id.goTo'),
       onPress: () => router.navigate('/'),
     });
@@ -321,7 +322,7 @@ const handleDelete = useCallback(async () => {
       newRecipe,
     ]);
 
-    showSnackbar(t('id.sessionAdded'));
+    showSnackbar(t('id.sessionAdded'), {tone: 'positive'});
     router.push(`/recipe/${newId}` as any);
   }, [recipe, setRecipes, showSnackbar, router, t, user, handle, displayName, avatarSeed]);
 
@@ -388,7 +389,7 @@ const handleDelete = useCallback(async () => {
     shareRecipe({
       id,
       title: recipe.title,
-      onCopied: () => showSnackbar(t('id.linkCopied')),
+      onCopied: () => showSnackbar(t('id.linkCopied'), {tone: 'positive'}),
       onError: msg => showSnackbar(msg),
     });
   }, [recipe, id, showSnackbar, t]);
@@ -466,9 +467,9 @@ const handleDelete = useCallback(async () => {
           : {authorId: user?.uid, authorHandle: handle ?? undefined, authorDisplayName: displayName ?? undefined, authorAvatarSeed: avatarSeed != null ? String(avatarSeed) : undefined}),
       };
       await setDoc(doc(db, 'explore_recipes', exploreId), strip(exploreRecipe));
-      showSnackbar(t('id.copiedToExplore'));
+      showSnackbar(t('id.copiedToExplore'), {tone: 'positive'});
     } catch {
-      showSnackbar(t('id.copyFailed'));
+      showSnackbar(t('id.copyFailed'), {tone: 'error'});
     }
   }, [recipe, showSnackbar, t, isAdmin, user, handle, avatarSeed]);
 
@@ -520,7 +521,7 @@ const handleDelete = useCallback(async () => {
       await setDoc(doc(db, 'submissions', submissionId), strip(submission));
       showSnackbar(t('id.submittedToExplore'));
     } catch {
-      showSnackbar(t('id.submitFailed'));
+      showSnackbar(t('id.submitFailed'), {tone: 'error'});
     }
   }, [recipe, user, handle, displayName, avatarSeed, showSnackbar, t]);
 
@@ -537,6 +538,7 @@ const handleDelete = useCallback(async () => {
     if (made) {
       router.push(`/stamps?just=${encodeURIComponent(id)}` as any);
       showSnackbar(t('home.marked'), {
+        tone: 'positive',
         label: t('home.undo'),
         onPress: () => setMade(id, false),
       });
@@ -563,7 +565,7 @@ const handleDelete = useCallback(async () => {
       showSnackbar(t('feedback.sent'));
     } catch (e) {
       console.warn('[feedback] 저장 실패:', e);
-      showSnackbar(t('feedback.failed'));
+      showSnackbar(t('feedback.failed'), {tone: 'error'});
     }
   }, [recipe, user?.uid, handle, showSnackbar, t]);
 
@@ -684,7 +686,7 @@ const handleDelete = useCallback(async () => {
                 await exploreReload();
               } catch (e: any) {
                 console.warn('[explore update] 실패 code=', e?.code, 'msg=', e?.message, e);
-                showSnackbar(t('id.updateFailed') + (e?.code ? ` (${e.code})` : ''));
+                showSnackbar(t('id.updateFailed') + (e?.code ? ` (${e.code})` : ''), {tone: 'error'});
               }
             })();
           }

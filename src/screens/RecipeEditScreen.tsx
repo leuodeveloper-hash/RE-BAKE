@@ -734,7 +734,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
         }]);
       }
       setSourceUrl(trimmed);
-      showSnackbar(t('recipeEdit.importSuccess'));
+      showSnackbar(t('recipeEdit.importSuccess'), {tone: 'positive'});
     } catch (e: any) {
       const code = e?.message ?? '';
       const key = code === 'NO_RECIPE_DATA' ? 'recipeEdit.importNoData'

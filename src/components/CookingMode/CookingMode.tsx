@@ -28,7 +28,7 @@ import {stableStringify} from '@utils/stableStringify';
 import {GlassContainer, Card, MAX_CONTENT_WIDTH, ContentMask} from '@components/Container';
 import {OptionTile} from '@components/OptionTile';
 import {BottomSheet, MadeConfirmSheet} from '@components/BottomSheet';
-import {Snackbar} from '@components/Snackbar';
+import {Snackbar, type SnackbarTone} from '@components/Snackbar';
 import {IconButton} from '@components/IconButton';
 import {Selector} from '@components/Selector';
 import {navPillStyle, RulerSlider, NavPillButton, FloatingNavBar} from '@components/Navigation';
@@ -266,9 +266,11 @@ export function CookingMode({
   const {t} = useTranslation();
 
   // 로컬 스낵바 (Modal 위에 표시)
-  const [localSnackbar, setLocalSnackbar] = useState<string | null>(null);
-  const showSnackbar = useCallback((message: string) => {
-    setLocalSnackbar(message);
+  // 요리모드는 네이티브 Modal 안이라 전역 스낵바가 가려진다 — 자체 스낵바를 띄운다.
+  // 전역과 같은 옵션(tone)을 받아 성격 표시도 같게 유지한다.
+  const [localSnackbar, setLocalSnackbar] = useState<{message: string; tone?: SnackbarTone} | null>(null);
+  const showSnackbar = useCallback((message: string, opts?: {tone?: SnackbarTone}) => {
+    setLocalSnackbar({message, tone: opts?.tone});
   }, []);
   const clearLocalSnackbar = useCallback(() => setLocalSnackbar(null), []);
   const {open: openAuthSheet} = useAuthSheet();
@@ -726,7 +728,7 @@ export function CookingMode({
     }
     savedSnapshotRef.current = snapshotEditCards(cards);
     setLastSavedAt(new Date());
-    showSnackbar(t('cookingMode.changesSaved'));
+    showSnackbar(t('cookingMode.changesSaved'), {tone: 'positive'});
   }, [onUpdate, computeIsDirty, stepGroups, ingredientGroups, showSnackbar, snapshotEditCards, editAdvice, advice, editAdvicePhotos, advicePhotos, t]);
 
   const exitEditing = useCallback(() => {
@@ -952,7 +954,7 @@ export function CookingMode({
       if (result.canceled || !result.assets[0]) return;
       const text = (await recognizeImageText(result.assets[0].uri)).trim();
       if (!text) {
-        showSnackbar(t('cookingMode.noTextFound'));
+        showSnackbar(t('cookingMode.noTextFound'), {tone: 'error'});
         return;
       }
       updateEditCards(prev => prev.map(c =>
@@ -960,11 +962,11 @@ export function CookingMode({
           ? {...c, description: c.description?.trim() ? `${c.description.trim()}\n${text}` : text}
           : c,
       ));
-      showSnackbar(t('cookingMode.textRecognized'));
+      showSnackbar(t('cookingMode.textRecognized'), {tone: 'positive'});
     } catch (e) {
       // eslint-disable-next-line no-console
       console.warn('CookingMode OCR failed', e);
-      showSnackbar(t('cookingMode.imageAnalysisFailed'));
+      showSnackbar(t('cookingMode.imageAnalysisFailed'), {tone: 'error'});
     } finally {
       setOcrBusy(false);
     }
@@ -1138,7 +1140,7 @@ export function CookingMode({
     if (result.canceled || result.assets.length === 0) return;
     const uris = await Promise.all(result.assets.map(a => getPersistentUri(a.uri, a.base64)));
     const ok = commitAdvicePhotos([...viewAdvicePhotos, ...uris].slice(0, MAX_PHOTOS));
-    showSnackbar(ok ? t('cookingMode.photoAdded') : t('cookingMode.photoAddFailed'));
+    showSnackbar(ok ? t('cookingMode.photoAdded') : t('cookingMode.photoAddFailed'), {tone: ok ? 'positive' : 'error'});
   }, [viewAdvicePhotos, commitAdvicePhotos, showSnackbar, t]);
 
   const removeAdvicePhotoView = useCallback((photoIndex: number) => {
@@ -1237,7 +1239,7 @@ export function CookingMode({
         setCurrentIndex(newIdx);
         scrollToIndex(newIdx);
       }
-      showSnackbar(t('cookingMode.stepDeleted'));
+      showSnackbar(t('cookingMode.stepDeleted'), {tone: 'positive'});
     }
   }, [displayCards, currentIndex, isEditing, updateEditCards, onUpdate, stepGroups, steps, scrollToIndex, showSnackbar, t]);
 
@@ -1305,14 +1307,14 @@ export function CookingMode({
         srcBase64 = undefined;
       } catch (e) {
         console.warn('영상 프레임 추출 실패:', e);
-        showSnackbar(t('cookingMode.videoFrameFailed'));
+        showSnackbar(t('cookingMode.videoFrameFailed'), {tone: 'error'});
         return;
       }
     }
     const uri = await getPersistentUri(srcUri, srcBase64);
     const newPhotos = [...(card.photos ?? []), {uri}].slice(0, MAX_PHOTOS);
     const ok = commitStepPhotos(card, newPhotos);
-    showSnackbar(ok ? t('cookingMode.photoAdded') : t('cookingMode.photoAddFailed'));
+    showSnackbar(ok ? t('cookingMode.photoAdded') : t('cookingMode.photoAddFailed'), {tone: ok ? 'positive' : 'error'});
   }, [commitStepPhotos, showSnackbar, t]);
 
   // 보기 모드에서 기존 사진 탭 → 교체 (onUpdate 경로로 실제 반영/저장)
@@ -1335,7 +1337,7 @@ export function CookingMode({
     const uri = await getPersistentUri(result.assets[0].uri, result.assets[0].base64);
     const newPhotos = (card.photos ?? []).map((p, i) => i === photoIndex ? {...p, uri} : p);
     const ok = commitStepPhotos(card, newPhotos);
-    showSnackbar(ok ? t('cookingMode.photoReplaced') : t('cookingMode.photoReplaceFailed'));
+    showSnackbar(ok ? t('cookingMode.photoReplaced') : t('cookingMode.photoReplaceFailed'), {tone: ok ? 'positive' : 'error'});
   }, [commitStepPhotos, showSnackbar, t]);
 
   // 스텝 사진 스택 — 뷰·편집 공통 렌더러(동일 경험). 큰 이미지 겹침 + 추가(+) 카드.
@@ -1378,7 +1380,7 @@ export function CookingMode({
       } else {
         const np = (item.photos ?? []).filter((_, k) => k !== i);
         const ok = commitStepPhotos(item, np);
-        showSnackbar(ok ? t('cookingMode.photoDeleted') : t('cookingMode.photoDeleteFailed'));
+        showSnackbar(ok ? t('cookingMode.photoDeleted') : t('cookingMode.photoDeleteFailed'), {tone: ok ? 'positive' : 'error'});
       }
     };
     return (
@@ -2185,7 +2187,8 @@ export function CookingMode({
         {/* 로컬 스낵바 (Modal 내부) */}
         <View style={styles.localSnackbar}>
           <Snackbar
-            message={localSnackbar ?? ''}
+            message={localSnackbar?.message ?? ''}
+            tone={localSnackbar?.tone}
             visible={!!localSnackbar}
             onClose={clearLocalSnackbar}
           />
@@ -2211,7 +2214,7 @@ export function CookingMode({
             } else {
               const np = (card.photos ?? []).filter((_, k) => k !== index);
               const ok = commitStepPhotos(card, np);
-              showSnackbar(ok ? t('cookingMode.photoDeleted') : t('cookingMode.photoDeleteFailed'));
+              showSnackbar(ok ? t('cookingMode.photoDeleted') : t('cookingMode.photoDeleteFailed'), {tone: ok ? 'positive' : 'error'});
             }
           };
           return (

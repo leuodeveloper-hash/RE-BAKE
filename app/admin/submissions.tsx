@@ -45,7 +45,7 @@ export default function AdminSubmissionsRoute() {
       const snap = await getDocs(q);
       setItems(snap.docs.map(d => ({...(d.data() as Submission), id: d.id})));
     } catch {
-      showSnackbar(t('adminSubmissions.loadFailed'));
+      showSnackbar(t('adminSubmissions.loadFailed'), {tone: 'error'});
     } finally {
       setLoading(false);
     }
@@ -67,7 +67,7 @@ export default function AdminSubmissionsRoute() {
       setItems(prev => prev.filter(x => x.id !== s.id));
       showSnackbar(t('adminSubmissions.approved'));
     } catch {
-      showSnackbar(t('adminSubmissions.actionFailed'));
+      showSnackbar(t('adminSubmissions.actionFailed'), {tone: 'error'});
     } finally {
       setBusyId(null);
     }
@@ -80,7 +80,7 @@ export default function AdminSubmissionsRoute() {
       setItems(prev => prev.filter(x => x.id !== s.id));
       showSnackbar(t('adminSubmissions.rejected'));
     } catch {
-      showSnackbar(t('adminSubmissions.actionFailed'));
+      showSnackbar(t('adminSubmissions.actionFailed'), {tone: 'error'});
     } finally {
       setBusyId(null);
     }

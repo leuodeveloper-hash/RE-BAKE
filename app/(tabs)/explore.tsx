@@ -60,6 +60,7 @@ export default function ExploreRoute() {
     };
     setRecipes(prev => [...prev, copied]);
     showSnackbar(t('explore.savedToMyRecipes'), {
+      tone: 'positive',
       label: t('explore.goTo'),
       onPress: () => router.navigate('/'),
     });
@@ -95,13 +96,13 @@ export default function ExploreRoute() {
                 deletedAt: deleteField(),
               });
             } catch {
-              showSnackbar(t('explore.restoreFailed'));
+              showSnackbar(t('explore.restoreFailed'), {tone: 'error'});
             }
           },
         },
       });
     } catch {
-      showSnackbar(t('explore.deleteFailed'));
+      showSnackbar(t('explore.deleteFailed'), {tone: 'error'});
     }
   }, [showSnackbar, t]);
 
@@ -116,7 +117,7 @@ export default function ExploreRoute() {
       showSnackbar(t('explore.officialCookbookDeleted', {name}));
       await exploreReload();
     } catch {
-      showSnackbar(t('explore.deleteFailed'));
+      showSnackbar(t('explore.deleteFailed'), {tone: 'error'});
     }
   }, [showSnackbar, exploreReload, t]);
 

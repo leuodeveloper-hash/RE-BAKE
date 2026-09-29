@@ -139,19 +139,19 @@ export function RecipeInputFloatingBar({
     try {
       const text = await recognizeImageText(uri);
       if (!text || !text.trim()) {
-        showSnackbar(t('recipeInputFloatingBar.noTextFound'));
+        showSnackbar(t('recipeInputFloatingBar.noTextFound'), {tone: 'error'});
         return;
       }
       const parsed = parseRecognizedText(text, capturedField);
       if (typeof parsed === 'string' ? !parsed.trim() : parsed.length === 0) {
-        showSnackbar(t('recipeInputFloatingBar.noTextFound'));
+        showSnackbar(t('recipeInputFloatingBar.noTextFound'), {tone: 'error'});
         return;
       }
       onRecognized(parsed, capturedField);
     } catch (err) {
       // eslint-disable-next-line no-console
       console.warn('OCR failed', err);
-      showSnackbar(t('recipeInputFloatingBar.ocrFailed'));
+      showSnackbar(t('recipeInputFloatingBar.ocrFailed'), {tone: 'error'});
     } finally {
       onOcrEnd?.();
     }
@@ -207,7 +207,7 @@ export function RecipeInputFloatingBar({
     } catch (err) {
       // eslint-disable-next-line no-console
       console.warn('Image pick failed', err);
-      showSnackbar(t('recipeInputFloatingBar.imageLoadFailed'));
+      showSnackbar(t('recipeInputFloatingBar.imageLoadFailed'), {tone: 'error'});
     } finally {
       setBusy(false);
       // 크롭이 뜨지 않았으면(취소/직접 인식/에러) 여기서 유지 해제

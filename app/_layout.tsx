@@ -336,7 +336,7 @@ function NavigationContent() {
       await confirmMigration();
       showSnackbar(t('layout.uploadedToAccount'));
     } catch {
-      showSnackbar(t('layout.uploadFailed'));
+      showSnackbar(t('layout.uploadFailed'), {tone: 'error'});
     } finally {
       setMigrating(false);
     }
@@ -437,7 +437,7 @@ function NavigationContent() {
         showSnackbar(t('layout.officialCookbookUpdated', {name}));
       } catch (e) {
         console.error('공식 레시피 북 수정 실패:', e);
-        showSnackbar(t('layout.officialCookbookUpdateFailed'));
+        showSnackbar(t('layout.officialCookbookUpdateFailed'), {tone: 'error'});
       }
     } else if (cookbookEditTarget) {
       if (name !== cookbookEditTarget.name) {
@@ -456,10 +456,10 @@ function NavigationContent() {
           createdAt: new Date().toISOString(),
         });
         await exploreReload();
-        showSnackbar(t('layout.officialCookbookAdded', {name}));
+        showSnackbar(t('layout.officialCookbookAdded', {name}), {tone: 'positive'});
       } catch (e) {
         console.error('공식 레시피 북 추가 실패:', e);
-        showSnackbar(t('layout.officialCookbookAddFailed'));
+        showSnackbar(t('layout.officialCookbookAddFailed'), {tone: 'error'});
       }
     } else {
       const exists = recipes.some(r => r.cookbook === name);
@@ -467,7 +467,7 @@ function NavigationContent() {
         showSnackbar(t('layout.cookbookAlreadyExists'));
       } else {
         setCookbookColor(name, color);
-        showSnackbar(t('layout.cookbookAdded', {name}));
+        showSnackbar(t('layout.cookbookAdded', {name}), {tone: 'positive'});
       }
     }
     onCookbookCreatedRef.current?.(name, color);
@@ -513,6 +513,7 @@ function NavigationContent() {
           message={snackbar?.message ?? ''}
           action={snackbar?.action}
           icon={snackbar?.icon}
+          tone={snackbar?.tone}
           visible={!!snackbar}
           onClose={clearSnackbar}
         />

@@ -1,5 +1,6 @@
 import React, {createContext, useCallback, useContext, useMemo, useState} from 'react';
 import {SvgProps} from 'react-native-svg';
+import type {SnackbarTone} from '@components/Snackbar/Snackbar';
 
 interface SnackbarAction {
   label: string;
@@ -9,12 +10,15 @@ interface SnackbarAction {
 interface SnackbarOptions {
   action?: SnackbarAction;
   icon?: React.FC<SvgProps>;
+  /** 알림의 성격 — 아이콘·색이 바뀐다 (기본 info) */
+  tone?: SnackbarTone;
 }
 
 interface SnackbarState {
   message: string;
   action?: SnackbarAction;
   icon?: React.FC<SvgProps>;
+  tone?: SnackbarTone;
 }
 
 interface SnackbarContextValue {
@@ -32,9 +36,9 @@ export function SnackbarProvider({children}: {children: React.ReactNode}) {
     if (options && 'onPress' in options && 'label' in options && !('action' in options)) {
       // Legacy: showSnackbar('msg', {label, onPress})
       setSnackbar({message, action: options as SnackbarAction});
-    } else if (options && ('action' in options || 'icon' in options)) {
+    } else if (options && ('action' in options || 'icon' in options || 'tone' in options)) {
       const opts = options as SnackbarOptions;
-      setSnackbar({message, action: opts.action, icon: opts.icon});
+      setSnackbar({message, action: opts.action, icon: opts.icon, tone: opts.tone});
     } else {
       setSnackbar({message});
     }

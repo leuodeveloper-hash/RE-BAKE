@@ -283,6 +283,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
     setMade(target.id, true);
     router.push(`/stamps?just=${encodeURIComponent(target.id)}` as any);
     showSnackbar(t('home.marked'), {
+      tone: 'positive',
       label: t('home.undo'),
       onPress: () => setMade(target.id, false),
     });
@@ -293,7 +294,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
       // pinnedAt에 시각을 남긴다 — 여러 개를 고정했을 때 핀한 순서대로 위에 쌓인다
       const pinnedAt = id === 'pin' ? new Date().toISOString() : undefined;
       setRecipes(prev => prev.map(r => (r.id === recipe.id ? {...r, pinnedAt} : r)));
-      showSnackbar(t(id === 'pin' ? 'home.pinned' : 'home.unpinned'));
+      showSnackbar(t(id === 'pin' ? 'home.pinned' : 'home.unpinned'), {tone: 'positive'});
       return;
     }
     if (id === 'unmade') {
@@ -321,12 +322,12 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
     }
     if (id === 'remake') {
       if (!canAddRecipe()) {
-        showSnackbar(t('home.maxRecipesLimit'));
+        showSnackbar(t('home.maxRecipesLimit'), {tone: 'error'});
         return;
       }
       const {total} = parseSession(recipe.session);
       if (total >= 5) {
-        showSnackbar(t('home.maxRemakeLimit'));
+        showSnackbar(t('home.maxRemakeLimit'), {tone: 'error'});
         return;
       }
       const newTotal = total + 1;
@@ -355,7 +356,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
         }),
         newRecipe,
       ]);
-      showSnackbar(t('home.newSessionAdded'));
+      showSnackbar(t('home.newSessionAdded'), {tone: 'positive'});
       router.push(`/recipe/${newId}` as any);
     } else if (id === 'edit') {
       router.push(`/recipe/edit/${recipe.id}`);
@@ -426,16 +427,18 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
       // 등급별 안내 — 게스트는 로그인, 무료는 한도 안내, Pro는 문의로 유도
       if (isGuest) {
         showSnackbar(t('home.guestRecipeLimit'), {
+          tone: 'error',
           label: t('auth.signIn'),
           onPress: () => openAuthSheet(),
         });
       } else if (isPro) {
         showSnackbar(t('home.proRecipeLimit'), {
+          tone: 'error',
           label: t('home.contact'),
           onPress: () => { Linking.openURL(CONTACT_URL).catch(() => {}); },
         });
       } else {
-        showSnackbar(t('home.maxRecipesLimit'));
+        showSnackbar(t('home.maxRecipesLimit'), {tone: 'error'});
       }
       return;
     }
@@ -496,7 +499,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
         onRefresh={handleGroupRefresh}
         onRecipePress={handleGroupRecipePress}
         onAddRecipeToCookbook={(cookbook) => {
-          if (!canAddRecipe()) { showSnackbar(t('home.maxRecipesLimit')); return; }
+          if (!canAddRecipe()) { showSnackbar(t('home.maxRecipesLimit'), {tone: 'error'}); return; }
           router.push(`/recipe/edit?cookbook=${encodeURIComponent(cookbook)}` as any);
         }}
         bookCarousel
@@ -554,7 +557,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
               actionLabel={t('home.addRecipe')}
               onAction={() => {
                 if (!canAddRecipe()) {
-                  showSnackbar(t('home.maxRecipesLimit'));
+                  showSnackbar(t('home.maxRecipesLimit'), {tone: 'error'});
                   return;
                 }
                 router.push(`/recipe/edit?cookbook=${encodeURIComponent(selectedCookbook)}` as any);

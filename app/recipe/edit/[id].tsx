@@ -126,7 +126,7 @@ export default function RecipeEditRoute() {
         await reloadExplore();
       } catch (e: any) {
         console.error('Explore recipe save failed:', e);
-        showSnackbar(t('id.saveFailed', {message: e?.message ?? e}));
+        showSnackbar(t('id.saveFailed', {message: e?.message ?? e}), {tone: 'error'});
         return;
       }
     } else if (isMyRecipe) {

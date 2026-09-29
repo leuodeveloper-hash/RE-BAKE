@@ -222,7 +222,7 @@ export function ExploreScreen({
   const handleCardMenuSelect = useCallback((id: string, recipe: Recipe) => {
     if (id === 'pin' || id === 'unpin') {
       togglePin(recipe.id);
-      showSnackbar(t(id === 'pin' ? 'home.pinned' : 'home.unpinned'));
+      showSnackbar(t(id === 'pin' ? 'home.pinned' : 'home.unpinned'), {tone: 'positive'});
       return;
     }
     if (id === 'save') {

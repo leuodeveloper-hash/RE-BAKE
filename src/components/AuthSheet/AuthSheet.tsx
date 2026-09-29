@@ -58,7 +58,7 @@ export function AuthSheet({visible, onClose, onSuccess}: AuthSheetProps) {
 
   const handleAuth = useCallback(async () => {
     if (!email.trim() || !password.trim()) {
-      showSnackbar(t('auth.enterEmailPassword'));
+      showSnackbar(t('auth.enterEmailPassword'), {tone: 'error'});
       return;
     }
     setAuthLoading(true);
@@ -68,7 +68,7 @@ export function AuthSheet({visible, onClose, onSuccess}: AuthSheetProps) {
       } else {
         await signUp(email.trim(), password);
       }
-      showSnackbar(isLoginMode ? t('auth.loginSuccess') : t('auth.signupSuccess'));
+      showSnackbar(isLoginMode ? t('auth.loginSuccess') : t('auth.signupSuccess'), {tone: 'positive'});
       handleSuccess();
     } catch (err: any) {
       const code = err?.code;
@@ -145,11 +145,11 @@ export function AuthSheet({visible, onClose, onSuccess}: AuthSheetProps) {
               onPress={async () => {
                 try {
                   await signInWithGoogle();
-                  showSnackbar(t('auth.loginSuccess'));
+                  showSnackbar(t('auth.loginSuccess'), {tone: 'positive'});
                   handleSuccess();
                 } catch (err: any) {
                   if (err?.code !== 'auth/popup-closed-by-user') {
-                    showSnackbar(t('auth.googleLoginFailed'));
+                    showSnackbar(t('auth.googleLoginFailed'), {tone: 'error'});
                   }
                 }
               }}

@@ -110,13 +110,13 @@ export default function RecipeNewRoute() {
         const {imageSource, ...rest} = newRecipe;
         const serializable = stripUndefined(rest);
         await setDoc(doc(db, 'explore_recipes', id), serializable);
-        showSnackbar(t('edit.recipeAddedToExplore'));
+        showSnackbar(t('edit.recipeAddedToExplore'), {tone: 'positive'});
       } catch {
-        showSnackbar(t('edit.saveFailed'));
+        showSnackbar(t('edit.saveFailed'), {tone: 'error'});
       }
     } else {
       setRecipes(prev => [...prev, newRecipe]);
-      showSnackbar(t('edit.recipeSaved'));
+      showSnackbar(t('edit.recipeSaved'), {tone: 'positive'});
     }
     router.back();
   }, [isExploreTarget, setRecipes, showSnackbar, router, t]);

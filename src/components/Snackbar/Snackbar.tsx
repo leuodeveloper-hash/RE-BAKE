@@ -5,7 +5,7 @@ import {Card} from '@components/Container/Card';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {Button} from '@components/Button/Button';
 import {IconButton} from '@components/IconButton';
-import {IconClose, IconCircleInfoFilled1} from '@components/Icon/IconIndex';
+import {IconClose, IconCircleInfoFilled1, IconCircleCheckFilled, IconCircleAlertFilled} from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors, useTheme} from '@contexts/ThemeContext';
 import type {SemanticColors} from '@constants/tokens';
@@ -15,8 +15,23 @@ import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 const ANIMATION_DURATION = 200;
 const AUTO_DISMISS_DELAY = 3000;
 
+/**
+ * 알림의 성격 — 잘 됐는지(positive) 잘못됐는지(error) 단순 안내인지(info).
+ * 아이콘·색이 함께 바뀐다. 색만 바꾸면 색맹인 사람에게 구분이 사라진다.
+ */
+export type SnackbarTone = 'info' | 'positive' | 'error';
+
+const TONES: Record<SnackbarTone, {icon: React.FC<SvgProps>; color: keyof SemanticColors}> = {
+  info: {icon: IconCircleInfoFilled1, color: 'foreground/on-surface-muted'},
+  positive: {icon: IconCircleCheckFilled, color: 'custom/green'},
+  error: {icon: IconCircleAlertFilled, color: 'custom/red'},
+};
+
 export interface SnackbarProps {
   message: string;
+  /** 알림의 성격 — 아이콘과 색이 따라 바뀐다 (기본: info) */
+  tone?: SnackbarTone;
+  /** 톤이 주는 아이콘을 덮어쓸 때만 */
   icon?: React.FC<SvgProps>;
   action?: {label: string; onPress: () => void};
   onClose?: () => void;
@@ -24,7 +39,7 @@ export interface SnackbarProps {
   style?: ViewStyle;
 }
 
-export function Snackbar({message, icon = IconCircleInfoFilled1, action, onClose, visible = false, style}: SnackbarProps) {
+export function Snackbar({message, tone = 'info', icon, action, onClose, visible = false, style}: SnackbarProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const {elevation} = useTheme();
@@ -64,7 +79,7 @@ export function Snackbar({message, icon = IconCircleInfoFilled1, action, onClose
   return (
     <Animated.View style={{opacity, transform: [{translateY}]}} pointerEvents={visible ? 'auto' : 'none'}>
       <Card style={[styles.container, elevation['4'], style]}>
-        <AppIcon icon={icon} size="sm" color={colors['foreground/on-surface-muted']} />
+        <AppIcon icon={icon ?? TONES[tone].icon} size="sm" color={colors[TONES[tone].color]} />
         <Text style={styles.message}>{message}</Text>
         {(action || onClose) && (
           <View style={styles.actions}>

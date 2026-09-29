@@ -96,8 +96,8 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
 
   // 북 공유 — 공식 북은 이름 기반 링크, 개인 북은 스냅샷 업로드 후 링크. (링크 복사 시 스낵바)
   const handleShareCookbook = useCallback(() => {
-    const onCopied = () => showSnackbar(t('groupExpandOverlay.linkCopied'));
-    const onError = () => showSnackbar(t('groupExpandOverlay.shareFailed'));
+    const onCopied = () => showSnackbar(t('groupExpandOverlay.linkCopied'), {tone: 'positive'});
+    const onError = () => showSnackbar(t('groupExpandOverlay.shareFailed'), {tone: 'error'});
     if (activeIsExplore) {
       shareOfficialCookbook({name: active, onCopied, onError});
     } else {

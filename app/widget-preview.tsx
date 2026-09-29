@@ -48,22 +48,22 @@ export default function WidgetPreviewRoute() {
 
   const handlePreview = useCallback((kind: WidgetPreviewCase) => {
     if (Platform.OS !== 'ios') {
-      showSnackbar(t('widgetPreview.iosOnly'));
+      showSnackbar(t('widgetPreview.iosOnly'), {tone: 'error'});
       return;
     }
     previewExamWidget(kind, discipline);
     setActive(kind);
-    showSnackbar(t('widgetPreview.applied'));
+    showSnackbar(t('widgetPreview.applied'), {tone: 'positive'});
   }, [showSnackbar, t, discipline]);
 
   const handleRestore = useCallback(async () => {
     if (Platform.OS !== 'ios') {
-      showSnackbar(t('widgetPreview.iosOnly'));
+      showSnackbar(t('widgetPreview.iosOnly'), {tone: 'error'});
       return;
     }
     await restoreExamWidget();
     setActive(null);
-    showSnackbar(t('widgetPreview.restored'));
+    showSnackbar(t('widgetPreview.restored'), {tone: 'positive'});
   }, [showSnackbar, t]);
 
   return (
