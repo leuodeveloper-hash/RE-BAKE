@@ -167,7 +167,7 @@ export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom
           {/* 썸넬 중앙 — 사진이 있으면 스탬프 모양으로 오려낸다.
               모양은 제목으로 정해 북마다 다르되 매번 같게 한다(랜덤이면 다시 그릴 때 바뀐다) */}
           {typeof shown[0].imageUrl === 'string' && shown[0].imageUrl ? (
-            <Stamp imageUri={shown[0].imageUrl} size={BOOK_IMG} index={shapeIndexOf(title)} />
+            <Stamp imageUri={shown[0].imageUrl} size={BOOK_IMG} index={shapeIndexOf(title)} padding={0} />
           ) : (
             <StackedThumbnail
               size={BOOK_IMG}

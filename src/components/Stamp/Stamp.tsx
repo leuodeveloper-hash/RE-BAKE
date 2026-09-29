@@ -23,6 +23,11 @@ export interface StampProps {
   /** 살짝 기울임(도). 0이면 반듯하게 */
   rotate?: number;
   /**
+   * 안쪽 여백 — 칸에 붙어 서지 않도록 기본 8.
+   * 표지처럼 이미 여백이 있는 자리에서는 0을 줘 그림을 꽉 채운다.
+   */
+  padding?: number;
+  /**
    * 아직 채우지 않은 자리 — 사진 대신 점선 윤곽만 그린다.
    * "여기에 이런 게 붙는다"를 알려주는 용도.
    */
@@ -39,7 +44,7 @@ export interface StampProps {
  * 후자는 RN Web의 View가 비표준 스타일을 버려 마스크가 걸리지 않는다.
  * SVG clipPath는 네이티브·웹이 같은 구현을 쓴다.
  */
-export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, style}: StampProps) {
+export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, padding = INNER_PADDING, style}: StampProps) {
   const colors = useColors();
   const d = stampShapeAt(index);
   const clipId = `stamp-clip-${index}`;
@@ -65,12 +70,12 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
 
   const wrapStyle: StyleProp<ViewStyle> = [
     // 안쪽 여백 — 칸 크기는 그대로 두고 스탬프만 작게 그려 서로 붙지 않게
-    {width: size, height: size, padding: INNER_PADDING, alignItems: 'center', justifyContent: 'center'},
+    {width: size, height: size, padding, alignItems: 'center', justifyContent: 'center'},
     rotate !== 0 && {transform: [{rotate: `${rotate}deg`}]},
     style,
   ];
   // 여백을 뺀 실제 그림 크기
-  const inner = Math.max(0, size - INNER_PADDING * 2);
+  const inner = Math.max(0, size - padding * 2);
 
   if (outline) {
     return (
