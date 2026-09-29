@@ -7,6 +7,7 @@ import {ContentContainer} from '@components/Container';
 import {InlineBanner} from '@components/InlineBanner';
 import {EmptyState} from '@components/EmptyState';
 import {Menu} from '@components/Menu';
+import {SectionHeader} from '@components/SectionHeader';
 import {ReviewDialog} from '@components/Dialog';
 import {Stamp} from '@components/Stamp';
 import {StampDetailSheet} from '@components/BottomSheet';
@@ -24,7 +25,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconChevronRight, IconList, IconLayoutGrid, IconNoteFilled} from '@components/Icon/IconIndex';
+import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconList, IconLayoutGrid, IconNoteFilled} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import type {Recipe} from '../src/types/recipe';
 
@@ -54,9 +55,6 @@ interface StampSlot {
 }
 
 type StampAxis = 'cookbook' | 'date';
-
-/** 진도 바 너비 */
-const PROGRESS_WIDTH = 64;
 
 /** 리스트 행의 스탬프 크기 */
 const LIST_STAMP = 36;
@@ -366,43 +364,23 @@ export default function StampsRoute() {
 
               {sections.map(section => (
                 <View key={section.key} style={styles.section}>
-                  <Pressable
-                    style={styles.sectionHeader}
-                    disabled={axis !== 'cookbook'}
-                    onPress={() => {
+                  <SectionHeader
+                    title={section.title}
+                    leadingIcon={
+                      axis !== 'cookbook' ? undefined
+                        // 공식과 내 레시피북은 아이콘이 다르다(둘러보기와 같은 기준)
+                        : section.official ? IconExprolerBookFilled : IconBookFilled
+                    }
+                    leadingIconColor={bookColor(section.key)}
+                    progress={{done: section.done, total: section.total}}
+                    onPress={axis !== 'cookbook' ? undefined : () => {
                       // 둘러보기는 쿼리 파라미터를 받지 않는다 — 선택 상태를 컨텍스트에
                       // 넣고 이동해야 그 레시피북이 펼쳐진 채로 열린다
                       setSelectedExploreCookbook(section.key);
                       router.push('/(tabs)/explore' as any);
-                    }}>
-                    {axis === 'cookbook' && (
-                      // 공식 레시피북과 내 레시피북은 아이콘이 다르다(둘러보기와 같은 기준).
-                      // 색은 그 북에 부여된 대표 색 — 목록·그룹 화면과 이어진다.
-                      section.official ? (
-                        <IconExprolerBookFilled width={20} height={20} color={bookColor(section.key)} />
-                      ) : (
-                        <IconBookFilled width={20} height={20} color={bookColor(section.key)} />
-                      )
-                    )}
-                    <Text style={styles.sectionTitle}>{section.title}</Text>
-                    {section.total > 0 && (
-                      <>
-                        {/* 진도 바 — 숫자만으로는 얼마나 남았는지 한눈에 안 온다 */}
-                        <View style={styles.progressTrack}>
-                          <View
-                            style={[
-                              styles.progressFill,
-                              {width: `${Math.round((section.done / section.total) * 100)}%`},
-                            ]}
-                          />
-                        </View>
-                        <Text style={styles.sectionProgress}>
-                          {section.done}/{section.total}
-                        </Text>
-                        <IconChevronRight width={16} height={16} color={styles.sectionProgress.color as string} />
-                      </>
-                    )}
-                  </Pressable>
+                    }}
+                    style={styles.sectionHeader}
+                  />
 
                   {layout === 'grid' ? (
                     <View style={styles.grid}>
@@ -475,30 +453,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   banner: {marginBottom: Spacing.lg},
   section: {marginBottom: Spacing.xl},
   sectionHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.sm,
-    marginBottom: Spacing.smd,
-  },
-  sectionTitle: {
-    ...Typography.label.large,
-    color: colors['foreground/on-surface'],
-  },
-  progressTrack: {
-    width: PROGRESS_WIDTH,
-    height: 6,
-    borderRadius: Radius['radius-full'],
-    backgroundColor: colors['fill/faint'],
-    overflow: 'hidden',
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: Radius['radius-full'],
-    backgroundColor: colors['foreground/on-surface-muted'],
-  },
-  sectionProgress: {
-    ...Typography.label.large,
-    color: colors['foreground/on-surface-muted'],
+    // 공통 SectionHeader의 좌우 여백은 목록과 맞추기 위해 0으로
+    paddingHorizontal: 0,
+    marginBottom: Spacing.xs,
   },
   grid: {
     flexDirection: 'row',
