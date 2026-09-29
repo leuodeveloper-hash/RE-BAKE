@@ -9,6 +9,7 @@ import {
   writeBatch,
   deleteDoc,
   setDoc,
+  enableNetwork,
 } from 'firebase/firestore';
 import {db} from '@config/firebase';
 import {useAuth} from '@contexts/AuthContext';
@@ -205,6 +206,9 @@ async function syncToFirestore(uid: string, recipes: Recipe[]) {
   // writeBatch가 웹에서 응답 없이 매달린다(같은 Firestore인데 setDoc은 된다).
   // 레시피 수가 많지 않으므로 문서별 setDoc으로 쓴다 — 한 번에 묶이지 않는 대신
   // 어느 문서에서 막히는지도 드러난다.
+  // 쓰기가 서버까지 갔는지 확인한다 — SDK가 오프라인으로 판단하면 setDoc은
+  // 로컬 캐시에만 쓰고 곧바로 resolve해 "성공"처럼 보인다(서버는 그대로).
+  await enableNetwork(db).catch(() => {});
   await Promise.race([
     Promise.all(writes.map(w => setDoc(doc(colRef, w.id), w.data))),
     new Promise((_, reject) =>
