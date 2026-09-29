@@ -82,15 +82,13 @@ export function StampDetailSheet({
     <BottomSheet visible={visible} onClose={onClose}>
       <View style={styles.body}>
         <View style={styles.stampWrap}>
-          {/* 안 만든 칸은 흐리게 — 채우면 이렇게 된다는 미리보기 */}
-          <View style={made ? undefined : styles.dimmed}>
-            <Stamp
-              imageUri={recipe?.imageUri}
-              size={STAMP_SIZE}
-              index={stampIndex}
-              rotate={-4}
-            />
-          </View>
+          {/* 아직 안 만든 칸도 찍었을 때와 같게 보여준다 — 무엇이 채워지는지 알려준다 */}
+          <Stamp
+            imageUri={recipe?.imageUri}
+            size={STAMP_SIZE}
+            index={stampIndex}
+            rotate={-4}
+          />
         </View>
 
         <Text style={styles.title} numberOfLines={2}>{recipe?.title ?? ''}</Text>
@@ -134,7 +132,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingTop: Spacing.sm,
     paddingBottom: Spacing.lg,
   },
-  dimmed: {opacity: 0.35},
   title: {
     ...Typography.title.medium,
     color: colors['foreground/on-surface'],
