@@ -163,7 +163,14 @@ async function syncToFirestore(uid: string, recipes: Recipe[]) {
   const colRef = collection(db, 'user_recipes', uid, 'recipes');
   const batch = writeBatch(db);
   for (const recipe of recipes) {
-    batch.set(doc(colRef, recipe.id), stripUndefined(recipe));
+    const data = stripUndefined(recipe);
+    // 웹에서 고른 사진은 data: URL(base64)이라 문서가 1MB를 넘으면 Firestore가
+    // invalid-argument로 거부한다 — 어느 레시피가 문제인지 알려준다
+    const size = JSON.stringify(data).length;
+    if (size > 900_000) {
+      throw Object.assign(new Error(`"${recipe.title}"이(가) 너무 큽니다(${Math.round(size / 1024)}KB). 사진을 줄여주세요.`), {code: 'too-large'});
+    }
+    batch.set(doc(colRef, recipe.id), data);
   }
   await batch.commit();
   // 동기화한 기기 정보 기록
