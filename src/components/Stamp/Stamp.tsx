@@ -37,6 +37,11 @@ export interface StampProps {
    * imageUri가 있으면 무시된다.
    */
   children?: React.ReactNode;
+  /**
+   * 모양 바깥을 덮을 색 — children을 오려 낼 때 쓴다.
+   * 칸이 놓인 배경과 같아야 파낸 것처럼 보인다(기본: 화면 배경).
+   */
+  cutoutColor?: string;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -49,7 +54,7 @@ export interface StampProps {
  * 후자는 RN Web의 View가 비표준 스타일을 버려 마스크가 걸리지 않는다.
  * SVG clipPath는 네이티브·웹이 같은 구현을 쓴다.
  */
-export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, padding = INNER_PADDING, children, style}: StampProps) {
+export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, padding = INNER_PADDING, children, cutoutColor, style}: StampProps) {
   const colors = useColors();
   const d = stampShapeAt(index);
   /**
@@ -122,17 +127,18 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, p
         <View style={wrapStyle}>
           <View style={[{width: inner, height: inner}, styles.clipBox]}>
             <View style={[StyleSheet.absoluteFill, {backgroundColor: colors['fill/faint']}]} />
-            {children}
+            <View style={StyleSheet.absoluteFill} pointerEvents="none">{children}</View>
             <Svg
               style={StyleSheet.absoluteFill}
               width={inner}
               height={inner}
               viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}
               pointerEvents="none">
-              {/* evenodd: 바깥 사각형 − 모양 = 모양 밖만 칠해진다 */}
+              {/* 바깥 사각형 − 모양 = 모양 밖만 칠해진다(evenodd).
+                  배경과 같은 색이라야 파낸 것처럼 보인다 — 칸 배경색을 받는다. */}
               <Path
                 d={`M0 0H${STAMP_VIEWBOX}V${STAMP_VIEWBOX}H0Z ${d}`}
-                fill={colors['background/normal']}
+                fill={cutoutColor ?? colors['background/normal']}
                 fillRule="evenodd"
               />
             </Svg>

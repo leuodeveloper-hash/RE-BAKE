@@ -79,11 +79,16 @@ function HighlightPop({active, children}: {active: boolean; children: React.Reac
 
 /** 사진 없는 스탬프 안에 들어가는 내용 미리보기 — 카드와 같은 재료·과정 글 */
 function StampPreview({recipe, styles}: {recipe: Recipe; styles: ReturnType<typeof createStyles>}) {
-  const text = recipePreviewParts(recipe).join(' ');
-  if (!text) return null;
+  // 문장을 통째로 흘리면 가운데가 잘려 읽다 만 글처럼 보인다.
+  // 재료 이름처럼 짧은 토막만 앞에서부터 줄줄이 세워 '내용이 찼다'는 질감만 남긴다.
+  const parts = recipePreviewParts(recipe)
+    .map(p => p.trim())
+    .filter(p => p && p.length <= 14)
+    .slice(0, 12);
+  if (parts.length === 0) return null;
   return (
     <View style={styles.stampPreview} pointerEvents="none">
-      <Text style={styles.stampPreviewText}>{text}</Text>
+      <Text style={styles.stampPreviewText}>{parts.join('\n')}</Text>
     </View>
   );
 }
@@ -92,10 +97,11 @@ function StampPreview({recipe, styles}: {recipe: Recipe; styles: ReturnType<type
 const LIST_STAMP = 36;
 
 /** 그리드·리스트가 같은 그림을 쓴다 — 채운 칸은 스탬프, 빈 칸은 점 */
-function SlotStamp({slot, size, styles, highlight, outline}: {
+function SlotStamp({slot, size, styles, colors, highlight, outline}: {
   slot: StampSlot;
   size: number;
   styles: ReturnType<typeof createStyles>;
+  colors: ReturnType<typeof useColors>;
   /** 방금 찍은 칸 — 어디에 붙었는지 눈에 띄게 */
   highlight?: boolean;
   /** 점선 윤곽으로 — 한 칸도 못 채운 섹션의 첫 칸만 */
@@ -120,7 +126,8 @@ function SlotStamp({slot, size, styles, highlight, outline}: {
       <Stamp
         imageUri={slot.recipe.imageUri}
         size={size}
-        index={slot.order}>
+        index={slot.order}
+        cutoutColor={colors['surface/dim']}>
         {/* 사진이 없으면 카드와 같은 내용 미리보기를 모양 안에 넣는다 */}
         <StampPreview recipe={slot.recipe} styles={styles} />
       </Stamp>
@@ -486,7 +493,7 @@ export default function StampsRoute() {
                           key={slot.recipe.id}
                           onPress={() => { if (!user) { openAuthSheet(); return; } setSelected(slot); }}
                           style={[styles.gridCell, {width: slotSize, height: slotSize}]}>
-                          <SlotStamp slot={slot} size={slotSize} styles={styles} highlight={slot.recipe.id === just} outline={section.done === 0 && i === 0} />
+                          <SlotStamp slot={slot} size={slotSize} styles={styles} colors={colors} highlight={slot.recipe.id === just} outline={section.done === 0 && i === 0} />
                         </Pressable>
                       ))}
                     </View>
@@ -498,7 +505,7 @@ export default function StampsRoute() {
                           onPress={() => { if (!user) { openAuthSheet(); return; } setSelected(slot); }}
                           style={styles.listRow}>
                           <View style={styles.listThumb}>
-                            <SlotStamp slot={slot} size={LIST_STAMP} styles={styles} highlight={slot.recipe.id === just} outline={section.done === 0 && i === 0} />
+                            <SlotStamp slot={slot} size={LIST_STAMP} styles={styles} colors={colors} highlight={slot.recipe.id === just} outline={section.done === 0 && i === 0} />
                           </View>
                           <Text
                             style={[styles.listTitle, !slot.madeAt && styles.listTitleMuted]}
@@ -591,15 +598,21 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   stampPreview: {
     ...StyleSheet.absoluteFillObject,
-    padding: Spacing.xs,
+    // 모양이 가운데로 갈수록 넓다 — 좌우를 넉넉히 비워 글이 경계에 물리지 않게
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    alignItems: 'center',
     justifyContent: 'center',
+    overflow: 'hidden',
   },
   stampPreviewText: {
     ...Typography.label.small,
     color: colors['foreground/on-surface-muted'],
+    textAlign: 'center',
     // 글이 그림 역할이라 촘촘하게 — 읽히기보다 "내용이 있다"가 보이면 된다
-    fontSize: 7,
-    lineHeight: 10,
+    fontSize: 6,
+    lineHeight: 8,
+    opacity: 0.7,
   },
   emptyDot: {
     width: 6,
