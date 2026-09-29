@@ -86,7 +86,7 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
           <Path
             d={d}
             // 안도 옅게 채운다 — 선만 있으면 배경과 구분이 약하다
-            fill={colors['fill/subtle']}
+            fill={colors['fill/faint']}
             stroke={colors['border/normal']}
             // viewBox가 24라 선 굵기·간격도 그 기준 — 얇으면 작은 칸에서 안 보인다
             strokeWidth={OUTLINE_STROKE}
@@ -103,7 +103,7 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
     return (
       <Animated.View style={[wrapStyle, {opacity: pulse}]}>
         <Svg width={inner} height={inner} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
-          <Path d={d} fill={colors['fill/subtle']} />
+          <Path d={d} fill={colors['fill/faint']} />
         </Svg>
       </Animated.View>
     );
@@ -115,7 +115,7 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
       {!loaded && (
         <Animated.View style={[StyleSheet.absoluteFill, styles.center, {opacity: pulse}]}>
           <Svg width={inner} height={inner} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
-            <Path d={d} fill={colors['fill/subtle']} />
+            <Path d={d} fill={colors['fill/faint']} />
           </Svg>
         </Animated.View>
       )}
