@@ -1,5 +1,5 @@
 import React from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, View} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {
   IconAdd,
@@ -12,10 +12,6 @@ import {IconButton} from '@components/IconButton';
 import {NavPillButton} from './NavPillButton';
 import {Selector} from '@components/Selector';
 import {GlassContainer} from '@components/Container';
-import type {SemanticColors} from '@constants/tokens';
-import {Spacing} from '@constants/spacing';
-import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
-import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
 import {FloatingNavBar, navPillStyle} from './FloatingNavBar';
 
@@ -88,25 +84,19 @@ export function AppBar({
   titleNode,
   titleLeadingNode,
 }: AppBarProps) {
-  const themedStyles = useThemedStyles(createThemedStyles);
   const {t} = useTranslation();
   const resolvedTitle = title ?? t('appBar.allRecipeBooks');
 
   if (centered) {
+    // 일반 모드와 같은 껍데기(FloatingNavBar)를 쓴다 — 직접 View로 그리면
+    // 그라디언트 배경이 빠지고 상하 여백도 달라져 다른 화면과 어긋난다.
     return (
-      <View style={themedStyles.centeredContainer}>
-        <View style={themedStyles.centeredSide}>
-          {leftIcon && (
-            <NavPillButton icon={leftIcon} onPress={onLeftPress} />
-          )}
-        </View>
-        <Text style={themedStyles.centeredTitle}>{resolvedTitle}</Text>
-        <View style={themedStyles.centeredSide}>
-          {rightIcon && (
-            <NavPillButton icon={rightIcon} onPress={onRightPress} />
-          )}
-        </View>
-      </View>
+      <FloatingNavBar
+        title={resolvedTitle}
+        left={leftIcon ? <NavPillButton icon={leftIcon} onPress={onLeftPress} /> : undefined}
+        right={rightIcon ? <NavPillButton icon={rightIcon} onPress={onRightPress} /> : undefined}
+        rightMenu={rightMenu}
+      />
     );
   }
 
@@ -211,27 +201,3 @@ const styles = StyleSheet.create({
   },
 });
 
-const createThemedStyles = (colors: SemanticColors) => StyleSheet.create({
-  centeredContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.xs,
-  },
-  centeredSide: {
-    width: 40,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  centeredTitle: {
-    flex: 1,
-    textAlign: 'center',
-    fontFamily: Typography.title.medium.fontFamily,
-    fontSize: Typography.title.medium.fontSize,
-    fontWeight: Typography.title.medium.fontWeight as '700',
-    lineHeight: Typography.title.medium.lineHeight,
-    letterSpacing: Typography.title.medium.letterSpacing,
-    color: colors['foreground/on-surface'],
-    marginTop: FONT_BASELINE_OFFSET,
-  },
-});
