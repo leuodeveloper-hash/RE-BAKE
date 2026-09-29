@@ -308,6 +308,12 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
         const hasChange = stableStringify(next) !== stableStringify(prev);
         if (!hasChange) return prev;
 
+        // 진단: 클라우드가 꺼져 있으면 로컬에만 남는데 아무 표시가 없어
+        // "저장됐다"고 오해하게 된다
+        if (!cloudEnabled) {
+          console.warn('[Storage] cloud sync off — user:', !!user, 'isPro:', isPro);
+          showSnackbarRef.current?.(`로컬에만 저장됨 (로그인:${!!user} 프로:${isPro})`);
+        }
         if (cloudEnabled && user) {
           // Firestore에 동기화 (이미지 업로드 → 동기화)
           localWritePending.current = true;
