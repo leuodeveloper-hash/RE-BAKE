@@ -279,7 +279,12 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
     setRecipes(prev => prev.map(r => (r.id === target.id ? {...r, madeAt: new Date().toISOString()} : r)));
     // 찍은 스탬프가 어디에 쌓이는지 바로 보여준다(방금 것을 강조하도록 id를 넘긴다)
     router.push(`/stamps?just=${encodeURIComponent(target.id)}` as any);
-  }, [madeSheetRecipe, setRecipes, router]);
+    // 잘못 눌렀을 수 있으니 되돌릴 길을 둔다 — 스낵바는 화면을 옮겨도 남는다
+    showSnackbar(t('home.marked'), {
+      label: t('home.undo'),
+      onPress: () => setRecipes(prev => prev.map(r => (r.id === target.id ? {...r, madeAt: undefined} : r))),
+    });
+  }, [madeSheetRecipe, setRecipes, router, showSnackbar, t]);
 
   const handleCardMenuSelect = useCallback((id: string, recipe: Recipe): void => {
     if (id === 'pin' || id === 'unpin') {

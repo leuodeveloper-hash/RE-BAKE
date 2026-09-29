@@ -537,6 +537,11 @@ const handleDelete = useCallback(async () => {
     setRecipes(prev => prev.map(r => (r.id === id ? {...r, madeAt: new Date().toISOString()} : r)));
     // 찍은 스탬프가 어디에 쌓이는지 바로 보여준다(방금 것을 강조하도록 id를 넘긴다)
     router.push(`/stamps?just=${encodeURIComponent(id)}` as any);
+    // 잘못 눌렀을 수 있으니 되돌릴 길을 둔다 — 스낵바는 화면을 옮겨도 남는다
+    showSnackbar(t('home.marked'), {
+      label: t('home.undo'),
+      onPress: () => setRecipes(prev => prev.map(r => (r.id === id ? {...r, madeAt: undefined} : r))),
+    });
   }, [isMyRecipe, id, setRecipes, router, user, openAuthSheet, showSnackbar, t]);
 
   if (!recipe) return null;
