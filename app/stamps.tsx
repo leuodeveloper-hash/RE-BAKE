@@ -31,9 +31,8 @@ import type {Recipe} from '../src/types/recipe';
  * 플랫폼으로 가르면 모바일 브라우저도 웹이라 8칸이 돼 스탬프가 너무 작아진다.
  */
 function columnsFor(width: number): number {
-  if (width >= 900) return 10;
-  if (width >= 600) return 8;
-  return 6;
+  // 콘텐츠 폭이 800으로 제한돼 더 늘리면 스탬프만 작아진다 — 8이 상한
+  return width >= 600 ? 8 : 6;
 }
 const GRID_GAP = Spacing.sm;
 
