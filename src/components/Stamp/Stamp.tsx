@@ -102,7 +102,7 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
     return (
       <Animated.View style={[wrapStyle, {opacity: pulse}]}>
         <Svg width={inner} height={inner} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
-          <Path d={d} fill={colors['fill/faint']} />
+          <Path d={d} fill={colors['fill/subtle']} />
         </Svg>
       </Animated.View>
     );
@@ -114,7 +114,7 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, s
       {!loaded && (
         <Animated.View style={[StyleSheet.absoluteFill, styles.center, {opacity: pulse}]}>
           <Svg width={inner} height={inner} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
-            <Path d={d} fill={colors['fill/faint']} />
+            <Path d={d} fill={colors['fill/subtle']} />
           </Svg>
         </Animated.View>
       )}
