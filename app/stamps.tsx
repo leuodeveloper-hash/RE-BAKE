@@ -79,16 +79,17 @@ function HighlightPop({active, children}: {active: boolean; children: React.Reac
 
 /** 사진 없는 스탬프 안에 들어가는 내용 미리보기 — 카드와 같은 재료·과정 글 */
 function StampPreview({recipe, styles}: {recipe: Recipe; styles: ReturnType<typeof createStyles>}) {
-  // 문장을 통째로 흘리면 가운데가 잘려 읽다 만 글처럼 보인다.
-  // 재료 이름처럼 짧은 토막만 앞에서부터 세워 '내용이 찼다'는 질감만 남긴다.
-  const parts = recipePreviewParts(recipe)
+  // 글이 그림 역할이라 칸을 꽉 채워야 '내용이 있다'로 보인다.
+  // 토막을 한 줄로 이어 흘리고 넘치는 만큼은 잘라 낸다(중앙 정렬로
+  // 위아래를 띄우면 가운데만 덩그러니 남는다).
+  const text = recipePreviewParts(recipe)
     .map(p => p.trim())
-    .filter(p => p && p.length <= 14)
-    .slice(0, 12);
-  if (parts.length === 0) return null;
+    .filter(Boolean)
+    .join('  ');
+  if (!text) return null;
   return (
     <View style={styles.stampPreview} pointerEvents="none">
-      <Text style={styles.stampPreviewText}>{parts.join('\n')}</Text>
+      <Text style={styles.stampPreviewText}>{text}</Text>
     </View>
   );
 }
@@ -598,17 +599,16 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   stampPreview: {
     ...StyleSheet.absoluteFillObject,
-    // 모양이 가운데로 갈수록 넓다 — 좌우를 넉넉히 비워 글이 경계에 물리지 않게
-    paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.sm,
-    alignItems: 'center',
-    justifyContent: 'center',
+    // 위에서부터 꽉 채운다 — 가운데 정렬하면 위아래가 비어 덩그러니 남는다.
+    // 모양 경계에 글자가 반쯤 물리는 건 오려 낸 질감이라 그대로 둔다.
+    paddingHorizontal: Spacing.xs,
+    paddingVertical: Spacing.xs,
     overflow: 'hidden',
   },
   stampPreviewText: {
     ...Typography.label.small,
     color: colors['foreground/on-surface-muted'],
-    textAlign: 'center',
+    textAlign: 'justify',
     // 글이 그림 역할이라 촘촘하게 — 읽히기보다 "내용이 있다"가 보이면 된다
     fontSize: 6,
     lineHeight: 8,
