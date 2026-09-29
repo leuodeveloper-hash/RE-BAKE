@@ -468,11 +468,8 @@ export default function StampsRoute() {
           setSelected(null);
           if (id) router.push(`/recipe/${id}` as any);
         }}
-        onWriteReview={() => {
-          const target = selected?.recipe;
-          setSelected(null);
-          if (target) setReviewTarget(target);
-        }}
+        // 시트를 닫지 않는다 — 회고를 쓰고 나면 보던 스탬프로 돌아온다
+        onWriteReview={() => { if (selected) setReviewTarget(selected.recipe); }}
       />
 
     </View>
