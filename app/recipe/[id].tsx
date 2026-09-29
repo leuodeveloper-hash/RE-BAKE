@@ -4,7 +4,6 @@ import {useLocalSearchParams, useRouter} from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {doc, updateDoc, setDoc, deleteField} from 'firebase/firestore';
 import {RecipeDetailScreen} from '@screens/RecipeDetailScreen';
-import {useExploreMade} from '@hooks/useExploreMade';
 import {useMadeCount} from '@hooks/useMadeCount';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
@@ -102,7 +101,6 @@ export default function RecipeDetailRoute() {
     return () => clearTimeout(timer);
   }, [recipe, id, findRecipeById, exploreRecipes, router]);
 
-  const {isMade: isExploreMade, setRecipeMade} = useExploreMade();
   const madeCount = useMadeCount();
   const isMyRecipe = recipes.some(r => r.id === id);
   const isExploreRecipe = !isMyRecipe && exploreRecipes.some(r => r.id === id);
@@ -520,22 +518,20 @@ const handleDelete = useCallback(async () => {
     }
   }, [recipe, user, handle, displayName, avatarSeed, showSnackbar, t]);
 
-  // "만들었어요"는 개인 기록 — 내 레시피는 레시피 자체(madeAt)에, 둘러보기는 계정에 따로 보관한다
+  // 스탬프는 내 레시피에만 찍힌다 — 둘러보기 레시피는 가져와야 요리할 수 있고,
+  // 가져오면 sourceId로 원본 칸이 채워진다(스탬프북이 그렇게 센다).
   const handleMadeChange = useCallback(() => {
-    if (isMyRecipe) {
-      setRecipes(prev => prev.map(r => (r.id === id ? {...r, madeAt: new Date().toISOString()} : r)));
-    } else {
-      setRecipeMade(id, true);
-    }
+    if (!isMyRecipe) return;
+    setRecipes(prev => prev.map(r => (r.id === id ? {...r, madeAt: new Date().toISOString()} : r)));
     // 찍은 스탬프가 어디에 쌓이는지 바로 보여준다(방금 것을 강조하도록 id를 넘긴다)
     router.push(`/stamps?just=${encodeURIComponent(id)}` as any);
-  }, [isMyRecipe, id, setRecipes, setRecipeMade, router]);
+  }, [isMyRecipe, id, setRecipes, router]);
 
   if (!recipe) return null;
 
   // 내 목록에 있으면 복사본이어도 편집 가능(원본 출처는 sourceId 등으로 계속 표시된다).
   // 기존엔 복사본을 막아 탭·롱프레스가 아무 반응 없이 먹통이었다.
-  const isMade = isMyRecipe ? !!recipe.madeAt : isExploreMade(id);
+  const isMade = isMyRecipe && !!recipe.madeAt;
   const canEdit = isMyRecipe || (isExploreRecipe && isAdmin);
   const canDelete = isMyRecipe || (isExploreRecipe && isAdmin);
 

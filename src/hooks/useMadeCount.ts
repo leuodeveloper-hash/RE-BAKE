@@ -1,7 +1,5 @@
 import {useMemo} from 'react';
 import {useRecipes} from '@contexts/RecipeContext';
-import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
-import {useExploreMade} from '@hooks/useExploreMade';
 
 /**
  * 지금까지 모은 우표 수.
@@ -12,13 +10,10 @@ import {useExploreMade} from '@hooks/useExploreMade';
  */
 export function useMadeCount(): number {
   const {recipes} = useRecipes();
-  const {recipes: exploreRecipes} = useExploreRecipeContext();
-  const {made: exploreMade} = useExploreMade();
 
   return useMemo(() => {
     const groups = new Set<string>();
     for (const r of recipes) if (r.madeAt) groups.add(r.remakeGroupId ?? r.id);
-    for (const r of exploreRecipes) if (exploreMade[r.id]) groups.add(r.remakeGroupId ?? r.id);
     return groups.size;
-  }, [recipes, exploreRecipes, exploreMade]);
+  }, [recipes]);
 }

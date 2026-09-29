@@ -14,9 +14,6 @@ import {useRecipes} from '@contexts/RecipeContext';
 import type {Recipe} from '../types/recipe';
 import {getRecipeMenuItems} from '@utils/recipeMenuItems';
 import {useExplorePins} from '@hooks/useExplorePins';
-import {useExploreMade} from '@hooks/useExploreMade';
-import {useMadeCount} from '@hooks/useMadeCount';
-import {MadeConfirmSheet} from '@components/BottomSheet';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {
   IconNoteFilled,
@@ -44,10 +41,12 @@ const makeExploreAxisOverrides = (t: (key: string) => string): AxisOverrides => 
 /** 무료로 볼 수 있는 둘러보기 레시피 수 — 정책 단일 출처는 @constants/entitlements */
 const FREE_RECIPE_COUNT = ENTITLEMENTS.free.quota.exploreFree;
 
-const makeBaseCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string, isPinned: boolean, isMade: boolean) =>
-  getRecipeMenuItems({t, showPin: true, isPinned, showMade: true, isMade, showImport: true});
-const makeAdminCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string, isPinned: boolean, isMade: boolean) =>
-  getRecipeMenuItems({t, showPin: true, isPinned, showMade: true, isMade, showImport: true, showEdit: true, showDelete: true});
+// 둘러보기에선 "만들었어요"를 두지 않는다 — 가져와야 요리할 수 있고,
+// 스탬프는 내 레시피에만 찍힌다(가져온 뒤 sourceId로 원본 칸이 채워진다).
+const makeBaseCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string, isPinned: boolean) =>
+  getRecipeMenuItems({t, showPin: true, isPinned, showImport: true});
+const makeAdminCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string, isPinned: boolean) =>
+  getRecipeMenuItems({t, showPin: true, isPinned, showImport: true, showEdit: true, showDelete: true});
 
 export interface ExploreScreenProps {
   data: Recipe[];
@@ -94,7 +93,6 @@ export function ExploreScreen({
   const router = useRouter();
   const {showSnackbar} = useSnackbar();
   const {pins: explorePins, togglePin, isPinned} = useExplorePins();
-  const {made: exploreMade, setRecipeMade, isMade} = useExploreMade();
   const EXPLORE_AXIS_OVERRIDES = useMemo(() => makeExploreAxisOverrides(t), [t]);
   const {selectedExploreCookbook, setSelectedExploreCookbook} = useRecipes();
   // 홈과 동일한 그룹화 축 (전체/레시피북/공법). 'all'=평면 리스트, 그 외=GroupScreen.
@@ -118,15 +116,13 @@ export function ExploreScreen({
   const [showSearch, setShowSearch] = useState(false);
   const [pdfRecipe, setPdfRecipe] = useState<Recipe | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
-  const [madeSheetRecipe, setMadeSheetRecipe] = useState<Recipe | null>(null);
-  const madeCount = useMadeCount();
 
   // 핀 상태가 레시피마다 달라 함수 형태로 넘긴다(고정/해제 라벨이 바뀐다)
   const cardMenuItems = useCallback(
     (recipe: Recipe) => isAdmin
-      ? makeAdminCardMenuItems(t, isPinned(recipe.id), isMade(recipe.id))
-      : makeBaseCardMenuItems(t, isPinned(recipe.id), isMade(recipe.id)),
-    [isAdmin, t, isPinned, isMade],
+      ? makeAdminCardMenuItems(t, isPinned(recipe.id))
+      : makeBaseCardMenuItems(t, isPinned(recipe.id)),
+    [isAdmin, t, isPinned],
   );
 
   const exploreCookbookMap = useMemo(() => {
@@ -223,28 +219,10 @@ export function ExploreScreen({
       }));
   }, [data, t]);
 
-  const handleMadeConfirm = useCallback(() => {
-    const target = madeSheetRecipe;
-    if (!target) return;
-    setRecipeMade(target.id, true);
-    // 찍은 스탬프가 어디에 쌓이는지 바로 보여준다(방금 것을 강조하도록 id를 넘긴다)
-    router.push(`/stamps?just=${encodeURIComponent(target.id)}` as any);
-  }, [madeSheetRecipe, setRecipeMade, router]);
-
   const handleCardMenuSelect = useCallback((id: string, recipe: Recipe) => {
     if (id === 'pin' || id === 'unpin') {
       togglePin(recipe.id);
       showSnackbar(t(id === 'pin' ? 'home.pinned' : 'home.unpinned'));
-      return;
-    }
-    if (id === 'unmade') {
-      // 해제는 확인이 필요 없다 — 바로 푼다
-      setRecipeMade(recipe.id, false);
-      showSnackbar(t('home.unmarked'));
-      return;
-    }
-    if (id === 'made') {
-      setMadeSheetRecipe(recipe);
       return;
     }
     if (id === 'save') {
@@ -345,7 +323,6 @@ export function ExploreScreen({
       scrollEnabled
       lockedRecipeIds={lockedRecipeIds}
       pinnedMap={explorePins}
-      madeMap={exploreMade}
       listEmptyComponent={
         !isOnline && data.length === 0 ? (
           <EmptyState
@@ -503,14 +480,6 @@ export function ExploreScreen({
           },
         },
       ]}
-    />
-
-    <MadeConfirmSheet
-      visible={!!madeSheetRecipe}
-      onClose={() => setMadeSheetRecipe(null)}
-      imageUri={madeSheetRecipe?.imageUri}
-      stampIndex={madeCount}
-      onConfirm={handleMadeConfirm}
     />
 
     <Dialog
