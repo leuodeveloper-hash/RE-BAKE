@@ -38,6 +38,7 @@ import {ReviewLogSheet} from '@components/BottomSheet';
 import {Thumbnail} from '@components/Thumbnail';
 import {StepPhotos} from '@components/StepPhotos';
 import {PhotoViewer} from '@components/PhotoViewer';
+import {MadeConfirmSheet} from '@components/BottomSheet';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {normalizeStepPhotos} from '@utils/stepPhotos';
 import type {StepPhoto} from '../types/recipe';
@@ -438,6 +439,8 @@ export function RecipeDetailScreen({
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [showTimeDialog, setShowTimeDialog] = useState(false);
   const [showServingsDialog, setShowServingsDialog] = useState(false);
+  // 메뉴에서 "만들었어요"를 누르면 뜨는 확인 시트(목록과 같은 흐름)
+  const [showMadeSheet, setShowMadeSheet] = useState(false);
   const [showCookingMode, setShowCookingMode] = useState(initialCookingMode ?? false);
   const [cookingModeInitialIndex, setCookingModeInitialIndex] = useState(0);
   const [cookingModeShowIngredients, setCookingModeShowIngredients] = useState(false);
@@ -653,8 +656,13 @@ export function RecipeDetailScreen({
     }
     setShowMenu(false);
     setShowCookbookSubmenu(false);
-    if (id === 'made' || id === 'unmade') {
-      onMadeChange?.(id === 'made');
+    if (id === 'made') {
+      // 찍을 때만 확인 — 시트에서 밀어야 스탬프가 된다(목록과 같다)
+      setShowMadeSheet(true);
+      return;
+    }
+    if (id === 'unmade') {
+      onMadeChange?.(false);
       return;
     }
     if (id === 'compareDiff') {
@@ -1450,6 +1458,14 @@ export function RecipeDetailScreen({
         onDownload={onDownloadPhoto && viewerIndex !== null
           ? () => onDownloadPhoto(viewerPhotos[viewerIndex]?.uri ?? '')
           : undefined}
+      />
+
+      <MadeConfirmSheet
+        visible={showMadeSheet}
+        onClose={() => setShowMadeSheet(false)}
+        imageUri={imageUri}
+        stampIndex={stampIndex}
+        onConfirm={() => onMadeChange?.(true)}
       />
 
       <CookingMode
