@@ -1,17 +1,18 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
-import {Animated, Dimensions, Easing, Pressable, ScrollView, StyleSheet, View, ViewStyle} from 'react-native';
+import {Animated, Dimensions, Easing, Pressable, ScrollView, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {SvgProps} from 'react-native-svg';
 import {GlassContainer} from '@components/Container';
 import {TextInput} from '@components/TextInput';
-import {IconSearch} from '@components/Icon/IconIndex';
+import {IconSearch, IconChevronLeft} from '@components/Icon/IconIndex';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {useColors} from '@contexts/ThemeContext';
 import {MenuItem} from './MenuItem';
 import {Subheader} from './Subheader';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
+import {Typography} from '@constants/typography';
 
 export interface MenuItemData {
   id: string;
@@ -55,6 +56,13 @@ export interface MenuProps {
   searchable?: boolean;
   /** 메뉴 최상단에 고정으로 렌더할 한 줄 노드(예: 작성자 정보). */
   headerNode?: React.ReactNode;
+  /**
+   * 하위 목록 — 지정하면 메뉴를 덮고 상단에 뒤로가기가 붙는다(아이폰 설정 방식).
+   * 항목 아래에 펼치면 목록이 길어지고 어디에 딸린 것인지도 흐려진다.
+   */
+  subMenu?: {title: string; items?: MenuItemData[]; selectedId?: string} | null;
+  /** 하위 목록에서 뒤로 */
+  onSubMenuBack?: () => void;
 }
 
 export function Menu({
@@ -69,6 +77,8 @@ export function Menu({
   maxHeight,
   searchable = false,
   headerNode,
+  subMenu,
+  onSubMenuBack,
 }: MenuProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
@@ -153,6 +163,29 @@ export function Menu({
           // 목록 위에 떠 있으므로 한 단계 짙게 — normal은 배경과 잘 분리되지 않는다
           elevation="strong"
           contentStyle={{padding: Spacing.xs, minWidth: 200, backgroundColor: colors['surface/normal'], ...(maxHeight ? {maxHeight} : {})}}>
+          {/* 하위 목록이 열리면 메뉴를 덮는다 — 뒤로가기로 돌아온다 */}
+          {subMenu ? (
+            <>
+              <Pressable style={styles.subHeader} onPress={onSubMenuBack}>
+                <AppIcon icon={IconChevronLeft} size="xs" color={colors['foreground/on-surface']} />
+                <Text style={styles.subHeaderTitle} numberOfLines={1}>{subMenu.title}</Text>
+              </Pressable>
+              <ScrollView bounces={false} showsVerticalScrollIndicator={maxHeight != null}>
+                {subMenu.items?.map(item => (
+                  <MenuItem
+                    key={item.id}
+                    id={item.id}
+                    label={item.label}
+                    icon={item.icon}
+                    iconColor={item.iconColor}
+                    selected={item.id === subMenu.selectedId}
+                    onPress={() => onSelect?.(item.id)}
+                  />
+                ))}
+              </ScrollView>
+            </>
+          ) : (
+          <>
           {headerNode}
           {searchable && (
             <View style={styles.searchBar}>
@@ -213,6 +246,8 @@ export function Menu({
             </>
           )}
           </ScrollView>
+          </>
+          )}
         </GlassContainer>
     </Animated.View>
     </>
@@ -223,7 +258,20 @@ export function Menu({
 const {width: SCREEN_W, height: SCREEN_H} = Dimensions.get('window');
 const BACKDROP_SPREAD = Math.round(Math.sqrt(SCREEN_W * SCREEN_W + SCREEN_H * SCREEN_H));
 
-const createStyles = (_colors: SemanticColors) => StyleSheet.create({
+const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  // 하위 목록 상단 — 뒤로가기 + 제목
+  subHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.sm,
+  },
+  subHeaderTitle: {
+    ...Typography.label.large,
+    color: colors['foreground/on-surface'],
+    flex: 1,
+  },
   // 바깥 탭 닫기 영역. absolute + 큰 음수 오프셋은 조상의 overflow:hidden에 잘려
   // 카드 바깥/다른 묶음을 탭해도 안 닫히는 문제가 있었다. 화면 대각선 길이만큼
   // 사방으로 넓혀 어느 조상에 클립되더라도 보이는 영역 전체를 덮게 한다.

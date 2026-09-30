@@ -24,7 +24,7 @@ import {useAuth} from '@contexts/AuthContext';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {GroupScreen} from './GroupScreen';
 import {axisLabel, useAxisMenuItems, type GroupAxis} from '@components/RecipeGroups/groupAxis';
-import {crumbAxisOf, axisMenuSections} from '@hooks/useCrumbAxis';
+import {crumbAxisOf, axisItemsWithDrill} from '@hooks/useCrumbAxis';
 import {Spacing} from '@constants/spacing';
 import {generateRecipeListHtml, generateRecipeHtml} from '@utils/generateRecipeHtml';
 import {parseSession, formatSession} from '@utils/session';
@@ -653,21 +653,22 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
           menuOpen={showMoreMenu}
           titleMenu={
             <>
-              {/* '전체'를 누르면 그 아래로 레시피북이 펼쳐진다 — 북을 고르려고
-                  책 표지 화면으로 넘어갔다 돌아오지 않아도 된다.
+              {/* '레시피별'을 누르면 메뉴가 레시피북 목록으로 덮인다(아이폰 설정 방식).
+                  북을 고르려고 책 표지 화면으로 넘어갔다 돌아오지 않아도 된다.
                   (책 표지 화면은 북 자체를 고치는 자리로 남는다) */}
               <Menu
-                sections={axisMenuSections({
-                  axisItems: axisMenuItems,
-                  crumbAxis,
-                  cookbookItems: cookbookFilterItems,
-                  cookbookListOpen,
-                  selectedCookbookId: selectedCookbook ?? ALL_ID,
-                })}
+                items={axisItemsWithDrill(axisMenuItems)}
+                selectedId={crumbAxis}
+                subMenu={cookbookListOpen ? {
+                  title: t('groupAxis.axisCookbook'),
+                  items: cookbookFilterItems,
+                  selectedId: selectedCookbook ?? ALL_ID,
+                } : null}
+                onSubMenuBack={() => setCookbookListOpen(false)}
                 onSelect={id => {
-                  // '전체'는 펼치기만 — 축은 이미 전체다
+                  // '레시피별'은 하위 목록을 연다 — 축은 이미 전체다
                   if (id === 'all') {
-                    setCookbookListOpen(prev => !prev);
+                    setCookbookListOpen(true);
                     return;
                   }
                   if (axisMenuItems.some(a => a.id === id)) handleHomeAxisSelect(id);

@@ -23,32 +23,11 @@ export function crumbAxisOf(
 interface AxisItem {id: string; label: string; icon?: any; iconColor?: string}
 
 /**
- * 축 메뉴 섹션을 만든다 — 홈·둘러보기가 같이 쓴다.
+ * 축 메뉴 항목 — '레시피별'에 화살표를 달아 하위 목록이 있음을 알린다.
  *
- * '레시피별'에 화살표를 달고, 펼치면 바로 그 밑에 레시피북이 온다.
- * 축 목록을 통째로 그린 뒤 붙이면 맨 아래(회고 다음)에 떨어져 무엇에
- * 딸린 목록인지 알 수 없다. 그래서 '레시피별'과 나머지 사이에 끼운다.
+ * 누르면 메뉴가 레시피북 목록으로 덮인다(Menu의 subMenu). 항목 아래로 펼치면
+ * 메뉴가 길어지고, 어디에 딸린 목록인지도 흐려진다.
  */
-export function axisMenuSections(opts: {
-  axisItems: AxisItem[];
-  crumbAxis: GroupAxis;
-  /** 펼쳤을 때 보일 레시피북 목록 */
-  cookbookItems: AxisItem[];
-  cookbookListOpen: boolean;
-  selectedCookbookId: string;
-}) {
-  const {axisItems, crumbAxis, cookbookItems, cookbookListOpen, selectedCookbookId} = opts;
-  return [
-    {
-      items: axisItems.filter(a => a.id === 'all').map(a => ({...a, hasChildren: true})),
-      selectedId: crumbAxis,
-    },
-    ...(cookbookListOpen
-      ? [{items: cookbookItems, selectedId: selectedCookbookId}]
-      : []),
-    {
-      items: axisItems.filter(a => a.id !== 'all'),
-      selectedId: crumbAxis,
-    },
-  ];
+export function axisItemsWithDrill(axisItems: AxisItem[]) {
+  return axisItems.map(a => (a.id === 'all' ? {...a, hasChildren: true} : a));
 }

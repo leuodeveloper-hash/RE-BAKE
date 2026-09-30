@@ -26,7 +26,7 @@ import {getColorVarKey} from '@components/ColorPicker/ColorPicker';
 import type {ExploreCookbook} from '@hooks/useExploreRecipes';
 import {GroupScreen} from './GroupScreen';
 import {axisLabel, useAxisMenuItems, type AxisOverrides, type GroupAxis} from '@components/RecipeGroups/groupAxis';
-import {crumbAxisOf, axisMenuSections} from '@hooks/useCrumbAxis';
+import {crumbAxisOf, axisItemsWithDrill} from '@hooks/useCrumbAxis';
 import {IconExprolerBookFilled} from '@components/Icon/IconIndex';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import {resolveAuthorHandle} from '../types/author';
@@ -409,16 +409,17 @@ export function ExploreScreen({
           titleMenu={
             <>
               <Menu
-                sections={axisMenuSections({
-                  axisItems: axisMenuItems,
-                  crumbAxis,
-                  cookbookItems: cookbookFilterItems,
-                  cookbookListOpen,
-                  selectedCookbookId: selectedCategory,
-                })}
+                items={axisItemsWithDrill(axisMenuItems)}
+                selectedId={crumbAxis}
+                subMenu={cookbookListOpen ? {
+                  title: t('groupAxis.axisCookbook'),
+                  items: cookbookFilterItems,
+                  selectedId: selectedCategory,
+                } : null}
+                onSubMenuBack={() => setCookbookListOpen(false)}
                 onSelect={id => {
-                  // '레시피별'은 펼치기만 — 축은 이미 전체다
-                  if (id === 'all') { setCookbookListOpen(prev => !prev); return; }
+                  // '레시피별'은 하위 목록을 연다 — 축은 이미 전체다
+                  if (id === 'all') { setCookbookListOpen(true); return; }
                   if (axisMenuItems.some(a => a.id === id)) { handleAxisSelect(id); return; }
                   // 레시피북 필터 — 화면을 떠나지 않고 걸러진다
                   setCookbookListOpen(false);
