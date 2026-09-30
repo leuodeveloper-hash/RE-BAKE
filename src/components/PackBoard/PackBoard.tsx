@@ -21,7 +21,7 @@ export interface PackBoardProps {
 
 // 스택 + 라벨 + 여백. 팩(202)과 차이가 클수록 보드가 길어지고, 화면보다
 // 길어지면 가운데 정렬되면서 위아래가 휑해진다.
-const ROW_HEIGHT = 236;
+const ROW_HEIGHT = 252;
 const PACK_HEIGHT = 202;
 
 // 결정적 해시 → 매 렌더마다 흩뿌림이 바뀌지 않도록 id 기반 시드 사용
@@ -53,7 +53,7 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
     // 세로로 움직일 데가 없다. 폭에 맞춰 열 수를 정하고 아래로 쌓아
     // 위아래·좌우로 자유롭게 움직이게 한다.
     const slackV = Math.max(0, ROW_HEIGHT - PACK_HEIGHT);
-    const cellW = PACK_WIDTH + 24;
+    const cellW = PACK_WIDTH + 40;
     // 화면 폭에 딱 맞춰 열을 채우면 가로로 넘칠 일이 없어 좌우로 움직일 데가 없다.
     // 화면보다 한 열 넓게 잡아 사방으로 펼친다 — 보드를 돌아다니는 느낌.
     const innerW = Math.max(cellW, (boardWidth ?? cellW * 3) - PAD_H * 2);
