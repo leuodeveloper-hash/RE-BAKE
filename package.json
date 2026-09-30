@@ -8,7 +8,7 @@
     "android": "expo run:android",
     "ios": "expo run:ios",
     "web": "expo start --web",
-    "deploy:web": "expo export -p web && firebase deploy --only hosting",
+    "deploy:web": "expo export -p web && node -e \"require('fs').writeFileSync('dist/version.json', JSON.stringify({version: require('./app.json').expo.version}))\" && firebase deploy --only hosting",
     "bump": "node scripts/bumpVersion.mjs",
     "test": "jest",
     "lint": "eslint .",

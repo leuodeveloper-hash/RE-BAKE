@@ -1,6 +1,6 @@
 import '../global.css';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Animated, StyleSheet, View, Easing, Pressable, Platform} from 'react-native';
+import {Animated, StyleSheet, View, Easing, Pressable, Platform, AppState} from 'react-native';
 import {Stack, usePathname, useRouter} from 'expo-router';
 import {StatusBar} from 'expo-status-bar';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
@@ -304,20 +304,30 @@ function NavigationContent() {
   }, [exploreRecipesAll]);
 
   // 앱/웹 접속 시 새 버전 체크 → 있으면 스낵바로 알림(버튼: 웹=새로고침, 앱=스토어).
+  // 켤 때와 다시 앞으로 돌아올 때 확인한다(오래 켜 둔 웹 탭·백그라운드 앱도 잡히게).
+  // 같은 버전 안내는 한 번만.
+  const notifiedVersionRef = useRef<string | null>(null);
   useEffect(() => {
-    checkForUpdate().then(res => {
+    const run = () => checkForUpdate().then(res => {
       if (!res) return;
       if (res.required) {
         // 강제 — 스낵바로는 지나칠 수 있어 닫을 수 없는 모달로 막는다
         setForcedUpdate(() => res.onUpdate);
         return;
       }
+      if (notifiedVersionRef.current === res.latestVersion) return;
+      notifiedVersionRef.current = res.latestVersion;
       showSnackbar(t('layout.updateAvailable'), {
         label: t('layout.updateAction'),
         onPress: res.onUpdate,
       });
     });
-    // 마운트 시 1회. showSnackbar/t는 안정적.
+    run();
+    const sub = AppState.addEventListener('change', state => {
+      if (state === 'active') run();
+    });
+    return () => sub.remove();
+    // showSnackbar/t는 안정적.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
