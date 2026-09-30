@@ -26,8 +26,6 @@ import {GroupScreen} from './GroupScreen';
 import {axisLabel, useAxisMenuItems, type GroupAxis} from '@components/RecipeGroups/groupAxis';
 import {crumbAxisOf} from '@hooks/useCrumbAxis';
 import {useAddSheet} from '@contexts/AddSheetContext';
-import {Tabs} from '@components/Tabs';
-import {IconButton} from '@components/IconButton';
 import {IconAdd} from '@components/Icon/IconIndex';
 import {Spacing} from '@constants/spacing';
 import {generateRecipeListHtml, generateRecipeHtml} from '@utils/generateRecipeHtml';
@@ -179,21 +177,25 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   // ===== 브레드크럼 (2뎁스) ===== (AXIS_LABELS는 공통 모듈)
   // 필터가 걸려 있으면 그 축으로, 아니면 현재 groupAxis
   const crumbAxis = crumbAxisOf(groupAxis, {cookbook: selectedCookbook, method: selectedMethod}, drillFrom);
-  // '전체'에서는 레시피북을 탭으로 고르므로 2뎁스로 들어가지 않는다 —
-  // 탭에 이미 선택이 보이는데 상단까지 뒤로가기+이름으로 바뀌면 같은 것이
-  // 두 번 나오고, 돌아갈 곳도 없는 뒤로가기가 생긴다.
+  // '레시피' 축은 [축 아이콘 셀렉터] [레시피북 ⌄] — 북을 안 골랐으면 '전체'.
+  // 레시피북/공법에서 들어온 2뎁스는 [돌아갈 축 아이콘] [항목 ⌄].
   const crumbItemLabel = crumbAxis === 'all'
-    ? undefined
+    ? selectedCookbook ?? t('home.all')
     : selectedCookbook ?? selectedMethod ?? undefined;
 
   // 2뎁스 항목 메뉴 (책/공법 목록 + '전체로')
   const ALL_ID = '__all__';
+  const ADD_COOKBOOK_ID = '__add_cookbook__';
   const crumbItemMenuItems = useMemo(() => {
-    if (crumbAxis === 'cookbook') {
+    if (crumbAxis === 'cookbook' || crumbAxis === 'all') {
       const names = new Set<string>();
       for (const r of recipes) names.add(r.cookbook || t('home.noCookbook'));
       availableCookbooks.forEach(n => names.add(n));
-      return [{id: ALL_ID, label: t('home.all')}, ...[...names].map(n => ({id: n, label: n}))];
+      const items = [{id: ALL_ID, label: t('home.all')}, ...[...names].map(n => ({id: n, label: n}))];
+      // '레시피' 축에선 북을 여기서 고르므로 새 북 만들기도 여기 둔다
+      return crumbAxis === 'all'
+        ? [...items, {id: ADD_COOKBOOK_ID, label: t('cookbookSelect.addCookbook'), icon: IconAdd}]
+        : items;
     }
     if (crumbAxis === 'method') {
       const names = new Set<string>();
@@ -218,41 +220,6 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
     return [{id: ALL_ID, label: t('home.all')}, ...[...names].map(n => ({id: n, label: n}))];
   }, [recipes, availableCookbooks, t]);
 
-  /** 축 메뉴에서 북을 고르면 평면 목록에 머문 채 걸러진다 */
-  /** 칩에 늘어놓을 레시피북 이름 (메뉴의 '전체'는 칩에서 별도로 그린다) */
-  const cookbookNames = useMemo(
-    () => cookbookFilterItems.filter(i => i.id !== ALL_ID).map(i => i.label),
-    [cookbookFilterItems],
-  );
-
-  /**
-   * 레시피북 탭 — 앱바 아래 줄에 들어간다(같은 블러·그라디언트 배경).
-   * 목록 헤더에 두면 스크롤할 때 같이 올라가 사라진다.
-   */
-  const cookbookTabsNode = crumbAxis === 'all' ? (
-    <Tabs
-      style={styles.cookbookTabs}
-      variant="text"
-      uniformWidth={false}
-      scrollable
-      tabs={[{id: ALL_ID, label: t('home.all')}, ...cookbookNames.map(n => ({id: n, label: n}))]}
-      selectedId={selectedCookbook ?? ALL_ID}
-      onSelect={id => {
-        setDrillFrom(null);
-        setSelectedMethod(null);
-        setSelectedCookbook(id === ALL_ID ? null : id);
-      }}
-      trailing={
-        <IconButton
-          icon={IconAdd}
-          variant="ghost-secondary"
-          size="small"
-          onPress={() => { setCookbookEditTarget(null); setShowCookbookDialog(true); }}
-        />
-      }
-    />
-  ) : undefined;
-
   const handleCookbookFilterSelect = useCallback((id: string) => {
     setCrumbMenu(null);
     setDrillFrom(null);
@@ -263,9 +230,14 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
 
   const handleCrumbItemSelect = (id: string) => {
     setCrumbMenu(null);
-    // '전체'를 고르면 2뎁스에서 나와 탭 화면으로
+    if (id === ADD_COOKBOOK_ID) {
+      setCookbookEditTarget(null);
+      setShowCookbookDialog(true);
+      return;
+    }
+    // '전체'를 고르면 2뎁스에서 나와 '레시피' 축으로
     if (id === ALL_ID) setDrillFrom(null);
-    if (crumbAxis === 'cookbook') {
+    if (crumbAxis === 'cookbook' || crumbAxis === 'all') {
       setSelectedCookbook(id === ALL_ID ? null : id);
     } else if (crumbAxis === 'method') {
       setSelectedMethod(id === ALL_ID ? null : id);
@@ -662,8 +634,8 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
           filterIcon={filterIcon}
           // 2뎁스(레시피북·공법)에 들어가면 Breadcrumb이 자체 뒤로가기(‹)를 그린다.
           // 그때 X까지 두면 앱바 왼쪽에 버튼이 둘 붙는다 → 뒤로가기 하나만 남긴다.
-          leftIcon={onBack && !crumbItemLabel ? IconClose : undefined}
-          onLeftPress={onBack && !crumbItemLabel ? onBack : undefined}
+          leftIcon={onBack && crumbAxis === 'all' ? IconClose : undefined}
+          onLeftPress={onBack && crumbAxis === 'all' ? onBack : undefined}
           titleNode={
             <Breadcrumb
               leadingNode={resolvedBadge}
@@ -671,6 +643,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
               axisIcon={axisMenuItems.find(i => i.id === crumbAxis)?.icon}
               axisIconColor={axisMenuItems.find(i => i.id === crumbAxis)?.iconColor}
               itemLabel={crumbItemLabel}
+              axisIconOnly={crumbAxis === 'all'}
               onAxisPress={() => {
                 closeMenus();
                 setShowMoreMenu(false);
@@ -693,7 +666,6 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
               }}
             />
           }
-          below={cookbookTabsNode}
           onAddPress={handleAddRecipe}
           onFilterPress={() => {
             closeLocalMenus();
@@ -724,7 +696,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
               {crumbItemLabel != null && (
                 <Menu
                   items={crumbItemMenuItems}
-                  selectedId={crumbItemLabel}
+                  selectedId={crumbAxis === 'all' ? selectedCookbook ?? ALL_ID : crumbItemLabel}
                   onSelect={handleCrumbItemSelect}
                   visible={crumbMenu === 'item'}
                 />
@@ -827,8 +799,4 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   localBanner: {
     marginBottom: Spacing.sm,
   },
-  // 탭 줄이 앱바·카드에 붙지 않게 위아래로 띄운다
-  // (탭 자체에 여백을 주면 다른 쓰임에도 붙는다)
-  // 셀렉터와 같은 줄이라 위아래 여백이 없다
-  cookbookTabs: {},
 });

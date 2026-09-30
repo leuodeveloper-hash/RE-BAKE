@@ -28,8 +28,6 @@ import type {ExploreCookbook} from '@hooks/useExploreRecipes';
 import {GroupScreen} from './GroupScreen';
 import {axisLabel, useAxisMenuItems, type AxisOverrides, type GroupAxis} from '@components/RecipeGroups/groupAxis';
 import {crumbAxisOf} from '@hooks/useCrumbAxis';
-import {Tabs} from '@components/Tabs';
-import {IconButton} from '@components/IconButton';
 import {useAddSheet} from '@contexts/AddSheetContext';
 import {Spacing} from '@constants/spacing';
 import {IconExprolerBookFilled} from '@components/Icon/IconIndex';
@@ -268,38 +266,15 @@ export function ExploreScreen({
     return [{id: CRUMB_ALL, label: t('explore.all')}, ...[...names].map(n => ({id: n, label: n}))];
   }, [data, exploreCookbooks, t]);
 
-  /** 칩에 늘어놓을 공식 레시피북 이름 */
-  const cookbookNames = useMemo(
-    () => cookbookFilterItems.filter(i => i.id !== CRUMB_ALL).map(i => i.label),
-    [cookbookFilterItems],
-  );
 
-  /** 레시피북 탭 — 앱바 아래 줄(같은 배경). 목록 헤더에 두면 스크롤에 딸려 사라진다 */
-  const cookbookTabsNode = crumbAxis === 'all' ? (
-    <Tabs
-      variant="text"
-      uniformWidth={false}
-      scrollable
-      tabs={[{id: CRUMB_ALL, label: t('explore.all')}, ...cookbookNames.map(n => ({id: n, label: n}))]}
-      selectedId={selectedCategory}
-      onSelect={id => { setDrillFrom(null); setSelectedMethod(null); setSelectedCategory(id); }}
-      // 둘러보기 북은 공식 북이라 어드민만 만들 수 있다 (홈은 개인 북이라 항상 가능)
-      trailing={isAdmin ? (
-        <IconButton
-          icon={IconAdd}
-          variant="ghost-secondary"
-          size="small"
-          onPress={() => {
-            setCookbookEditTarget(null);
-            setCookbookInitialOfficial(true);
-            setShowCookbookDialog(true);
-          }}
-        />
-      ) : undefined}
-    />
-  ) : undefined;
-
+  const ADD_COOKBOOK_ID = '__add_cookbook__';
   const crumbItemMenuItems = useMemo(() => {
+    // '레시피' 축은 공식 레시피북을 2뎁스 셀렉터로 고른다. 공식 북은 어드민만 만든다.
+    if (crumbAxis === 'all') {
+      return isAdmin
+        ? [...cookbookFilterItems, {id: ADD_COOKBOOK_ID, label: t('layout.addOfficialCookbook'), icon: IconAdd}]
+        : cookbookFilterItems;
+    }
     if (crumbAxis === 'cookbook') {
       const names = new Set<string>();
       for (const r of data) names.add(r.cookbook || '공식 레시피 북 없음');
@@ -312,15 +287,21 @@ export function ExploreScreen({
       return [{id: CRUMB_ALL, label: t('explore.all')}, ...[...names].map(n => ({id: n, label: n}))];
     }
     return [];
-  }, [crumbAxis, data, exploreCookbooks, t]);
+  }, [crumbAxis, data, exploreCookbooks, cookbookFilterItems, isAdmin, t]);
 
   const handleCrumbItemSelect = useCallback((id: string) => {
     setShowItemMenu(false);
-    // '전체'를 고르면 2뎁스에서 나와 탭 화면으로
+    if (id === ADD_COOKBOOK_ID) {
+      setCookbookEditTarget(null);
+      setCookbookInitialOfficial(true);
+      setShowCookbookDialog(true);
+      return;
+    }
+    // '전체'를 고르면 2뎁스에서 나와 '레시피' 축으로
     if (id === CRUMB_ALL) setDrillFrom(null);
-    if (crumbAxis === 'cookbook') { setSelectedMethod(null); setSelectedCategory(id === CRUMB_ALL ? CRUMB_ALL : id); }
+    if (crumbAxis === 'cookbook' || crumbAxis === 'all') { setSelectedMethod(null); setSelectedCategory(id === CRUMB_ALL ? CRUMB_ALL : id); }
     else if (crumbAxis === 'method') { setSelectedCategory(CRUMB_ALL); setSelectedMethod(id === CRUMB_ALL ? null : id); }
-  }, [crumbAxis]);
+  }, [crumbAxis, setCookbookEditTarget, setCookbookInitialOfficial, setShowCookbookDialog]);
 
   // 뒤로가기: 상위 목록(레시피북/공법 GroupScreen)으로
   const handleCrumbBack = useCallback(() => {
@@ -359,9 +340,9 @@ export function ExploreScreen({
   }
 
   // 평면 리스트('전체' 축): 필터(레시피북/공법)된 결과 + 축 드롭다운
-  // '전체'에서는 공식 레시피북을 탭으로 고르므로 2뎁스로 들어가지 않는다 (홈과 같다)
+  // '레시피' 축은 [축 아이콘 셀렉터] [레시피북 ⌄] — 북을 안 골랐으면 '전체' (홈과 같다)
   const flatFilterLabel = crumbAxis === 'all'
-    ? undefined
+    ? (selectedCategory !== CRUMB_ALL ? selectedCategory : t('explore.all'))
     : selectedMethod ?? (selectedCategory !== '__all__' ? selectedCategory : undefined);
 
   return (
@@ -413,6 +394,7 @@ export function ExploreScreen({
               axisIcon={axisMenuItems.find(i => i.id === crumbAxis)?.icon}
               axisIconColor={axisMenuItems.find(i => i.id === crumbAxis)?.iconColor}
               itemLabel={flatFilterLabel}
+              axisIconOnly={crumbAxis === 'all'}
               onAxisPress={() => {
                 closeMenus();
                 setShowFlatMoreMenu(false);
@@ -451,7 +433,6 @@ export function ExploreScreen({
             handleFilterPress();
           }}
           filterMenuOpen={showLayoutMenu}
-          below={cookbookTabsNode}
           titleMenu={
             <>
               <Menu
