@@ -2161,6 +2161,8 @@ export function CookingMode({
                       selected={checked}
                       onPress={() => toggleIngredient(ing.name)}
                       selectedStyle="outline"
+                      // 요리 중엔 멀리서 본다 — 한 단계 큰 글자
+                      size="large"
                       style={styles.ingredientTile}
                     />
                   );

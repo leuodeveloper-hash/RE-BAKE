@@ -1,1 +1,1 @@
-export {OptionTile, type OptionTileProps} from './OptionTile';
+export {OptionTile, type OptionTileProps, type OptionTileSize} from './OptionTile';

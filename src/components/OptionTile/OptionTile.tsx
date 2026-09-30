@@ -13,6 +13,8 @@ import {useColors} from '@contexts/ThemeContext';
 
 /** 선택 상태 색 */
 export type OptionTileTone = 'accent' | 'neutral' | 'warning';
+/** 글자 크기 — large는 한 단계 크게(요리 중처럼 멀리서 봐야 할 때) */
+export type OptionTileSize = 'medium' | 'large';
 /** 선택 표시 방식 */
 export type OptionTileSelectedStyle = 'fill' | 'outline';
 
@@ -33,6 +35,8 @@ export interface OptionTileProps {
    * - 'outline': 테두리만 — 사진·글자가 주인공이라 배경을 덮으면 안 될 때
    */
   selectedStyle?: OptionTileSelectedStyle;
+  /** 글자 크기 (기본 medium) */
+  size?: OptionTileSize;
   style?: StyleProp<ViewStyle>;
   onPress?: () => void;
 }
@@ -52,6 +56,7 @@ export function OptionTile({
   selected = false,
   selectedTone = 'accent',
   selectedStyle = 'fill',
+  size = 'medium',
   style,
   onPress,
 }: OptionTileProps) {
@@ -76,9 +81,9 @@ export function OptionTile({
           color={selected ? colors[tone.fg] : colors['foreground/on-surface-muted']}
         />
       )}
-      <Text style={[styles.label, selected && {color: colors[tone.fg]}]} numberOfLines={2}>{label}</Text>
+      <Text style={[styles.label, size === 'large' && styles.labelLarge, selected && {color: colors[tone.fg]}]} numberOfLines={2}>{label}</Text>
       {sublabel ? (
-        <Text style={[styles.sublabel, selected && {color: colors[tone.fg]}]} numberOfLines={1}>{sublabel}</Text>
+        <Text style={[styles.sublabel, size === 'large' && styles.sublabelLarge, selected && {color: colors[tone.fg]}]} numberOfLines={1}>{sublabel}</Text>
       ) : null}
     </Card>
   );
@@ -121,5 +126,16 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     color: colors['foreground/on-surface'],
     textAlign: 'center',
     marginTop: FONT_BASELINE_OFFSET,
+  },
+  // large — 한 단계 큰 글자 (라벨 12→14, 보조 11→12)
+  labelLarge: {
+    fontFamily: Typography.label['large - semibold'].fontFamily,
+    fontSize: Typography.label['large - semibold'].fontSize,
+    fontWeight: Typography.label['large - semibold'].fontWeight as '600',
+    lineHeight: Typography.label['large - semibold'].lineHeight,
+  },
+  sublabelLarge: {
+    fontSize: Typography.label.medium.fontSize,
+    lineHeight: Typography.label.medium.lineHeight,
   },
 });
