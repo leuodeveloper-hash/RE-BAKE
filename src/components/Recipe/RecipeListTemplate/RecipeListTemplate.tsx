@@ -233,12 +233,6 @@ function SkeletonFooter({layout}: {layout: RecipeCardLayout}) {
   );
 }
 
-/**
- * 팩뷰에서 캔버스를 위로 끌어올리는 양 — 레시피북 탭 한 줄 높이.
- * 탭이 흐름에서 차지한 만큼 캔버스가 짧아져 팩이 아래로 몰리는 것을 막는다.
- */
-const PACK_HEADER_OVERLAP = 56;
-
 const footerStyles = StyleSheet.create({
   gridWrap: {
     gap: Spacing.md,
@@ -713,10 +707,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   packFull: {
     flex: 1,
     width: '100%',
-    // 탭이 차지한 만큼 위로 끌어올린다 — 그러지 않으면 캔버스가 짧아져
-    // 팩이 남은 공간 가운데로 몰리며 위가 휑해진다.
-    // (절대위치로 띄우면 탭이 콘텐츠 최대폭을 벗어나 화면 끝까지 퍼진다)
-    marginTop: -PACK_HEADER_OVERLAP,
   },
   // 팩은 전체 너비로 로밍하지만 헤더(레시피북 탭 등)는 앱바 아래 콘텐츠 폭에 맞춘다.
   // APPBAR_HEIGHT(72)는 앱바가 실제로 끝나는 지점(54)보다 커서 위가 휑했다.
