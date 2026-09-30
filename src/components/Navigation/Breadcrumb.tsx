@@ -10,7 +10,7 @@ import {NavPillButton} from '@components/Navigation';
 export interface BreadcrumbProps {
   /** 1뎁스: 축 라벨 (전체/레시피 북/공법/회고 노트) */
   axisLabel: string;
-  /** (deprecated) 축 아이콘 — 셀렉터엔 표시하지 않는다. 호출부 호환용으로만 남김. */
+  /** 축 아이콘 — 2뎁스에서 뒤로가기 버튼에 쓴다(돌아갈 곳을 알린다). */
   axisIcon?: React.FC<SvgProps>;
   axisIconColor?: string;
   /** 2뎁스: 선택 항목 (특정 책/공법). 없으면 1뎁스만 */
@@ -32,7 +32,7 @@ export interface BreadcrumbProps {
  *
  * onBack이 주어지고 항목(2뎁스)이 있으면: `[‹ 뒤로가기] [항목 ⌄]` 형태로 축 텍스트를 버튼으로 대체.
  */
-export function Breadcrumb({axisLabel, itemLabel, onAxisPress, onItemPress, onBack, leadingNode}: BreadcrumbProps) {
+export function Breadcrumb({axisLabel, axisIcon, itemLabel, onAxisPress, onItemPress, onBack, leadingNode}: BreadcrumbProps) {
   const colors = useColors();
   const hasItem = itemLabel != null && itemLabel !== '';
 
@@ -40,8 +40,10 @@ export function Breadcrumb({axisLabel, itemLabel, onAxisPress, onItemPress, onBa
   if (hasItem && onBack) {
     return (
       <View style={styles.row}>
+        {/* 돌아갈 곳의 아이콘을 쓴다 — 화살표만 있으면 어디서 들어왔는지
+            (레시피들인지 레시피북인지) 알 수 없다 */}
         <NavPillButton
-          icon={IconArrowLeft}
+          icon={axisIcon ?? IconArrowLeft}
           onPress={onBack}
           variant="ghost-secondary"
         />
