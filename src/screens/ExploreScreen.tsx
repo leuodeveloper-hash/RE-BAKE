@@ -26,8 +26,8 @@ import {getColorVarKey} from '@components/ColorPicker/ColorPicker';
 import type {ExploreCookbook} from '@hooks/useExploreRecipes';
 import {GroupScreen} from './GroupScreen';
 import {axisLabel, useAxisMenuItems, type AxisOverrides, type GroupAxis} from '@components/RecipeGroups/groupAxis';
-import {crumbAxisOf, axisItemsWithDrill} from '@hooks/useCrumbAxis';
-import {FilterChips} from '@components/FilterChips';
+import {crumbAxisOf} from '@hooks/useCrumbAxis';
+import {Tabs} from '@components/Tabs';
 import {IconExprolerBookFilled} from '@components/Icon/IconIndex';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import {resolveAuthorHandle} from '../types/author';
@@ -99,8 +99,6 @@ export function ExploreScreen({
   const {selectedExploreCookbook, setSelectedExploreCookbook} = useRecipes();
   // 홈과 동일한 그룹화 축 (전체/레시피북/공법). 'all'=평면 리스트, 그 외=GroupScreen.
   const [exploreAxis, setExploreAxis] = useState<GroupAxis>('all');
-  // 축 메뉴에서 '레시피별' 아래 레시피북 목록을 펼쳤는지 (홈과 같은 구조)
-  const [cookbookListOpen, setCookbookListOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('__all__');
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const axisMenuItems = useAxisMenuItems(EXPLORE_AXES, EXPLORE_AXIS_OVERRIDES);
@@ -346,10 +344,13 @@ export function ExploreScreen({
         // 홈과 같은 칩 줄 — 메뉴를 열지 않고 공식 레시피북을 한 번에 거른다.
         // (공식 북은 어드민만 만들 수 있어 + 는 두지 않는다)
         exploreAxis === 'all' ? (
-          <FilterChips
-            options={cookbookNames}
-            selected={selectedCategory === CRUMB_ALL ? null : selectedCategory}
-            onSelect={name => { setSelectedMethod(null); setSelectedCategory(name ?? CRUMB_ALL); }}
+          <Tabs
+            variant="text"
+            uniformWidth={false}
+            scrollable
+            tabs={[{id: CRUMB_ALL, label: t('explore.all')}, ...cookbookNames.map(n => ({id: n, label: n}))]}
+            selectedId={selectedCategory}
+            onSelect={id => { setSelectedMethod(null); setSelectedCategory(id); }}
           />
         ) : undefined
       }
@@ -427,20 +428,11 @@ export function ExploreScreen({
           titleMenu={
             <>
               <Menu
-                items={axisItemsWithDrill(axisMenuItems)}
+                items={axisMenuItems}
                 selectedId={crumbAxis}
-                subMenu={cookbookListOpen ? {
-                  title: t('groupAxis.axisCookbook'),
-                  items: cookbookFilterItems,
-                  selectedId: selectedCategory,
-                } : null}
-                onSubMenuBack={() => setCookbookListOpen(false)}
                 onSelect={id => {
-                  // '레시피별'은 하위 목록을 연다 — 축은 이미 전체다
-                  if (id === 'all') { setCookbookListOpen(true); return; }
                   if (axisMenuItems.some(a => a.id === id)) { handleAxisSelect(id); return; }
                   // 레시피북 필터 — 화면을 떠나지 않고 걸러진다
-                  setCookbookListOpen(false);
                   setShowCategoryMenu(false);
                   setSelectedMethod(null);
                   setSelectedCategory(id);

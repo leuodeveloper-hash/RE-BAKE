@@ -18,16 +18,3 @@ export function crumbAxisOf(
   if (filters.method) return 'method';
   return axis;
 }
-
-/** 축 메뉴에 들어갈 항목 한 줄 */
-interface AxisItem {id: string; label: string; icon?: any; iconColor?: string}
-
-/**
- * 축 메뉴 항목 — '레시피별'에 화살표를 달아 하위 목록이 있음을 알린다.
- *
- * 누르면 메뉴가 레시피북 목록으로 덮인다(Menu의 subMenu). 항목 아래로 펼치면
- * 메뉴가 길어지고, 어디에 딸린 목록인지도 흐려진다.
- */
-export function axisItemsWithDrill(axisItems: AxisItem[]) {
-  return axisItems.map(a => (a.id === 'all' ? {...a, hasChildren: true} : a));
-}

@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {Animated, Easing, LayoutChangeEvent, Pressable, StyleProp, StyleSheet, Text, View, ViewStyle} from 'react-native';
+import {Animated, Easing, LayoutChangeEvent, Pressable, ScrollView, StyleProp, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {Radius} from '@constants/tokens';
 import {useThemedStyles} from '@hooks/useThemedStyles';
@@ -27,6 +27,13 @@ export interface TabsProps {
   style?: StyleProp<ViewStyle>;
   /** 탭을 균등 분할하여 전체 너비를 채움 */
   fullWidth?: boolean;
+  /**
+   * 탭이 화면을 넘치면 가로로 밀어 본다(레시피북처럼 개수가 정해지지 않은 목록).
+   * 끝에 붙일 버튼은 trailing으로 넣는다.
+   */
+  scrollable?: boolean;
+  /** 탭 줄 맨 뒤에 붙는 노드 (예: + 추가 버튼) */
+  trailing?: React.ReactNode;
   /** filled: 배경+인디케이터, text: 텍스트 전용 (기본: filled) */
   variant?: TabsVariant;
   /** 탭 비활성화 (표시는 하되 터치 불가) */
@@ -53,7 +60,7 @@ interface TabLayout {
   width: number;
 }
 
-export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'filled', disabled, size = 'medium', uniformWidth = true}: TabsProps) {
+export function Tabs({tabs, selectedId, onSelect, style, fullWidth, scrollable, trailing, variant = 'filled', disabled, size = 'medium', uniformWidth = true}: TabsProps) {
   const isText = variant === 'text';
   const isLarge = size === 'large';
   const filledTabHeight = isLarge ? FILLED_TAB_HEIGHT_LARGE : FILLED_TAB_HEIGHT;
@@ -134,8 +141,16 @@ export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'f
 
   const hasLayout = tabLayouts[selectedId] != null;
 
+  const Container: any = scrollable ? ScrollView : View;
+  const containerProps = scrollable
+    ? {horizontal: true, showsHorizontalScrollIndicator: false, bounces: false}
+    : {};
+
   return (
-    <View style={[isText ? styles.textContainer : styles.container, !isText && isLarge && {borderRadius: filledRadius, backgroundColor: 'transparent'}, style]}>
+    <Container
+      {...containerProps}
+      style={[isText ? styles.textContainer : styles.container, !isText && isLarge && {borderRadius: filledRadius, backgroundColor: 'transparent'}, style]}
+      {...(scrollable ? {contentContainerStyle: styles.scrollContent} : {})}>
       <View style={isText ? styles.textTabGroup : styles.tabGroup}>
         {/* 슬라이딩 인디케이터 */}
         {hasLayout && (
@@ -210,11 +225,18 @@ export function Tabs({tabs, selectedId, onSelect, style, fullWidth, variant = 'f
           );
         })}
       </View>
-    </View>
+      {trailing}
+    </Container>
   );
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  // 가로 스크롤일 때 — 탭과 끝 버튼이 한 줄로 이어진다
+  scrollContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
   // ---- Filled variant ----
   container: {
     // fill/subtle: 어떤 배경(surface/dim 등) 위에서도 트랙이 은은하게 보이도록.

@@ -24,9 +24,11 @@ import {useAuth} from '@contexts/AuthContext';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {GroupScreen} from './GroupScreen';
 import {axisLabel, useAxisMenuItems, type GroupAxis} from '@components/RecipeGroups/groupAxis';
-import {crumbAxisOf, axisItemsWithDrill} from '@hooks/useCrumbAxis';
-import {FilterChips} from '@components/FilterChips';
+import {crumbAxisOf} from '@hooks/useCrumbAxis';
 import {useAddSheet} from '@contexts/AddSheetContext';
+import {Tabs} from '@components/Tabs';
+import {IconButton} from '@components/IconButton';
+import {IconAdd} from '@components/Icon/IconIndex';
 import {Spacing} from '@constants/spacing';
 import {generateRecipeListHtml, generateRecipeHtml} from '@utils/generateRecipeHtml';
 import {parseSession, formatSession} from '@utils/session';
@@ -124,8 +126,6 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
 
   // 그룹화 축: 'all'이면 평면 리스트, 그 외엔 그룹 화면(GroupScreen) 호스팅
   const [groupAxis, setGroupAxis] = useState<GroupAxis>('all');
-  // 축 메뉴에서 '전체' 아래 레시피북 목록을 펼쳤는지
-  const [cookbookListOpen, setCookbookListOpen] = useState(false);
   // 마지막 본 축 복원 (앱 재시작해도 유지). 저장 덮어쓰기 방지용 로드 플래그.
   const axisLoaded = useRef(false);
   useEffect(() => {
@@ -219,7 +219,6 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
 
   const handleCookbookFilterSelect = useCallback((id: string) => {
     setCrumbMenu(null);
-    setCookbookListOpen(false);
     setSelectedMethod(null);
     setSelectedCookbook(id === ALL_ID ? null : id);
     setGroupAxis('all');
@@ -561,11 +560,24 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
         {/* 레시피북 칩 — 메뉴를 열고 2뎁스로 들어가지 않고 한 번에 거른다.
             맨 뒤 +로 그 자리에서 북을 만든다. */}
         {groupAxis === 'all' && (
-          <FilterChips
-            options={cookbookNames}
-            selected={selectedCookbook}
-            onSelect={name => { setSelectedMethod(null); setSelectedCookbook(name); }}
-            onAdd={() => { setCookbookEditTarget(null); setShowCookbookDialog(true); }}
+          <Tabs
+            variant="text"
+            uniformWidth={false}
+            scrollable
+            tabs={[{id: ALL_ID, label: t('home.all')}, ...cookbookNames.map(n => ({id: n, label: n}))]}
+            selectedId={selectedCookbook ?? ALL_ID}
+            onSelect={id => {
+              setSelectedMethod(null);
+              setSelectedCookbook(id === ALL_ID ? null : id);
+            }}
+            trailing={
+              <IconButton
+                icon={IconAdd}
+                variant="ghost-secondary"
+                size="small"
+                onPress={() => { setCookbookEditTarget(null); setShowCookbookDialog(true); }}
+              />
+            }
           />
         )}
         {
@@ -680,20 +692,9 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
                   북을 고르려고 책 표지 화면으로 넘어갔다 돌아오지 않아도 된다.
                   (책 표지 화면은 북 자체를 고치는 자리로 남는다) */}
               <Menu
-                items={axisItemsWithDrill(axisMenuItems)}
+                items={axisMenuItems}
                 selectedId={crumbAxis}
-                subMenu={cookbookListOpen ? {
-                  title: t('groupAxis.axisCookbook'),
-                  items: cookbookFilterItems,
-                  selectedId: selectedCookbook ?? ALL_ID,
-                } : null}
-                onSubMenuBack={() => setCookbookListOpen(false)}
                 onSelect={id => {
-                  // '레시피별'은 하위 목록을 연다 — 축은 이미 전체다
-                  if (id === 'all') {
-                    setCookbookListOpen(true);
-                    return;
-                  }
                   if (axisMenuItems.some(a => a.id === id)) handleHomeAxisSelect(id);
                   else handleCookbookFilterSelect(id);
                 }}
