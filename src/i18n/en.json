@@ -270,7 +270,7 @@
   "group.reviewCountMultiline": "{{count}}\nreviews",
   "group.reviewCountMultiline_one": "{{count}}\nreview",
   "group.sessionCount": "Round {{count}}",
-  "groupAxis.axisAll": "Recipes",
+  "groupAxis.axisAll": "All recipes",
   "groupAxis.axisCookbook": "Cookbooks",
   "groupAxis.axisMethod": "Methods",
   "groupAxis.axisRetrospective": "Reflections",
