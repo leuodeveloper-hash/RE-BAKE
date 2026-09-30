@@ -225,23 +225,32 @@ export function ReviewLogSheet({
         /* ---- Depth 1: 레시피 목록 ---- */
         <View style={styles.content}>
           {filteredRecipes.length > 0 ? (
-            filteredRecipes.map(recipe => {
+            // 목록 자체가 회고 내용이다 — 레시피 이름만 늘어놓으면 한 번 더 눌러야 뭘 썼는지 안다.
+            // 회고 하나가 한 줄. 같은 레시피 묶음(다시 만들기)은 최근 회차부터.
+            filteredRecipes.flatMap(recipe => {
               const groupKey = recipe.remakeGroupId ?? recipe.id;
-              const stats = retroStats.get(groupKey) ?? {totalReviews: 0, totalSessions: 1};
-              return (
-                <RecipeCard
-                  key={recipe.id}
-                  title={recipe.title}
-                  cookbook={recipe.cookbook}
-                  method={t('reviewLog.reviewSessionRatio', {reviews: stats.totalReviews, sessions: stats.totalSessions})}
-                  imageUrl={recipe.imageUri}
-                  layout="list"
-                  size="small"
-                  placeholderIcon={IconChartNoAxesGantt}
-                  placeholderIconColor={colors['custom/light-blue-var']}
-                  onPress={() => handleRetroPress(recipe)}
-                />
-              );
+              const groupRecipes = (allRecipes ?? []).filter(r => (r.remakeGroupId ?? r.id) === groupKey);
+              const sessions = (groupRecipes.length > 0 ? groupRecipes : [recipe])
+                .sort((a, b) => parseSession(b.session).current - parseSession(a.session).current);
+              return sessions.flatMap(r => reviewsOf(r).map((rv, j) => {
+                const evaluation = rv.evaluation?.trim();
+                const improvement = rv.improvement?.trim();
+                return (
+                  <RecipeCard
+                    key={`${r.id}-${j}`}
+                    title={evaluation || improvement || ''}
+                    customSubtitle={evaluation && improvement ? improvement : undefined}
+                    subtitleIcon={evaluation && improvement ? IconCornerDownRight : undefined}
+                    subtitleNumberOfLines={2}
+                    imageUrl={rv.photos?.[0] ?? r.imageUri ?? recipe.imageUri}
+                    layout="list"
+                    size="small"
+                    placeholderIcon={IconChartNoAxesGantt}
+                    placeholderIconColor={colors['custom/light-blue-var']}
+                    onPress={() => handleRetroPress(recipe)}
+                  />
+                );
+              }));
             })
           ) : (
             <View style={styles.empty}>

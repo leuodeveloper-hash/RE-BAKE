@@ -645,13 +645,13 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
               axisIcon={axisMenuItems.find(i => i.id === crumbAxis)?.icon}
               axisIconColor={axisMenuItems.find(i => i.id === crumbAxis)?.iconColor}
               itemLabel={crumbItemLabel}
-              axisIconOnly={crumbAxis === 'all'}
               onAxisPress={() => {
                 closeMenus();
                 setShowMoreMenu(false);
                 setCrumbMenu(prev => (prev === 'axis' ? null : 'axis'));
               }}
-              onBack={() => {
+              // 들어간 상태(레시피북·공법에서 고른 항목)일 때만 뒤로가기
+              onBack={crumbAxis === 'all' ? undefined : () => {
                 closeMenus();
                 setShowMoreMenu(false);
                 setCrumbMenu(null);

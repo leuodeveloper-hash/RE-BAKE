@@ -394,14 +394,14 @@ export function ExploreScreen({
               axisIcon={axisMenuItems.find(i => i.id === crumbAxis)?.icon}
               axisIconColor={axisMenuItems.find(i => i.id === crumbAxis)?.iconColor}
               itemLabel={flatFilterLabel}
-              axisIconOnly={crumbAxis === 'all'}
               onAxisPress={() => {
                 closeMenus();
                 setShowFlatMoreMenu(false);
                 setShowItemMenu(false);
                 setShowCategoryMenu(prev => !prev);
               }}
-              onBack={handleCrumbBack}
+              // 들어간 상태(레시피북·공법에서 고른 항목)일 때만 뒤로가기
+              onBack={crumbAxis === 'all' ? undefined : handleCrumbBack}
               onItemPress={() => {
                 closeMenus();
                 setShowFlatMoreMenu(false);

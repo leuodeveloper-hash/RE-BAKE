@@ -114,6 +114,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
   const {pullProgress, isRefreshing, refreshStripProgress, refreshOpacity, refreshGapHeight, handleScroll} = usePullProgress(onRefresh);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showGroupFilterMenu, setShowGroupFilterMenu] = useState(false);
+  // 2뎁스 셀렉터 메뉴(북·공법 목록) — 레시피 축과 같은 [축 아이콘][항목 ⌄] 구성
+  const [showItemMenu, setShowItemMenu] = useState(false);
   const [cookbookMenuTarget, setCookbookMenuTarget] = useState<string | null>(null);
   const [cookbookMenuPosition, setCookbookMenuPosition] = useState<{top: number; right: number} | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -342,10 +344,22 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         onPress: () => setShowReviewSheet(true),
       }];
     }
-    const cards = retrospectives.map(recipe => ({
-      title: recipe.title,
-      paperPreview: buildPaperPreview(recipe),
-    }));
+    // 노트 종이에는 레시피 내용이 아니라 회고 내용을 적는다 — 회고 노트이므로.
+    // 다시 만들기 묶음이면 최근 회차부터. 개선점은 ↳로 이어 쓴다.
+    const cards = retrospectives.map(recipe => {
+      const groupKey = recipe.remakeGroupId ?? recipe.id;
+      const sessions = retrospectiveSource
+        .filter(r => (r.remakeGroupId ?? r.id) === groupKey)
+        .sort((a, b) => parseSession(b.session).current - parseSession(a.session).current);
+      const lines = sessions.flatMap(r => reviewsOf(r)).flatMap(rv => [
+        rv.evaluation?.trim(),
+        rv.improvement?.trim() ? `↳ ${rv.improvement.trim()}` : undefined,
+      ]).filter((l): l is string => !!l);
+      return {
+        title: recipe.title,
+        paperPreview: lines,
+      };
+    });
     return [{
       id: '__retro_note__',
       title: t('group.retroNote'),
@@ -355,7 +369,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
       cards,
       onPress: () => setShowReviewSheet(true),
     }];
-  }, [retrospectives, t]);
+  }, [retrospectives, retrospectiveSource, reviewsOf, t]);
 
   // 활성 축에 따른 팩 목록
   const activePacks = axis === 'cookbook' ? cookbookPacks : axis === 'method' ? methodPacks : retrospectivePacks;
@@ -413,17 +427,20 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
 
   const handleGroupFilterSelect = (id: string) => {
     setShowGroupFilterMenu(false);
+    setShowItemMenu(false);
     onAxisChange(id as GroupAxis);
   };
 
   const handleMenuPress = () => {
     setShowGroupFilterMenu(false);
+    setShowItemMenu(false);
     setCookbookMenuTarget(null);
     setShowMoreMenu(prev => !prev);
   };
 
   const handleOverlayPress = () => {
     setShowGroupFilterMenu(false);
+    setShowItemMenu(false);
     setShowMoreMenu(false);
     setCookbookMenuTarget(null);
     setExploreCookbookMenuTarget(null);
@@ -443,6 +460,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
 
   const handleCookbookMenuPress = (name: string, position: {pageX: number; pageY: number; width: number; height: number}) => {
     setShowGroupFilterMenu(false);
+    setShowItemMenu(false);
     setShowMoreMenu(false);
     setExploreCookbookMenuTarget(null);
     positionMenu(position);
@@ -451,6 +469,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
 
   const handleExploreCookbookMenuPress = (name: string, position: {pageX: number; pageY: number; width: number; height: number}) => {
     setShowGroupFilterMenu(false);
+    setShowItemMenu(false);
     setShowMoreMenu(false);
     setCookbookMenuTarget(null);
     positionMenu(position);
@@ -526,10 +545,22 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         leftIcon={onBack ? IconClose : undefined}
         onLeftPress={onBack}
         titleNode={
+          // 레시피 축과 같은 모양: [축 아이콘(축 메뉴)] [항목 ⌄]
+          // 레시피북·공법은 '전체'에서 하나를 골라 들어가고, 회고 노트는 고를 항목이 없어 축 이름을 둔다
           <Breadcrumb
             leadingNode={authorBadge}
             axisLabel={axisLabel(t, axis, axisOverrides)}
-            onAxisPress={handleTitlePress}
+            axisIcon={groupFilterMenuItems.find(i => i.id === axis)?.icon}
+            axisIconColor={groupFilterMenuItems.find(i => i.id === axis)?.iconColor}
+            itemLabel={axis === 'retrospective' ? axisLabel(t, axis, axisOverrides) : t('home.all')}
+            onAxisPress={() => { setShowItemMenu(false); handleTitlePress(); }}
+            onItemPress={() => {
+              if (axis === 'retrospective') { handleTitlePress(); return; }
+              setShowGroupFilterMenu(false);
+              setShowLayoutMenu(false);
+              setShowMoreMenu(false);
+              setShowItemMenu(prev => !prev);
+            }}
           />
         }
         showAddButton={showAddButton && axis !== 'method' && axis !== 'retrospective'}
@@ -543,14 +574,31 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         menuOpen={showMoreMenu}
         showMenuButton={moreMenuItems.length > 0}
         titleMenu={
-          <Menu
-            items={groupFilterMenuItems}
-            selectedId={axis}
-            visible={showGroupFilterMenu}
-            onSelect={handleGroupFilterSelect}
-            headerNode={menuHeaderNode}
-          />
+          <>
+            <Menu
+              items={groupFilterMenuItems}
+              selectedId={axis}
+              visible={showGroupFilterMenu}
+              onSelect={handleGroupFilterSelect}
+              headerNode={menuHeaderNode}
+            />
+            {/* 2뎁스: 북·공법을 골라 그 항목으로 들어간다 */}
+            <Menu
+              items={axis === 'cookbook'
+                ? cookbooks.map(c => ({id: c.name, label: c.name}))
+                : axis === 'method'
+                  ? methodGroups.map(g => ({id: g.method, label: g.method}))
+                  : []}
+              visible={showItemMenu && axis !== 'retrospective'}
+              onSelect={id => {
+                setShowItemMenu(false);
+                if (axis === 'cookbook') onCookbookPress?.(id);
+                else if (axis === 'method') onMethodPress?.(id);
+              }}
+            />
+          </>
         }
+
         rightMenu={
           <>
             <Menu

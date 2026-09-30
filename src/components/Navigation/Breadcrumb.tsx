@@ -19,16 +19,10 @@ export interface BreadcrumbProps {
   onAxisPress?: () => void;
   onItemPress?: () => void;
   /**
-   * 지정 시, 2뎁스(item)로 들어간 상태에선 1뎁스 축 텍스트 대신 뒤로가기(‹) 버튼을 렌더.
-   * → 브레드크럼이 길어지지 않고 상위 목록으로 되돌아가는 동작만 남긴다. (항목 셀렉터는 유지)
+   * 항목으로 '들어간' 상태일 때만 넘긴다 — 주면 축 아이콘이 뒤로가기가 된다.
+   * 없으면 축 아이콘은 축 메뉴(onAxisPress)를 연다.
    */
   onBack?: () => void;
-  /**
-   * 1뎁스 축을 아이콘 버튼 하나로 줄인다 — 누르면 onAxisPress(축 메뉴).
-   * `[축 아이콘] [항목 ⌄]` 형태로, 뒤로가기 대신 축 셀렉터 역할을 한다.
-   * ('레시피' 축에서 레시피북을 2뎁스 셀렉터로 고를 때)
-   */
-  axisIconOnly?: boolean;
   /** 셀렉터 알약 안 맨 앞에 넣을 노드(작성자 아바타 등). */
   leadingNode?: React.ReactNode;
 }
@@ -39,13 +33,13 @@ export interface BreadcrumbProps {
  *
  * onBack이 주어지고 항목(2뎁스)이 있으면: `[‹ 뒤로가기] [항목 ⌄]` 형태로 축 텍스트를 버튼으로 대체.
  */
-export function Breadcrumb({axisLabel, axisIcon, axisIconColor, itemLabel, onAxisPress, onItemPress, onBack, axisIconOnly = false, leadingNode}: BreadcrumbProps) {
+export function Breadcrumb({axisLabel, axisIcon, axisIconColor, itemLabel, onAxisPress, onItemPress, onBack, leadingNode}: BreadcrumbProps) {
   const colors = useColors();
   const hasItem = itemLabel != null && itemLabel !== '';
 
-  // 뎁스 진입 + onBack 제공 → 축을 뒤로가기 버튼으로 대체 (텍스트 길이 축소)
-  // axisIconOnly → 같은 모양이지만 아이콘이 축 셀렉터(축 메뉴 열기)
-  if (hasItem && (axisIconOnly || onBack)) {
+  // 항목(2뎁스)이 있으면 늘 [축 아이콘][항목 ⌄] — 모양 규칙은 여기 한 곳에서만 정한다.
+  // 아이콘은 들어간 상태(onBack)면 뒤로가기, 아니면 축 메뉴.
+  if (hasItem) {
     return (
       <View style={styles.row}>
         {/* 돌아갈 곳의 아이콘을 쓴다 — 화살표만 있으면 어디서 들어왔는지
@@ -53,7 +47,7 @@ export function Breadcrumb({axisLabel, axisIcon, axisIconColor, itemLabel, onAxi
         <NavPillButton
           icon={axisIcon ?? IconArrowLeft}
           iconColor={axisIconColor}
-          onPress={axisIconOnly ? onAxisPress : onBack}
+          onPress={onBack ?? onAxisPress}
           variant="ghost-secondary"
         />
         <GlassContainer contentStyle={styles.pill}>
