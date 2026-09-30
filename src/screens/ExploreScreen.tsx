@@ -350,7 +350,7 @@ export function ExploreScreen({
         exploreAxis === 'all' ? (
           <Tabs
             // 탭 줄이 앱바·카드에 붙지 않게 위아래로 (홈과 같은 간격)
-            style={{marginTop: Spacing.sm, marginBottom: Spacing.md}}
+            style={{marginBottom: Spacing.md}}
             variant="text"
             uniformWidth={false}
             scrollable
