@@ -53,6 +53,8 @@ export interface AppBarProps {
   titleNode?: React.ReactNode;
   /** 뒤로가기와 타이틀/셀렉터 사이에 끼우는 노드(예: 작성자 칩). 셀렉터를 대체하지 않고 나란히 추가 */
   titleLeadingNode?: React.ReactNode;
+  /** 앱바 아래 줄(예: 레시피북 탭) — 같은 배경 안에 들어간다 */
+  below?: React.ReactNode;
 }
 
 export function AppBar({
@@ -83,6 +85,7 @@ export function AppBar({
   rightMenu,
   titleNode,
   titleLeadingNode,
+  below,
 }: AppBarProps) {
   const {t} = useTranslation();
   const resolvedTitle = title ?? t('appBar.allRecipeBooks');
@@ -177,6 +180,7 @@ export function AppBar({
       }
       leftMenu={titleMenu}
       rightMenu={rightMenu}
+      below={below}
     />
   );
 }

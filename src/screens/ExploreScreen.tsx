@@ -266,6 +266,19 @@ export function ExploreScreen({
     [cookbookFilterItems],
   );
 
+  /** 레시피북 탭 — 앱바 아래 줄(같은 배경). 목록 헤더에 두면 스크롤에 딸려 사라진다 */
+  const cookbookTabsNode = exploreAxis === 'all' ? (
+    <Tabs
+      style={{marginBottom: Spacing.sm}}
+      variant="text"
+      uniformWidth={false}
+      scrollable
+      tabs={[{id: CRUMB_ALL, label: t('explore.all')}, ...cookbookNames.map(n => ({id: n, label: n}))]}
+      selectedId={selectedCategory}
+      onSelect={id => { setSelectedMethod(null); setSelectedCategory(id); }}
+    />
+  ) : undefined;
+
   const crumbItemMenuItems = useMemo(() => {
     if (crumbAxis === 'cookbook') {
       const names = new Set<string>();
@@ -344,22 +357,6 @@ export function ExploreScreen({
       onOverlayPress={() => { setShowCategoryMenu(false); setShowItemMenu(false); setShowFlatMoreMenu(false); }}
       extraOverlayVisible={showCategoryMenu || showItemMenu || showFlatMoreMenu}
       scrollEnabled
-      listHeaderExtra={
-        // 홈과 같은 칩 줄 — 메뉴를 열지 않고 공식 레시피북을 한 번에 거른다.
-        // (공식 북은 어드민만 만들 수 있어 + 는 두지 않는다)
-        exploreAxis === 'all' ? (
-          <Tabs
-            // 탭 줄이 앱바·카드에 붙지 않게 위아래로 (홈과 같은 간격)
-            style={{marginBottom: Spacing.md}}
-            variant="text"
-            uniformWidth={false}
-            scrollable
-            tabs={[{id: CRUMB_ALL, label: t('explore.all')}, ...cookbookNames.map(n => ({id: n, label: n}))]}
-            selectedId={selectedCategory}
-            onSelect={id => { setSelectedMethod(null); setSelectedCategory(id); }}
-          />
-        ) : undefined
-      }
       lockedRecipeIds={lockedRecipeIds}
       pinnedMap={explorePins}
       listEmptyComponent={
@@ -431,6 +428,7 @@ export function ExploreScreen({
             handleFilterPress();
           }}
           filterMenuOpen={showLayoutMenu}
+          below={cookbookTabsNode}
           titleMenu={
             <>
               <Menu

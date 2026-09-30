@@ -222,6 +222,33 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
     [cookbookFilterItems],
   );
 
+  /**
+   * 레시피북 탭 — 앱바 아래 줄에 들어간다(같은 블러·그라디언트 배경).
+   * 목록 헤더에 두면 스크롤할 때 같이 올라가 사라진다.
+   */
+  const cookbookTabsNode = groupAxis === 'all' ? (
+    <Tabs
+      style={styles.cookbookTabs}
+      variant="text"
+      uniformWidth={false}
+      scrollable
+      tabs={[{id: ALL_ID, label: t('home.all')}, ...cookbookNames.map(n => ({id: n, label: n}))]}
+      selectedId={selectedCookbook ?? ALL_ID}
+      onSelect={id => {
+        setSelectedMethod(null);
+        setSelectedCookbook(id === ALL_ID ? null : id);
+      }}
+      trailing={
+        <IconButton
+          icon={IconAdd}
+          variant="ghost-secondary"
+          size="small"
+          onPress={() => { setCookbookEditTarget(null); setShowCookbookDialog(true); }}
+        />
+      }
+    />
+  ) : undefined;
+
   const handleCookbookFilterSelect = useCallback((id: string) => {
     setCrumbMenu(null);
     setSelectedMethod(null);
@@ -562,30 +589,6 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
       onRefresh={reload}
       listHeaderExtra={
         <>
-        {/* 레시피북 칩 — 메뉴를 열고 2뎁스로 들어가지 않고 한 번에 거른다.
-            맨 뒤 +로 그 자리에서 북을 만든다. */}
-        {groupAxis === 'all' && (
-          <Tabs
-            style={styles.cookbookTabs}
-            variant="text"
-            uniformWidth={false}
-            scrollable
-            tabs={[{id: ALL_ID, label: t('home.all')}, ...cookbookNames.map(n => ({id: n, label: n}))]}
-            selectedId={selectedCookbook ?? ALL_ID}
-            onSelect={id => {
-              setSelectedMethod(null);
-              setSelectedCookbook(id === ALL_ID ? null : id);
-            }}
-            trailing={
-              <IconButton
-                icon={IconAdd}
-                variant="ghost-secondary"
-                size="small"
-                onPress={() => { setCookbookEditTarget(null); setShowCookbookDialog(true); }}
-              />
-            }
-          />
-        )}
         {
         // 시험이 임박하면 그 배너를 먼저 — 기한이 있어 더 시급하다
         upcomingExam ? (
@@ -680,6 +683,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
               }}
             />
           }
+          below={cookbookTabsNode}
           onAddPress={handleAddRecipe}
           onFilterPress={() => {
             closeLocalMenus();

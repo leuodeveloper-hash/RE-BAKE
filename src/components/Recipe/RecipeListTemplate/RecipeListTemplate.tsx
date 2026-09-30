@@ -613,20 +613,12 @@ export function RecipeListTemplate({
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         {/* 레시피북 탭 등은 레이아웃과 무관하다 — 분기 안에 두면 레이아웃을
             바꿀 때마다 자리가 달라져 탭이 튄다. 바깥에 한 번만 그린다. */}
-        {/* 팩뷰에선 보드가 화면 전체를 쓰고 상단 UI는 그 위에 뜬다 —
-            흐름에 두면 보드가 그만큼 잘린다. 폭 제약(ContentContainer)은
-            그대로라 탭이 화면 끝까지 퍼지지 않는다. */}
-        {listHeaderExtra && activeLayout !== 'pack' ? (
+        {listHeaderExtra ? (
           <ContentContainer style={styles.listHeaderExtra}>{listHeaderExtra}</ContentContainer>
         ) : null}
         {activeLayout === 'pack' ? (
           // 팩뷰: 콘텐츠 너비(maxWidth 800)·패딩 제약 밖에서 전체 너비로 로밍
           <View style={styles.packFull}>
-            {listHeaderExtra ? (
-              <View style={styles.packHeaderFloat} pointerEvents="box-none">
-                <ContentContainer style={styles.listHeaderExtra}>{listHeaderExtra}</ContentContainer>
-              </View>
-            ) : null}
             <PullIndicator progress={pullProgress} isRefreshing={isRefreshing} refreshStripProgress={refreshStripProgress} refreshOpacity={refreshOpacity} />
             {!loading && layoutLoaded && sortedData.length === 0 && listEmptyComponent ? (
               // 팩뷰에서도 레시피가 없으면 빈 상태 표시 (FlatList 경로와 동일)
@@ -715,14 +707,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   packFull: {
     flex: 1,
     width: '100%',
-  },
-  // 보드 위에 뜨는 상단 UI — 보드는 화면 전체를 쓰고 탭만 겹쳐 놓는다
-  packHeaderFloat: {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 3,
   },
   // 팩은 전체 너비로 로밍하지만 헤더(레시피북 탭 등)는 앱바 아래 콘텐츠 폭에 맞춘다.
   // APPBAR_HEIGHT(72)는 앱바가 실제로 끝나는 지점(54)보다 커서 위가 휑했다.
