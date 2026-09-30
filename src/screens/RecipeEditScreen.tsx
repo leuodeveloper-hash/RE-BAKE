@@ -27,7 +27,7 @@ import {Button} from '@components/Button';
 import {ListItem} from '@components/ListItem';
 import {Menu} from '@components/Menu';
 import {Popover} from '@components/Popover';
-import {CookbookSelectSheet} from '@components/BottomSheet';
+import {CookbookSelectSheet, PasteRecipeSheet} from '@components/BottomSheet';
 import {EditableChip} from '@components/EditableChip';
 import {Switch} from '@components/Switch';
 import {OptionTile} from '@components/OptionTile';
@@ -52,6 +52,7 @@ import {SkeletonLine} from '@components/SkeletonLine';
 import {useYouTubePlayer} from '@contexts/YouTubePlayerContext';
 import {parseYouTubeVideoId} from '@utils/youtube';
 import {triggerHaptic} from '@utils/haptics';
+import {parseRecipeMarkdown} from '@utils/recipeMarkdown';
 import {
   bulkTextToIngredients,
   bulkTextToToolNames,
@@ -114,6 +115,7 @@ import {
   IconLink,
   IconYourubeColored,
   IconImport,
+  IconNoteFilled,
   IconArrowTopRight,
   IconMic,
 } from '@components/Icon/IconIndex';
@@ -139,6 +141,9 @@ type TFn = (key: string, params?: Record<string, any>) => string;
 const MAX_EXTRA_HERO = 2;
 const makeEditMenuItems = (t: TFn) => [
   {id: 'import-url', label: t('recipeEdit.importFromSite'), icon: IconImport},
+  // 묶음별 "한 번에 쓰기"는 그 묶음만 고친다 — 이건 레시피 전체를 채우므로
+  // 같은 자리에 두지 않는다(이 묶음만 바뀌는 줄 알고 전체를 날리는 사고 방지)
+  {id: 'paste-markdown', label: t('recipeEdit.pasteMarkdown'), icon: IconNoteFilled},
   {id: 'field-manage', label: t('recipeEdit.fieldManage'), icon: IconSettingsFilled},
 ];
 
@@ -214,6 +219,8 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
 
   // State — recipe prop이 있으면 편집 모드, 없으면 빈 생성 모드
   const [title, setTitle] = useState(() => recipe?.title ?? '');
+  // 마크다운 한 덩어리로 레시피 전체를 채운다(묶음 제목까지)
+  const [pasteOpen, setPasteOpen] = useState(false);
   const [titleError, setTitleError] = useState(false);
   const titleInputRef = useRef<RNTextInput>(null);
   // OCR 툴바: 활성 필드 추적 (키보드 위 고정이라 위치 측정 불필요)
@@ -746,10 +753,59 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
     }
   }, [importing, imageUri, isLoggedIn, openAuthSheet, showSnackbar, t]);
 
+  /**
+   * 마크다운 한 덩어리를 레시피 전체에 적용한다.
+   *
+   * 기존 내용을 덮어쓴다 — 묶음별 "한 번에 쓰기"와 달리 레시피 전체를 바꾸므로
+   * 시트에서 한 번 더 확인시킨 뒤 부른다.
+   */
+  const applyMarkdown = useCallback((text: string) => {
+    const parsed = parseRecipeMarkdown(text);
+    if (parsed.title) setTitle(parsed.title);
+
+    if (parsed.ingredientGroups.length > 0) {
+      setIngredientGroups(parsed.ingredientGroups.map(g => {
+        const ingredients = g.ingredients.map(toEditableIngredient);
+        return {
+          id: genId(),
+          title: g.title,
+          ingredients: ingredients.length ? ingredients : [emptyIngredient()],
+          bulkMode: false,
+          bulkText: ingredientsToBulkText(ingredients),
+        };
+      }));
+    }
+
+    if (parsed.tools.length > 0) {
+      const tools = parsed.tools.map(x => ({id: genId(), name: x.name}));
+      setToolGroups([{id: genId(), title: '도구', tools, bulkMode: true, bulkText: toolsToBulkText(tools)}]);
+    }
+
+    if (parsed.stepGroups.length > 0) {
+      setStepGroups(parsed.stepGroups.map(g => ({
+        id: genId(),
+        title: g.title,
+        steps: g.steps.map(st => ({
+          id: genId(),
+          description: st.description,
+          tip: st.tip,
+          caution: st.caution,
+          photos: [],
+        })),
+        bulkMode: false,
+        bulkText: '',
+      })));
+    }
+
+    showSnackbar(t('recipeEdit.pasteApplied'), {tone: 'positive'});
+  }, [showSnackbar, t]);
+
   const handleMenuSelect = (id: string) => {
     setShowMenu(false);
     if (id === 'field-manage') {
       setFieldManageVisible(true);
+    } else if (id === 'paste-markdown') {
+      setPasteOpen(true);
     } else if (id === 'import-url') {
       // 원본 링크 필드가 꺼져 있으면 켜고, 그 위치로 스크롤 + 입력 포커스 (두 번째 엔트리)
       if (!isFieldActive('origin')) setActiveFieldIds(prev => [...prev, 'origin']);
@@ -2941,6 +2997,12 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
       </Popover>
 
       {/* 필드관리 다이얼로그 */}
+      <PasteRecipeSheet
+        visible={pasteOpen}
+        onClose={() => setPasteOpen(false)}
+        onApply={applyMarkdown}
+      />
+
       <FieldManageDialog
         visible={fieldManageVisible}
         onClose={() => setFieldManageVisible(false)}
