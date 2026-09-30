@@ -410,13 +410,14 @@ export default function StampsRoute() {
               있으면 절대 참이 되지 않는다.
 
               레시피가 아예 없을 때와 있는데 안 만들었을 때는 할 말이 다르다 —
-              담아 둔 레시피가 없는 사람에게 "만들어 보세요"는 갈 곳을 안 알려준다. */}
+              담아 둔 레시피가 없는 사람에게 "만들어 보세요"는 갈 곳을 안 알려준다.
+              문구는 홈의 빈 상태를 그대로 쓴다(같은 상황을 두 말로 쓰지 않는다). */}
           {sections.length === 0 ? (
             <EmptyState
               category="no-recipe"
-              title={t('stamps.noRecipeTitle')}
-              subtitle={t('stamps.noRecipeSubtitle')}
-              actionLabel={t('stamps.goExplore')}
+              title={t('home.emptyRecipesTitle')}
+              subtitle={t('home.emptyRecipesSubtitle')}
+              actionLabel={t('home.exploreRecipes')}
               onAction={() => router.push('/(tabs)/explore' as any)}
             />
           ) : madeCount === 0 ? (
