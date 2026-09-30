@@ -40,7 +40,8 @@ import type {Recipe} from '../src/types/recipe';
  */
 function columnsFor(width: number): number {
   // 콘텐츠 폭이 800으로 제한돼 더 늘리면 스탬프만 작아진다 — 8이 상한
-  return width >= TABLET_BREAKPOINT ? 8 : 6;
+  // 휴대폰은 5칸 — 6칸이면 스탬프가 작아 사진이 잘 안 보인다
+  return width >= TABLET_BREAKPOINT ? 8 : 5;
 }
 const GRID_GAP = Spacing.sm;
 
