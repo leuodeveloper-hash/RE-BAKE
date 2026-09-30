@@ -44,8 +44,9 @@ export function PackBoard({items, height, entrance = false, dimExceptId}: PackBo
   const intro = useRef(new Animated.Value(entrance ? 0 : 1)).current;
 
   const {placed, width, contentHeight, originX, originY} = useMemo(() => {
-    // 상하·좌우 여백 (보드 가장자리에 팩이 붙지 않게)
-    const PAD_V = 40;
+    // 상하·좌우 여백 (보드 가장자리에 팩이 붙지 않게).
+    // 위는 탭 바로 아래라 크게 띄우면 휑하다.
+    const PAD_V = 12;
     const PAD_H = 32;
     // 높이 기준: 화면 높이에 맞춰 들어가는 행 수만큼만 쓰고, 자연 간격(ROW_HEIGHT)으로
     // 묶어 세로 중앙 정렬한다 (전체 높이에 펼치지 않음 → 흩어져 떨어져 보이지 않게).
