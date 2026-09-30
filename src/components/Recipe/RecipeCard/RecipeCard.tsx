@@ -224,7 +224,8 @@ export function StackedThumbnail({
   const cardSize = fill ? size : size * 0.68;
   const radius = radiusOverride ?? cardSize * 0.18;
   const offset = size * 0.1;
-  const paperPadding = cardSize * 0.12;
+  // 글이 종이 안에서 넉넉히 보이도록 — 여백이 크면 몇 줄 못 담는다
+  const paperPadding = cardSize * 0.08;
   const lineHeight = Math.max(cardSize * 0.04, 1.5);
   const lineGap = lineHeight * 0.9;
   const innerHeight = cardSize - 2 * paperPadding;
