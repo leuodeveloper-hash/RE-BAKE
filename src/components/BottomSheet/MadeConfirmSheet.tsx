@@ -4,11 +4,10 @@ import {BottomSheet} from './BottomSheet';
 import {SlideToConfirm} from '@components/SlideToConfirm/SlideToConfirm';
 import {Stamp} from '@components/Stamp';
 import {Button} from '@components/Button';
-import {AutoGrowInput} from '@components/AutoGrowInput';
+import {ReviewFields} from '@components/Dialog/ReviewFields';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
 import type {SemanticColors} from '@constants/tokens';
-import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 
@@ -24,8 +23,8 @@ export interface MadeConfirmSheetProps {
   /** 밀어서 확정 — 스탬프가 찍힌다 */
   onConfirm: () => void;
   /** 찍은 뒤 이어서 남기는 회고. 없으면 회고 단계를 건너뛴다 */
-  /** 평가만 받는다 — 개선점은 넘기지 않아 기존 값이 유지된다 */
-  onSaveReview?: (review: {evaluation: string; improvement?: string}) => void;
+  /** 평가·개선점 — 비워 둔 칸은 넘기지 않아 기존 값이 유지된다 */
+  onSaveReview?: (review: {evaluation?: string; improvement?: string}) => void;
 }
 
 /**
@@ -37,8 +36,6 @@ export interface MadeConfirmSheetProps {
  * 찍고 나면 같은 시트에서 회고를 이어 쓴다 — 방금 만든 기억이 가장 선명할 때다.
  * 건너뛰어도 되도록 "나중에"를 둔다(요리 직후엔 손이 바쁘다).
  */
-/** 회고 길이 상한 — 길게 쓰라고 권하는 자리가 아니다 */
-const REVIEW_MAX = 500;
 
 export function MadeConfirmSheet({
   visible,
@@ -52,12 +49,14 @@ export function MadeConfirmSheet({
   const {t} = useTranslation();
   const [stamped, setStamped] = useState(false);
   const [evaluation, setEvaluation] = useState('');
+  const [improvement, setImprovement] = useState('');
 
   // 열 때마다 처음부터 — 이전에 쓰던 내용이 남으면 엉뚱한 레시피에 붙는다
   useEffect(() => {
     if (visible) {
       setStamped(false);
       setEvaluation('');
+      setImprovement('');
     }
   }, [visible]);
 
@@ -72,10 +71,12 @@ export function MadeConfirmSheet({
   }, [onConfirm, onClose, onSaveReview]);
 
   const handleSave = useCallback(() => {
-    const text = evaluation.trim();
-    if (text) onSaveReview?.({evaluation: text});
+    const ev = evaluation.trim();
+    const im = improvement.trim();
+    // 쓴 칸만 넘긴다 — 빈칸으로 전에 써 둔 회고를 덮지 않는다
+    if (ev || im) onSaveReview?.({...(ev ? {evaluation: ev} : {}), ...(im ? {improvement: im} : {})});
     onClose();
-  }, [evaluation, onSaveReview, onClose]);
+  }, [evaluation, improvement, onSaveReview, onClose]);
 
   return (
     <BottomSheet visible={visible} onClose={onClose}>
@@ -94,26 +95,21 @@ export function MadeConfirmSheet({
 
         {stamped ? (
           <>
-            <View style={styles.inputWrap}>
-              <AutoGrowInput
-                style={styles.input}
-                placeholder={t('madeSheet.reviewPlaceholder', {max: REVIEW_MAX})}
-                value={evaluation}
-                onChangeText={setEvaluation}
-                maxLength={REVIEW_MAX}
+            {/* 회고 창과 같은 두 칸(평가·개선점) — 공통 ReviewFields */}
+            <View style={styles.fieldsWrap}>
+              <ReviewFields
+                evaluation={evaluation}
+                improvement={improvement}
+                onChangeEvaluation={setEvaluation}
+                onChangeImprovement={setImprovement}
               />
-              {/* 글자수는 쓰기 시작한 뒤에만 — 빈 칸에 0/500이 떠 있으면
-                  분량을 채워야 할 것처럼 보인다 */}
-              {evaluation.length > 0 && (
-                <Text style={styles.counter}>{evaluation.length}/{REVIEW_MAX}</Text>
-              )}
             </View>
             <View style={styles.actions}>
               <Button label={t('madeSheet.later')} variant="soft" onPress={onClose} style={{flex: 1}} />
               <Button
                 label={t('madeSheet.saveReview')}
                 onPress={handleSave}
-                disabled={!evaluation.trim()}
+                disabled={!evaluation.trim() && !improvement.trim()}
                 style={{flex: 1}}
               />
             </View>
@@ -156,23 +152,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   slideWrap: {
     paddingTop: Spacing.xl,
   },
-  inputWrap: {
+  fieldsWrap: {
     marginTop: Spacing.lg,
-    borderRadius: Radius['radius-lg'],
-    backgroundColor: colors['fill/faint'],
-    paddingHorizontal: Spacing.smd,
-    paddingVertical: Spacing.sm,
-    minHeight: 96,
-  },
-  counter: {
-    ...Typography.label.small,
-    color: colors['foreground/on-surface-muted'],
-    textAlign: 'right',
-    marginTop: Spacing.xs,
-  },
-  input: {
-    ...Typography.body.medium,
-    color: colors['foreground/on-surface'],
   },
   actions: {
     flexDirection: 'row',

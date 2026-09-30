@@ -35,6 +35,7 @@ import {StepPhotos} from '@components/StepPhotos';
 import {FieldManageDialog, TimeDialog, ServingsDialog, IngredientAmountDialog} from '@components/Dialog';
 import type {ReviewData} from '@components/Dialog';
 import {TextInput} from '@components/TextInput';
+import {ReviewFields} from '@components/Dialog/ReviewFields';
 import {AutoGrowInput} from '@components/AutoGrowInput';
 import {DragHandle} from '@components/DragHandle';
 import {useSnackbar} from '@contexts/SnackbarContext';
@@ -2849,48 +2850,28 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
         {isFieldActive('review') && (
           <View onLayout={e => { sectionPositions.current['review'] = e.nativeEvent.layout.y; }}>
           <ContentContainer style={(isFieldActive('cookbook') || isFieldActive('advice')) ? styles.navItemGap : styles.section}>
-            <Card>
-              <ListItem
-                title={t('recipeEdit.review')}
-                leading={{type: 'icon', icon: IconChartNoAxesGantt}}
-              />
-              <ListItem showDivider>
-                <TextInput
-                  ref={(node: any) => { sectionInputRefs.current['review'] = node; }}
-                  style="ghost"
-                  multiline
-                  value={reviews.length > 0 ? reviews[reviews.length - 1].evaluation : ''}
-                  onChangeText={text => {
-                    setReviews(prev => {
-                      if (prev.length === 0) return [{evaluation: text, improvement: ''}];
-                      const updated = [...prev];
-                      updated[updated.length - 1] = {...updated[updated.length - 1], evaluation: text};
-                      return updated;
-                    });
-                  }}
-                  placeholder={t('recipeEdit.reviewEvaluationPlaceholder')}
-                />
-              </ListItem>
-              <ListItem
-                leading={{type: 'icon', icon: IconCornerDownRight}}
-                showDivider={false}
-              >
-                <TextInput
-                  style="ghost"
-                  multiline
-                  value={reviews.length > 0 ? reviews[reviews.length - 1].improvement : ''}
-                  onChangeText={text => {
-                    setReviews(prev => {
-                      if (prev.length === 0) return [{evaluation: '', improvement: text}];
-                      const updated = [...prev];
-                      updated[updated.length - 1] = {...updated[updated.length - 1], improvement: text};
-                      return updated;
-                    });
-                  }}
-                  placeholder={t('recipeEdit.reviewImprovementPlaceholder')}
-                />
-              </ListItem>
-            </Card>
+            {/* 회고 카드 — 회고 창·만들었어요 시트와 같은 공통 ReviewFields */}
+            <ReviewFields
+              evaluationRef={(node: any) => { sectionInputRefs.current['review'] = node; }}
+              evaluation={reviews.length > 0 ? reviews[reviews.length - 1].evaluation : ''}
+              improvement={reviews.length > 0 ? reviews[reviews.length - 1].improvement : ''}
+              onChangeEvaluation={text => {
+                setReviews(prev => {
+                  if (prev.length === 0) return [{evaluation: text, improvement: ''}];
+                  const updated = [...prev];
+                  updated[updated.length - 1] = {...updated[updated.length - 1], evaluation: text};
+                  return updated;
+                });
+              }}
+              onChangeImprovement={text => {
+                setReviews(prev => {
+                  if (prev.length === 0) return [{evaluation: '', improvement: text}];
+                  const updated = [...prev];
+                  updated[updated.length - 1] = {...updated[updated.length - 1], improvement: text};
+                  return updated;
+                });
+              }}
+            />
           </ContentContainer>
           </View>
         )}
