@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, Dimensions, Easing, FlatList, Pressable, StyleSheet, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {ContentContainer, contentAreaPadding, APPBAR_HEIGHT} from '@components/Container';
+import {ContentContainer, contentAreaPadding, APPBAR_HEIGHT, TABBAR_BOTTOM_SPACE} from '@components/Container';
 import {RecipeCard, RecipeCardLayout} from '@components/Recipe/RecipeCard';
 import {Menu, MenuItemData} from '@components/Menu';
 import {Tabs, type TabItem} from '@components/Tabs';
@@ -232,6 +232,9 @@ function SkeletonFooter({layout}: {layout: RecipeCardLayout}) {
     </>
   );
 }
+
+/** 앱바 아래 레시피북 탭 한 줄 높이 */
+const PACK_HEADER_INSET = 48;
 
 const footerStyles = StyleSheet.create({
   gridWrap: {
@@ -625,6 +628,9 @@ export function RecipeListTemplate({
               <View style={styles.packEmpty}>{listEmptyComponent}</View>
             ) : (
               <RecipePackView
+                // 앱바(+레시피북 탭)와 하단 탭바 뒤로 팩이 숨지 않게
+                insetTop={APPBAR_HEIGHT + (listHeaderExtra ? PACK_HEADER_INSET : 0)}
+                insetBottom={TABBAR_BOTTOM_SPACE}
                 recipes={loading || !layoutLoaded ? [] : sortedData}
                 lockedRecipeIds={lockedRecipeIds}
                 onRecipePress={(id) => {

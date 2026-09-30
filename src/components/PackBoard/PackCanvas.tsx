@@ -31,13 +31,19 @@ export interface PackCanvasProps {
   entrance?: boolean;
   /** 이 id 팩만 남기고 흐리게 (회차 플로우 펼침 시) */
   dimExceptId?: string;
+  /**
+   * 화면 위/아래에 떠 있는 UI 높이(앱바+탭, 하단 탭바).
+   * 끝까지 밀었을 때 팩이 그 뒤로 숨지 않도록 스크롤 경계를 그만큼 좁힌다.
+   */
+  insetTop?: number;
+  insetBottom?: number;
 }
 
 /**
  * 팩 보드를 정사각에 가까운 캔버스로 흩뿌리고, 상하좌우 패닝 + 핀치 줌(0.4~2.4x)으로
  * 로밍하는 래퍼. 진입 시 전체가 보이도록 fit-to-view 후 중앙 정렬.
  */
-export function PackCanvas({items, entrance, dimExceptId}: PackCanvasProps) {
+export function PackCanvas({items, entrance, dimExceptId, insetTop = 0, insetBottom = 0}: PackCanvasProps) {
   const colors = useColors();
   const [viewport, setViewport] = useState({w: 0, h: 0});
   const [content, setContent] = useState({w: 0, h: 0});
@@ -90,8 +96,10 @@ export function PackCanvas({items, entrance, dimExceptId}: PackCanvasProps) {
       if (cw <= viewport.w) { const c = (viewport.w - cw) / 2; minTx = c; maxTx = c; }
       else { minTx = viewport.w - cw; maxTx = 0; }
       // 진입 위치(중앙)와 같아야 한 번 스크롤했을 때 튕기지 않는다
-      if (ch <= viewport.h) { const c = (viewport.h - ch) / 2; minTy = c; maxTy = c; }
-      else { minTy = viewport.h - ch; maxTy = 0; }
+      // 위/아래 UI 안쪽까지만 — 끝까지 밀어도 팩이 그 뒤로 숨지 않는다
+      const visH = viewport.h - insetTop - insetBottom;
+      if (ch <= visH) { const c = insetTop + (visH - ch) / 2; minTy = c; maxTy = c; }
+      else { minTy = viewport.h - insetBottom - ch; maxTy = insetTop; }
       tx.value = withDecay({velocity: e.velocityX, clamp: [minTx, maxTx], rubberBandEffect: true, rubberBandFactor: 0.6});
       ty.value = withDecay({velocity: e.velocityY, clamp: [minTy, maxTy], rubberBandEffect: true, rubberBandFactor: 0.6});
       runOnJS(clearDraggedSoon)();
@@ -177,10 +185,12 @@ export function PackCanvas({items, entrance, dimExceptId}: PackCanvasProps) {
     scale.value = fit;
     // 줌아웃 하한: 가로·세로 모두 들어가는 배율(=전체가 다 보이는 지점)
     minScale.value = clampW(Math.min(viewport.w / content.w, viewport.h / content.h), MIN_ZOOM, BASE_SCALE);
-    // 세로 중앙. 가로는 콘텐츠가 들어가면 중앙, 넘치면 좌측 정렬(우측으로 팬)
-    ty.value = (viewport.h - content.h * fit) / 2;
-    tx.value = content.w * fit <= viewport.w ? (viewport.w - content.w * fit) / 2 : 0;
-  }, [viewport, content, scale, tx, ty, fitScale, minScale]);
+    // 상하좌우 중앙 — 위/아래 UI를 뺀 실제로 보이는 영역 기준이라야
+    // 가려지는 쪽으로 치우치지 않는다
+    const visibleH = viewport.h - insetTop - insetBottom;
+    ty.value = insetTop + (visibleH - content.h * fit) / 2;
+    tx.value = (viewport.w - content.w * fit) / 2;
+  }, [viewport, content, scale, tx, ty, fitScale, minScale, insetTop, insetBottom]);
 
   return (
     <View style={styles.viewport} onLayout={handleViewportLayout}>

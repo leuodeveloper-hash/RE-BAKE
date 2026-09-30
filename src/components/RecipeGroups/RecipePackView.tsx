@@ -5,6 +5,9 @@ import {parseSession} from '@utils/session';
 import type {Recipe} from '../../types/recipe';
 
 export interface RecipePackViewProps {
+  /** 위/아래 떠 있는 UI 높이 — 팩이 그 뒤로 숨지 않게 스크롤 경계를 좁힌다 */
+  insetTop?: number;
+  insetBottom?: number;
   /** 표시 대상 레시피 (이미 필터/정렬된 목록) */
   recipes: Recipe[];
   onRecipePress?: (recipeId: string) => void;
@@ -17,7 +20,7 @@ export interface RecipePackViewProps {
  * 묶음이 아니라 레시피=팩 (전체 축은 묶는 기준이 없으므로 레시피 그대로 팩화).
  * 탭하면 해당 레시피 상세로 이동.
  */
-export function RecipePackView({recipes, onRecipePress, lockedRecipeIds}: RecipePackViewProps) {
+export function RecipePackView({recipes, onRecipePress, lockedRecipeIds, insetTop, insetBottom}: RecipePackViewProps) {
   const packs = useMemo<PackBoardItem[]>(() => {
     // 회차(remakeGroup)는 최신 1개로 묶음 — 3회차여도 1팩(1개 레시피로 계산)
     const byGroup = new Map<string, Recipe>();
@@ -36,5 +39,5 @@ export function RecipePackView({recipes, onRecipePress, lockedRecipeIds}: Recipe
     }));
   }, [recipes, onRecipePress, lockedRecipeIds]);
 
-  return <PackCanvas items={packs} />;
+  return <PackCanvas items={packs} insetTop={insetTop} insetBottom={insetBottom} />;
 }
