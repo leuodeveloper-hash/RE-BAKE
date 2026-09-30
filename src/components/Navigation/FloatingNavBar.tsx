@@ -220,6 +220,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   content: {
+    // 캡슐 아래로 펼쳐지는 메뉴가 below(탭)에 가리지 않게 — 형제끼리는
+    // 나중에 그려진 쪽이 위로 온다
+    zIndex: 10,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
