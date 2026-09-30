@@ -787,13 +787,14 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    // 상단엔 닫기 버튼 하나뿐이라 앱바 높이만큼 비울 이유가 없다
-    paddingTop: 56,
+    // 상단엔 닫기 버튼 하나뿐이라 앱바 높이만큼 비울 이유가 없다.
+    // 닫기 버튼 아래(APPBAR_CONTENT_BOTTOM 54)에서 아바타가 시작하는 정도만 비운다
+    paddingTop: 48,
     paddingBottom: 120,
   },
   profileSection: {
     alignItems: 'center',
-    paddingVertical: Spacing.smd,
+    paddingVertical: Spacing.sm,
   },
   profileName: {
     fontFamily: Typography.title.large.fontFamily,
