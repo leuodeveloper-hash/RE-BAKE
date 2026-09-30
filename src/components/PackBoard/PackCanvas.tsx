@@ -184,7 +184,13 @@ export function PackCanvas({items, entrance, dimExceptId, insetTop = 0, insetBot
     fitScale.value = fit;
     scale.value = fit;
     // 줌아웃 하한: 가로·세로 모두 들어가는 배율(=전체가 다 보이는 지점)
-    minScale.value = clampW(Math.min(viewport.w / content.w, viewport.h / content.h), MIN_ZOOM, BASE_SCALE);
+    // 줌아웃 하한 — 전체가 다 보이는 배율로 두면, 보드를 넓게 잡은 탓에
+    // 팩이 알아볼 수 없을 만큼 작아진다. 0.55배까지만 줄인다.
+    minScale.value = clampW(
+      Math.min(viewport.w / content.w, viewport.h / content.h),
+      0.55,
+      BASE_SCALE,
+    );
     // 상하좌우 중앙 — 위/아래 UI를 뺀 실제로 보이는 영역 기준이라야
     // 가려지는 쪽으로 치우치지 않는다
     const visibleH = viewport.h - insetTop - insetBottom;
