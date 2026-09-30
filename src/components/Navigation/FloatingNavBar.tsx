@@ -192,8 +192,11 @@ export function FloatingNavBar({left, right, title, center, leftMenu, rightMenu,
 }
 
 const styles = StyleSheet.create({
-  // 캡슐 줄 아래 줄 — 같은 배경 안에 둔다
-  below: {},
+  // 캡슐 줄 아래 줄 — 같은 배경 안에 둔다.
+  // 메뉴(zIndex 20)보다 낮게 둬야 드롭다운이 탭에 가리지 않는다.
+  below: {
+    zIndex: 1,
+  },
   container: {
     position: 'absolute',
     top: 0,
