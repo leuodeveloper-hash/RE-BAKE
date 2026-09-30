@@ -11,6 +11,8 @@ export interface PackBoardProps {
   items: PackBoardItem[];
   /** 보드가 차지할 세로높이 — 이 높이에 맞춰 행을 채우고 가로로 확장(좌우 스와이프) */
   height: number;
+  /** 열 수를 정할 기준 폭 (뷰포트 폭) */
+  boardWidth?: number;
   /** 원점에서 하나둘씩 튀어나오는 등장 애니메이션 사용 */
   entrance?: boolean;
   /** 회차 플로우 펼침 시: 이 id 팩은 숨김(오버레이가 대신 그림), 나머지는 흐리게 */
@@ -40,35 +42,29 @@ function seeded(seed: number): number {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
-export function PackBoard({items, height, entrance = false, dimExceptId}: PackBoardProps) {
+export function PackBoard({items, height, boardWidth, entrance = false, dimExceptId}: PackBoardProps) {
   const intro = useRef(new Animated.Value(entrance ? 0 : 1)).current;
 
   const {placed, width, contentHeight, originX, originY} = useMemo(() => {
     // 상하·좌우 여백 (보드 가장자리에 팩이 붙지 않게)
     const PAD_V = 24;
     const PAD_H = 32;
-    // 높이 기준: 화면 높이에 맞춰 들어가는 행 수만큼만 쓰고, 자연 간격(ROW_HEIGHT)으로
-    // 묶어 세로 중앙 정렬한다 (전체 높이에 펼치지 않음 → 흩어져 떨어져 보이지 않게).
-    const innerH = Math.max(PACK_HEIGHT, height - PAD_V * 2);
-    const maxRows = Math.max(1, Math.floor(innerH / ROW_HEIGHT));
-    const rows = Math.max(1, Math.min(maxRows, items.length));
+    // 화면 높이에 맞춰 행 수를 제한하면 팩이 가로로만 길어져 뭉쳐 보이고
+    // 세로로 움직일 데가 없다. 폭에 맞춰 열 수를 정하고 아래로 쌓아
+    // 위아래·좌우로 자유롭게 움직이게 한다.
     const slackV = Math.max(0, ROW_HEIGHT - PACK_HEIGHT);
     const cellW = PACK_WIDTH + 24;
-    // 행 블록은 위에서 시작한다. 예전엔 보드 안에서 다시 세로 중앙 정렬했는데,
-    // 캔버스가 이미 정렬을 하므로 이중이 돼 첫 행이 100px 가까이 내려갔다.
-    const blockH = rows * ROW_HEIGHT;
+    const innerW = Math.max(cellW, (boardWidth ?? cellW * 3) - PAD_H * 2);
+    const columns = Math.max(1, Math.min(Math.floor(innerW / cellW), items.length));
+    const rows = Math.ceil(items.length / columns);
     const vOffset = PAD_V;
-
-    const columns = Math.ceil(items.length / rows);
     let maxRight = 0;
     const placed = items.map((item, i) => {
-      const row = i % rows;
-      const col = Math.floor(i / rows);
+      const row = Math.floor(i / columns);
+      const col = i % columns;
       const h = hashStr(item.id);
 
-      // 덜 찬 열(마지막)은 세로 가운데로 몰아줌
-      const itemsInCol = col < columns - 1 ? rows : items.length - rows * (columns - 1);
-      const colOffset = ((rows - itemsInCol) * ROW_HEIGHT) / 2;
+      const colOffset = 0;
 
       // 행 단위 stagger 대신 per-item 랜덤 오프셋 → 두 줄 격자처럼 보이지 않게 흩뿌림
       const jitterX = (seeded(h) - 0.5) * cellW * 0.5;
@@ -76,7 +72,8 @@ export function PackBoard({items, height, entrance = false, dimExceptId}: PackBo
       const rotate = (seeded(h + 5) - 0.5) * 7; // ±3.5deg 살짝 기울임
 
       let top = vOffset + colOffset + row * ROW_HEIGHT + slackV / 2 + jitterY;
-      top = Math.max(PAD_V, Math.min(top, height - PAD_V - PACK_HEIGHT));
+      // 화면 높이로 가두지 않는다 — 아래로 쌓여야 세로로 움직일 수 있다
+      top = Math.max(PAD_V, top);
       const left = PAD_H + col * cellW + jitterX;
 
       // 뱃지 위치: id 시드로 결정적 랜덤. 카드 1장짜리(짧은 팩)는 우측에 두면 여백에
@@ -101,7 +98,7 @@ export function PackBoard({items, height, entrance = false, dimExceptId}: PackBo
       originX: 0,
       originY: height / 2 - PACK_HEIGHT / 2,
     };
-  }, [items, height]);
+  }, [items, height, boardWidth]);
 
   // 등장 애니메이션 (부드럽게: 적은 튀어나옴 + 완만한 스태거)
   React.useEffect(() => {

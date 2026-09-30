@@ -171,8 +171,9 @@ export function PackCanvas({items, entrance, dimExceptId}: PackCanvasProps) {
     const key = `${Math.round(viewport.w)}x${Math.round(viewport.h)}|${Math.round(content.w)}x${Math.round(content.h)}`;
     if (lastFitKey.current === key) return;
     lastFitKey.current = key;
-    // 진입: 세로만 창에 맞춤(가로는 기준 크기 유지). 세로 넘치면만 축소, 가로는 안 줄임.
-    const fit = clampW(Math.min(viewport.h / content.h, BASE_SCALE), MIN_ZOOM, BASE_SCALE);
+    // 진입 배율은 줄이지 않는다 — 세로에 맞춰 축소하면 팩이 작아져 뭉쳐 보인다.
+    // 넘치는 만큼은 스크롤로 본다.
+    const fit = BASE_SCALE;
     fitScale.value = fit;
     scale.value = fit;
     // 줌아웃 하한: 가로·세로 모두 들어가는 배율(=전체가 다 보이는 지점)
@@ -211,7 +212,7 @@ export function PackCanvas({items, entrance, dimExceptId}: PackCanvasProps) {
           ]}
           pointerEvents="box-none">
           <View onLayout={handleContentLayout}>
-            {boardHeight > 0 && <PackBoard items={guardedItems} height={boardHeight} entrance={entrance} dimExceptId={dimExceptId} />}
+            {boardHeight > 0 && <PackBoard items={guardedItems} height={boardHeight} boardWidth={viewport.w} entrance={entrance} dimExceptId={dimExceptId} />}
           </View>
         </Animated.View>
       </GestureDetector>
