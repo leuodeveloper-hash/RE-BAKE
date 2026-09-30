@@ -36,6 +36,13 @@ async function downloadImageFor(recipe: Recipe, dir: Directory, seed: number): P
     await File.downloadFileAsync(url, dest);
     return name;
   } catch {
+    // 같은 파일을 다른 동기화가 먼저 받아 두면 "이미 있음"으로 실패한다 — 파일이 있으면 성공이다.
+    // (''을 돌려주면 이미지 경로가 빈 세트가 저장돼 위젯에 사진이 안 뜬다)
+    try {
+      const safeId = recipe.id.replace(/[^a-zA-Z0-9_-]/g, '');
+      const name = `day-${seed}-${safeId}.jpg`;
+      if (new File(dir, name).exists) return name;
+    } catch { /* 무시 */ }
     return '';
   }
 }
@@ -50,7 +57,16 @@ async function downloadImageFor(recipe: Recipe, dir: Directory, seed: number): P
  * 레시피북별로도 한 벌씩 만든다 — 위젯 편집에서 북을 고르면 그 북 것만 돈다.
  * 전체는 빈 키('')에 둔다(고르지 않았을 때의 기본).
  */
-export async function syncTodayRecipeToWidget(candidates: Recipe[]): Promise<void> {
+// 동기화는 한 번에 하나만 — 앱 시작 때 캐시·Firestore로 연달아 불려 겹치면
+// 같은 파일을 동시에 받다 한쪽이 실패하고, 늦게 끝난 쪽이 이미지 없는 세트로 덮어썼다.
+let syncChain: Promise<void> = Promise.resolve();
+
+export function syncTodayRecipeToWidget(candidates: Recipe[]): Promise<void> {
+  syncChain = syncChain.then(() => runWidgetSync(candidates)).catch(() => {});
+  return syncChain;
+}
+
+async function runWidgetSync(candidates: Recipe[]): Promise<void> {
   if (Platform.OS !== 'ios') return;
   if (candidates.length === 0) return;
 
