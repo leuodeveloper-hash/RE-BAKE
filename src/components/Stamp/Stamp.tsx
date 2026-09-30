@@ -79,8 +79,6 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, p
    * (겹침 표시용 뒷장까지 더하면 한 칸 안에서도 겹친다).
    */
   const uid = useId().replace(/:/g, '');
-  /** 확대 중심 — viewBox 가운데 */
-  const c = STAMP_VIEWBOX / 2;
   const clipId = `stamp-clip-${uid}`;
 
   // 사진이 없을 때 은은하게 깜빡인다 — 빈 칸이 아니라 "아직 채워지지 않은 자리"로
@@ -110,6 +108,9 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, p
   ];
   // 여백을 뺀 실제 그림 크기
   const inner = Math.max(0, size - padding * 2);
+  /** 사진 스탬프용 — 모양(24 단위)을 실제 크기로 키우는 배수와 확대 중심 */
+  const shapeScale = inner / STAMP_VIEWBOX;
+  const innerCenter = inner / 2;
 
   if (outline) {
     // 선은 path를 중심으로 양쪽으로 퍼진다 — viewBox를 그만큼 넓혀
@@ -194,18 +195,22 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, p
           </Svg>
         </Animated.View>
       )}
-      <Svg width={inner} height={inner} viewBox={`0 0 ${STAMP_VIEWBOX} ${STAMP_VIEWBOX}`}>
+      {/* 사진 스탬프는 viewBox를 실제 크기(inner)로 둔다.
+          24 단위 viewBox에 사진을 그리면 iOS가 사진을 그 작은 단위 크기로
+          래스터화한 뒤 키워 흐려졌다(큰 시트 스탬프일수록 두드러졌다).
+          모양은 원점 기준 scale로만 키운다 — origin을 쓰면 플랫폼마다 중심이 어긋난다. */}
+      <Svg width={inner} height={inner} viewBox={`0 0 ${inner} ${inner}`}>
         <Defs>
           <ClipPath id={clipId}>
-            <Path d={d} />
+            <Path d={d} transform={`scale(${shapeScale})`} />
           </ClipPath>
         </Defs>
         {/* 사진이 비칠 바탕 — 투명 PNG도 모양이 유지된다. 로딩 중엔 스켈레톤이
             비치도록 칠하지 않는다 */}
         {loaded && (
           <Rect
-            width={STAMP_VIEWBOX}
-            height={STAMP_VIEWBOX}
+            width={inner}
+            height={inner}
             fill={colors['surface/bright']}
             clipPath={`url(#${clipId})`}
           />
@@ -217,10 +222,10 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, p
         <G clipPath={`url(#${clipId})`}>
           <SvgImage
             href={{uri: imageUri}}
-            x={c - c * imageScale}
-            y={c - c * imageScale}
-            width={STAMP_VIEWBOX * imageScale}
-            height={STAMP_VIEWBOX * imageScale}
+            x={innerCenter - innerCenter * imageScale}
+            y={innerCenter - innerCenter * imageScale}
+            width={inner * imageScale}
+            height={inner * imageScale}
             // 가장자리가 잘리므로 피사체가 가운데 크게 들어오도록 채운다
             preserveAspectRatio="xMidYMid slice"
             onLoad={() => setLoaded(true)}
