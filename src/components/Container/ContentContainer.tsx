@@ -1,5 +1,5 @@
 import React from 'react';
-import {StyleSheet, View, ViewStyle} from 'react-native';
+import {StyleSheet, View, ViewStyle, type StyleProp} from 'react-native';
 import {Spacing} from '@constants/spacing';
 
 // 공통 레이아웃 상수
@@ -18,7 +18,7 @@ export const contentAreaPadding = {
 export interface ContentContainerProps {
   children: React.ReactNode;
   /** 추가 스타일 */
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
   /** 수평 패딩 사용 여부 (기본: true) */
   horizontalPadding?: boolean;
 }
