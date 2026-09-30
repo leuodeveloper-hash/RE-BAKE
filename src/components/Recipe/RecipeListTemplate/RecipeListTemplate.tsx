@@ -3,6 +3,7 @@ import {Animated, Dimensions, Easing, FlatList, Pressable, StyleSheet, View} fro
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ContentContainer, contentAreaPadding, APPBAR_HEIGHT} from '@components/Container';
+import {APPBAR_CONTENT_BOTTOM} from '@components/Navigation';
 import {RecipeCard, RecipeCardLayout} from '@components/Recipe/RecipeCard';
 import {Menu, MenuItemData} from '@components/Menu';
 import {Tabs, type TabItem} from '@components/Tabs';
@@ -707,9 +708,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flex: 1,
     width: '100%',
   },
-  // 팩은 전체 너비로 로밍하지만 헤더(레시피북 탭 등)는 앱바 아래 콘텐츠 폭에 맞춘다
+  // 팩은 전체 너비로 로밍하지만 헤더(레시피북 탭 등)는 앱바 아래 콘텐츠 폭에 맞춘다.
+  // APPBAR_HEIGHT(72)는 앱바가 실제로 끝나는 지점(54)보다 커서 위가 휑했다.
   packHeaderExtra: {
-    paddingTop: APPBAR_HEIGHT,
+    paddingTop: APPBAR_CONTENT_BOTTOM,
     paddingHorizontal: Spacing.md,
     zIndex: 3,
   },
