@@ -118,8 +118,10 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
     }
   }, [exploreCookbooks, cookbookColors, recipes, removeCookbookColor]);
 
-  // 그룹화 축: 'all'이면 평면 리스트, 그 외엔 그룹 화면(GroupScreen) 호스팅
-  const [groupAxis, setGroupAxis] = useState<GroupAxis>('all');
+  // 그룹화 축: 'all'이면 평면 리스트, 그 외엔 그룹 화면(GroupScreen) 호스팅.
+  // 기본은 레시피북 — 북이 이 앱의 중심이라 처음 열었을 때 그게 보여야 한다.
+  // (평면 전체 목록은 축을 바꿔서 본다. 마지막 축은 아래에서 복원한다)
+  const [groupAxis, setGroupAxis] = useState<GroupAxis>('cookbook');
   // 마지막 본 축 복원 (앱 재시작해도 유지). 저장 덮어쓰기 방지용 로드 플래그.
   const axisLoaded = useRef(false);
   useEffect(() => {
