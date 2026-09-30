@@ -787,12 +787,13 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingTop: 80,
+    // 상단엔 닫기 버튼 하나뿐이라 앱바 높이만큼 비울 이유가 없다
+    paddingTop: 56,
     paddingBottom: 120,
   },
   profileSection: {
     alignItems: 'center',
-    paddingVertical: Spacing.lg,
+    paddingVertical: Spacing.smd,
   },
   profileName: {
     fontFamily: Typography.title.large.fontFamily,
