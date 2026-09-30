@@ -42,13 +42,13 @@ import {
   IconArrowDownToLine,
   IconCloudFilled,
   IconClockFilled,
-  IconBookFilled,
+  IconStamps,
   IconClose,
 } from '@components/Icon/IconIndex';
 
 
 const makeMoreMenuItems = (t: (key: string) => string) => [
-  {id: 'stamps', label: t('stamps.title'), icon: IconBookFilled},
+  {id: 'stamps', label: t('stamps.title'), icon: IconStamps},
   {id: 'downloadAll', label: t('home.downloadPdf'), icon: IconArrowDownToLine},
   {id: 'deleteAll', label: t('home.deleteAll'), icon: IconTrash, destructive: true},
 ];

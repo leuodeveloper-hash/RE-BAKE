@@ -32,6 +32,7 @@ export {default as IconCards} from '../../../assets/icons/cards.svg';
 export {default as IconCardsFilled} from '../../../assets/icons/cards-filled.svg';
 export {default as IconBook} from '../../../assets/icons/book.svg';
 export {default as IconBookFilled} from '../../../assets/icons/book-filled.svg';
+export {default as IconStamps} from '../../../assets/icons/stamps.svg';
 export {default as IconRecipe} from '../../../assets/icons/recipe.svg';
 export {default as IconRecipeFilled} from '../../../assets/icons/recipe_filled.svg';
 export {default as IconPin} from '../../../assets/icons/pin.svg';

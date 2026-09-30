@@ -19,7 +19,7 @@ import {
   IconNoteFilled,
   IconTrashTwotone,
   IconArrowDownToLine,
-  IconBookFilled,
+  IconStamps,
   IconUserFilled,
   IconAdd,
 } from '@components/Icon/IconIndex';
@@ -464,7 +464,7 @@ export function ExploreScreen({
               {layoutMenu}
               <Menu
                 items={[
-                  {id: 'stamps', label: t('stamps.title'), icon: IconBookFilled},
+                  {id: 'stamps', label: t('stamps.title'), icon: IconStamps},
                   ...(onDownloadPdf
                     ? [{id: 'downloadPdf', label: t('explore.downloadPdf'), icon: IconArrowDownToLine}]
                     : []),

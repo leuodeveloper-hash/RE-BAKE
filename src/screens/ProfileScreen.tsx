@@ -35,7 +35,7 @@ import {
   IconImport,
   IconExport,
   IconChevronRight,
-  IconBookFilled,
+  IconStamps,
   IconExprolerBookFilled,
   IconPaletteFilled,
   IconLogout,
@@ -446,7 +446,7 @@ export function ProfileScreen({
             <Card>
               <ListItem
                 title={t('stamps.title')}
-                leading={{type: 'icon', icon: IconBookFilled}}
+                leading={{type: 'icon', icon: IconStamps}}
                 // 몇 개나 모았는지 — 들어가 보지 않고도 알 수 있게
                 trailingValue={stampCount > 0 ? t('stamps.countValue', {count: stampCount}) : undefined}
                 trailing={{type: 'icon', icon: IconChevronRight}}
