@@ -269,7 +269,6 @@ export function ExploreScreen({
   /** 레시피북 탭 — 앱바 아래 줄(같은 배경). 목록 헤더에 두면 스크롤에 딸려 사라진다 */
   const cookbookTabsNode = exploreAxis === 'all' ? (
     <Tabs
-      style={{marginBottom: Spacing.sm}}
       variant="text"
       uniformWidth={false}
       scrollable

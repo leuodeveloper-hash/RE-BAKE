@@ -819,8 +819,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   // 탭 줄이 앱바·카드에 붙지 않게 위아래로 띄운다
   // (탭 자체에 여백을 주면 다른 쓰임에도 붙는다)
-  cookbookTabs: {
-    // 아래만 띄운다 — 위는 앱바 여백(listHeaderExtra)이 이미 잡았다
-    marginBottom: Spacing.md,
-  },
+  // 셀렉터와 같은 줄이라 위아래 여백이 없다
+  cookbookTabs: {},
 });

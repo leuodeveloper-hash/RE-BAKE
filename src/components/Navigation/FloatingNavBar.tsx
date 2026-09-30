@@ -24,13 +24,7 @@ export interface FloatingNavBarProps {
   /** left 영역을 전체 너비로 확장 */
   leftFull?: boolean;
   /**
-   * 캡슐 줄 아래에 붙는 줄(예: 레시피북 탭).
-   * 같은 블러·그라디언트 배경 안에 들어가, 스크롤한 콘텐츠가 뒤로 비쳐도
-   * 앱바와 한 덩어리로 읽힌다.
-   */
-  below?: React.ReactNode;
-  /**
-   * 배경 그라디언트 틴트 색 (기본: surface/normal = 거의 흰색 페이드).
+   * 배경 그라디언트 틴트 색 (기본: surface/dim = 페이지 배경과 같은 색).
    * 이미지 위(상세 히어로 등)에선 fill/faint 같은 반투명 색을 넘겨 흰 웹을 없애고
    * 블러(프로스티드 글래스)가 드러나게 한다. hex / rgba 모두 허용.
    */
@@ -85,11 +79,13 @@ export const APPBAR_CONTENT_BOTTOM = Spacing.smd + NAV_PILL_HEIGHT; // 10 + 44 =
 // pill 바로 아래에서 짧게 페이드아웃 — 콘텐츠 침범 방지 (이전 66 → 24)
 const GRADIENT_EXTENSION = Spacing.lg; // 24
 
-export function FloatingNavBar({left, right, title, center, leftMenu, rightMenu, leftFull, below, tintColor, style}: FloatingNavBarProps) {
+export function FloatingNavBar({left, right, title, center, leftMenu, rightMenu, leftFull, tintColor, style}: FloatingNavBarProps) {
   const colors = useColors();
   const {isDark} = useTheme();
-  const surfaceDim = colors['surface/normal'] as string;
-  // 그라디언트 베이스: tintColor 지정 시 그 색(반투명 알파 반영), 아니면 surface/normal(불투명 흰색 페이드).
+  // 페이지 배경과 같은 색이라야 그라디언트 끝이 표시 안 나게 녹는다.
+  // surface/normal(neutral/98)은 페이지(neutral/95)보다 밝아 앱바만 떠 보였다.
+  const surfaceDim = colors['surface/dim'] as string;
+  // 그라디언트 베이스: tintColor 지정 시 그 색(반투명 알파 반영), 아니면 페이지 배경색.
   const gradBase = tintColor ?? surfaceDim;
   const gradAlpha = tintColor ? colorAlpha(tintColor) : 1;
   const [gr, gg, gb] = colorRgb(gradBase);
@@ -181,25 +177,12 @@ export function FloatingNavBar({left, right, title, center, leftMenu, rightMenu,
             </View>
           )}
         </ContentContainer>
-        {below ? (
-          <ContentContainer style={styles.below} horizontalPadding={false}>
-            {below}
-          </ContentContainer>
-        ) : null}
       </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  // 캡슐 줄 아래 줄 — 같은 배경 안에 둔다.
-  // 메뉴(zIndex 20)보다 낮게 둬야 드롭다운이 탭에 가리지 않는다.
-  below: {
-    zIndex: 1,
-    // 캡슐 줄과 같은 기준 — 좌우는 content와 같은 16, 위는 캡슐과 붙지 않게
-    paddingHorizontal: Spacing.md,
-    paddingTop: Spacing.sm,
-  },
   container: {
     position: 'absolute',
     top: 0,

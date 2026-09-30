@@ -53,7 +53,10 @@ export interface AppBarProps {
   titleNode?: React.ReactNode;
   /** 뒤로가기와 타이틀/셀렉터 사이에 끼우는 노드(예: 작성자 칩). 셀렉터를 대체하지 않고 나란히 추가 */
   titleLeadingNode?: React.ReactNode;
-  /** 앱바 아래 줄(예: 레시피북 탭) — 같은 배경 안에 들어간다 */
+  /**
+   * 셀렉터 알약 옆에 나란히 붙는 줄(예: 레시피북 탭).
+   * 아래 줄로 두면 세로를 한 줄 더 먹는다 — 같은 줄에 두고 넘치면 가로로 민다.
+   */
   below?: React.ReactNode;
 }
 
@@ -123,13 +126,16 @@ export function AppBar({
     <FloatingNavBar
       left={
         // 뒤로가기 버튼이 있으면 셀렉터 알약 앞에 나란히 배치.
-        leftIcon ? (
+        // below(레시피북 탭)는 셀렉터 뒤에 이어 붙인다.
+        leftIcon || below ? (
           <View style={styles.leftRow}>
-            <NavPillButton icon={leftIcon} onPress={onLeftPress} />
+            {leftIcon ? <NavPillButton icon={leftIcon} onPress={onLeftPress} /> : null}
             {leftContent}
+            {below ? <View style={styles.leftTabs}>{below}</View> : null}
           </View>
         ) : leftContent
       }
+      leftFull={!!below}
       right={
         hasRightButtons ? (
           <GlassContainer contentStyle={navPillStyle}>
@@ -180,7 +186,6 @@ export function AppBar({
       }
       leftMenu={titleMenu}
       rightMenu={rightMenu}
-      below={below}
     />
   );
 }
@@ -190,6 +195,11 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
+  },
+  // 셀렉터 옆 탭 — 남는 폭만 쓰고 넘치면 그 안에서 가로 스크롤
+  leftTabs: {
+    flexShrink: 1,
+    minWidth: 0,
   },
   titlePill: {
     height: 44,
