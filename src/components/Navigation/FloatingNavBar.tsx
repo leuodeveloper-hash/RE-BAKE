@@ -196,7 +196,8 @@ const styles = StyleSheet.create({
   // 메뉴(zIndex 20)보다 낮게 둬야 드롭다운이 탭에 가리지 않는다.
   below: {
     zIndex: 1,
-    // 캡슐 줄과 붙지 않게 — 앱바 안에 들어오면서 여백이 사라졌다
+    // 캡슐 줄과 같은 기준 — 좌우는 content와 같은 16, 위는 캡슐과 붙지 않게
+    paddingHorizontal: Spacing.md,
     paddingTop: Spacing.sm,
   },
   container: {
