@@ -175,8 +175,9 @@ export function PackCanvas({items, entrance, dimExceptId}: PackCanvasProps) {
     scale.value = fit;
     // 줌아웃 하한: 가로·세로 모두 들어가는 배율(=전체가 다 보이는 지점)
     minScale.value = clampW(Math.min(viewport.w / content.w, viewport.h / content.h), MIN_ZOOM, BASE_SCALE);
-    // 세로 중앙. 가로는 콘텐츠가 들어가면 중앙, 넘치면 좌측 정렬(우측으로 팬)
-    ty.value = (viewport.h - content.h * fit) / 2;
+    // 세로는 위에서 시작한다 — 중앙에 두면 팩이 적을 때 위가 크게 비고,
+    // 상단 탭 바로 아래가 휑해 보인다. (넘치면 아래로 팬)
+    ty.value = 0;
     tx.value = content.w * fit <= viewport.w ? (viewport.w - content.w * fit) / 2 : 0;
   }, [viewport, content, scale, tx, ty, fitScale, minScale]);
 
