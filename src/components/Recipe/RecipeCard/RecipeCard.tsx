@@ -232,7 +232,8 @@ export function StackedThumbnail({
   const lineCount = Math.max(1, Math.floor((innerHeight + lineGap) / (lineHeight + lineGap)));
   // 폰트 크기는 cardSize에 비례
   const fontSize = Math.max(cardSize * 0.04, 4);
-  const textLineHeight = fontSize * 1.3;
+  // 줄 사이를 좁게 — 종이에 글이 촘촘히 채워져야 '내용이 있다'로 보인다
+  const textLineHeight = fontSize * 1.15;
   const textMaxLines = Math.max(1, Math.floor(innerHeight / textLineHeight));
   const hasText = !!paperTitle || (paperPreview && paperPreview.length > 0);
   // 이미지 없으면 종이는 항상 표시 (빈 카드 방지)
@@ -260,7 +261,7 @@ export function StackedThumbnail({
           // 기울이지 않는다 — 좌우로만 어긋나게 둔다(사진 쪽과 같은 규칙)
           transform: imageUrl ? [{translateX: offset}] : [],
           ...shadow,
-          gap: hasText ? fontSize * 0.4 : lineGap,
+          gap: hasText ? fontSize * 0.25 : lineGap,
         }}>
         {hasText ? (
           <>
