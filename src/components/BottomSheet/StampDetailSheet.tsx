@@ -5,6 +5,7 @@ import {Stamp} from '@components/Stamp';
 import {Button} from '@components/Button';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
+import {useRecipeReviews} from '@hooks/useRecipeReviews';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
@@ -48,6 +49,8 @@ export function StampDetailSheet({
 }: StampDetailSheetProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
+  // 회고는 계정에 저장된다 — 레시피의 reviews만 세면 새 회고가 빠진다
+  const {reviewsOf} = useRecipeReviews();
 
   const dateLabel = useMemo(() => {
     if (!madeAt) return null;
@@ -64,17 +67,17 @@ export function StampDetailSheet({
   const sessionRows = useMemo(() => {
     if (!sessions || sessions.length < 2) return [];
     return sessions
-      .filter(r => r.reviews?.some(rv => rv.evaluation?.trim() || rv.improvement?.trim()))
+      .filter(r => reviewsOf(r).length > 0)
       .sort((a, b) => parseSession(a.session).current - parseSession(b.session).current)
       .map(r => ({
         id: r.id,
         label: t('id.sessionLabel', {current: parseSession(r.session).current}),
-        text: r.reviews!
+        text: reviewsOf(r)
           .map(rv => rv.evaluation?.trim() || rv.improvement?.trim())
           .filter(Boolean)
           .join(' · '),
       }));
-  }, [sessions, t]);
+  }, [sessions, t, reviewsOf]);
 
   const made = !!madeAt;
 

@@ -11,6 +11,7 @@ import {RecipePackView} from '@components/RecipeGroups/RecipePackView';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 import {useTranslation} from '@contexts/LanguageContext';
+import {useRecipeReviews} from '@hooks/useRecipeReviews';
 import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
@@ -338,6 +339,8 @@ export function RecipeListTemplate({
 }: RecipeListTemplateProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
+  // 회고는 계정에 저장된다 — 레시피의 reviews만 세면 새 회고가 빠진다
+  const {reviewsOf} = useRecipeReviews();
   const layoutMenuItems = useMemo(() => makeLayoutMenuItems(t), [t]);
   const layoutTabs = useMemo(() => makeLayoutTabs(layoutMenuItems), [layoutMenuItems]);
   const sortMenuItems = useMemo(() => makeSortMenuItems(t), [t]);
@@ -582,7 +585,8 @@ export function RecipeListTemplate({
         cookbook={item.cookbook}
         method={item.method}
         specificGravity={item.specificGravity}
-        reviewCount={item.reviewCount || item.reviews?.length || 0}
+        // reviewCount는 리메이크 그룹 합계(호출부가 계산) — 없으면 이 레시피 것
+        reviewCount={Math.max(item.reviewCount ?? 0, reviewsOf(item).length)}
         sessionCount={parseSession(item.session).total}
         imageUrl={item.imageUri}
         layout={activeLayout}
@@ -609,7 +613,7 @@ export function RecipeListTemplate({
         ) : card}
       </View>
     );
-  }, [activeLayout, styles, onRecipePress, cardMenuItems, handleCardMenuPress, lockedRecipeIds, pinnedMap, cardMenuTarget, authorHandle, onAuthorPress, onCookbookPress, onMethodPress, madeMap]);
+  }, [activeLayout, styles, onRecipePress, cardMenuItems, handleCardMenuPress, lockedRecipeIds, pinnedMap, cardMenuTarget, authorHandle, onAuthorPress, onCookbookPress, onMethodPress, madeMap, reviewsOf]);
 
   return (
     <>

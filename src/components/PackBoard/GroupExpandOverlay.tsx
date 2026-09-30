@@ -13,6 +13,7 @@ import {Menu} from '@components/Menu';
 import {EmptyState} from '@components/EmptyState';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
+import {useRecipeReviews} from '@hooks/useRecipeReviews';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
@@ -58,6 +59,8 @@ export interface GroupExpandOverlayProps {
 export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, origin, onClose, onRecipePress, isAdmin, isExploreName, onAddRecipe, onEditCookbook, onDeleteCookbook, onDownloadPdf}: GroupExpandOverlayProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
+  // 회고는 계정에 저장된다 — 레시피의 reviews만 세면 새 회고가 빠진다
+  const {reviewsOf} = useRecipeReviews();
   const {showSnackbar} = useSnackbar();
   const progress = useRef(new Animated.Value(0)).current;
   const [closing, setClosing] = useState(false);
@@ -287,7 +290,7 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
                 title={r.title}
                 cookbook={r.cookbook}
                 method={r.method}
-                reviewCount={r.reviewCount ?? r.reviews?.length}
+                reviewCount={Math.max(r.reviewCount ?? 0, reviewsOf(r).length)}
                 imageUrl={r.imageUri}
                 layout="list"
                 onPress={() => onRecipePress?.(r.id)}

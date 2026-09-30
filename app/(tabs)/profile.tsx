@@ -10,6 +10,7 @@ import {useColors} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
 import {useSubscription} from '@contexts/SubscriptionContext';
 import {useTranslation} from '@contexts/LanguageContext';
+import {useRecipeReviews} from '@hooks/useRecipeReviews';
 
 export default function ProfileRoute() {
   const router = useRouter();
@@ -36,9 +37,11 @@ export default function ProfileRoute() {
     }
   }, [params.openPlan, router]);
 
+  // 회고는 계정에 저장된다 — 레시피의 reviews만 세면 새 회고가 빠진다
+  const {reviewsOf} = useRecipeReviews();
   const reviewCount = useMemo(() =>
-    recipes.reduce((sum, r) => sum + (r.reviews?.length ?? 0), 0),
-  [recipes]);
+    recipes.reduce((sum, r) => sum + reviewsOf(r).length, 0),
+  [recipes, reviewsOf]);
 
   const handleBack = useCallback(() => {
     router.navigate('/');
