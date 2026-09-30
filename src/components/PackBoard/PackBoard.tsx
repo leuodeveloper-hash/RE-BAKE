@@ -17,7 +17,9 @@ export interface PackBoardProps {
   dimExceptId?: string;
 }
 
-const ROW_HEIGHT = 272; // 스택 + 라벨 + 여백 (팩 커진 만큼 간격 넓힘)
+// 스택 + 라벨 + 여백. 팩(202)과 차이가 클수록 보드가 길어지고, 화면보다
+// 길어지면 가운데 정렬되면서 위아래가 휑해진다.
+const ROW_HEIGHT = 236;
 const PACK_HEIGHT = 202;
 
 // 결정적 해시 → 매 렌더마다 흩뿌림이 바뀌지 않도록 id 기반 시드 사용
@@ -51,7 +53,7 @@ export function PackBoard({items, height, entrance = false, dimExceptId}: PackBo
     const maxRows = Math.max(1, Math.floor(innerH / ROW_HEIGHT));
     const rows = Math.max(1, Math.min(maxRows, items.length));
     const slackV = Math.max(0, ROW_HEIGHT - PACK_HEIGHT);
-    const cellW = PACK_WIDTH + 48;
+    const cellW = PACK_WIDTH + 24;
     // 실제 사용 행 블록을 세로 중앙 정렬
     const blockH = rows * ROW_HEIGHT;
     const vOffset = PAD_V + Math.max(0, (innerH - blockH) / 2);
