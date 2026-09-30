@@ -405,7 +405,10 @@ export default function StampsRoute() {
               (상단 인셋은 바깥 SafeAreaView가 이미 밀어줬다) */}
           <View style={{height: APPBAR_CONTENT_BOTTOM + Spacing.sm}} />
 
-          {sections.length === 0 ? (
+          {/* 하나도 안 찍었으면 빈 칸만 늘어놓지 않고 무엇을 하는 곳인지 알린다.
+              sections.length로 재면 "레시피북 없음" 섹션 때문에 레시피가 하나라도
+              있으면 절대 참이 되지 않는다. */}
+          {madeCount === 0 || sections.length === 0 ? (
             <EmptyState
               category="no-recipe"
               title={t('stamps.emptyTitle')}
