@@ -1,5 +1,6 @@
 import React, {useCallback} from 'react';
 import {Linking, StyleProp, Text, TextStyle, View} from 'react-native';
+import {useRouter} from 'expo-router';
 import {IconArrowTopRight} from '@components/Icon/IconIndex';
 import {useColors} from '@contexts/ThemeContext';
 import {parseRichText} from '@utils/richText';
@@ -23,11 +24,19 @@ export interface RichTextProps {
  */
 export function RichText({children, style, numberOfLines, inline}: RichTextProps) {
   const colors = useColors();
+  const router = useRouter();
   const segments = parseRichText(children ?? '');
 
   const open = useCallback((url: string) => {
+    // 앱 안의 다른 레시피를 가리키는 링크는 라우터로 바로 연다.
+    // Linking.openURL로 보내면 앱 밖으로 나갔다 되돌아와 화면이 깜빡인다.
+    const internal = url.match(/^(?:bakle:\/\/)?\/?recipe\/([^/?#]+)/);
+    if (internal) {
+      router.push(`/recipe/${internal[1]}` as any);
+      return;
+    }
     Linking.openURL(url).catch(() => { /* 열 수 없는 주소는 무시 */ });
-  }, []);
+  }, [router]);
 
   // 링크가 없으면 굳이 조각내지 않는다 (인라인이면 문자열 그대로)
   if (!segments.some(s => s.url)) {
