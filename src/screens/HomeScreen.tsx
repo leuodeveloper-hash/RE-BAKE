@@ -25,6 +25,8 @@ import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {GroupScreen} from './GroupScreen';
 import {axisLabel, useAxisMenuItems, type GroupAxis} from '@components/RecipeGroups/groupAxis';
 import {crumbAxisOf, axisItemsWithDrill} from '@hooks/useCrumbAxis';
+import {FilterChips} from '@components/FilterChips';
+import {useAddSheet} from '@contexts/AddSheetContext';
 import {Spacing} from '@constants/spacing';
 import {generateRecipeListHtml, generateRecipeHtml} from '@utils/generateRecipeHtml';
 import {parseSession, formatSession} from '@utils/session';
@@ -81,6 +83,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   const router = useRouter();
   const {recipes: myRecipes, setRecipes, selectedCookbook, setSelectedCookbook, selectedMethod, setSelectedMethod, availableCookbooks: myAvailableCookbooks, cookbookColors, setCookbookColor, removeCookbookColor, isLoading: myLoading, reload, canAddRecipe} = useRecipes();
   const {showSnackbar} = useSnackbar();
+  const {setShowCookbookDialog, setCookbookEditTarget} = useAddSheet();
   const {isPro} = useSubscription();
   const {user, isAdmin} = useAuth();
   // 홈은 개인 레시피만 표시. explore는 pull-to-refresh 동기화 용도로만 reload 사용.
@@ -208,6 +211,12 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   }, [recipes, availableCookbooks, t]);
 
   /** 축 메뉴에서 북을 고르면 평면 목록에 머문 채 걸러진다 */
+  /** 칩에 늘어놓을 레시피북 이름 (메뉴의 '전체'는 칩에서 별도로 그린다) */
+  const cookbookNames = useMemo(
+    () => cookbookFilterItems.filter(i => i.id !== ALL_ID).map(i => i.label),
+    [cookbookFilterItems],
+  );
+
   const handleCookbookFilterSelect = useCallback((id: string) => {
     setCrumbMenu(null);
     setCookbookListOpen(false);
@@ -548,6 +557,18 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
       extraOverlayVisible={showMoreMenu || crumbMenu !== null}
       onRefresh={reload}
       listHeaderExtra={
+        <>
+        {/* 레시피북 칩 — 메뉴를 열고 2뎁스로 들어가지 않고 한 번에 거른다.
+            맨 뒤 +로 그 자리에서 북을 만든다. */}
+        {groupAxis === 'all' && (
+          <FilterChips
+            options={cookbookNames}
+            selected={selectedCookbook}
+            onSelect={name => { setSelectedMethod(null); setSelectedCookbook(name); }}
+            onAdd={() => { setCookbookEditTarget(null); setShowCookbookDialog(true); }}
+          />
+        )}
+        {
         // 시험이 임박하면 그 배너를 먼저 — 기한이 있어 더 시급하다
         upcomingExam ? (
           <InlineBanner
@@ -577,6 +598,8 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
           style={styles.localBanner}
         />
       ) : undefined}
+        </>
+      }
       listEmptyComponent={
         !isLoading ? (
           selectedCookbook ? (

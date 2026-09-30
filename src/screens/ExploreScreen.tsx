@@ -27,6 +27,7 @@ import type {ExploreCookbook} from '@hooks/useExploreRecipes';
 import {GroupScreen} from './GroupScreen';
 import {axisLabel, useAxisMenuItems, type AxisOverrides, type GroupAxis} from '@components/RecipeGroups/groupAxis';
 import {crumbAxisOf, axisItemsWithDrill} from '@hooks/useCrumbAxis';
+import {FilterChips} from '@components/FilterChips';
 import {IconExprolerBookFilled} from '@components/Icon/IconIndex';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import {resolveAuthorHandle} from '../types/author';
@@ -260,6 +261,12 @@ export function ExploreScreen({
     return [{id: CRUMB_ALL, label: t('explore.all')}, ...[...names].map(n => ({id: n, label: n}))];
   }, [data, exploreCookbooks, t]);
 
+  /** 칩에 늘어놓을 공식 레시피북 이름 */
+  const cookbookNames = useMemo(
+    () => cookbookFilterItems.filter(i => i.id !== CRUMB_ALL).map(i => i.label),
+    [cookbookFilterItems],
+  );
+
   const crumbItemMenuItems = useMemo(() => {
     if (crumbAxis === 'cookbook') {
       const names = new Set<string>();
@@ -335,6 +342,17 @@ export function ExploreScreen({
       onOverlayPress={() => { setShowCategoryMenu(false); setShowItemMenu(false); setShowFlatMoreMenu(false); }}
       extraOverlayVisible={showCategoryMenu || showItemMenu || showFlatMoreMenu}
       scrollEnabled
+      listHeaderExtra={
+        // 홈과 같은 칩 줄 — 메뉴를 열지 않고 공식 레시피북을 한 번에 거른다.
+        // (공식 북은 어드민만 만들 수 있어 + 는 두지 않는다)
+        exploreAxis === 'all' ? (
+          <FilterChips
+            options={cookbookNames}
+            selected={selectedCategory === CRUMB_ALL ? null : selectedCategory}
+            onSelect={name => { setSelectedMethod(null); setSelectedCategory(name ?? CRUMB_ALL); }}
+          />
+        ) : undefined
+      }
       lockedRecipeIds={lockedRecipeIds}
       pinnedMap={explorePins}
       listEmptyComponent={
