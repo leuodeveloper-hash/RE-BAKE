@@ -126,6 +126,8 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
 
   // 그룹화 축: 'all'이면 평면 리스트, 그 외엔 그룹 화면(GroupScreen) 호스팅
   const [groupAxis, setGroupAxis] = useState<GroupAxis>('all');
+  // 레시피북/공법 목록에서 항목을 눌러 들어왔는지 — 들어왔으면 탭 대신 2뎁스 셀렉터 (crumbAxisOf 참고)
+  const [drillFrom, setDrillFrom] = useState<GroupAxis | null>(null);
   // 마지막 본 축 복원 (앱 재시작해도 유지). 저장 덮어쓰기 방지용 로드 플래그.
   const axisLoaded = useRef(false);
   useEffect(() => {
@@ -136,6 +138,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   }, []);
   const handleAxisChange = useCallback((a: GroupAxis) => {
     setGroupAxis(a);
+    setDrillFrom(null);
     if (axisLoaded.current) AsyncStorage.setItem('bakle_home_axis_v1', a).catch(() => {});
     if (a === 'all') { setSelectedCookbook(null); setSelectedMethod(null); }
   }, [setSelectedCookbook, setSelectedMethod]);
@@ -175,7 +178,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
 
   // ===== 브레드크럼 (2뎁스) ===== (AXIS_LABELS는 공통 모듈)
   // 필터가 걸려 있으면 그 축으로, 아니면 현재 groupAxis
-  const crumbAxis = crumbAxisOf(groupAxis, {cookbook: selectedCookbook, method: selectedMethod});
+  const crumbAxis = crumbAxisOf(groupAxis, {cookbook: selectedCookbook, method: selectedMethod}, drillFrom);
   // '전체'에서는 레시피북을 탭으로 고르므로 2뎁스로 들어가지 않는다 —
   // 탭에 이미 선택이 보이는데 상단까지 뒤로가기+이름으로 바뀌면 같은 것이
   // 두 번 나오고, 돌아갈 곳도 없는 뒤로가기가 생긴다.
@@ -226,7 +229,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
    * 레시피북 탭 — 앱바 아래 줄에 들어간다(같은 블러·그라디언트 배경).
    * 목록 헤더에 두면 스크롤할 때 같이 올라가 사라진다.
    */
-  const cookbookTabsNode = groupAxis === 'all' ? (
+  const cookbookTabsNode = crumbAxis === 'all' ? (
     <Tabs
       style={styles.cookbookTabs}
       variant="text"
@@ -235,6 +238,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
       tabs={[{id: ALL_ID, label: t('home.all')}, ...cookbookNames.map(n => ({id: n, label: n}))]}
       selectedId={selectedCookbook ?? ALL_ID}
       onSelect={id => {
+        setDrillFrom(null);
         setSelectedMethod(null);
         setSelectedCookbook(id === ALL_ID ? null : id);
       }}
@@ -251,6 +255,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
 
   const handleCookbookFilterSelect = useCallback((id: string) => {
     setCrumbMenu(null);
+    setDrillFrom(null);
     setSelectedMethod(null);
     setSelectedCookbook(id === ALL_ID ? null : id);
     setGroupAxis('all');
@@ -258,6 +263,8 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
 
   const handleCrumbItemSelect = (id: string) => {
     setCrumbMenu(null);
+    // '전체'를 고르면 2뎁스에서 나와 탭 화면으로
+    if (id === ALL_ID) setDrillFrom(null);
     if (crumbAxis === 'cookbook') {
       setSelectedCookbook(id === ALL_ID ? null : id);
     } else if (crumbAxis === 'method') {
@@ -531,12 +538,14 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   const handleGroupCookbookPress = useCallback((name: string) => {
     setSelectedMethod(null);
     setSelectedCookbook(name);
+    setDrillFrom('cookbook');
     setGroupAxis('all');
   }, [setSelectedCookbook, setSelectedMethod]);
 
   const handleGroupMethodPress = useCallback((method: string) => {
     setSelectedCookbook(null);
     setSelectedMethod(method);
+    setDrillFrom('method');
     setGroupAxis('all');
   }, [setSelectedCookbook, setSelectedMethod]);
 
@@ -673,6 +682,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
                 setCrumbMenu(null);
                 // 상위 목록(레시피북/공법 GroupScreen)으로 복귀
                 setGroupAxis(crumbAxis);
+                setDrillFrom(null);
                 setSelectedCookbook(null);
                 setSelectedMethod(null);
               }}
