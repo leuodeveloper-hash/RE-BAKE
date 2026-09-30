@@ -21,6 +21,7 @@ import {
   IconArrowDownToLine,
   IconBookFilled,
   IconUserFilled,
+  IconAdd,
 } from '@components/Icon/IconIndex';
 import {getColorVarKey} from '@components/ColorPicker/ColorPicker';
 import type {ExploreCookbook} from '@hooks/useExploreRecipes';
@@ -28,6 +29,8 @@ import {GroupScreen} from './GroupScreen';
 import {axisLabel, useAxisMenuItems, type AxisOverrides, type GroupAxis} from '@components/RecipeGroups/groupAxis';
 import {crumbAxisOf} from '@hooks/useCrumbAxis';
 import {Tabs} from '@components/Tabs';
+import {IconButton} from '@components/IconButton';
+import {useAddSheet} from '@contexts/AddSheetContext';
 import {Spacing} from '@constants/spacing';
 import {IconExprolerBookFilled} from '@components/Icon/IconIndex';
 import type {AvatarColor} from '@components/Avatar/Avatar';
@@ -93,6 +96,7 @@ export function ExploreScreen({
 }: ExploreScreenProps) {
   const colors = useColors();
   const {t} = useTranslation();
+  const {setShowCookbookDialog, setCookbookEditTarget, setCookbookInitialOfficial} = useAddSheet();
   const router = useRouter();
   const {showSnackbar} = useSnackbar();
   const {pins: explorePins, togglePin, isPinned} = useExplorePins();
@@ -275,6 +279,19 @@ export function ExploreScreen({
       tabs={[{id: CRUMB_ALL, label: t('explore.all')}, ...cookbookNames.map(n => ({id: n, label: n}))]}
       selectedId={selectedCategory}
       onSelect={id => { setSelectedMethod(null); setSelectedCategory(id); }}
+      // 둘러보기 북은 공식 북이라 어드민만 만들 수 있다 (홈은 개인 북이라 항상 가능)
+      trailing={isAdmin ? (
+        <IconButton
+          icon={IconAdd}
+          variant="ghost-secondary"
+          size="small"
+          onPress={() => {
+            setCookbookEditTarget(null);
+            setCookbookInitialOfficial(true);
+            setShowCookbookDialog(true);
+          }}
+        />
+      ) : undefined}
     />
   ) : undefined;
 

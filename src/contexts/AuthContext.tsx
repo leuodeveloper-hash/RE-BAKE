@@ -1,4 +1,5 @@
 import React, {createContext, useCallback, useContext, useEffect, useMemo, useState} from 'react';
+import {clearAccountCache} from '@utils/accountCache';
 import {Platform} from 'react-native';
 import {
   onAuthStateChanged,
@@ -190,6 +191,9 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
   }, []);
 
   const signOut = useCallback(async () => {
+    // 로컬 캐시를 먼저 비운다 — 안 그러면 다음 계정/비로그인 상태에서
+    // 이전 계정의 레시피·스탬프·회고가 그대로 보인다.
+    await clearAccountCache();
     await firebaseSignOut(auth);
   }, []);
 

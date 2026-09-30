@@ -35,6 +35,8 @@ export function useExplorePins() {
   // 서버 쓰기는 uid가 있을 때만. 로그아웃 상태의 변경은 캐시에만 남는다.
   const uidRef = useRef<string | undefined>(undefined);
   uidRef.current = user?.uid;
+  // 직전 로그인 uid — 로그아웃(있다가 없어짐)과 첫 실행 비로그인을 구분한다
+  const prevUidRef = useRef<string | undefined>(user?.uid);
 
   // 1) 캐시 먼저 — 네트워크를 기다리지 않고 바로 보여준다
   useEffect(() => {
@@ -51,7 +53,14 @@ export function useExplorePins() {
   // 2) 로그인하면 계정 값으로 맞춘다(기기 간 동기화)
   useEffect(() => {
     const uid = user?.uid;
-    if (!uid) return;
+    if (!uid) {
+      // 로그인 상태에서 풀린 경우(로그아웃)에만 비운다. 첫 실행 비로그인은
+      // 로컬 퍼스트라 로컬 핀를 그대로 둬야 한다.
+      if (prevUidRef.current) setPins({});
+      prevUidRef.current = undefined;
+      return;
+    }
+    prevUidRef.current = uid;
     let alive = true;
     getDoc(doc(db, 'users', uid))
       .then(snap => {
