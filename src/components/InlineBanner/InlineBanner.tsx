@@ -105,7 +105,8 @@ export function InlineBanner({
         {icon && (
           <AppIcon
             icon={icon}
-            size={isMedium ? 'md' : 'sm'}
+            // md(24)는 닫기 버튼(20)보다 커서 혼자 튄다 — 한 단계 낮춘다
+            size={isMedium ? 'sm' : 'xs'}
             color={colors[scheme.iconColor]}
           />
         )}
