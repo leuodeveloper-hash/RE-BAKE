@@ -28,6 +28,7 @@ import {GroupScreen} from './GroupScreen';
 import {axisLabel, useAxisMenuItems, type AxisOverrides, type GroupAxis} from '@components/RecipeGroups/groupAxis';
 import {crumbAxisOf} from '@hooks/useCrumbAxis';
 import {Tabs} from '@components/Tabs';
+import {Spacing} from '@constants/spacing';
 import {IconExprolerBookFilled} from '@components/Icon/IconIndex';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import {resolveAuthorHandle} from '../types/author';
@@ -345,6 +346,8 @@ export function ExploreScreen({
         // (공식 북은 어드민만 만들 수 있어 + 는 두지 않는다)
         exploreAxis === 'all' ? (
           <Tabs
+            // 탭 줄과 아래 카드가 붙지 않게 (홈과 같은 간격)
+            style={{marginBottom: Spacing.sm}}
             variant="text"
             uniformWidth={false}
             scrollable

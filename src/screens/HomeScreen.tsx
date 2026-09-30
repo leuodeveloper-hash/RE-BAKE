@@ -561,6 +561,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
             맨 뒤 +로 그 자리에서 북을 만든다. */}
         {groupAxis === 'all' && (
           <Tabs
+            style={styles.cookbookTabs}
             variant="text"
             uniformWidth={false}
             scrollable
@@ -805,6 +806,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     color: colors['foreground/on-surface-var'],
   },
   localBanner: {
+    marginBottom: Spacing.sm,
+  },
+  // 탭 줄과 아래 카드가 붙지 않게 — 탭 자체에 여백을 주면 다른 쓰임에도 붙는다
+  cookbookTabs: {
     marginBottom: Spacing.sm,
   },
 });
