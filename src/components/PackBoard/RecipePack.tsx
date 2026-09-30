@@ -23,21 +23,24 @@ const THUMB_SIZE = 214; // 팩 카드 크기
 // 더미 카드 팬 효과 (뒤 → 앞). 장수별로 좌우 대칭이 되도록 구성.
 // 기울이지 않고 좌우로만 어긋나게 둔다 — 팩이 여럿이면 제각각 돌아가 어수선하다
 type Fan = {x: number; y: number; rotate: number};
+
+/** 카드가 한 장씩 어긋나는 폭 — 겹친 장수가 보일 만큼만 */
+const FAN_STEP = 10;
+
+/**
+ * 뒤 카드를 한 방향(오른쪽)으로만 계단처럼 어긋나게 둔다.
+ *
+ * 좌우 대칭으로 펼치면 양쪽으로 튀어나와 팩이 넓어지고, 옆 팩과 부딪힌다.
+ * 한 방향으로만 밀면 장수는 그대로 보이면서 차지하는 폭이 줄어든다.
+ * 맨 앞(마지막 원소)이 제자리에 오도록 뒤 카드부터 왼쪽에서 시작한다.
+ */
 function fanFor(count: number): Fan[] {
-  if (count <= 1) return [{x: 0, y: 0, rotate: 0}];
-  if (count === 2) {
-    // 좌우 완전 대칭 (한쪽 쏠림 방지)
-    return [
-      {x: -14, y: 0, rotate: 0},
-      {x: 14, y: 0, rotate: 0},
-    ];
-  }
-  // 3장: 뒤 좌/우 대칭 + 정면 중앙(맨 위)
-  return [
-    {x: -18, y: 0, rotate: 0},
-    {x: 18, y: 0, rotate: 0},
-    {x: 0, y: 0, rotate: 0},
-  ];
+  const n = Math.min(count, 3);
+  return Array.from({length: n}, (_, i) => ({
+    x: (i - (n - 1)) * FAN_STEP,
+    y: 0,
+    rotate: 0,
+  }));
 }
 
 export interface PackOriginRect {
