@@ -615,6 +615,11 @@ export function RecipeListTemplate({
           // 팩뷰: 콘텐츠 너비(maxWidth 800)·패딩 제약 밖에서 전체 너비로 로밍
           <View style={styles.packFull}>
             <PullIndicator progress={pullProgress} isRefreshing={isRefreshing} refreshStripProgress={refreshStripProgress} refreshOpacity={refreshOpacity} />
+            {/* 레시피북 탭 등은 레이아웃과 무관하다 — 팩뷰라고 사라질 이유가 없다.
+                (팩뷰는 FlatList를 쓰지 않아 ListHeaderComponent가 안 그려진다) */}
+            {listHeaderExtra ? (
+              <ContentContainer style={styles.packHeaderExtra}>{listHeaderExtra}</ContentContainer>
+            ) : null}
             {!loading && layoutLoaded && sortedData.length === 0 && listEmptyComponent ? (
               // 팩뷰에서도 레시피가 없으면 빈 상태 표시 (FlatList 경로와 동일)
               <View style={styles.packEmpty}>{listEmptyComponent}</View>
@@ -702,9 +707,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flex: 1,
     width: '100%',
   },
+  // 팩은 전체 너비로 로밍하지만 헤더(레시피북 탭 등)는 앱바 아래 콘텐츠 폭에 맞춘다
   packHeaderExtra: {
     paddingTop: APPBAR_HEIGHT,
     paddingHorizontal: Spacing.md,
+    zIndex: 3,
   },
   packEmpty: {
     flex: 1,
