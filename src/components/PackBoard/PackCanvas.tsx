@@ -89,9 +89,8 @@ export function PackCanvas({items, entrance, dimExceptId}: PackCanvasProps) {
       let minTx, maxTx, minTy, maxTy;
       if (cw <= viewport.w) { const c = (viewport.w - cw) / 2; minTx = c; maxTx = c; }
       else { minTx = viewport.w - cw; maxTx = 0; }
-      // 콘텐츠가 화면보다 작으면 위에 붙여 고정 — 진입 위치(ty=0)와 같아야
-      // 한 번 스크롤했을 때 중앙으로 튕겨 내려가지 않는다
-      if (ch <= viewport.h) { minTy = 0; maxTy = 0; }
+      // 진입 위치(중앙)와 같아야 한 번 스크롤했을 때 튕기지 않는다
+      if (ch <= viewport.h) { const c = (viewport.h - ch) / 2; minTy = c; maxTy = c; }
       else { minTy = viewport.h - ch; maxTy = 0; }
       tx.value = withDecay({velocity: e.velocityX, clamp: [minTx, maxTx], rubberBandEffect: true, rubberBandFactor: 0.6});
       ty.value = withDecay({velocity: e.velocityY, clamp: [minTy, maxTy], rubberBandEffect: true, rubberBandFactor: 0.6});
@@ -178,9 +177,8 @@ export function PackCanvas({items, entrance, dimExceptId}: PackCanvasProps) {
     scale.value = fit;
     // 줌아웃 하한: 가로·세로 모두 들어가는 배율(=전체가 다 보이는 지점)
     minScale.value = clampW(Math.min(viewport.w / content.w, viewport.h / content.h), MIN_ZOOM, BASE_SCALE);
-    // 세로는 위에서 시작 — 중앙 정렬하면 남는 공간의 절반이 위에 붙어
-    // 탭 바로 아래가 휑해진다. (넘치면 아래로 팬)
-    ty.value = 0;
+    // 세로 중앙. 가로는 콘텐츠가 들어가면 중앙, 넘치면 좌측 정렬(우측으로 팬)
+    ty.value = (viewport.h - content.h * fit) / 2;
     tx.value = content.w * fit <= viewport.w ? (viewport.w - content.w * fit) / 2 : 0;
   }, [viewport, content, scale, tx, ty, fitScale, minScale]);
 
