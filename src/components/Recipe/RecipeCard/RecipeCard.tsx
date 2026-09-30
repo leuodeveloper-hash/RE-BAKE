@@ -216,10 +216,12 @@ export function StackedThumbnail({
 }) {
   const {isDark} = useTheme();
   // 흰 테두리 제거 후 경계가 보이도록 강한 그림자 사용 (토큰 strong보다 더 진하게 — 카드 전용 로컬값)
+  // 아래로만 떨어지는 그림자에 사방으로 옅게 퍼지는 그림자를 더한다 —
+  // 사진과 종이가 좌우로 겹칠 때 그 경계가 보여야 두 장으로 읽힌다.
   const shadow = {
     boxShadow: isDark
-      ? '0px 8px 16px -4px rgba(0, 0, 0, 0.52)'
-      : '0px 8px 18px -4px rgba(14, 14, 13, 0.22)',
+      ? '0px 8px 16px -4px rgba(0, 0, 0, 0.52), 0px 0px 6px 0px rgba(0, 0, 0, 0.36)'
+      : '0px 8px 18px -4px rgba(14, 14, 13, 0.22), 0px 0px 6px 0px rgba(14, 14, 13, 0.14)',
   } as const;
   const cardSize = fill ? size : size * 0.68;
   const radius = radiusOverride ?? cardSize * 0.18;
