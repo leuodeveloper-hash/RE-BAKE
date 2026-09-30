@@ -137,7 +137,14 @@ export function Stamp({imageUri, size, index = 0, rotate = 0, outline = false, p
     );
   }
 
-  const preview = children ?? (recipe ? <StampPreview recipe={recipe} fontSize={previewFontSize} /> : null);
+  // 글자도 스탬프 크기에 비례해야 한다 — 고정 크기면 작은 칸에서 글씨만 커 보인다.
+  // 140px(시트)에서 9px이 적당했으므로 그 비율을 기준으로 한다.
+  const preview = children ?? (recipe ? (
+    <StampPreview
+      recipe={recipe}
+      fontSize={previewFontSize ?? Math.max(4, Math.round(inner * 0.07))}
+    />
+  ) : null);
 
   if (!imageUri) {
     // 사진이 없으면 내용 미리보기를 모양대로 오려 넣는다.
