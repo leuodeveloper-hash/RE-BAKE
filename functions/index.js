@@ -4,6 +4,7 @@ import {onSchedule} from 'firebase-functions/v2/scheduler';
 import {defineSecret} from 'firebase-functions/params';
 import {initializeApp} from 'firebase-admin/app';
 import {getFirestore, Timestamp} from 'firebase-admin/firestore';
+import {getStorage} from 'firebase-admin/storage';
 import nodemailer from 'nodemailer';
 
 initializeApp();
@@ -245,5 +246,47 @@ export const purgeExpiredCloudRecipes = onSchedule(
         console.error(`[purgeExpiredCloudRecipes] ${uid} 삭제 실패:`, e);
       }
     }
+  },
+);
+
+// ──────────────────────────────────────────────
+// 사진 인식(OCR) 기록 정리 — 3일 보관
+//
+// 인식은 기기 안에서 하지만, 실패 원인을 보려고 쓴 사진을 ocr_logs/에 올리고
+// 결과를 ocr_logs 문서로 남긴다. 사용자 사진이라 오래 둘 이유가 없다 —
+// 개인정보 처리방침에 "3일 후 파기"로 적었으니 이 값을 바꾸면 방침도 고칠 것.
+// ──────────────────────────────────────────────
+
+const OCR_LOG_RETENTION_DAYS = 3;
+
+export const purgeOldOcrLogs = onSchedule(
+  {schedule: 'every day 04:30', timeZone: 'Asia/Seoul', region: 'asia-northeast3', memory: '512MiB', timeoutSeconds: 540},
+  async () => {
+    const cutoffMs = Date.now() - OCR_LOG_RETENTION_DAYS * DAY_MS;
+
+    // 1) 기록 문서
+    const db = getFirestore();
+    const old = await db.collection('ocr_logs')
+      .where('createdAt', '<', Timestamp.fromMillis(cutoffMs))
+      .limit(2000)
+      .get();
+    const writer = db.bulkWriter();
+    old.docs.forEach(d => writer.delete(d.ref));
+    await writer.close();
+
+    // 2) 사진 — 문서와 따로 지운다. 업로드만 되고 기록이 실패한 사진도 남기지 않는다.
+    const [files] = await getStorage().bucket().getFiles({prefix: 'ocr_logs/'});
+    let removed = 0;
+    for (const f of files) {
+      const created = Date.parse(f.metadata?.timeCreated ?? '');
+      if (Number.isNaN(created) || created >= cutoffMs) continue;
+      try {
+        await f.delete();
+        removed++;
+      } catch (e) {
+        console.error(`[purgeOldOcrLogs] ${f.name} 삭제 실패:`, e);
+      }
+    }
+    console.log(`[purgeOldOcrLogs] 기록 ${old.size}건, 사진 ${removed}개 삭제`);
   },
 );
