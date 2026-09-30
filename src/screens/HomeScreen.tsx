@@ -24,6 +24,7 @@ import {useAuth} from '@contexts/AuthContext';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {GroupScreen} from './GroupScreen';
 import {axisLabel, useAxisMenuItems, type GroupAxis} from '@components/RecipeGroups/groupAxis';
+import {crumbAxisOf, axisMenuSections} from '@hooks/useCrumbAxis';
 import {Spacing} from '@constants/spacing';
 import {generateRecipeListHtml, generateRecipeHtml} from '@utils/generateRecipeHtml';
 import {parseSession, formatSession} from '@utils/session';
@@ -171,7 +172,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
 
   // ===== 브레드크럼 (2뎁스) ===== (AXIS_LABELS는 공통 모듈)
   // 필터가 걸려 있으면 그 축으로, 아니면 현재 groupAxis
-  const crumbAxis: GroupAxis = selectedCookbook ? 'cookbook' : selectedMethod ? 'method' : groupAxis;
+  const crumbAxis = crumbAxisOf(groupAxis, {cookbook: selectedCookbook, method: selectedMethod});
   const crumbItemLabel = selectedCookbook ?? selectedMethod ?? undefined;
 
   // 2뎁스 항목 메뉴 (책/공법 목록 + '전체로')
@@ -656,27 +657,13 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
                   책 표지 화면으로 넘어갔다 돌아오지 않아도 된다.
                   (책 표지 화면은 북 자체를 고치는 자리로 남는다) */}
               <Menu
-                sections={[
-                  // '레시피별'에 화살표를 달고, 펼치면 바로 그 밑에 북이 온다.
-                  // 축 목록을 통째로 그린 뒤 붙이면 회고 아래에 떨어져
-                  // 무엇에 딸린 목록인지 알 수 없다.
-                  {
-                    items: axisMenuItems
-                      .filter(a => a.id === 'all')
-                      .map(a => ({...a, hasChildren: true})),
-                    selectedId: crumbAxis,
-                  },
-                  ...(cookbookListOpen
-                    ? [{
-                        items: cookbookFilterItems,
-                        selectedId: selectedCookbook ?? ALL_ID,
-                      }]
-                    : []),
-                  {
-                    items: axisMenuItems.filter(a => a.id !== 'all'),
-                    selectedId: crumbAxis,
-                  },
-                ]}
+                sections={axisMenuSections({
+                  axisItems: axisMenuItems,
+                  crumbAxis,
+                  cookbookItems: cookbookFilterItems,
+                  cookbookListOpen,
+                  selectedCookbookId: selectedCookbook ?? ALL_ID,
+                })}
                 onSelect={id => {
                   // '전체'는 펼치기만 — 축은 이미 전체다
                   if (id === 'all') {

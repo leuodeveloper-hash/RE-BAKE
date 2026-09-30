@@ -26,6 +26,7 @@ import {getColorVarKey} from '@components/ColorPicker/ColorPicker';
 import type {ExploreCookbook} from '@hooks/useExploreRecipes';
 import {GroupScreen} from './GroupScreen';
 import {axisLabel, useAxisMenuItems, type AxisOverrides, type GroupAxis} from '@components/RecipeGroups/groupAxis';
+import {crumbAxisOf, axisMenuSections} from '@hooks/useCrumbAxis';
 import {IconExprolerBookFilled} from '@components/Icon/IconIndex';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import {resolveAuthorHandle} from '../types/author';
@@ -97,6 +98,8 @@ export function ExploreScreen({
   const {selectedExploreCookbook, setSelectedExploreCookbook} = useRecipes();
   // 홈과 동일한 그룹화 축 (전체/레시피북/공법). 'all'=평면 리스트, 그 외=GroupScreen.
   const [exploreAxis, setExploreAxis] = useState<GroupAxis>('all');
+  // 축 메뉴에서 '레시피별' 아래 레시피북 목록을 펼쳤는지 (홈과 같은 구조)
+  const [cookbookListOpen, setCookbookListOpen] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState<string>('__all__');
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const axisMenuItems = useAxisMenuItems(EXPLORE_AXES, EXPLORE_AXIS_OVERRIDES);
@@ -245,7 +248,18 @@ export function ExploreScreen({
 
   // ===== 평면 리스트 뎁스 브레드크럼 (홈과 동일: 뒤로가기 + 항목 셀렉터) =====
   const CRUMB_ALL = '__all__';
-  const crumbAxis: GroupAxis = selectedMethod ? 'method' : (selectedCategory !== CRUMB_ALL ? 'cookbook' : 'all');
+  const crumbAxis = crumbAxisOf(exploreAxis, {
+    cookbook: selectedCategory !== CRUMB_ALL ? selectedCategory : null,
+    method: selectedMethod,
+  });
+  /** 축 메뉴에서 '레시피별' 아래 펼칠 공식 레시피북 목록 (홈과 같은 구조) */
+  const cookbookFilterItems = useMemo(() => {
+    const names = new Set<string>();
+    for (const r of data) names.add(r.cookbook || '공식 레시피 북 없음');
+    exploreCookbooks?.forEach(c => names.add(c.name));
+    return [{id: CRUMB_ALL, label: t('explore.all')}, ...[...names].map(n => ({id: n, label: n}))];
+  }, [data, exploreCookbooks, t]);
+
   const crumbItemMenuItems = useMemo(() => {
     if (crumbAxis === 'cookbook') {
       const names = new Set<string>();
@@ -395,9 +409,24 @@ export function ExploreScreen({
           titleMenu={
             <>
               <Menu
-                items={axisMenuItems}
-                selectedId={exploreAxis}
-                onSelect={handleAxisSelect}
+                sections={axisMenuSections({
+                  axisItems: axisMenuItems,
+                  crumbAxis,
+                  cookbookItems: cookbookFilterItems,
+                  cookbookListOpen,
+                  selectedCookbookId: selectedCategory,
+                })}
+                onSelect={id => {
+                  // '레시피별'은 펼치기만 — 축은 이미 전체다
+                  if (id === 'all') { setCookbookListOpen(prev => !prev); return; }
+                  if (axisMenuItems.some(a => a.id === id)) { handleAxisSelect(id); return; }
+                  // 레시피북 필터 — 화면을 떠나지 않고 걸러진다
+                  setCookbookListOpen(false);
+                  setShowCategoryMenu(false);
+                  setSelectedMethod(null);
+                  setSelectedCategory(id);
+                  setExploreAxis('all');
+                }}
                 visible={showCategoryMenu}
               />
               {flatFilterLabel != null && (
