@@ -58,7 +58,9 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
     // 화면보다 한 열 넓게 잡아 사방으로 펼친다 — 보드를 돌아다니는 느낌.
     const innerW = Math.max(cellW, (boardWidth ?? cellW * 3) - PAD_H * 2);
     const fitCols = Math.max(1, Math.floor(innerW / cellW));
-    const columns = Math.max(1, Math.min(fitCols + 1, items.length));
+    // 화면에 들어가는 수보다 두 열 넓게 — 한 열만 더하면 넘치는 폭이 100px도
+    // 안 돼 좌우로 거의 못 움직인다
+    const columns = Math.max(1, Math.min(fitCols + 2, items.length));
     const rows = Math.ceil(items.length / columns);
     const vOffset = PAD_V;
     let maxRight = 0;
