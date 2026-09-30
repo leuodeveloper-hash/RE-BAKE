@@ -176,7 +176,12 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   // ===== 브레드크럼 (2뎁스) ===== (AXIS_LABELS는 공통 모듈)
   // 필터가 걸려 있으면 그 축으로, 아니면 현재 groupAxis
   const crumbAxis = crumbAxisOf(groupAxis, {cookbook: selectedCookbook, method: selectedMethod});
-  const crumbItemLabel = selectedCookbook ?? selectedMethod ?? undefined;
+  // '전체'에서는 레시피북을 탭으로 고르므로 2뎁스로 들어가지 않는다 —
+  // 탭에 이미 선택이 보이는데 상단까지 뒤로가기+이름으로 바뀌면 같은 것이
+  // 두 번 나오고, 돌아갈 곳도 없는 뒤로가기가 생긴다.
+  const crumbItemLabel = crumbAxis === 'all'
+    ? undefined
+    : selectedCookbook ?? selectedMethod ?? undefined;
 
   // 2뎁스 항목 메뉴 (책/공법 목록 + '전체로')
   const ALL_ID = '__all__';

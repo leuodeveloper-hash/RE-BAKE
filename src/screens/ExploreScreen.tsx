@@ -323,7 +323,10 @@ export function ExploreScreen({
   }
 
   // 평면 리스트('전체' 축): 필터(레시피북/공법)된 결과 + 축 드롭다운
-  const flatFilterLabel = selectedMethod ?? (selectedCategory !== '__all__' ? selectedCategory : undefined);
+  // '전체'에서는 공식 레시피북을 탭으로 고르므로 2뎁스로 들어가지 않는다 (홈과 같다)
+  const flatFilterLabel = crumbAxis === 'all'
+    ? undefined
+    : selectedMethod ?? (selectedCategory !== '__all__' ? selectedCategory : undefined);
 
   return (
     <>
