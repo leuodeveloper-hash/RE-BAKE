@@ -89,7 +89,9 @@ export function PackCanvas({items, entrance, dimExceptId}: PackCanvasProps) {
       let minTx, maxTx, minTy, maxTy;
       if (cw <= viewport.w) { const c = (viewport.w - cw) / 2; minTx = c; maxTx = c; }
       else { minTx = viewport.w - cw; maxTx = 0; }
-      if (ch <= viewport.h) { const c = (viewport.h - ch) / 2; minTy = c; maxTy = c; }
+      // 콘텐츠가 화면보다 작으면 위에 붙여 고정 — 진입 위치(ty=0)와 같아야
+      // 한 번 스크롤했을 때 중앙으로 튕겨 내려가지 않는다
+      if (ch <= viewport.h) { minTy = 0; maxTy = 0; }
       else { minTy = viewport.h - ch; maxTy = 0; }
       tx.value = withDecay({velocity: e.velocityX, clamp: [minTx, maxTx], rubberBandEffect: true, rubberBandFactor: 0.6});
       ty.value = withDecay({velocity: e.velocityY, clamp: [minTy, maxTy], rubberBandEffect: true, rubberBandFactor: 0.6});
