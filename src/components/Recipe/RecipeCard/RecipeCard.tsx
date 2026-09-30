@@ -256,9 +256,8 @@ export function StackedThumbnail({
           backgroundColor: colors['surface/bright'],
           borderRadius: radius,
           padding: paperPadding,
-          transform: imageUrl
-            ? [{translateX: offset}, {rotate: '8deg'}]
-            : [],
+          // 기울이지 않는다 — 좌우로만 어긋나게 둔다(사진 쪽과 같은 규칙)
+          transform: imageUrl ? [{translateX: offset}] : [],
           ...shadow,
           gap: hasText ? fontSize * 0.4 : lineGap,
         }}>
@@ -863,7 +862,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     backgroundColor: colors['surface/bright'],
     borderWidth: 4,
     borderColor: colors['surface/bright'],
-    transform: [{translateX: 16}, {rotate: '8deg'}],
+    transform: [{translateX: 16}],
     shadowColor: '#0E0E0D',
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.12,
