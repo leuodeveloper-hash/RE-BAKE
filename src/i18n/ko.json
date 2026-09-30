@@ -261,7 +261,7 @@
   "group.retroNote": "회고 노트",
   "group.reviewCountMultiline": "{{count}}개의\n회고",
   "group.sessionCount": "{{count}}회차",
-  "groupAxis.axisAll": "모든 레시피",
+  "groupAxis.axisAll": "전체",
   "groupAxis.axisCookbook": "레시피 북",
   "groupAxis.axisMethod": "공법",
   "groupAxis.axisRetrospective": "회고 노트",
