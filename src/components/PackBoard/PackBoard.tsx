@@ -72,7 +72,8 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
       // 행 단위 stagger 대신 per-item 랜덤 오프셋 → 두 줄 격자처럼 보이지 않게 흩뿌림
       const jitterX = (seeded(h) - 0.5) * cellW * 0.5;
       const jitterY = (seeded(h + 7) - 0.5) * (slackV + 16);
-      const rotate = (seeded(h + 5) - 0.5) * 7; // ±3.5deg 살짝 기울임
+      // 기울이지 않는다 — 팩이 제각각 돌아가면 어수선하다
+      const rotate = 0;
 
       let top = vOffset + colOffset + row * ROW_HEIGHT + slackV / 2 + jitterY;
       // 화면 높이로 가두지 않는다 — 아래로 쌓여야 세로로 움직일 수 있다

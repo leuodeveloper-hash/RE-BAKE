@@ -21,20 +21,21 @@ const STACK_HEIGHT = 188; // 카드 키운 만큼 스택 높이도 키움
 const THUMB_SIZE = 214; // 팩 카드 크기
 
 // 더미 카드 팬 효과 (뒤 → 앞). 장수별로 좌우 대칭이 되도록 구성.
+// 기울이지 않고 좌우로만 어긋나게 둔다 — 팩이 여럿이면 제각각 돌아가 어수선하다
 type Fan = {x: number; y: number; rotate: number};
 function fanFor(count: number): Fan[] {
   if (count <= 1) return [{x: 0, y: 0, rotate: 0}];
   if (count === 2) {
     // 좌우 완전 대칭 (한쪽 쏠림 방지)
     return [
-      {x: -14, y: 0, rotate: -8},
-      {x: 14, y: 0, rotate: 8},
+      {x: -14, y: 0, rotate: 0},
+      {x: 14, y: 0, rotate: 0},
     ];
   }
   // 3장: 뒤 좌/우 대칭 + 정면 중앙(맨 위)
   return [
-    {x: -18, y: 5, rotate: -8},
-    {x: 18, y: 5, rotate: 8},
+    {x: -18, y: 0, rotate: 0},
+    {x: 18, y: 0, rotate: 0},
     {x: 0, y: 0, rotate: 0},
   ];
 }

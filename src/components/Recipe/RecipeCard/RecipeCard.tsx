@@ -322,11 +322,11 @@ export function StackedThumbnail({
             height: cardSize,
             backgroundColor: transparent ? 'transparent' : colors['surface/bright'],
             borderRadius: radius,
-            // 종이가 같이 보일 때만 좌측 비킴+기울임(종이 노출), 종이 없으면 평평하게
-            // (멀티 카드 팬은 FAN 회전만 적용돼 좌우 대칭 유지)
+            // 종이가 같이 보일 때만 좌측으로 비킨다(종이 노출). 기울이지 않는다 —
+            // 팩이 여럿이면 제각각 돌아가 어수선하다. 좌우로만 어긋나게 둔다.
             transform: renderPaper
-              ? [{translateX: -offset}, {rotate: '-8deg'}]
-              : [{translateX: 0}, {rotate: '0deg'}],
+              ? [{translateX: -offset}]
+              : [{translateX: 0}],
             ...(bare ? {} : shadow),
           }}>
           <View style={{flex: 1, borderRadius: radius, overflow: 'hidden', ...(bare ? {} : {borderWidth: 1, borderColor: colors['surface/bright']})}}>
@@ -845,7 +845,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     gap: 3,
   },
   paperBehind: {
-    transform: [{translateX: -16}, {rotate: '-8deg'}],
+    transform: [{translateX: -16}],
     shadowColor: '#0E0E0D',
     shadowOffset: {width: 0, height: 2},
     shadowOpacity: 0.08,
