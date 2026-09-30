@@ -1,6 +1,6 @@
 import React, {useState} from 'react';
 import {triggerHaptic} from '@utils/haptics';
-import {Image, Pressable, StyleSheet, Text, TextInput, View} from 'react-native';
+import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
 import {IconClose} from '@components/Icon/IconIndex';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
@@ -8,7 +8,6 @@ import {Typography} from '@constants/typography';
 import type {SemanticColors} from '@constants/tokens';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
-import {useTranslation} from '@contexts/LanguageContext';
 import type {StepPhoto} from '../../types/recipe';
 import {PhotoCaptionArrow} from './PhotoCaptionArrow';
 
@@ -30,13 +29,12 @@ export interface StepPhotosProps {
   onRemove?: (index: number) => void;
   /** 관리모드에서 사진 탭(교체) 시 호출 */
   onReplace?: (index: number) => void;
-  /** 관리모드에서 캡션 확정(blur/제출) 시 호출 */
-  onCaptionChange?: (index: number, caption: string) => void;
   /** 캡션 옆 곡선 화살표 표시 여부. 요리모드에서만 true(상세/편집은 화살표 없이 캡션만). 기본 false */
   showArrow?: boolean;
   /**
-   * 사진 탭 시 호출 (읽기 전용일 때). 주면 인라인 확대 대신 이 콜백이 불린다
-   * — 상세에서 풀스크린 PhotoViewer를 띄우는 용도.
+   * 사진 탭 시 호출. 주면 인라인 확대·교체 대신 이 콜백이 불린다
+   * — 풀스크린 PhotoViewer를 띄우는 용도. 편집 화면은 설명도 뷰어에서 쓴다
+   * (썸네일 아래 입력칸은 너무 좁았다).
    */
   onPhotoPress?: (index: number) => void;
 }
@@ -47,7 +45,7 @@ const DEFAULT_SIZE = 56;
  * 요리 과정(스텝) 사진 공통 컴포넌트. 상세/편집/요리모드 공용.
  * - 정사각 썸네일 (center-crop), 탭=크게 보기.
  * - 캡션 있으면 사진 옆에 [곡선화살표][캡션(최대2줄)] 표시. 인덱스 짝/홀로 위/아래 교차.
- * - edit + 관리모드(롱프레스): 삭제 X + 캡션 입력칸 활성. blur 시 원상복구(미확정), 제출 시 확정.
+ * - edit: 삭제 X. 설명은 여기서 쓰지 않고 전체보기(PhotoViewer)에서 쓴다 — 썸네일 아래 칸은 좁다.
  */
 export function StepPhotos({
   photos,
@@ -58,12 +56,10 @@ export function StepPhotos({
   paddingTop = true,
   onRemove,
   onReplace,
-  onCaptionChange,
   showArrow = false,
 }: StepPhotosProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
-  const {t} = useTranslation();
   const editable = mode === 'edit';
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   // edit 모드는 이미 편집 중이므로 롱프레스 관리모드 없이 항상 캡션 입력칸·삭제(X) 노출.
@@ -71,8 +67,6 @@ export function StepPhotos({
   const [manageState, setManageState] = useState(false);
   const manage = editable ? true : manageState;
   const setManage = setManageState;
-  // 캡션 편집 임시값: 저장 전 blur하면 버려짐(원상복구)
-  const [draftCaption, setDraftCaption] = useState<{idx: number; text: string} | null>(null);
 
   const varColor = colors['foreground/on-surface-var'];
 
@@ -82,21 +76,20 @@ export function StepPhotos({
         const expanded = expandedIdx === i;
         const side = expanded ? size * 2 : size;
         const caption = photo.caption ?? '';
-        const editingThis = manage && draftCaption?.idx === i;
         // 짝수=위(화살표 down), 홀수=아래(화살표 up)로 교차
         const arrowDir: 'down' | 'up' = i % 2 === 0 ? 'down' : 'up';
-        const showCaptionRow = editable ? (manage) : !!caption.trim();
+        const showCaptionRow = !!caption.trim();
 
         return (
           <View key={`photo-${i}`} style={styles.item}>
             <View style={styles.wrap}>
               <Pressable
                 onPress={() => {
-                  if (editable && manage) {
-                    onReplace?.(i);
-                  } else if (onPhotoPress) {
-                    // 풀스크린 뷰어를 쓰는 화면에서는 인라인 확대 대신 위임
+                  if (onPhotoPress) {
+                    // 풀스크린 뷰어를 쓰는 화면에서는 인라인 확대·교체 대신 위임
                     onPhotoPress(i);
+                  } else if (editable && manage) {
+                    onReplace?.(i);
                   } else {
                     setExpandedIdx(prev => (prev === i ? null : i));
                   }
@@ -120,36 +113,9 @@ export function StepPhotos({
             {showCaptionRow && (
               <View style={[styles.captionRow, arrowDir === 'up' && styles.captionRowUp]}>
                 {showArrow && <PhotoCaptionArrow direction={arrowDir} color={varColor} />}
-                {editingThis || (editable && manage) ? (
-                  <TextInput
-                    style={[styles.captionText, styles.captionInput]}
-                    value={editingThis ? draftCaption!.text : caption}
-                    placeholder={t('cookingMode.captionPlaceholder')}
-                    placeholderTextColor={colors['foreground/on-surface-muted']}
-                    multiline
-                    maxLength={60}
-                    autoFocus={editingThis}
-                    onFocus={() => setDraftCaption({idx: i, text: caption})}
-                    onChangeText={(v) => setDraftCaption({idx: i, text: v})}
-                    // blur(다른 곳 탭)에도 저장 — 완료 안 눌러도 입력값이 반영되게(기존엔 버려짐)
-                    onBlur={() => {
-                      if (draftCaption?.idx === i) onCaptionChange?.(i, draftCaption.text.trim());
-                      setDraftCaption(null);
-                    }}
-                    onSubmitEditing={() => {
-                      if (draftCaption?.idx === i) onCaptionChange?.(i, draftCaption.text.trim());
-                      setDraftCaption(null);
-                    }}
-                    returnKeyType="done"
-                    blurOnSubmit
-                  />
-                ) : (
-                  <Pressable
-                    style={styles.captionTextWrap}
-                    onPress={editable && manage ? () => setDraftCaption({idx: i, text: caption}) : undefined}>
-                    <Text style={styles.captionText} numberOfLines={2}>{caption}</Text>
-                  </Pressable>
-                )}
+                <View style={styles.captionTextWrap}>
+                  <Text style={styles.captionText} numberOfLines={2}>{caption}</Text>
+                </View>
               </View>
             )}
           </View>
@@ -201,10 +167,5 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     lineHeight: Typography.label.small.lineHeight,
     color: colors['foreground/on-surface-var'],
     flexShrink: 1,
-  },
-  captionInput: {
-    flex: 1,
-    padding: 0,
-    minWidth: 80,
   },
 });

@@ -437,6 +437,16 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
     [imageUri, imageUris],
   );
   const [heroViewerIndex, setHeroViewerIndex] = useState<number | null>(null);
+  // 과정 사진 전체보기 — 설명은 여기서 쓴다(썸네일 아래 칸은 좁다)
+  const [stepPhotoViewer, setStepPhotoViewer] = useState<{groupId: string; stepId: string; index: number} | null>(null);
+  /** 과정 하나의 사진 목록을 고친다 */
+  const updateStepPhotos = useCallback((groupId: string, stepId: string, fn: (photos: StepPhoto[]) => StepPhoto[]) => {
+    setStepGroups(prev => prev.map(g =>
+      g.id === groupId
+        ? {...g, steps: g.steps.map(s => (s.id === stepId ? {...s, photos: fn(s.photos ?? [])} : s))}
+        : g,
+    ));
+  }, []);
   // 재료 bulk 상태는 그룹별(ingredientGroups[].bulkMode/bulkText)로 관리한다. 전역 상태 없음.
   const [showPhotoMenu, setShowPhotoMenu] = useState(false);
   const [activeFieldIds, setActiveFieldIds] = useState<string[]>(
@@ -2684,51 +2694,8 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
                           <StepPhotos
                             photos={step.photos}
                             mode="edit"
-                            onCaptionChange={(pi, caption) => {
-                              setStepGroups(prev => prev.map(g =>
-                                g.id === group.id
-                                  ? {...g, steps: g.steps.map(s =>
-                                      s.id === step.id
-                                        ? {...s, photos: s.photos?.map((p, i) => i === pi ? {...p, caption: caption || undefined} : p)}
-                                        : s,
-                                    )}
-                                  : g,
-                              ));
-                            }}
-                            onRemove={(pi) => {
-                              setStepGroups(prev => prev.map(g =>
-                                g.id === group.id
-                                  ? {...g, steps: g.steps.map(s =>
-                                      s.id === step.id
-                                        ? {...s, photos: s.photos?.filter((_, i) => i !== pi)}
-                                        : s,
-                                    )}
-                                  : g,
-                              ));
-                            }}
-                            onReplace={async (pi) => {
-                              const ok = await ensureImagePermission('mediaLibrary', {
-                                deniedMessage: t('recipeEdit.photoPermissionNeeded'),
-                                showSnackbar,
-                                settingsTitle: t('permission.photoTitle'),
-                                settingsBody: t('permission.photoBody'),
-                                settingsConfirmLabel: t('permission.openSettings'),
-                                settingsCancelLabel: t('permission.cancel'),
-                              });
-                              if (!ok) return;
-                              const result = await ImagePicker.launchImageLibraryAsync({mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web'});
-                              if (result.canceled || !result.assets[0]) return;
-                              const uri = await getPersistentUri(result.assets[0].uri, result.assets[0].base64);
-                              setStepGroups(prev => prev.map(g =>
-                                g.id === group.id
-                                  ? {...g, steps: g.steps.map(s =>
-                                      s.id === step.id
-                                        ? {...s, photos: s.photos?.map((p, i) => i === pi ? {...p, uri} : p)}
-                                        : s,
-                                    )}
-                                  : g,
-                              ));
-                            }}
+                            onPhotoPress={(pi) => setStepPhotoViewer({groupId: group.id, stepId: step.id, index: pi})}
+                            onRemove={(pi) => updateStepPhotos(group.id, step.id, ps => ps.filter((_, i) => i !== pi))}
                           />
                         )}
                       </ListItem>
@@ -3306,6 +3273,44 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
             }
           }}
         />
+        );
+      })()}
+
+      {/* 과정 사진 전체보기 — 넘겨 보며 설명을 쓰고, 지운다 */}
+      {stepPhotoViewer && (() => {
+        const {groupId, stepId} = stepPhotoViewer;
+        const photos = stepGroups.find(g => g.id === groupId)?.steps.find(s => s.id === stepId)?.photos ?? [];
+        return (
+          <PhotoViewer
+            photos={photos}
+            index={photos.length > 0 ? Math.min(stepPhotoViewer.index, photos.length - 1) : null}
+            onIndexChange={i => setStepPhotoViewer(v => (v ? {...v, index: i} : v))}
+            onClose={() => setStepPhotoViewer(null)}
+            onCaptionChange={(pi, caption) =>
+              updateStepPhotos(groupId, stepId, ps => ps.map((p, i) => (i === pi ? {...p, caption: caption || undefined} : p)))}
+            onDelete={() => {
+              const pi = stepPhotoViewer.index;
+              setStepPhotoViewer(null);
+              updateStepPhotos(groupId, stepId, ps => ps.filter((_, i) => i !== pi));
+            }}
+            onReplace={async () => {
+              const pi = stepPhotoViewer.index;
+              setStepPhotoViewer(null);
+              const ok = await ensureImagePermission('mediaLibrary', {
+                deniedMessage: t('recipeEdit.photoPermissionNeeded'),
+                showSnackbar,
+                settingsTitle: t('permission.photoTitle'),
+                settingsBody: t('permission.photoBody'),
+                settingsConfirmLabel: t('permission.openSettings'),
+                settingsCancelLabel: t('permission.cancel'),
+              });
+              if (!ok) return;
+              const result = await ImagePicker.launchImageLibraryAsync({mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web'});
+              if (result.canceled || !result.assets[0]) return;
+              const uri = await getPersistentUri(result.assets[0].uri, result.assets[0].base64);
+              updateStepPhotos(groupId, stepId, ps => ps.map((p, i) => (i === pi ? {...p, uri} : p)));
+            }}
+          />
         );
       })()}
 
