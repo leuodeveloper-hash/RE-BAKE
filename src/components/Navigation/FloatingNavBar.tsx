@@ -66,6 +66,13 @@ export const navPillStyle: ViewStyle = {
   gap: 2,
 };
 
+/**
+ * AppBar가 안전영역 아래로 두는 여백.
+ * 앱바와 같은 높이에서 시작해야 하는 오버레이(검색 등)가 같이 쓴다 —
+ * 값을 따로 적으면 한쪽만 바뀌어 몇 px씩 어긋난다.
+ */
+export const APPBAR_TOP_PADDING = Spacing.smd;
+
 /** AppBar 영역 하단 위치 (paddingTop + pill height). 메뉴 top 기준으로 사용 */
 export const APPBAR_CONTENT_BOTTOM = Spacing.smd + NAV_PILL_HEIGHT; // 10 + 44 = 54
 

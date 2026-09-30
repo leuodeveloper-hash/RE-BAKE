@@ -5,6 +5,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import type {SvgProps} from 'react-native-svg';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
+import {APPBAR_TOP_PADDING} from '@components/Navigation';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {GlassContainer} from '@components/Container';
 import {TextInput} from '@components/TextInput';
@@ -222,7 +223,8 @@ export function SearchCommandBar({
         {/* 검색 카드는 상단에 고정(살짝 아래). 키보드가 올라와도 위치가 안 바뀌어
             덜컹임/리레이아웃 없음 — 카드가 상단이라 키보드와 겹치지 않음. */}
         <View
-          style={[styles.topAnchor, {paddingTop: insets.top + Spacing.md}]}
+          // 앱바와 같은 높이에서 시작한다 — 값을 따로 적으면 어긋난다
+          style={[styles.topAnchor, {paddingTop: insets.top + APPBAR_TOP_PADDING}]}
           pointerEvents="box-none">
           <Animated.View
             style={[
