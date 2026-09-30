@@ -614,7 +614,15 @@ export function RecipeListTemplate({
         {/* 레시피북 탭 등은 레이아웃과 무관하다 — 분기 안에 두면 레이아웃을
             바꿀 때마다 자리가 달라져 탭이 튄다. 바깥에 한 번만 그린다. */}
         {listHeaderExtra ? (
-          <ContentContainer style={styles.listHeaderExtra}>{listHeaderExtra}</ContentContainer>
+          <ContentContainer
+            style={[
+              styles.listHeaderExtra,
+              // 팩뷰에선 캔버스 위에 띄운다 — 흐름에 넣으면 캔버스가 그만큼
+              // 짧아지고, 팩이 남은 공간 가운데로 몰려 위가 휑해진다
+              activeLayout === 'pack' && styles.listHeaderFloating,
+            ]}>
+            {listHeaderExtra}
+          </ContentContainer>
         ) : null}
         {activeLayout === 'pack' ? (
           // 팩뷰: 콘텐츠 너비(maxWidth 800)·패딩 제약 밖에서 전체 너비로 로밍
@@ -716,6 +724,12 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingTop: APPBAR_HEIGHT,
     paddingHorizontal: Spacing.md,
     zIndex: 3,
+  },
+  listHeaderFloating: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
   },
   packEmpty: {
     flex: 1,
