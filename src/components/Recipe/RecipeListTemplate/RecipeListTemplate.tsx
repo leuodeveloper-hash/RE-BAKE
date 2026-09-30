@@ -3,7 +3,6 @@ import {Animated, Dimensions, Easing, FlatList, Pressable, StyleSheet, View} fro
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ContentContainer, contentAreaPadding, APPBAR_HEIGHT} from '@components/Container';
-import {APPBAR_CONTENT_BOTTOM} from '@components/Navigation';
 import {RecipeCard, RecipeCardLayout} from '@components/Recipe/RecipeCard';
 import {Menu, MenuItemData} from '@components/Menu';
 import {Tabs, type TabItem} from '@components/Tabs';
@@ -612,15 +611,15 @@ export function RecipeListTemplate({
   return (
     <>
       <SafeAreaView style={styles.safeArea} edges={['top']}>
+        {/* 레시피북 탭 등은 레이아웃과 무관하다 — 분기 안에 두면 레이아웃을
+            바꿀 때마다 자리가 달라져 탭이 튄다. 바깥에 한 번만 그린다. */}
+        {listHeaderExtra ? (
+          <ContentContainer style={styles.listHeaderExtra}>{listHeaderExtra}</ContentContainer>
+        ) : null}
         {activeLayout === 'pack' ? (
           // 팩뷰: 콘텐츠 너비(maxWidth 800)·패딩 제약 밖에서 전체 너비로 로밍
           <View style={styles.packFull}>
             <PullIndicator progress={pullProgress} isRefreshing={isRefreshing} refreshStripProgress={refreshStripProgress} refreshOpacity={refreshOpacity} />
-            {/* 레시피북 탭 등은 레이아웃과 무관하다 — 팩뷰라고 사라질 이유가 없다.
-                (팩뷰는 FlatList를 쓰지 않아 ListHeaderComponent가 안 그려진다) */}
-            {listHeaderExtra ? (
-              <ContentContainer style={styles.packHeaderExtra}>{listHeaderExtra}</ContentContainer>
-            ) : null}
             {!loading && layoutLoaded && sortedData.length === 0 && listEmptyComponent ? (
               // 팩뷰에서도 레시피가 없으면 빈 상태 표시 (FlatList 경로와 동일)
               <View style={styles.packEmpty}>{listEmptyComponent}</View>
@@ -649,6 +648,7 @@ export function RecipeListTemplate({
               keyExtractor={item => item.id}
               contentContainerStyle={[
                 styles.listContent,
+                listHeaderExtra ? styles.listContentUnderHeader : null,
                 !loading && data.length === 0 && styles.listContentEmpty,
               ]}
               columnWrapperStyle={activeLayout === 'grid' ? styles.row : undefined}
@@ -656,7 +656,7 @@ export function RecipeListTemplate({
               scrollEventThrottle={16}
               onEndReached={handleEndReached}
               onEndReachedThreshold={0.5}
-              ListHeaderComponent={<>{<RefreshGap height={refreshGapHeight} />}{listHeaderExtra}</>}
+              ListHeaderComponent={<RefreshGap height={refreshGapHeight} />}
               ListEmptyComponent={(loading || !layoutLoaded) && !isRefreshing ? undefined : listEmptyComponent}
               ListFooterComponent={loadingMore ? <SkeletonFooter layout={activeLayout} /> : undefined}
               renderItem={renderItem}
@@ -710,8 +710,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   // 팩은 전체 너비로 로밍하지만 헤더(레시피북 탭 등)는 앱바 아래 콘텐츠 폭에 맞춘다.
   // APPBAR_HEIGHT(72)는 앱바가 실제로 끝나는 지점(54)보다 커서 위가 휑했다.
-  packHeaderExtra: {
-    paddingTop: APPBAR_CONTENT_BOTTOM,
+  // 레이아웃과 무관한 상단 줄(레시피북 탭 등) — 앱바 아래 한 자리에 고정.
+  // 리스트 콘텐츠와 같은 APPBAR_HEIGHT를 써야 레이아웃을 바꿔도 자리가 같다.
+  listHeaderExtra: {
+    paddingTop: APPBAR_HEIGHT,
     paddingHorizontal: Spacing.md,
     zIndex: 3,
   },
@@ -727,6 +729,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   listContent: {
     ...contentAreaPadding,
+  },
+  // 상단 줄(탭)이 이미 앱바 아래 여백을 잡았으면 리스트는 붙어서 시작한다
+  listContentUnderHeader: {
+    paddingTop: 0,
   },
   listContentEmpty: {
     flexGrow: 1,
