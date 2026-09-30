@@ -323,7 +323,7 @@ export function BottomSheet({
                   bounces={false}
                   showsVerticalScrollIndicator={false}
                   style={bottomAction ? {flexShrink: 1} : undefined}
-                  contentContainerStyle={styles.content}
+                  contentContainerStyle={[styles.content, bottomAction ? styles.contentWithAction : null]}
                   onScroll={(e) => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }}
                   scrollEventThrottle={16}
                 >
@@ -396,6 +396,10 @@ const createStyles = (colors: SemanticColors) =>
     content: {
       paddingHorizontal: Spacing.xs,
       paddingBottom: Spacing.lg,
+    },
+    // 하단 버튼 영역(BottomActionBar)이 자체 위 여백을 가져, 본문 여백까지 더하면 목록과 버튼 사이가 휑하다
+    contentWithAction: {
+      paddingBottom: Spacing.xs,
     },
     containerFullScreen: {
       padding: 0,
