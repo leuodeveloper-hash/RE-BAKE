@@ -813,8 +813,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   localBanner: {
     marginBottom: Spacing.sm,
   },
-  // 탭 줄과 아래 카드가 붙지 않게 — 탭 자체에 여백을 주면 다른 쓰임에도 붙는다
+  // 탭 줄이 앱바·카드에 붙지 않게 위아래로 띄운다
+  // (탭 자체에 여백을 주면 다른 쓰임에도 붙는다)
   cookbookTabs: {
+    marginTop: Spacing.sm,
     marginBottom: Spacing.sm,
   },
 });

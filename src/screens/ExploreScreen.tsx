@@ -349,8 +349,8 @@ export function ExploreScreen({
         // (공식 북은 어드민만 만들 수 있어 + 는 두지 않는다)
         exploreAxis === 'all' ? (
           <Tabs
-            // 탭 줄과 아래 카드가 붙지 않게 (홈과 같은 간격)
-            style={{marginBottom: Spacing.sm}}
+            // 탭 줄이 앱바·카드에 붙지 않게 위아래로 (홈과 같은 간격)
+            style={{marginTop: Spacing.sm, marginBottom: Spacing.sm}}
             variant="text"
             uniformWidth={false}
             scrollable
