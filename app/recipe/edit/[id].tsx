@@ -117,7 +117,7 @@ export default function RecipeEditRoute() {
         const {imageSource: _imgSrc, ...rest} = data;
         const serializable = stripUndefined(rest);
         // merge:true는 undefined(삭제된 필드)를 무시하므로 → 비운 optional 필드는 deleteField()로 명시해 실제 삭제.
-        const OPTIONAL_FIELDS = ['sourceUrl', 'referenceUrl', 'advice', 'imageUri', 'imageUris', 'ratio', 'time', 'servings', 'method'] as const;
+        const OPTIONAL_FIELDS = ['sourceUrl', 'referenceUrl', 'advice', 'advicePhotos', 'imageUri', 'imageUris', 'ratio', 'time', 'servings', 'method'] as const;
         for (const f of OPTIONAL_FIELDS) {
           if ((rest as any)[f] === undefined) (serializable as any)[f] = deleteField();
         }

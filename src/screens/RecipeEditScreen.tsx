@@ -403,6 +403,9 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
   const [fieldManageVisible, setFieldManageVisible] = useState(false);
   const [reviews, setReviews] = useState<ReviewData[]>(recipe?.reviews ?? []);
   const [advice, setAdvice] = useState(recipe?.advice ?? '');
+  // 베이키의 조언 사진 — 과정 사진처럼 넣는다(요리모드와 같은 데이터)
+  const [advicePhotos, setAdvicePhotos] = useState<string[]>(recipe?.advicePhotos ?? []);
+  const [advicePhotoViewer, setAdvicePhotoViewer] = useState<number | null>(null);
   const [referenceUrl, setReferenceUrl] = useState(recipe?.referenceUrl ?? '');
   // 원본 링크 (외부 사이트에서 가져온 레시피 출처). 참고 링크와 별개 필드.
   const [sourceUrl, setSourceUrl] = useState(recipe?.sourceUrl ?? '');
@@ -439,6 +442,24 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
   const [heroViewerIndex, setHeroViewerIndex] = useState<number | null>(null);
   // 과정 사진 전체보기 — 설명은 여기서 쓴다(썸네일 아래 칸은 좁다)
   const [stepPhotoViewer, setStepPhotoViewer] = useState<{groupId: string; stepId: string; index: number} | null>(null);
+  /** 베이키의 조언 사진 추가 — 과정 사진과 같은 갤러리 흐름, 최대 3장 */
+  const addAdvicePhotos = useCallback(async () => {
+    const ok = await ensureImagePermission('mediaLibrary', {
+      deniedMessage: t('recipeEdit.photoPermissionNeeded'),
+      showSnackbar,
+      settingsTitle: t('permission.photoTitle'),
+      settingsBody: t('permission.photoBody'),
+      settingsConfirmLabel: t('permission.openSettings'),
+      settingsCancelLabel: t('permission.cancel'),
+    });
+    if (!ok) return;
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web', allowsMultipleSelection: true, selectionLimit: 3,
+    });
+    if (result.canceled || result.assets.length === 0) return;
+    const uris = await Promise.all(result.assets.map(a => getPersistentUri(a.uri, a.base64)));
+    setAdvicePhotos(prev => [...prev, ...uris].slice(0, 3));
+  }, [showSnackbar, t]);
   /** 과정 하나의 사진 목록을 고친다 */
   const updateStepPhotos = useCallback((groupId: string, stepId: string, fn: (photos: StepPhoto[]) => StepPhoto[]) => {
     setStepGroups(prev => prev.map(g =>
@@ -506,13 +527,14 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
     activeFieldIds,
     reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
     advice: advice || undefined,
+    advicePhotos: advicePhotos.length > 0 ? advicePhotos : undefined,
     imageUri: imageUri || undefined,
     imageUris: imageUris.length > 0 ? imageUris : undefined,
     referenceUrl: referenceUrl || undefined,
     sourceUrl: sourceUrl || undefined,
     // 비공개 토글도 변경 감지 대상 — 이게 빠지면 비공개만 바꿨을 때 isDirty가 안 잡혀 저장 불가.
     hidden: isExplore ? hidden : undefined,
-  }), [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden]);
+  }), [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, advicePhotos, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden]);
   const initialSnapshotRef = useRef(currentSnapshot);
 
   // ── 되돌리기/다시하기 ──────────────────────────────────────
@@ -521,9 +543,9 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
   const historySnapshot = useMemo(() => ({
     title, cookbook, method, ratio, time, servings,
     ingredientGroups, toolGroups, stepGroups,
-    activeFieldIds, reviews, advice, imageUri, imageUris, referenceUrl, sourceUrl, hidden,
+    activeFieldIds, reviews, advice, advicePhotos, imageUri, imageUris, referenceUrl, sourceUrl, hidden,
   }), [title, cookbook, method, ratio, time, servings, ingredientGroups, toolGroups, stepGroups,
-    activeFieldIds, reviews, advice, imageUri, imageUris, referenceUrl, sourceUrl, hidden]);
+    activeFieldIds, reviews, advice, advicePhotos, imageUri, imageUris, referenceUrl, sourceUrl, hidden]);
 
   const applyHistory = useCallback((s: typeof historySnapshot) => {
     setTitle(s.title);
@@ -538,6 +560,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
     setActiveFieldIds(s.activeFieldIds);
     setReviews(s.reviews);
     setAdvice(s.advice);
+    setAdvicePhotos(s.advicePhotos);
     setImageUri(s.imageUri);
     setImageUris(s.imageUris);
     setReferenceUrl(s.referenceUrl);
@@ -617,6 +640,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
         activeFieldIds,
         reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
         advice: advice || undefined,
+        advicePhotos: advicePhotos.length > 0 ? advicePhotos : undefined,
         imageUri: imageUri || undefined,
         imageUris: imageUris.length > 0 ? imageUris : undefined,
         referenceUrl: referenceUrl || undefined,
@@ -626,7 +650,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
     } finally {
       setSaving(false);
     }
-  }, [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden, onSave]);
+  }, [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, advicePhotos, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden, onSave]);
 
   const pickImage = async (source: 'camera' | 'gallery', slot: 'main' | 'extra' = 'main') => {
     if (source === 'camera') {
@@ -2794,6 +2818,10 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
               <ListItem
                 title={t('recipeEdit.bakeyAdvice')}
                 leading={{type: 'icon', icon: IconLogoSymbol}}
+                // 과정처럼 사진을 넣는다 — 3장을 채우면 감춘다
+                trailing={advicePhotos.length < 3
+                  ? {type: 'iconButton', icon: IconPhoto, onPress: addAdvicePhotos, variant: 'ghost-yellow', size: 'small'}
+                  : undefined}
               />
               <ListItem showDivider={false}>
                 <TextInput
@@ -2805,6 +2833,14 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
                   onChangeText={setAdvice}
                   placeholder={t('recipeEdit.bakeyAdvicePlaceholder')}
                 />
+                {advicePhotos.length > 0 && (
+                  <StepPhotos
+                    photos={normalizeStepPhotos(advicePhotos)}
+                    mode="edit"
+                    onPhotoPress={setAdvicePhotoViewer}
+                    onRemove={pi => setAdvicePhotos(prev => prev.filter((_, i) => i !== pi))}
+                  />
+                )}
               </ListItem>
             </Card>
           </ContentContainer>
@@ -3275,6 +3311,19 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
         />
         );
       })()}
+
+      {/* 조언 사진 전체보기 — 넘겨 보고 지운다 */}
+      <PhotoViewer
+        photos={advicePhotos.map(uri => ({uri}))}
+        index={advicePhotoViewer !== null && advicePhotos.length > 0 ? Math.min(advicePhotoViewer, advicePhotos.length - 1) : null}
+        onIndexChange={setAdvicePhotoViewer}
+        onClose={() => setAdvicePhotoViewer(null)}
+        onDelete={() => {
+          const pi = advicePhotoViewer;
+          setAdvicePhotoViewer(null);
+          if (pi !== null) setAdvicePhotos(prev => prev.filter((_, i) => i !== pi));
+        }}
+      />
 
       {/* 과정 사진 전체보기 — 넘겨 보며 설명을 쓰고, 지운다 */}
       {stepPhotoViewer && (() => {

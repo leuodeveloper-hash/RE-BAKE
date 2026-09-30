@@ -89,6 +89,19 @@ async function uploadLocalImages(recipe: Recipe): Promise<Recipe> {
     }
   }
 
+  // 베이키의 조언 사진 — 빠져 있으면 로컬 경로가 그대로 동기화돼 다른 기기에서 안 보인다
+  if (updated.advicePhotos?.some(isLocalUri)) {
+    updated.advicePhotos = await Promise.all(
+      updated.advicePhotos.map(async (uri, i) => {
+        if (!isLocalUri(uri)) return uri;
+        try {
+          changed = true;
+          return await uploadRecipeImage(uri, `${recipe.id}_advice_p${i}`);
+        } catch (e) { console.warn('[Storage] advice photo upload failed:', e); return uri; }
+      }),
+    );
+  }
+
   // stepGroups 내 사진
   if (updated.stepGroups) {
     const newGroups = [];

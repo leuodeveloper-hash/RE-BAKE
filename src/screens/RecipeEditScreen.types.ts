@@ -74,6 +74,7 @@ export interface RecipeEditScreenProps {
     activeFieldIds: string[];
     reviews?: ReviewData[];
     advice?: string;
+    advicePhotos?: string[];
     imageUri?: string;
     /** 추가 상단 이미지(대표 뒤로 최대 2장) */
     imageUris?: string[];
@@ -101,6 +102,7 @@ export interface RecipeEditScreenProps {
     madeAt?: string;
     reviews?: ReviewData[];
     advice?: string;
+    advicePhotos?: string[];
     time?: string;
     servings?: string;
     session?: string;
