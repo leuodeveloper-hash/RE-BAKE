@@ -24,7 +24,8 @@ export interface MadeConfirmSheetProps {
   /** 밀어서 확정 — 스탬프가 찍힌다 */
   onConfirm: () => void;
   /** 찍은 뒤 이어서 남기는 회고. 없으면 회고 단계를 건너뛴다 */
-  onSaveReview?: (review: {evaluation: string; improvement: string}) => void;
+  /** 평가만 받는다 — 개선점은 넘기지 않아 기존 값이 유지된다 */
+  onSaveReview?: (review: {evaluation: string; improvement?: string}) => void;
 }
 
 /**
@@ -72,7 +73,7 @@ export function MadeConfirmSheet({
 
   const handleSave = useCallback(() => {
     const text = evaluation.trim();
-    if (text) onSaveReview?.({evaluation: text, improvement: ''});
+    if (text) onSaveReview?.({evaluation: text});
     onClose();
   }, [evaluation, onSaveReview, onClose]);
 

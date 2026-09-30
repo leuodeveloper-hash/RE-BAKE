@@ -70,8 +70,16 @@ function useRecipeReviewsState() {
     return () => { alive = false; };
   }, [user?.uid]);
 
-  const saveReview = useCallback((recipeId: string, review: ReviewData) => {
+  /**
+   * 회고 저장. 넘기지 않은 칸은 기존 값을 둔다 — 만들었어요 시트처럼 평가만 받는
+   * 곳에서 저장해도 전에 써 둔 개선점이 지워지지 않게(레시피당 회고는 하나라 덮어쓴다).
+   */
+  const saveReview = useCallback((recipeId: string, input: Partial<ReviewData>) => {
     setReviews(prev => {
+      const review: ReviewData = {
+        evaluation: input.evaluation ?? prev[recipeId]?.evaluation ?? '',
+        improvement: input.improvement ?? prev[recipeId]?.improvement ?? '',
+      };
       const next = {...prev};
       const empty = !review.evaluation?.trim() && !review.improvement?.trim();
       if (empty) delete next[recipeId];

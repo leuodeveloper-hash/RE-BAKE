@@ -367,7 +367,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
   // 그룹별 통계 (회고 수, 회차 수)
   const retroStats = useMemo(() => {
     const groupMap = new Map<string, Recipe[]>();
-    for (const r of recipes) {
+    // 회고 노트와 같은 대상 — 둘러보기 레시피에 쓴 회고도 센다
+    for (const r of retrospectiveSource) {
       const groupKey = r.remakeGroupId ?? r.id;
       if (!groupMap.has(groupKey)) groupMap.set(groupKey, []);
       groupMap.get(groupKey)!.push(r);
@@ -378,7 +379,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
       stats.set(key, {totalReviews, totalSessions: group.length});
     }
     return stats;
-  }, [recipes, reviewsOf]);
+  }, [retrospectiveSource, reviewsOf]);
 
   const exploreCookbookColorMap = useMemo(() => {
     const map = new Map<string, string>();
