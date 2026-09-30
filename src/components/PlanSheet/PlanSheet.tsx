@@ -167,6 +167,9 @@ function PlanContent({styles, colors, isPro, onSubscribePress}: {
           </View>
         </View>
       </BlurView>
+
+      {/* 해지 후 데이터 처리 고지 — 서버가 만료 60일 뒤 클라우드 레시피를 지운다(functions purgeExpiredCloudRecipes) */}
+      <Text style={[styles.planStoreNote, styles.planRetentionNote]}>{t('plan.cloudRetentionNote')}</Text>
     </View>
   );
 }
@@ -234,6 +237,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     ...Typography.label.small,
     color: colors['foreground/on-surface-muted'],
     textAlign: 'center',
+  },
+  planRetentionNote: {
+    marginHorizontal: Spacing.lg,
   },
   planSavingsText: {
     ...Typography.label.small,

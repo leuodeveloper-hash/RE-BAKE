@@ -481,6 +481,7 @@
   "plan.featureCloudSync": "Cloud sync across devices",
   "plan.featureExplorePreview": "Preview 3 explore recipes",
   "plan.featureImportExport": "5 PDF exports",
+  "plan.cloudRetentionNote": "When your subscription ends, cloud recipes are kept for 60 days and then deleted. Recipes saved on this device stay.",
   "plan.featureLocalSave": "Up to 30 recipes",
   "plan.featureUnlimitedExplore": "Unlimited explore recipes, no ads",
   "plan.freeTitle": "Free",

@@ -466,6 +466,7 @@
   "plan.featureCloudSync": "클라우드 동기화 — 기기 바꿔도 그대로",
   "plan.featureExplorePreview": "둘러보기 레시피 3개 미리보기",
   "plan.featureImportExport": "PDF 내보내기 5회",
+  "plan.cloudRetentionNote": "구독이 끝나면 클라우드 레시피는 60일간 보관한 뒤 삭제해요. 이 기기에 저장된 레시피는 그대로 남아요.",
   "plan.featureLocalSave": "레시피 30개까지 저장",
   "plan.featureUnlimitedExplore": "둘러보기 레시피 무제한 (광고 없이)",
   "plan.freeTitle": "무료",

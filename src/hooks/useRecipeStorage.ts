@@ -17,6 +17,7 @@ import {useSubscription} from '@contexts/SubscriptionContext';
 import type {Recipe, RecipeExportData} from '../types/recipe';
 import {addToQueue, hasPendingOps, processQueue} from '@utils/syncQueue';
 import {stableStringify} from '@utils/stableStringify';
+import {RECIPES_STORAGE_KEY, LOCAL_EDITS_KEY} from '@utils/accountCache';
 import {getDeviceName} from '@utils/deviceInfo';
 import {uploadRecipeImage, isLocalUri} from '@utils/imageUpload';
 import {useOnlineStatus} from './useOnlineStatus';
@@ -26,7 +27,7 @@ import {ENTITLEMENTS, type Tier} from '@constants/entitlements';
 const photoUri = (p: any): string => (typeof p === 'string' ? p : p?.uri);
 const hasLocalPhoto = (photos: any[] | undefined): boolean => !!photos?.some((p: any) => isLocalUri(photoUri(p)));
 
-const STORAGE_KEY = 'bakle_recipes_v4';
+const STORAGE_KEY = RECIPES_STORAGE_KEY;
 
 /** 무료 등급 레시피 상한 — 정책 단일 출처는 @constants/entitlements */
 export const MAX_CLOUD_RECIPES = ENTITLEMENTS.free.quota.recipes;
@@ -222,6 +223,37 @@ async function syncToFirestore(uid: string, recipes: Recipe[]) {
   }, {merge: true});
 }
 
+// ── 클라우드가 꺼진 동안 로컬에서 바뀐 레시피 id ──
+// 다시 Pro가 됐을 때 이 레시피만 클라우드에 합친다(@utils/accountCache LOCAL_EDITS_KEY 참고).
+// 읽고-고치고-쓰기가 겹치지 않도록 한 줄로 세운다.
+let localEditsChain: Promise<unknown> = Promise.resolve();
+
+async function readLocalEdits(): Promise<Set<string>> {
+  try {
+    const raw = await AsyncStorage.getItem(LOCAL_EDITS_KEY);
+    return new Set(raw ? JSON.parse(raw) : []);
+  } catch {
+    return new Set();
+  }
+}
+
+function markLocalEdits(prev: Recipe[], next: Recipe[]) {
+  const prevById = new Map(prev.map(r => [r.id, stableStringify(r)]));
+  const changed = next.filter(r => prevById.get(r.id) !== stableStringify(r)).map(r => r.id);
+  if (changed.length === 0) return;
+  localEditsChain = localEditsChain.then(async () => {
+    const ids = await readLocalEdits();
+    changed.forEach(id => ids.add(id));
+    await AsyncStorage.setItem(LOCAL_EDITS_KEY, JSON.stringify([...ids]));
+  }).catch(e => console.warn('[Storage] 로컬 수정 기록 실패:', e));
+}
+
+function clearLocalEdits() {
+  localEditsChain = localEditsChain
+    .then(() => AsyncStorage.removeItem(LOCAL_EDITS_KEY))
+    .catch(() => {});
+}
+
 export function useRecipeStorage(showSnackbar?: (message: string) => void) {
   const {user, isAdmin} = useAuth();
   const {isPro, photoCloudBackup} = useSubscription();
@@ -257,8 +289,13 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
     if (cloudEnabled && user) {
       // Firestore 실시간 구독
       const colRef = collection(db, 'user_recipes', user.uid, 'recipes');
+      // 이 구독의 첫 스냅샷인지 — initialized는 한 번 true가 되면 돌아오지 않아
+      // 앱을 쓰다가 Pro가 되면 첫 스냅샷 처리(올리기 팝업·병합)를 건너뛰었다.
+      let firstSnapshot = true;
       const unsub = onSnapshot(colRef, (snapshot) => {
-        if (snapshot.empty && !initialized.current) {
+        const isFirst = firstSnapshot;
+        firstSnapshot = false;
+        if (snapshot.empty && isFirst) {
           // Pro 전환 시: 자동 업로드 대신 "확인 팝업" 대기 — 로컬 후보만 잡아두고 표시
           (async () => {
             try {
@@ -278,12 +315,14 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
           return;
         }
         // 로컬 쓰기 중이면 onSnapshot이 이전 데이터로 state를 덮어쓰지 않도록 스킵
-        if (localWritePending.current && initialized.current) return;
+        if (localWritePending.current && !isFirst) return;
         const firestoreRecipes: Recipe[] = snapshot.docs.map(
           d => migrateRecipe({id: d.id, ...d.data()}),
         );
         setRecipesState(firestoreRecipes);
-        if (!initialized.current) {
+        if (isFirst) {
+          // 재구독: 무료 기간에 이 기기에서 만들거나 고친 레시피를 클라우드에 합친다
+          mergeLocalEditsIntoCloud(user.uid, firestoreRecipes);
           // 첫 스냅샷: 마지막 동기화 정보 읽기
           getDoc(doc(db, 'users', user.uid)).then(userDoc => {
             if (userDoc.exists()) {
@@ -332,6 +371,49 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
       })();
     }
   }, [isOnline, cloudEnabled, user]);
+
+  /**
+   * 클라우드가 꺼진 동안 로컬에서 바뀐 레시피를 클라우드 목록에 합쳐 올린다.
+   * 같은 id면 로컬이 이긴다(클라우드 쪽은 그동안 이 기기에서 못 고쳤으므로).
+   */
+  async function mergeLocalEditsIntoCloud(uid: string, cloudRecipes: Recipe[]) {
+    localWritePending.current = true;
+    try {
+      const edits = await readLocalEdits();
+      if (edits.size === 0) return;
+      const stored = await AsyncStorage.getItem(STORAGE_KEY);
+      const local: Recipe[] = stored ? (JSON.parse(stored) as Recipe[]).map(migrateRecipe) : [];
+      const changed = local.filter(r => edits.has(r.id));
+      if (changed.length === 0) {
+        clearLocalEdits();
+        return;
+      }
+      const uploaded = cloudRef.current.photoCloudBackup
+        ? await Promise.all(changed.map(uploadLocalImages))
+        : changed;
+      const byId = new Map(uploaded.map(r => [r.id, r]));
+      const merged = [
+        ...cloudRecipes.map(r => byId.get(r.id) ?? r),
+        ...uploaded.filter(r => !cloudRecipes.some(c => c.id === r.id)),
+      ];
+      setRecipesState(merged);
+      await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(merged));
+      try {
+        await syncToFirestore(uid, uploaded);
+        setLastSyncedAt(new Date());
+        setLastSyncedDevice(getDeviceName());
+      } catch (e) {
+        console.error('[Storage] 로컬 레시피 병합 동기화 실패:', e);
+        addToQueue({type: 'sync', uid, data: merged});
+      }
+      clearLocalEdits();
+      showSnackbarRef.current?.(`이 기기에서 만든 레시피 ${changed.length}개를 클라우드에 합쳤어요`);
+    } catch (e) {
+      console.warn('[Storage] 로컬 레시피 병합 실패:', e);
+    } finally {
+      localWritePending.current = false;
+    }
+  }
 
   async function loadFromAsyncStorage() {
     try {
@@ -409,6 +491,8 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
 
             localWritePending.current = false;
           })();
+        } else {
+          markLocalEdits(prev, next);
         }
         // AsyncStorage에도 항상 백업.
         // 실패를 삼키지 않는다 — 웹은 localStorage(보통 5MB)라 사진이 data: URL로
@@ -580,6 +664,7 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
       await syncToFirestore(user.uid, uploaded);
       setRecipesState(uploaded);
       await AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(uploaded));
+      clearLocalEdits();
       setLastSyncedAt(new Date());
       setLastSyncedDevice(getDeviceName());
     } catch (e) {

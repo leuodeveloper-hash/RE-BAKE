@@ -1,5 +1,5 @@
 import React, {createContext, useCallback, useContext, useEffect, useMemo, useState} from 'react';
-import {clearAccountCache} from '@utils/accountCache';
+import {clearAccountCache, parkAccountRecipes, restoreAccountRecipes} from '@utils/accountCache';
 import {Platform} from 'react-native';
 import {
   onAuthStateChanged,
@@ -116,6 +116,12 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+      // 로그아웃 때 보관해 둔 이 계정의 레시피를 되돌린다.
+      // setUser 전에 해야 레시피 훅이 되돌린 데이터를 읽는다.
+      if (firebaseUser) {
+        await restoreAccountRecipes(firebaseUser.uid).catch(e =>
+          console.warn('[Auth] 보관한 레시피 복원 실패:', e));
+      }
       setUser(firebaseUser);
       if (firebaseUser) {
         // 어드민 확인 — admin/{uid} 문서가 있으면 어드민
@@ -191,7 +197,19 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
   }, []);
 
   const signOut = useCallback(async () => {
-    // 로컬 캐시를 먼저 비운다 — 안 그러면 다음 계정/비로그인 상태에서
+    // 레시피는 계정별로 보관해 둔다 — 무료 등급은 로컬이 유일한 사본이다.
+    // 보관에 실패하면 지우지 않는다(데이터 유실보다 다른 계정에 보이는 게 낫다).
+    const uid = auth.currentUser?.uid;
+    if (uid) {
+      try {
+        await parkAccountRecipes(uid);
+      } catch (e) {
+        console.warn('[Auth] 레시피 보관 실패 — 로컬 캐시를 지우지 않는다:', e);
+        await firebaseSignOut(auth);
+        return;
+      }
+    }
+    // 로컬 캐시를 비운다 — 안 그러면 다음 계정/비로그인 상태에서
     // 이전 계정의 레시피·스탬프·회고가 그대로 보인다.
     await clearAccountCache();
     await firebaseSignOut(auth);

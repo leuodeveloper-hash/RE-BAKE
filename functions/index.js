@@ -1,7 +1,12 @@
 import {onRequest} from 'firebase-functions/v2/https';
 import {onDocumentCreated} from 'firebase-functions/v2/firestore';
+import {onSchedule} from 'firebase-functions/v2/scheduler';
 import {defineSecret} from 'firebase-functions/params';
+import {initializeApp} from 'firebase-admin/app';
+import {getFirestore, Timestamp} from 'firebase-admin/firestore';
 import nodemailer from 'nodemailer';
+
+initializeApp();
 
 /**
  * 레시피 가져오기용 CORS 프록시.
@@ -145,6 +150,100 @@ export const onAppInquiry = onDocumentCreated(
       });
     } catch (e) {
       console.error('[onAppInquiry] 메일 전송 실패:', e);
+    }
+  },
+);
+
+// ──────────────────────────────────────────────
+// 구독 해지 후 클라우드 레시피 보관 (60일)
+//
+// 정책: 구독이 끝나면 클라우드 레시피를 60일 보관한 뒤 지운다.
+// 기기에는 로컬 사본이 남는다(앱은 구독이 끝나면 로컬 저장소로 돌아간다).
+// 60일 안에 다시 구독하면 보관 예약을 취소한다.
+//
+// Storage 사진은 지우지 않는다 — 기기 로컬 사본과 둘러보기에 올린 레시피가
+// 같은 다운로드 URL을 그대로 쓰고 있어, 지우면 그쪽 사진이 깨진다.
+// ──────────────────────────────────────────────
+
+const CLOUD_RETENTION_DAYS = 60;
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+// RevenueCat 대시보드 웹훅의 Authorization 헤더 값과 같아야 한다.
+const REVENUECAT_WEBHOOK_AUTH = defineSecret('REVENUECAT_WEBHOOK_AUTH');
+
+/** 구독이 (다시) 살아난 이벤트 — 보관 예약을 취소한다 */
+const ACTIVE_EVENTS = new Set([
+  'INITIAL_PURCHASE',
+  'RENEWAL',
+  'UNCANCELLATION',
+  'PRODUCT_CHANGE',
+  'NON_RENEWING_PURCHASE',
+  'SUBSCRIPTION_EXTENDED',
+]);
+
+/**
+ * RevenueCat 웹훅 — 구독 만료 시각을 기록한다.
+ * CANCELLATION은 자동갱신만 끈 것(기간 끝까지는 Pro)이라 보지 않고, 실제 만료(EXPIRATION)를 본다.
+ * 앱이 RevenueCat에 Firebase uid로 logIn하므로 app_user_id가 곧 uid다.
+ *
+ * 기록은 cloud_retention/{uid} — 규칙에 없는 컬렉션이라 클라이언트는 못 건드린다.
+ */
+export const revenuecatWebhook = onRequest(
+  {region: 'asia-northeast3', secrets: [REVENUECAT_WEBHOOK_AUTH], memory: '256MiB'},
+  async (req, res) => {
+    if (req.method !== 'POST' || req.headers.authorization !== REVENUECAT_WEBHOOK_AUTH.value()) {
+      res.status(401).end();
+      return;
+    }
+    const event = req.body?.event;
+    const uid = event?.app_user_id;
+    // 로그인 전 익명 구매는 계정에 묶이지 않아 대상이 아니다
+    if (!event || typeof uid !== 'string' || uid.startsWith('$RCAnonymousID')) {
+      res.status(200).end();
+      return;
+    }
+
+    const ref = getFirestore().doc(`cloud_retention/${uid}`);
+    if (event.type === 'EXPIRATION') {
+      const expiredAtMs = event.expiration_at_ms ?? event.event_timestamp_ms ?? Date.now();
+      await ref.set({
+        expiredAt: Timestamp.fromMillis(expiredAtMs),
+        deleteAfter: Timestamp.fromMillis(expiredAtMs + CLOUD_RETENTION_DAYS * DAY_MS),
+        product: event.product_id ?? null,
+      });
+    } else if (ACTIVE_EVENTS.has(event.type)) {
+      await ref.delete();
+    }
+    res.status(200).end();
+  },
+);
+
+/** 매일 새벽, 보관 기간이 지난 계정의 클라우드 레시피를 지운다 */
+export const purgeExpiredCloudRecipes = onSchedule(
+  {schedule: 'every day 04:00', timeZone: 'Asia/Seoul', region: 'asia-northeast3', memory: '512MiB', timeoutSeconds: 540},
+  async () => {
+    const db = getFirestore();
+    const due = await db.collection('cloud_retention')
+      .where('deleteAfter', '<=', Timestamp.now())
+      .limit(200)
+      .get();
+
+    for (const snap of due.docs) {
+      const uid = snap.id;
+      try {
+        // 어드민은 결제 없이 Pro라 만료 이벤트가 와도 지우지 않는다
+        if ((await db.doc(`admin/${uid}`).get()).exists) {
+          await snap.ref.delete();
+          continue;
+        }
+        await db.recursiveDelete(db.collection(`user_recipes/${uid}/recipes`));
+        await db.doc(`users/${uid}`).set({cloudPurgedAt: Timestamp.now()}, {merge: true});
+        await snap.ref.delete();
+        console.log(`[purgeExpiredCloudRecipes] ${uid} 클라우드 레시피 삭제`);
+      } catch (e) {
+        // 한 계정 실패로 나머지를 막지 않는다. 문서가 남아 다음 날 다시 시도한다.
+        console.error(`[purgeExpiredCloudRecipes] ${uid} 삭제 실패:`, e);
+      }
     }
   },
 );
