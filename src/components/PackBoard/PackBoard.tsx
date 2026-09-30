@@ -54,9 +54,10 @@ export function PackBoard({items, height, entrance = false, dimExceptId}: PackBo
     const rows = Math.max(1, Math.min(maxRows, items.length));
     const slackV = Math.max(0, ROW_HEIGHT - PACK_HEIGHT);
     const cellW = PACK_WIDTH + 24;
-    // 실제 사용 행 블록을 세로 중앙 정렬
+    // 행 블록은 위에서 시작한다. 예전엔 보드 안에서 다시 세로 중앙 정렬했는데,
+    // 캔버스가 이미 정렬을 하므로 이중이 돼 첫 행이 100px 가까이 내려갔다.
     const blockH = rows * ROW_HEIGHT;
-    const vOffset = PAD_V + Math.max(0, (innerH - blockH) / 2);
+    const vOffset = PAD_V;
 
     const columns = Math.ceil(items.length / rows);
     let maxRight = 0;
