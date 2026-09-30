@@ -63,10 +63,27 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
     const columns = Math.max(1, Math.min(fitCols + 2, items.length));
     const rows = Math.ceil(items.length / columns);
     const vOffset = PAD_V;
+
+    /**
+     * 가운데 칸부터 바깥으로 퍼지는 순서.
+     * 왼쪽 위부터 채우면 팩이 한쪽에 몰리고 반대편이 텅 빈다 —
+     * 중심에서 사방으로 번지게 칸 순서를 미리 정한다.
+     */
+    const cells: {row: number; col: number}[] = [];
+    for (let r = 0; r < rows; r++) for (let c = 0; c < columns; c++) cells.push({row: r, col: c});
+    const midR = (rows - 1) / 2;
+    const midC = (columns - 1) / 2;
+    cells.sort((a, b) => {
+      const da = Math.hypot(a.row - midR, a.col - midC);
+      const db = Math.hypot(b.row - midR, b.col - midC);
+      if (da !== db) return da - db;
+      // 거리가 같으면 순서를 고정해 다시 그려도 자리가 바뀌지 않게
+      return a.row - b.row || a.col - b.col;
+    });
+
     let maxRight = 0;
     const placed = items.map((item, i) => {
-      const row = Math.floor(i / columns);
-      const col = i % columns;
+      const {row, col} = cells[i] ?? {row: 0, col: 0};
       const h = hashStr(item.id);
 
       const colOffset = 0;
