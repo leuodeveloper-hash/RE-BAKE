@@ -215,7 +215,9 @@ export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom
       ref={ref}
       onPress={handlePress}
       style={({pressed}) => [styles.container, pressed && {opacity: 0.85, transform: [{scale: 0.97}]}]}>
-      <View style={[styles.stack, {transform: [{rotate: `${rotate}deg`}]}]}>
+      <View style={styles.stack}>
+        {/* 사진+종이 덩어리만 기울인다 — 뱃지까지 돌면 글씨가 비뚤어 읽기 나쁘다 */}
+        <View style={[StyleSheet.absoluteFill, {transform: [{rotate: `${rotate}deg`}]}]} pointerEvents="box-none">
         {(() => { const fanArr = fanFor(shown.length); return shown.map((card, i) => {
           const fan = fanArr[i] ?? fanArr[fanArr.length - 1];
           return (
@@ -238,6 +240,7 @@ export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom
             </View>
           );
         }); })()}
+        </View>
         {/* 썸네일 위 pill 뱃지 (라벨 + 개수) — Figma 75166:53685 */}
         <Animated.View
           style={[
