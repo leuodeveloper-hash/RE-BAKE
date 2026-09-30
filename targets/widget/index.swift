@@ -1,6 +1,7 @@
 import WidgetKit
 import SwiftUI
 import AppIntents
+import ImageIO // 위젯 사진 줄여 읽기(CGImageSource)
 import UIKit   // UIFontDescriptor — OpenType feature(tnum/ss01) 활성화용
 
 // App Group으로 앱↔위젯 데이터 공유
@@ -152,6 +153,25 @@ func resolveImagePath(_ stored: String?) -> String? {
     .containerURL(forSecurityApplicationGroupIdentifier: appGroup)
   else { return nil }
   return container.appendingPathComponent("widget").appendingPathComponent(s).path
+}
+
+/// 위젯용으로 줄여서 읽는다.
+/// 위젯은 메모리 한도(약 30MB)가 있어 폰 사진 원본(4000×3000 ≈ 48MB)을 그대로 풀면
+/// 사진 없이 배경만 그려졌다(그날 배정된 사진이 클 때만 — "가끔 안 뜬다").
+/// 가장 큰 위젯(아이패드 extraLarge)도 긴 변 1000px이면 충분하다.
+func loadDownsampledImage(path: String, maxPixel: CGFloat = 1000) -> UIImage? {
+  let url = URL(fileURLWithPath: path) as CFURL
+  guard let source = CGImageSourceCreateWithURL(url, [kCGImageSourceShouldCache: false] as CFDictionary) else {
+    return nil
+  }
+  let options: [CFString: Any] = [
+    kCGImageSourceCreateThumbnailFromImageAlways: true,
+    kCGImageSourceCreateThumbnailWithTransform: true, // 세로 사진 방향 유지
+    kCGImageSourceShouldCacheImmediately: true,
+    kCGImageSourceThumbnailMaxPixelSize: maxPixel,
+  ]
+  guard let cg = CGImageSourceCreateThumbnailAtIndex(source, 0, options as CFDictionary) else { return nil }
+  return UIImage(cgImage: cg)
 }
 
 func entryFor(date: Date, sets: [DailySet], exam: UpcomingExam?) -> RecipeEntry {
@@ -364,7 +384,7 @@ struct BakleWidgetEntryView: View {
   @ViewBuilder
   static func backgroundLayer(imagePath: String?) -> some View {
     ZStack {
-      if let path = imagePath, let uiImage = UIImage(contentsOfFile: path) {
+      if let path = imagePath, let uiImage = loadDownsampledImage(path: path) {
         Image(uiImage: uiImage)
           .resizable()
           .aspectRatio(contentMode: .fill)
