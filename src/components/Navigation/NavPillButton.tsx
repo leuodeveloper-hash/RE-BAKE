@@ -14,6 +14,8 @@ export interface NavPillButtonProps {
   variant?: NavPillVariant;
   /** 아이콘 버튼 크기 (기본: medium) */
   size?: IconButtonSize;
+  /** 아이콘 색 — 지정하면 variant 색 대신 쓴다(예: 축별 색) */
+  iconColor?: string;
   disabled?: boolean;
 }
 
@@ -22,10 +24,10 @@ export interface NavPillButtonProps {
  * 앱 전반에서 반복되던 `<GlassContainer contentStyle={navPillStyle}><IconButton/></GlassContainer>`
  * 조합을 공통화한 것. 하나 고치면 모든 플로팅 알약 버튼에 반영된다.
  */
-export function NavPillButton({icon, onPress, variant = 'ghost-primary', size = 'medium', disabled}: NavPillButtonProps) {
+export function NavPillButton({icon, onPress, variant = 'ghost-primary', size = 'medium', disabled, iconColor}: NavPillButtonProps) {
   return (
     <GlassContainer contentStyle={navPillStyle}>
-      <IconButton icon={icon} onPress={onPress} variant={variant} size={size} disabled={disabled} />
+      <IconButton icon={icon} iconColor={iconColor} onPress={onPress} variant={variant} size={size} disabled={disabled} />
     </GlassContainer>
   );
 }

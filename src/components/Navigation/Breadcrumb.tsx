@@ -12,6 +12,7 @@ export interface BreadcrumbProps {
   axisLabel: string;
   /** 축 아이콘 — 2뎁스에서 뒤로가기 버튼에 쓴다(돌아갈 곳을 알린다). */
   axisIcon?: React.FC<SvgProps>;
+  /** 축 아이콘 색 — 축마다 달라 어디로 돌아가는지 색으로도 구분된다 */
   axisIconColor?: string;
   /** 2뎁스: 선택 항목 (특정 책/공법). 없으면 1뎁스만 */
   itemLabel?: string;
@@ -32,7 +33,7 @@ export interface BreadcrumbProps {
  *
  * onBack이 주어지고 항목(2뎁스)이 있으면: `[‹ 뒤로가기] [항목 ⌄]` 형태로 축 텍스트를 버튼으로 대체.
  */
-export function Breadcrumb({axisLabel, axisIcon, itemLabel, onAxisPress, onItemPress, onBack, leadingNode}: BreadcrumbProps) {
+export function Breadcrumb({axisLabel, axisIcon, axisIconColor, itemLabel, onAxisPress, onItemPress, onBack, leadingNode}: BreadcrumbProps) {
   const colors = useColors();
   const hasItem = itemLabel != null && itemLabel !== '';
 
@@ -44,6 +45,7 @@ export function Breadcrumb({axisLabel, axisIcon, itemLabel, onAxisPress, onItemP
             (레시피들인지 레시피북인지) 알 수 없다 */}
         <NavPillButton
           icon={axisIcon ?? IconArrowLeft}
+          iconColor={axisIconColor}
           onPress={onBack}
           variant="ghost-secondary"
         />
