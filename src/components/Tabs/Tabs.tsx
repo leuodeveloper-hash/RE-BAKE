@@ -231,7 +231,8 @@ export function Tabs({tabs, selectedId, onSelect, style, fullWidth, scrollable, 
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
-  // 가로 스크롤일 때 — 탭과 끝 버튼이 한 줄로 이어진다
+  // 가로 스크롤일 때 — 탭과 끝 버튼이 한 줄로 이어진다.
+  // 옆에 높이가 다른 것(셀렉터 알약 등)이 와도 가운데로 맞는다.
   scrollContent: {
     flexDirection: 'row',
     alignItems: 'center',

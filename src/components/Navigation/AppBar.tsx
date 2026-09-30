@@ -196,10 +196,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 8,
   },
-  // 셀렉터 옆 탭 — 남는 폭만 쓰고 넘치면 그 안에서 가로 스크롤
+  // 셀렉터 옆 탭 — 남는 폭만 쓰고 넘치면 그 안에서 가로 스크롤.
+  // 셀렉터(44)와 탭(40) 높이가 달라 가운데로 맞춘다.
   leftTabs: {
     flexShrink: 1,
     minWidth: 0,
+    justifyContent: 'center',
   },
   titlePill: {
     height: 44,
