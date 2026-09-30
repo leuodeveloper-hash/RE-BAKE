@@ -118,10 +118,8 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
     }
   }, [exploreCookbooks, cookbookColors, recipes, removeCookbookColor]);
 
-  // 그룹화 축: 'all'이면 평면 리스트, 그 외엔 그룹 화면(GroupScreen) 호스팅.
-  // 기본은 레시피북 — 북이 이 앱의 중심이라 처음 열었을 때 그게 보여야 한다.
-  // (평면 전체 목록은 축을 바꿔서 본다. 마지막 축은 아래에서 복원한다)
-  const [groupAxis, setGroupAxis] = useState<GroupAxis>('cookbook');
+  // 그룹화 축: 'all'이면 평면 리스트, 그 외엔 그룹 화면(GroupScreen) 호스팅
+  const [groupAxis, setGroupAxis] = useState<GroupAxis>('all');
   // 마지막 본 축 복원 (앱 재시작해도 유지). 저장 덮어쓰기 방지용 로드 플래그.
   const axisLoaded = useRef(false);
   useEffect(() => {
@@ -190,6 +188,29 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
     }
     return [];
   }, [crumbAxis, recipes, availableCookbooks, t]);
+
+  /**
+   * 축 메뉴에 붙는 레시피북 목록.
+   *
+   * 예전엔 축을 '레시피북'으로 바꿔 책 표지 화면으로 넘어간 뒤에야 북을 골랐다.
+   * 필터 하나 걸자고 화면이 두 번 바뀌고 돌아오는 길도 헷갈렸다.
+   * 목록을 축 메뉴에 함께 두면 화면을 떠나지 않고 걸러진다.
+   * (책 표지 화면은 북 자체를 고치는 자리로 남는다)
+   */
+  const cookbookFilterItems = useMemo(() => {
+    const names = new Set<string>();
+    for (const r of recipes) names.add(r.cookbook || t('home.noCookbook'));
+    availableCookbooks.forEach(n => names.add(n));
+    return [{id: ALL_ID, label: t('home.all')}, ...[...names].map(n => ({id: n, label: n}))];
+  }, [recipes, availableCookbooks, t]);
+
+  /** 축 메뉴에서 북을 고르면 평면 목록에 머문 채 걸러진다 */
+  const handleCookbookFilterSelect = useCallback((id: string) => {
+    setCrumbMenu(null);
+    setSelectedMethod(null);
+    setSelectedCookbook(id === ALL_ID ? null : id);
+    setGroupAxis('all');
+  }, [setSelectedCookbook, setSelectedMethod]);
 
   const handleCrumbItemSelect = (id: string) => {
     setCrumbMenu(null);
@@ -628,10 +649,27 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
           menuOpen={showMoreMenu}
           titleMenu={
             <>
+              {/* 전체(all) 아래에 레시피북을 펼친다 — 북을 고르려고 책 표지
+                  화면으로 넘어갔다 돌아오지 않아도 된다.
+                  (책 표지 화면은 북 자체를 고치는 자리로 남는다) */}
               <Menu
-                items={axisMenuItems}
-                selectedId={crumbAxis}
-                onSelect={handleHomeAxisSelect}
+                sections={[
+                  {
+                    items: axisMenuItems,
+                    selectedId: crumbAxis,
+                  },
+                  ...(crumbAxis === 'all' || selectedCookbook
+                    ? [{
+                        items: cookbookFilterItems,
+                        selectedId: selectedCookbook ?? ALL_ID,
+                      }]
+                    : []),
+                ]}
+                onSelect={id => {
+                  // 축 id면 축 전환, 아니면 레시피북 필터
+                  if (axisMenuItems.some(a => a.id === id)) handleHomeAxisSelect(id);
+                  else handleCookbookFilterSelect(id);
+                }}
                 visible={crumbMenu === 'axis'}
                 headerNode={menuHeaderNode}
               />
