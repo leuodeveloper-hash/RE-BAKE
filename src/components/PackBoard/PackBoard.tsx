@@ -43,7 +43,7 @@ function seeded(seed: number): number {
 export function PackBoard({items, height, entrance = false, dimExceptId}: PackBoardProps) {
   const intro = useRef(new Animated.Value(entrance ? 0 : 1)).current;
 
-  const {placed, width, originX, originY} = useMemo(() => {
+  const {placed, width, contentHeight, originX, originY} = useMemo(() => {
     // 상하·좌우 여백 (보드 가장자리에 팩이 붙지 않게)
     const PAD_V = 40;
     const PAD_H = 32;
@@ -90,7 +90,16 @@ export function PackBoard({items, height, entrance = false, dimExceptId}: PackBo
       return {item, left, top, rotate: 0, pillCorner};
     });
 
-    return {placed, width: maxRight + PAD_H, originX: 0, originY: height / 2 - PACK_HEIGHT / 2};
+    // 보드 높이는 팩이 실제로 차지한 만큼 — height(뷰포트 전체)를 쓰면
+    // 팩 아래 빈 공간까지 콘텐츠로 잡혀, 중앙 정렬해도 위가 뜬다.
+    const maxBottom = placed.reduce((m, p) => Math.max(m, p.top + PACK_HEIGHT), 0);
+    return {
+      placed,
+      width: maxRight + PAD_H,
+      contentHeight: maxBottom + PAD_V,
+      originX: 0,
+      originY: height / 2 - PACK_HEIGHT / 2,
+    };
   }, [items, height]);
 
   // 등장 애니메이션 (부드럽게: 적은 튀어나옴 + 완만한 스태거)
@@ -110,7 +119,7 @@ export function PackBoard({items, height, entrance = false, dimExceptId}: PackBo
   const step = 0.35 / n;
 
   return (
-    <Animated.View style={[styles.board, {width, height}]}>
+    <Animated.View style={[styles.board, {width, height: contentHeight}]}>
       {placed.map(({item, left, top, rotate, pillCorner}, i) => {
         const startT = Math.min(0.95, i * step);
         const endT = Math.min(1, startT + 0.6);
