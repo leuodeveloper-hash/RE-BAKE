@@ -407,8 +407,19 @@ export default function StampsRoute() {
 
           {/* 하나도 안 찍었으면 빈 칸만 늘어놓지 않고 무엇을 하는 곳인지 알린다.
               sections.length로 재면 "레시피북 없음" 섹션 때문에 레시피가 하나라도
-              있으면 절대 참이 되지 않는다. */}
-          {madeCount === 0 || sections.length === 0 ? (
+              있으면 절대 참이 되지 않는다.
+
+              레시피가 아예 없을 때와 있는데 안 만들었을 때는 할 말이 다르다 —
+              담아 둔 레시피가 없는 사람에게 "만들어 보세요"는 갈 곳을 안 알려준다. */}
+          {sections.length === 0 ? (
+            <EmptyState
+              category="no-recipe"
+              title={t('stamps.noRecipeTitle')}
+              subtitle={t('stamps.noRecipeSubtitle')}
+              actionLabel={t('stamps.goExplore')}
+              onAction={() => router.push('/(tabs)/explore' as any)}
+            />
+          ) : madeCount === 0 ? (
             <EmptyState
               category="no-recipe"
               title={t('stamps.emptyTitle')}
