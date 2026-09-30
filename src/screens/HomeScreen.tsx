@@ -535,6 +535,8 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
     return (
       <GroupScreen
         recipes={recipes}
+        // 둘러보기 레시피에 쓴 회고도 내 기록 — 회고 노트 목록에 보여준다(작성자 홈은 제외)
+        retrospectiveExtraRecipes={isAuthorMode ? undefined : exploreRecipesAll}
         cookbookColors={cookbookColors}
         authorBadge={resolvedBadge}
         menuHeaderNode={menuHeaderNode}

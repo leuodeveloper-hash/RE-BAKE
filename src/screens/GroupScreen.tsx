@@ -55,6 +55,12 @@ export interface GroupScreenProps {
   onMethodGuidePress?: () => void;
   /** 둘러보기 레시피 (어드민 전용) */
   exploreRecipes?: Recipe[];
+  /**
+   * 회고 노트에만 더할 레시피 — 홈은 내 레시피북만 보여주지만, 둘러보기
+   * 레시피에 내가 쓴 회고는 내 기록이라 회고 노트 목록에는 보여준다(회고 있는 것만 뽑힌다).
+   * 복사하지 않는다 — 누르면 둘러보기 레시피로 간다.
+   */
+  retrospectiveExtraRecipes?: Recipe[];
   /** 둘러보기 레시피 북 목록 (Firestore explore_cookbooks) */
   exploreCookbooks?: ExploreCookbook[];
   /** 어드민 여부 */
@@ -95,7 +101,7 @@ export interface GroupScreenProps {
 const VIEW_MODE_STORAGE_KEY = '@bakle_group_view_mode';
 type ViewMode = 'list' | 'pack';
 
-export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComingSoon, onDeleteCookbook, onCookbookPress, onMethodPress, onMethodGuidePress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress, availableAxes = DEFAULT_AXES, axisOverrides, showAddButton = true, bookCarousel = false, addAsOfficial = false, cookbooksAreOfficial = false, onDownloadPdf, onAddRecipeToCookbook, authorBadge, menuHeaderNode, onBack}: GroupScreenProps) {
+export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors, axis, onAxisChange, onComingSoon, onDeleteCookbook, onCookbookPress, onMethodPress, onMethodGuidePress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress, availableAxes = DEFAULT_AXES, axisOverrides, showAddButton = true, bookCarousel = false, addAsOfficial = false, cookbooksAreOfficial = false, onDownloadPdf, onAddRecipeToCookbook, authorBadge, menuHeaderNode, onBack}: GroupScreenProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const {reviewsOf} = useRecipeReviews();
@@ -293,10 +299,17 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
   }, [cookbooks, cookbookColors, colors, cookbooksAreOfficial, exploreCookbookHiddenMap, t, reviewsOf]);
 
   // 회고 노트 기준: 실제 작성된 회고가 있는 레시피만 (같은 remakeGroup은 회고 유무 합산 후 최신 회차 하나로 대표)
+  // 회고 노트 대상 — 내 레시피 + 내가 회고를 쓴 둘러보기 레시피
+  const retrospectiveSource = useMemo(() => {
+    const ownIds = new Set(recipes.map(r => r.id));
+    return [...recipes, ...(retrospectiveExtraRecipes ?? []).filter(r => !ownIds.has(r.id))];
+  }, [recipes, retrospectiveExtraRecipes]);
+
   const retrospectives = useMemo(() => {
+    const source = retrospectiveSource;
     // 그룹 전체에 회고가 하나라도 있는지 집계
     const groupHasReview = new Map<string, boolean>();
-    for (const r of recipes) {
+    for (const r of source) {
       const groupKey = r.remakeGroupId ?? r.id;
       // 계정에 보관한 회고까지 센다 — 한쪽만 보면 회고 노트에서 빠진다
       const has = reviewsOf(r).length > 0;
@@ -305,7 +318,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
     // 회고가 있는 그룹만, 대표는 최신 회차
     const seenGroups = new Set<string>();
     const result: Recipe[] = [];
-    const sorted = [...recipes].sort((a, b) => parseSession(b.session).current - parseSession(a.session).current);
+    const sorted = [...source].sort((a, b) => parseSession(b.session).current - parseSession(a.session).current);
     for (const r of sorted) {
       const groupKey = r.remakeGroupId ?? r.id;
       if (seenGroups.has(groupKey)) continue;
@@ -314,7 +327,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
       result.push(r);
     }
     return result;
-  }, [recipes, reviewsOf]);
+  }, [retrospectiveSource, reviewsOf]);
 
   // 회고 노트 팩: 회고들을 하나의 노트 카드에 담아 ‹ ›로 미리보기 페이징 (탭=회고 바텀시트 열기)
   const retrospectivePacks = useMemo<PackBoardItem[]>(() => {
@@ -805,7 +818,7 @@ export function GroupScreen({recipes, cookbookColors, axis, onAxisChange, onComi
         visible={showReviewSheet}
         onClose={() => setShowReviewSheet(false)}
         recipes={retrospectives}
-        allRecipes={recipes}
+        allRecipes={retrospectiveSource}
         onRecipePress={onRecipePress}
       />
 
