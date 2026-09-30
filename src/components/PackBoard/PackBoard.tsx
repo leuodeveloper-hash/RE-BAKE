@@ -54,8 +54,11 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
     // 위아래·좌우로 자유롭게 움직이게 한다.
     const slackV = Math.max(0, ROW_HEIGHT - PACK_HEIGHT);
     const cellW = PACK_WIDTH + 24;
+    // 화면 폭에 딱 맞춰 열을 채우면 가로로 넘칠 일이 없어 좌우로 움직일 데가 없다.
+    // 화면보다 한 열 넓게 잡아 사방으로 펼친다 — 보드를 돌아다니는 느낌.
     const innerW = Math.max(cellW, (boardWidth ?? cellW * 3) - PAD_H * 2);
-    const columns = Math.max(1, Math.min(Math.floor(innerW / cellW), items.length));
+    const fitCols = Math.max(1, Math.floor(innerW / cellW));
+    const columns = Math.max(1, Math.min(fitCols + 1, items.length));
     const rows = Math.ceil(items.length / columns);
     const vOffset = PAD_V;
     let maxRight = 0;
