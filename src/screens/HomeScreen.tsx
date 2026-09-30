@@ -657,11 +657,13 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
                   (책 표지 화면은 북 자체를 고치는 자리로 남는다) */}
               <Menu
                 sections={[
+                  // '레시피별'에 화살표를 달고, 펼치면 바로 그 밑에 북이 온다.
+                  // 축 목록을 통째로 그린 뒤 붙이면 회고 아래에 떨어져
+                  // 무엇에 딸린 목록인지 알 수 없다.
                   {
-                    // '전체'에 화살표를 달아 눌러서 레시피북을 펼친다
-                    items: axisMenuItems.map(a =>
-                      a.id === 'all' ? {...a, hasChildren: true} : a,
-                    ),
+                    items: axisMenuItems
+                      .filter(a => a.id === 'all')
+                      .map(a => ({...a, hasChildren: true})),
                     selectedId: crumbAxis,
                   },
                   ...(cookbookListOpen
@@ -670,6 +672,10 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
                         selectedId: selectedCookbook ?? ALL_ID,
                       }]
                     : []),
+                  {
+                    items: axisMenuItems.filter(a => a.id !== 'all'),
+                    selectedId: crumbAxis,
+                  },
                 ]}
                 onSelect={id => {
                   // '전체'는 펼치기만 — 축은 이미 전체다
