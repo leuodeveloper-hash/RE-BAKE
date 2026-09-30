@@ -120,6 +120,8 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
 
   // 그룹화 축: 'all'이면 평면 리스트, 그 외엔 그룹 화면(GroupScreen) 호스팅
   const [groupAxis, setGroupAxis] = useState<GroupAxis>('all');
+  // 축 메뉴에서 '전체' 아래 레시피북 목록을 펼쳤는지
+  const [cookbookListOpen, setCookbookListOpen] = useState(false);
   // 마지막 본 축 복원 (앱 재시작해도 유지). 저장 덮어쓰기 방지용 로드 플래그.
   const axisLoaded = useRef(false);
   useEffect(() => {
@@ -207,6 +209,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   /** 축 메뉴에서 북을 고르면 평면 목록에 머문 채 걸러진다 */
   const handleCookbookFilterSelect = useCallback((id: string) => {
     setCrumbMenu(null);
+    setCookbookListOpen(false);
     setSelectedMethod(null);
     setSelectedCookbook(id === ALL_ID ? null : id);
     setGroupAxis('all');
@@ -649,16 +652,19 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
           menuOpen={showMoreMenu}
           titleMenu={
             <>
-              {/* 전체(all) 아래에 레시피북을 펼친다 — 북을 고르려고 책 표지
-                  화면으로 넘어갔다 돌아오지 않아도 된다.
+              {/* '전체'를 누르면 그 아래로 레시피북이 펼쳐진다 — 북을 고르려고
+                  책 표지 화면으로 넘어갔다 돌아오지 않아도 된다.
                   (책 표지 화면은 북 자체를 고치는 자리로 남는다) */}
               <Menu
                 sections={[
                   {
-                    items: axisMenuItems,
+                    // '전체'에 화살표를 달아 눌러서 레시피북을 펼친다
+                    items: axisMenuItems.map(a =>
+                      a.id === 'all' ? {...a, hasChildren: true} : a,
+                    ),
                     selectedId: crumbAxis,
                   },
-                  ...(crumbAxis === 'all' || selectedCookbook
+                  ...(cookbookListOpen
                     ? [{
                         items: cookbookFilterItems,
                         selectedId: selectedCookbook ?? ALL_ID,
@@ -666,7 +672,11 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
                     : []),
                 ]}
                 onSelect={id => {
-                  // 축 id면 축 전환, 아니면 레시피북 필터
+                  // '전체'는 펼치기만 — 축은 이미 전체다
+                  if (id === 'all') {
+                    setCookbookListOpen(prev => !prev);
+                    return;
+                  }
                   if (axisMenuItems.some(a => a.id === id)) handleHomeAxisSelect(id);
                   else handleCookbookFilterSelect(id);
                 }}
