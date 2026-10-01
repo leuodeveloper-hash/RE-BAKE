@@ -6,7 +6,6 @@ import {Button} from '@components/Button';
 import {KeyboardToolbar} from '@components/KeyboardToolbar';
 import {
   IconChevronLeft,
-  IconChevronRight,
   IconUndo,
   IconRedo,
   IconAdd,
@@ -52,8 +51,6 @@ export interface ToolbarSubView {
 }
 
 export interface EditorToolbarProps {
-  prev?: ToolbarAction;
-  next?: ToolbarAction;
   undo?: ToolbarAction;
   redo?: ToolbarAction;
   /** +추가 (칩/사진 메뉴 트리거) */
@@ -80,8 +77,6 @@ export interface EditorToolbarProps {
 const isOff = (a?: ToolbarAction): boolean => a?.disabled ?? !a?.onPress;
 
 export function EditorToolbar({
-  prev,
-  next,
   undo,
   redo,
   add,
@@ -119,8 +114,6 @@ export function EditorToolbar({
           </>
         ) : (
           <>
-            <IconButton icon={IconChevronLeft} onPress={prev?.onPress} variant="ghost-primary" size="medium" disabled={isOff(prev)} />
-            <IconButton icon={IconChevronRight} onPress={next?.onPress} variant="ghost-primary" size="medium" disabled={isOff(next)} />
             <IconButton icon={IconUndo} onPress={undo?.onPress} variant="ghost-primary" size="medium" disabled={isOff(undo)} />
             <IconButton icon={IconRedo} onPress={redo?.onPress} variant="ghost-primary" size="medium" disabled={isOff(redo)} />
             <IconButton icon={IconAdd} onPress={add?.onPress} variant="ghost-primary" size="medium" disabled={isOff(add)} forcePressed={add?.active} />

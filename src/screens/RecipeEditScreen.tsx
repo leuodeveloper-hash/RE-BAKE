@@ -3137,23 +3137,6 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
       {(() => {
         // 현재 포커스가 OCR 대상 필드인지 (아니면 OCR 기능 비활성)
         const isOcrField = !!focusedOcrField;
-        // 영역이동(◀▶): 활성화된 입력 구역을 순서대로 이동
-        const OCR_FIELD_ORDER: RecipeOcrField[] = ['title', 'ingredients', 'tools', 'steps'];
-        const navFields = OCR_FIELD_ORDER.filter(f => f === 'title' || isFieldActive(f));
-        // blur되면 focusedOcrField가 null이 되는데, 툴바 버튼을 누르는 순간이
-        // 바로 그 blur 시점이라 그대로 두면 ◀▶가 항상 비활성이 된다.
-        // 마지막으로 포커스했던 필드(ocrFieldRef)를 폴백으로 쓴다.
-        const navCurrent = focusedOcrField ?? ocrFieldRef.current;
-        const curIdx = navCurrent ? navFields.indexOf(navCurrent) : -1;
-        const focusField = (f: RecipeOcrField) => {
-          // 예약된 blur가 새 포커스를 지우지 않도록 취소한다
-          if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
-          sectionInputRefs.current[f]?.focus();
-          setFocusedOcrField(f);
-          ocrFieldRef.current = f;
-        };
-        const canPrev = curIdx > 0;
-        const canNext = curIdx >= 0 && curIdx < navFields.length - 1;
         // 칩 추가(+): 포커스된 과정에 팁/주의/사진 여유가 있을 때만 활성
         let stepHasRoom = false;
         if (focusedStep) {
@@ -3237,10 +3220,6 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
         <RecipeInputFloatingBar
           field={focusedOcrField ?? ocrFieldRef.current ?? 'title'}
           ocrDisabled={!isOcrField}
-          onPrevField={() => { if (canPrev) focusField(navFields[curIdx - 1]); }}
-          onNextField={() => { if (canNext) focusField(navFields[curIdx + 1]); }}
-          canPrev={canPrev}
-          canNext={canNext}
           onAddChip={() => {
             if (adviceFocused) { setAdviceChipMenu(true); return; }
             if (focusedStep) setSlashMenu(focusedStep);

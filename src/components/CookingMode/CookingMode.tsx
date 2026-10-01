@@ -2030,8 +2030,6 @@ export function CookingMode({
         {/* 편집 키보드 툴바: 과정이동·실행취소/다시·추가·사진 + 완료 (우측 상단 편집 툴바 통합) */}
         {isEditing && canEdit && (
           <EditorToolbar
-            prev={{onPress: () => { if (currentIndex > 0) { const i = currentIndex - 1; setCurrentIndex(i); scrollToIndex(i); } }, disabled: currentIndex <= 0}}
-            next={{onPress: () => { if (currentIndex < displayCards.length - 1) { const i = currentIndex + 1; setCurrentIndex(i); scrollToIndex(i); } }, disabled: currentIndex >= displayCards.length - 1}}
             undo={{onPress: undo, disabled: !canUndo}}
             redo={{onPress: redo, disabled: !canRedo}}
             scan={{onPress: () => { setShowScanMenu(v => !v); setShowAddMenu(false); setShowPhotoSubmenu(false); }, active: showScanMenu, disabled: !editCards[currentIndex] || ocrBusy}}

@@ -31,14 +31,6 @@ export interface RecipeInputFloatingBarProps {
   onStop?: () => void;
   /** 음성 입력 핸들러 */
   onVoicePress?: () => void;
-  /** 이전 입력 구역으로 이동 (◀). 없으면 영역이동 버튼 숨김 */
-  onPrevField?: () => void;
-  /** 다음 입력 구역으로 이동 (▶) */
-  onNextField?: () => void;
-  /** ◀ 활성화 여부 */
-  canPrev?: boolean;
-  /** ▶ 활성화 여부 */
-  canNext?: boolean;
   /** 칩 추가(+): 포커스된 과정에 팁/주의/사진 추가 메뉴 열기. 없으면 + 버튼 숨김 */
   onAddChip?: () => void;
   /** + 활성화 여부 (해당사항 없으면 false → disabled) */
@@ -83,10 +75,6 @@ export function RecipeInputFloatingBar({
   externalBusy,
   onStop,
   onVoicePress,
-  onPrevField,
-  onNextField,
-  canPrev = true,
-  canNext = true,
   onAddChip,
   canAddChip = false,
   onUndo,
@@ -260,8 +248,6 @@ export function RecipeInputFloatingBar({
     <>
       <EditorToolbar
         style={style}
-        prev={{onPress: onPrevField, disabled: !onPrevField || !canPrev}}
-        next={{onPress: onNextField, disabled: !onNextField || !canNext}}
         add={{onPress: onAddChip, disabled: !canAddChip}}
         undo={onUndo ? {onPress: onUndo, disabled: !canUndo} : undefined}
         redo={onRedo ? {onPress: onRedo, disabled: !canRedo} : undefined}
