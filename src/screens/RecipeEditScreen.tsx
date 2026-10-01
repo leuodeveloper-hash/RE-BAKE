@@ -35,6 +35,7 @@ import {StepPhotos} from '@components/StepPhotos';
 import {FieldManageDialog, TimeDialog, ServingsDialog, IngredientAmountDialog} from '@components/Dialog';
 import type {ReviewData} from '@components/Dialog';
 import {TextInput} from '@components/TextInput';
+import {Tabs} from '@components/Tabs';
 import {ReviewFields} from '@components/Dialog/ReviewFields';
 import {AutoGrowInput} from '@components/AutoGrowInput';
 import {DragHandle} from '@components/DragHandle';
@@ -195,7 +196,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
   const COOKBOOK_SHEET_MENU_ITEMS = useMemo(() => makeCookbookSheetMenuItems(t), [t]);
   const SLASH_MENU_ITEMS = useMemo(() => makeSlashMenuItems(t), [t]);
   const {setShowCookbookDialog, setCookbookEditTarget, onCookbookCreatedRef} = useAddSheet();
-  const {user} = useAuth();
+  const {user, isAdmin} = useAuth();
   const {open: openAuthSheet} = useAuthSheet();
   const isLoggedIn = !!user && !user.isAnonymous;
   const insets = useSafeAreaInsets();
@@ -230,6 +231,9 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
   const [ocrBulkGroupId, setOcrBulkGroupId] = useState<string | null>(null);
   // 포커스된 과정(step) — 툴바 + 로 팁/주의/사진 추가 대상
   const [focusedStep, setFocusedStep] = useState<{groupId: string; stepId: string} | null>(null);
+  // 베이키의 조언 칸에 커서가 있는지 — 툴바 [+]로 사진을 넣는다(과정 칸과 같은 방식)
+  const [adviceFocused, setAdviceFocused] = useState(false);
+  const [adviceChipMenu, setAdviceChipMenu] = useState(false);
   // 링크 대상은 공용 컨텍스트가 관리한다 — 입력칸마다 핸들러를 달 필요 없이
   // AutoGrowInput이 자동 등록한다(LinkTargetProvider로 이 화면을 감싼다).
   const linkCtx = useLinkTarget();
@@ -267,6 +271,8 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
     if (blurTimerRef.current) { clearTimeout(blurTimerRef.current); blurTimerRef.current = null; }
     ocrFieldRef.current = f;
     setFocusedOcrField(f);
+    setAdviceFocused(false);
+    setAdviceChipMenu(false);
   }, []);
   const handleFieldBlur = useCallback(() => {
     if (blurTimerRef.current) clearTimeout(blurTimerRef.current);
@@ -412,6 +418,8 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
   const [sourceUrl, setSourceUrl] = useState(recipe?.sourceUrl ?? '');
   // 공식(둘러보기) 레시피 숨김 — 어드민만 보임(다른 유저 비공개). 개발 중 콘텐츠 가림용.
   const [hidden, setHidden] = useState(() => !!recipe?.hidden);
+  // 종류 — 기본은 레시피, 실기 준비물 같은 건 팁
+  const [kind, setKind] = useState<'recipe' | 'tip'>(() => recipe?.kind ?? 'recipe');
   // PiP는 앱 루트에서 단일 인스턴스로 관리 (화면 전환 시에도 유지)
   const {open: openYouTube} = useYouTubePlayer();
   const referenceYouTubeId = useMemo(() => parseYouTubeVideoId(referenceUrl), [referenceUrl]);
@@ -444,19 +452,31 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
   // 과정 사진 전체보기 — 설명은 여기서 쓴다(썸네일 아래 칸은 좁다)
   const [stepPhotoViewer, setStepPhotoViewer] = useState<{groupId: string; stepId: string; index: number} | null>(null);
   /** 베이키의 조언 사진 추가 — 과정 사진과 같은 갤러리 흐름, 최대 3장 */
-  const addAdvicePhotos = useCallback(async () => {
-    const ok = await ensureImagePermission('mediaLibrary', {
-      deniedMessage: t('recipeEdit.photoPermissionNeeded'),
-      showSnackbar,
-      settingsTitle: t('permission.photoTitle'),
-      settingsBody: t('permission.photoBody'),
-      settingsConfirmLabel: t('permission.openSettings'),
-      settingsCancelLabel: t('permission.cancel'),
-    });
+  const addAdvicePhotos = useCallback(async (source: 'camera' | 'gallery' = 'gallery') => {
+    const isCamera = source === 'camera';
+    const ok = isCamera
+      ? await ensureImagePermission('camera', {
+          deniedMessage: t('recipeEdit.cameraPermissionNeeded'),
+          showSnackbar,
+          settingsTitle: t('permission.cameraTitle'),
+          settingsBody: t('permission.cameraBody'),
+          settingsConfirmLabel: t('permission.openSettings'),
+          settingsCancelLabel: t('permission.cancel'),
+        })
+      : await ensureImagePermission('mediaLibrary', {
+          deniedMessage: t('recipeEdit.photoPermissionNeeded'),
+          showSnackbar,
+          settingsTitle: t('permission.photoTitle'),
+          settingsBody: t('permission.photoBody'),
+          settingsConfirmLabel: t('permission.openSettings'),
+          settingsCancelLabel: t('permission.cancel'),
+        });
     if (!ok) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web', allowsMultipleSelection: true, selectionLimit: 3,
-    });
+    const result = isCamera
+      ? await ImagePicker.launchCameraAsync({quality: 0.8, base64: Platform.OS === 'web'})
+      : await ImagePicker.launchImageLibraryAsync({
+          mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web', allowsMultipleSelection: true, selectionLimit: 3,
+        });
     if (result.canceled || result.assets.length === 0) return;
     const uris = await Promise.all(result.assets.map(a => getPersistentUri(a.uri, a.base64)));
     setAdvicePhotos(prev => [...prev, ...uris].slice(0, 3));
@@ -529,13 +549,14 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
     reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
     advice: advice || undefined,
     advicePhotos: advicePhotos.length > 0 ? advicePhotos : undefined,
+    kind: kind === 'tip' ? 'tip' as const : undefined,
     imageUri: imageUri || undefined,
     imageUris: imageUris.length > 0 ? imageUris : undefined,
     referenceUrl: referenceUrl || undefined,
     sourceUrl: sourceUrl || undefined,
     // 비공개 토글도 변경 감지 대상 — 이게 빠지면 비공개만 바꿨을 때 isDirty가 안 잡혀 저장 불가.
     hidden: isExplore ? hidden : undefined,
-  }), [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, advicePhotos, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden]);
+  }), [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, advicePhotos, kind, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden]);
   const initialSnapshotRef = useRef(currentSnapshot);
 
   // ── 되돌리기/다시하기 ──────────────────────────────────────
@@ -642,6 +663,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
         reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
         advice: advice || undefined,
         advicePhotos: advicePhotos.length > 0 ? advicePhotos : undefined,
+        kind: kind === 'tip' ? 'tip' as const : undefined,
         imageUri: imageUri || undefined,
         imageUris: imageUris.length > 0 ? imageUris : undefined,
         referenceUrl: referenceUrl || undefined,
@@ -651,7 +673,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
     } finally {
       setSaving(false);
     }
-  }, [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, advicePhotos, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden, onSave]);
+  }, [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, advicePhotos, kind, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden, onSave]);
 
   const pickImage = async (source: 'camera' | 'gallery', slot: 'main' | 'extra' = 'main') => {
     if (source === 'camera') {
@@ -1623,6 +1645,20 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
         scrollEnabled={drag.scrollEnabled}>
         {/* Spacer for nav bar */}
         <View style={{height: 72 + insets.top}} />
+
+        {/* 종류 — 레시피(기본) / 팁(실기 준비물처럼 읽는 정보). 팁은 만들기·회고·요리모드에서 빠진다 */}
+        {/* 팁은 어드민이 공식으로 올린다 — 일반 사용자에겐 전환을 숨긴다(이미 팁인 건 보여줘 되돌릴 수 있게) */}
+        {(isAdmin || kind === 'tip') && (
+        <ContentContainer style={styles.kindTabs}>
+          <Tabs
+            tabs={[{id: 'recipe', label: t('recipeEdit.kindRecipe')}, {id: 'tip', label: t('recipeEdit.kindTip')}]}
+            selectedId={kind}
+            // 종류는 레시피북과 따로 — 같은 북(예: 제과기능사) 안에 레시피와 팁이 함께 있다
+            onSelect={id => setKind(id as 'recipe' | 'tip')}
+            fullWidth
+          />
+        </ContentContainer>
+        )}
 
         {/* Title & Description */}
         <View style={{zIndex: showMethodMenu ? 100 : 1, elevation: showMethodMenu ? 100 : 1}}>
@@ -2819,10 +2855,6 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
               <ListItem
                 title={t('recipeEdit.bakeyAdvice')}
                 leading={{type: 'icon', icon: IconLogoSymbol}}
-                // 과정처럼 사진을 넣는다 — 3장을 채우면 감춘다
-                trailing={advicePhotos.length < 3
-                  ? {type: 'iconButton', icon: IconPhoto, onPress: addAdvicePhotos, variant: 'ghost-yellow', size: 'small'}
-                  : undefined}
               />
               <ListItem showDivider={false}>
                 <TextInput
@@ -2832,6 +2864,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
                   multiline
                   value={advice}
                   onChangeText={setAdvice}
+                  onFocus={() => { setFocusedStep(null); setAdviceFocused(true); }}
                   placeholder={t('recipeEdit.bakeyAdvicePlaceholder')}
                 />
                 {advicePhotos.length > 0 && (
@@ -3128,7 +3161,9 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
           const s = g?.steps.find(ss => ss.id === focusedStep.stepId);
           if (s) stepHasRoom = s.tip == null || s.caution == null || (s.photos?.length ?? 0) < 3;
         }
-        const canAddChip = focusedOcrField === 'steps' && stepHasRoom;
+        const canAddChip = (focusedOcrField === 'steps' && stepHasRoom)
+          // 조언 칸도 [+]로 사진(3장까지)
+          || (adviceFocused && advicePhotos.length < 3);
         // 묶음 나누기: 커서가 있는 과정 줄을 새 그룹의 제목(과정명)으로 올리고,
         // 그 아래 과정들을 새 그룹으로 옮긴다. 해당 줄 자체는 제목이 되므로 목록에서 빠진다.
         const canGroupSplit = focusedOcrField === 'steps' && !!focusedStep && (() => {
@@ -3170,6 +3205,17 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
           splitStepGroupAt(focusedStep.groupId, focusedStep.stepId);
         };
         // 칩추가(+) 툴바 뎁스: slashMenu 열리면 [←][사진][팁][주의] (여유 있는 것만)
+        // 조언 칸 [+]: [←][촬영][갤러리] — 과정 칸과 같은 뎁스
+        const adviceSubView = adviceChipMenu ? {
+          onBack: () => setAdviceChipMenu(false),
+          actions: SLASH_MENU_ITEMS
+            .filter(item => item.id === 'camera' || item.id === 'gallery')
+            .map(item => ({
+              label: item.label,
+              icon: item.icon as any,
+              onPress: () => { setAdviceChipMenu(false); addAdvicePhotos(item.id as 'camera' | 'gallery'); },
+            })),
+        } : null;
         const chipSubView = slashMenu ? (() => {
           const g = stepGroups.find(gg => gg.id === slashMenu.groupId);
           const s = g?.steps.find(ss => ss.id === slashMenu.stepId);
@@ -3195,7 +3241,10 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
           onNextField={() => { if (canNext) focusField(navFields[curIdx + 1]); }}
           canPrev={canPrev}
           canNext={canNext}
-          onAddChip={() => { if (focusedStep) setSlashMenu(focusedStep); }}
+          onAddChip={() => {
+            if (adviceFocused) { setAdviceChipMenu(true); return; }
+            if (focusedStep) setSlashMenu(focusedStep);
+          }}
           canAddChip={canAddChip}
           onUndo={history.undo}
           canUndo={history.canUndo}
@@ -3208,7 +3257,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
           // OCR 필드에만 열어 두면 칩에서는 버튼이 꺼져 링크를 못 걸었다.
           // 선택이 있으면 켠다(선택 없이는 링크를 걸 자리가 없다).
           canLink={isOcrField || !!linkCtx?.hasSelection}
-          subView={chipSubView}
+          subView={adviceSubView ?? chipSubView}
           onDone={handleSave}
           onOcrStart={() => setOcrLoading(true)}
           onOcrEnd={() => setOcrLoading(false)}

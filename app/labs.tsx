@@ -13,6 +13,7 @@ import {useTranslation} from '@contexts/LanguageContext';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {IconArrowLeft, IconBellFilled} from '@components/Icon/IconIndex';
+import {goBackOr} from '@utils/navigation';
 
 export default function LabsRoute() {
   const styles = useThemedStyles(createStyles);
@@ -111,7 +112,7 @@ export default function LabsRoute() {
           </ContentContainer>
         </SafeAreaView>
         <FloatingNavBar
-          left={<NavPillButton icon={IconArrowLeft} onPress={() => router.back()} />}
+          left={<NavPillButton icon={IconArrowLeft} onPress={() => goBackOr(router)} />}
         />
       </View>
     );
@@ -153,7 +154,7 @@ export default function LabsRoute() {
       </SafeAreaView>
 
       <FloatingNavBar
-        left={<NavPillButton icon={IconArrowLeft} onPress={() => router.back()} />}
+        left={<NavPillButton icon={IconArrowLeft} onPress={() => goBackOr(router)} />}
       />
 
       {/* 스낵바는 전역(_layout.tsx)에서 단일 렌더 */}

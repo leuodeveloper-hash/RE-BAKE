@@ -98,6 +98,7 @@ export function MadeConfirmSheet({
             {/* 회고 창과 같은 두 칸(평가·개선점) — 공통 ReviewFields */}
             <View style={styles.fieldsWrap}>
               <ReviewFields
+                variant="group"
                 evaluation={evaluation}
                 improvement={improvement}
                 onChangeEvaluation={setEvaluation}

@@ -18,6 +18,7 @@ import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import type {SemanticColors} from '@constants/tokens';
 import type {Submission} from '../../src/types/submission';
+import {goBackOr} from '@utils/navigation';
 
 /**
  * 어드민 전용 — 유저의 둘러보기 공개 신청 검토.
@@ -135,7 +136,7 @@ export default function AdminSubmissionsRoute() {
 
       <FloatingNavBar
         title={t('adminSubmissions.title')}
-        left={<NavPillButton icon={IconClose} onPress={() => router.back()} />}
+        left={<NavPillButton icon={IconClose} onPress={() => goBackOr(router)} />}
       />
     </View>
   );

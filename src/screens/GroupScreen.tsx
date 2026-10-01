@@ -1,4 +1,4 @@
-import React, {useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {Dimensions, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -10,6 +10,9 @@ import {RecipeCard} from '@components/Recipe/RecipeCard';
 import {PackCanvas, CookbookCarousel, GroupExpandOverlay, SessionFlow, type SessionFlowItem, type PackBoardItem, type PackOriginRect} from '@components/PackBoard';
 import {Menu, type MenuItemData} from '@components/Menu';
 import {useRecipeReviews} from '@hooks/useRecipeReviews';
+import {useMadeStamps} from '@hooks/useMadeStamps';
+import {recipePreviewParts} from '@utils/recipePreview';
+import {ReviewDialog} from '@components/Dialog/ReviewDialog';
 import {Tabs} from '@components/Tabs';
 import {Dialog} from '@components/Dialog';
 import {Button} from '@components/Button';
@@ -26,7 +29,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import type {Recipe} from '../types/recipe';
-import {IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconChartNoAxesGantt, IconChevronRight, IconSparkle, IconProcess, IconCards, IconCardsFilled, IconArrowDownToLine, IconList, IconClose} from '@components/Icon/IconIndex';
+import {IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconChartNoAxesGantt, IconChevronRight, IconCornerDownRight, IconSparkle, IconProcess, IconCards, IconCardsFilled, IconArrowDownToLine, IconList, IconClose} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import {buildPaperPreview} from '@utils/recipePaperPreview';
 import {coverCards, recipeCoverCards, emptyCoverCard} from '@utils/cookbookCards';
@@ -104,7 +107,10 @@ type ViewMode = 'list' | 'pack';
 export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors, axis, onAxisChange, onComingSoon, onDeleteCookbook, onCookbookPress, onMethodPress, onMethodGuidePress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress, availableAxes = DEFAULT_AXES, axisOverrides, showAddButton = true, bookCarousel = false, addAsOfficial = false, cookbooksAreOfficial = false, onDownloadPdf, onAddRecipeToCookbook, authorBadge, menuHeaderNode, onBack}: GroupScreenProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
-  const {reviewsOf} = useRecipeReviews();
+  const {reviewsOf, reviewOf, saveReview} = useRecipeReviews();
+  const {madeAtOf} = useMadeStamps();
+  // 빈 회고 노트에서 '회고 쓰기'를 누른 레시피
+  const [writeTarget, setWriteTarget] = useState<Recipe | null>(null);
   const colors = useColors();
   const COOKBOOK_MENU_ITEMS = useMemo(() => [
     {id: 'rename', label: t('group.edit'), icon: IconEdit},
@@ -116,6 +122,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
   const [showGroupFilterMenu, setShowGroupFilterMenu] = useState(false);
   // 2뎁스 셀렉터 메뉴(북·공법 목록) — 레시피 축과 같은 [축 아이콘][항목 ⌄] 구성
   const [showItemMenu, setShowItemMenu] = useState(false);
+  // 회고 노트 팩을 누른 레시피 — 그 레시피의 회고로 바로 연다
+  const [retroTarget, setRetroTarget] = useState<Recipe | null>(null);
   const [cookbookMenuTarget, setCookbookMenuTarget] = useState<string | null>(null);
   const [cookbookMenuPosition, setCookbookMenuPosition] = useState<{top: number; right: number} | null>(null);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
@@ -304,7 +312,9 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
   // 회고 노트 대상 — 내 레시피 + 내가 회고를 쓴 둘러보기 레시피
   const retrospectiveSource = useMemo(() => {
     const ownIds = new Set(recipes.map(r => r.id));
-    return [...recipes, ...(retrospectiveExtraRecipes ?? []).filter(r => !ownIds.has(r.id))];
+    // 팁은 회고 대상이 아니다
+    return [...recipes, ...(retrospectiveExtraRecipes ?? []).filter(r => !ownIds.has(r.id))]
+      .filter(r => r.kind !== 'tip');
   }, [recipes, retrospectiveExtraRecipes]);
 
   const retrospectives = useMemo(() => {
@@ -332,44 +342,95 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
   }, [retrospectiveSource, reviewsOf]);
 
   // 회고 노트 팩: 회고들을 하나의 노트 카드에 담아 ‹ ›로 미리보기 페이징 (탭=회고 바텀시트 열기)
+  // 만들었어요(스탬프)를 찍었는데 회고가 없는 것만 — 최근 만든 순. 만들기 → 회고가 한 세트다
+  const reviewCandidates = useMemo(() => retrospectiveSource
+    .filter(r => !!madeAtOf(r) && reviewsOf(r).length === 0)
+    .sort((a, b) => (madeAtOf(b) ?? '').localeCompare(madeAtOf(a) ?? '')),
+  [retrospectiveSource, madeAtOf, reviewsOf]);
+
   const retrospectivePacks = useMemo<PackBoardItem[]>(() => {
-    if (retrospectives.length === 0) {
+    // 회고 쓰기 팩 — 회고가 있어도 늘 뒤에 붙인다(만들었거나 최근 추가한, 회고 없는 레시피 3개)
+    const writePacks: PackBoardItem[] = reviewCandidates.map(r => ({
+      id: `__retro_write_${r.id}`,
+      title: r.title,
+      subtitle: '',
+      variant: 'note' as const,
+      photoCard: true,
+      cards: [{
+        id: r.id,
+        imageUrl: r.imageUri,
+        title: r.title,
+        tags: [r.cookbook, r.method?.trim()].filter((v): v is string => !!v),
+        paperPreview: [t('retrospectiveNote.writePrompt'), t('retrospectiveNote.writeAction')],
+      }],
+      onCardPress: () => setWriteTarget(r),
+    }));
+    // 레시피(다시 만들기 묶음)마다 노트 팩 하나. 종이에는 회고 내용을, ‹ ›로 회차를 넘긴다.
+    // 라벨은 회고를 쓴 회차 / 전체 회차 — 회차마다 회고가 하나라 "1/3 회고".
+    const reviewedPacks: PackBoardItem[] = retrospectives.map(recipe => {
+      const groupKey = recipe.remakeGroupId ?? recipe.id;
+      const sessions = retrospectiveSource
+        .filter(r => (r.remakeGroupId ?? r.id) === groupKey)
+        .sort((a, b) => parseSession(b.session).current - parseSession(a.session).current);
+      const multi = sessions.length > 1;
+      const cards = sessions
+        .filter(r => reviewsOf(r).length > 0)
+        .map(r => ({
+          id: r.id,
+          imageUrl: r.imageUri ?? recipe.imageUri,
+          title: recipe.title,
+          // 사진 위 태그 — 레시피북 · 공법 · 회차
+          tags: [
+            r.cookbook,
+            r.method?.trim(),
+            multi ? t('reviewLog.sessionLabel', {count: parseSession(r.session).current}) : undefined,
+          ].filter((v): v is string => !!v),
+          // 날짜 줄 — 만든 날(스탬프)
+          dateText: (() => {
+            const at = madeAtOf(r);
+            const d = at ? new Date(at) : null;
+            return d && !Number.isNaN(d.getTime())
+              ? `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
+              : undefined;
+          })(),
+          paperPreview: reviewsOf(r).flatMap(rv => [
+            rv.evaluation?.trim(),
+            rv.improvement?.trim() ? `↳ ${rv.improvement.trim()}` : undefined,
+          ]).filter((l): l is string => !!l),
+        }));
+      return {
+        id: `__retro_${groupKey}`,
+        title: recipe.title,
+        subtitle: '',
+        variant: 'note' as const,
+        // 사진 카드 — 최근 회차 하나만 보여주고, 누르면 회차 전체
+        photoCard: true,
+        cards,
+        // 썸네일 위 맨 윗줄 — 회고 쓴 회차 / 전체 회차 ("1/1회차")
+        metaText: t('reviewLog.reviewSessionRatio', {reviews: cards.length, sessions: sessions.length}),
+        // 카드엔 마지막 회차 회고, 누르면 회차별 회고 상세(거기서 회고 줄을 누르면 수정)
+        onPress: () => { setRetroTarget(recipe); setShowReviewSheet(true); },
+      };
+    });
+    if (reviewedPacks.length + writePacks.length > 0) return [...reviewedPacks, ...writePacks];
+    {
+      // 레시피가 하나도 없으면 예시 회고(흐리게) — 누르면 레시피 목록으로
       return [{
         id: '__retro_note__',
         title: t('group.retroNote'),
         subtitle: '',
         variant: 'note' as const,
-        emptyCover: true,
-        cards: [],
-        onPress: () => setShowReviewSheet(true),
+        photoCard: true,
+        example: true,
+        cards: [{
+          title: t('retrospectiveNote.exampleTitle'),
+          paperPreview: [t('retrospectiveNote.exampleEvaluation'), `↳ ${t('retrospectiveNote.exampleImprovement')}`],
+        }],
+        metaText: t('retrospectiveNote.exampleTitle'),
+        onPress: () => onAxisChange('all'),
       }];
     }
-    // 노트 종이에는 레시피 내용이 아니라 회고 내용을 적는다 — 회고 노트이므로.
-    // 다시 만들기 묶음이면 최근 회차부터. 개선점은 ↳로 이어 쓴다.
-    const cards = retrospectives.map(recipe => {
-      const groupKey = recipe.remakeGroupId ?? recipe.id;
-      const sessions = retrospectiveSource
-        .filter(r => (r.remakeGroupId ?? r.id) === groupKey)
-        .sort((a, b) => parseSession(b.session).current - parseSession(a.session).current);
-      const lines = sessions.flatMap(r => reviewsOf(r)).flatMap(rv => [
-        rv.evaluation?.trim(),
-        rv.improvement?.trim() ? `↳ ${rv.improvement.trim()}` : undefined,
-      ]).filter((l): l is string => !!l);
-      return {
-        title: recipe.title,
-        paperPreview: lines,
-      };
-    });
-    return [{
-      id: '__retro_note__',
-      title: t('group.retroNote'),
-      subtitle: '',
-      variant: 'note' as const,
-      count: retrospectives.length,
-      cards,
-      onPress: () => setShowReviewSheet(true),
-    }];
-  }, [retrospectives, retrospectiveSource, reviewsOf, t]);
+  }, [retrospectives, retrospectiveSource, reviewsOf, reviewCandidates, onAxisChange, madeAtOf, t]);
 
   // 활성 축에 따른 팩 목록
   const activePacks = axis === 'cookbook' ? cookbookPacks : axis === 'method' ? methodPacks : retrospectivePacks;
@@ -567,7 +628,16 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         showInfoButton={axis === 'method'}
         onInfoPress={onMethodGuidePress}
         onAddPress={() => { setCookbookEditTarget(null); setCookbookInitialOfficial(addAsOfficial); setShowCookbookDialog(true); }}
-        onFilterPress={() => { setShowMoreMenu(false); setShowLayoutMenu(prev => !prev); }}
+        onFilterPress={() => {
+          setShowMoreMenu(false);
+          // 보기가 2개 이하면 메뉴 없이 바로 바꾼다(토글) — 고를 게 둘뿐인데 메뉴를 열 이유가 없다
+          if (layoutMenuItems.length <= 2) {
+            const next = layoutMenuItems.find(i => i.id !== viewMode)?.id;
+            if (next) handleViewModeSelect(next);
+            return;
+          }
+          setShowLayoutMenu(prev => !prev);
+        }}
         filterIcon={viewMode === 'pack' ? IconCards : IconList}
         filterMenuOpen={showLayoutMenu}
         onMenuPress={() => { setShowLayoutMenu(false); handleMenuPress(); }}
@@ -752,47 +822,77 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
             {/* 회고 노트 섹션 */}
             {viewMode === 'list' && showRetrospectiveSection && (
               <View style={styles.section}>
-                <Pressable style={[styles.sectionHeader, styles.retroHeader]} onPress={() => setShowReviewSheet(true)}>
-                  <Text style={styles.retroHeaderTitle}>{t('group.retroNote')}</Text>
-                  <IconChevronRight width={14} height={14} color={colors['foreground/on-surface-muted']} />
-                </Pressable>
-                {retrospectives.length > 0 ? (
+                {/* 레시피북·공법 리스트와 같은 구성 — 머리글 SectionHeader, 행은 RecipeCard(이름·메타·회고 수) */}
+                <SectionHeader title={t('group.retroNote')} style={styles.sectionHeader} />
+                {/* 팩뷰와 같은 구성: 회고 있는 레시피(최근 회고) → 회고 쓰기 3개 → 둘 다 없으면 예시 */}
+                {retrospectives.length + reviewCandidates.length > 0 ? (
                   <View>
-                    {retrospectives.map((recipe, idx) => {
-                      const groupKey = recipe.remakeGroupId ?? recipe.id;
-                      const stats = retroStats.get(groupKey) ?? {totalReviews: 0, totalSessions: 1};
-                      return (
+                    {(() => {
+                      // 회고 행·회고 쓰기 행을 한 함수로 그린다 — 내용(제목·부제목)만 다르고 모양은 늘 같게
+                      const rows = [
+                        ...retrospectives.map(recipe => {
+                          const groupKey = recipe.remakeGroupId ?? recipe.id;
+                          const latest = retrospectiveSource
+                            .filter(r => (r.remakeGroupId ?? r.id) === groupKey)
+                            .sort((a, b) => parseSession(b.session).current - parseSession(a.session).current)
+                            .flatMap(r => reviewsOf(r))[0];
+                          return {
+                            key: recipe.id,
+                            recipe,
+                            overline: recipe.title as string | undefined,
+                            // 마지막 회차에 적은 두 칸 — 평가 / ↳ 개선점
+                            title: latest?.evaluation?.trim() || recipe.title,
+                            subtitle: latest?.improvement?.trim() || undefined,
+                            onPress: () => { setRetroTarget(recipe); setShowReviewSheet(true); },
+                            write: false,
+                          };
+                        }),
+                        ...reviewCandidates.map(r => ({
+                          key: `write-${r.id}`,
+                          recipe: r,
+                          // 안 쓴 것은 일반 레시피 행 — 제목 품목명, 메타(레시피북·공법), 오른쪽 [회고 쓰기]
+                          overline: undefined as string | undefined,
+                          title: r.title,
+                          subtitle: undefined as string | undefined,
+                          onPress: () => setWriteTarget(r),
+                          write: true,
+                        })),
+                      ];
+                      return rows.map((row, idx) => (
                         <RecipeCard
-                          key={recipe.id}
-                          title={recipe.title}
-                          cookbook={recipe.cookbook}
-                          method={t('group.sessionCount', {count: stats.totalSessions})}
-                          imageUrl={recipe.imageUri}
+                          key={row.key}
+                          id={row.recipe.id}
+                          overline={row.overline}
+                          title={row.title}
+                          customSubtitle={row.subtitle}
+                          subtitleSize="large"
+                          subtitleIcon={row.subtitle ? IconCornerDownRight : undefined}
+                          // 안 쓴 행: 일반 메타데이터 + 오른쪽 버튼
+                          cookbook={row.write ? row.recipe.cookbook : undefined}
+                          method={row.write ? row.recipe.method : undefined}
+                          trailingAction={row.write ? {label: t('retrospectiveNote.writeBadge'), onPress: row.onPress} : undefined}
+                          imageUrl={row.recipe.imageUri}
+                          paperPreview={recipePreviewParts(row.recipe)}
+                          paperTitle={row.recipe.title}
                           layout="list"
-                          placeholderIcon={IconChartNoAxesGantt}
-                          placeholderIconColor={colors['custom/light-blue-var']}
-                          onPress={() => {
-                            const targetId = recipe.remakeGroupId
-                              ? recipes
-                                  .filter(r => r.remakeGroupId === recipe.remakeGroupId || r.id === recipe.remakeGroupId)
-                                  .sort((a, b) => parseSession(b.session).current - parseSession(a.session).current)[0]?.id ?? recipe.id
-                              : recipe.id;
-                            onRecipePress?.(targetId);
-                          }}
-                          hideDivider={idx === retrospectives.length - 1}
+                          onPress={row.onPress}
+                          hideDivider={idx === rows.length - 1}
                         />
-                      );
-                    })}
+                      ));
+                    })()}
                   </View>
                 ) : (
-                  <RecipeCard
-                    title=""
-                    cookbook={t('group.emptyRetro')}
-                    layout="list"
-                    placeholderIcon={IconChartNoAxesGantt}
-                    placeholderIconColor={colors['custom/light-blue-var']}
-                    hideDivider
-                  />
+                  <View style={{opacity: 0.5}}>
+                    <RecipeCard
+                      title={t('retrospectiveNote.exampleEvaluation')}
+                      cookbook={`↳ ${t('retrospectiveNote.exampleImprovement')}`}
+                      layout="list"
+                      placeholderIcon={IconChartNoAxesGantt}
+                      placeholderIconColor={colors['custom/light-blue-var']}
+                      onPress={() => onAxisChange('all')}
+                      hideDivider
+                    />
+                  </View>
                 )}
               </View>
             )}
@@ -862,10 +962,40 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         </>}
       />
 
+      {/* 빈 회고 노트에서 '회고 쓰기' — 공통 회고 창(평가·개선점) */}
+      <ReviewDialog
+        visible={!!writeTarget}
+        onClose={() => setWriteTarget(null)}
+        // 이미 쓴 회고면 그 내용으로 채워 수정
+        value={writeTarget ? reviewOf(writeTarget.id) : undefined}
+        onConfirm={review => { if (writeTarget) saveReview(writeTarget.id, review); }}
+      />
+
       {/* 회고 노트 바텀시트 */}
       <ReviewLogSheet
         visible={showReviewSheet}
-        onClose={() => setShowReviewSheet(false)}
+        onClose={() => { setShowReviewSheet(false); setRetroTarget(null); }}
+        writeCandidates={reviewCandidates}
+        onWriteReview={r => { setShowReviewSheet(false); setWriteTarget(r); }}
+        onEditReview={recipeId => {
+          const r = retrospectiveSource.find(x => x.id === recipeId);
+          if (!r) return;
+          // 시트 두 장을 겹치면 iOS에서 위 시트가 안 뜰 수 있다 — 상세를 닫고 수정 시트를 연다
+          setShowReviewSheet(false);
+          setWriteTarget(r);
+        }}
+        selectedRecipe={retroTarget ? {id: retroTarget.id, title: retroTarget.title, imageUri: retroTarget.imageUri} : undefined}
+        sessionReviews={retroTarget ? (() => {
+          const groupKey = retroTarget.remakeGroupId ?? retroTarget.id;
+          const sessions = retrospectiveSource
+            .filter(r => (r.remakeGroupId ?? r.id) === groupKey)
+            .sort((a, b) => parseSession(a.session).current - parseSession(b.session).current);
+          return sessions.map(r => ({
+            id: r.id,
+            label: sessions.length > 1 ? t('reviewLog.sessionLabel', {count: parseSession(r.session).current}) : r.title,
+            reviews: reviewsOf(r),
+          }));
+        })() : undefined}
         recipes={retrospectives}
         allRecipes={retrospectiveSource}
         onRecipePress={onRecipePress}

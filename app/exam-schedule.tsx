@@ -16,6 +16,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {IconClose, IconArrowTopRight, IconDotFilled, IconCircleCheckFilled, IconCircleDot} from '@components/Icon/IconIndex';
+import {goBackOr} from '@utils/navigation';
 
 // 큐넷 기능사 정기 시험일정 페이지
 const QNET_SCHEDULE_URL = 'https://www.q-net.or.kr/crf021.do?id=crf02101&scheType=04';
@@ -271,7 +272,7 @@ export default function ExamScheduleRoute() {
       </SafeAreaView>
 
       <FloatingNavBar
-        left={<NavPillButton icon={IconClose} onPress={() => router.back()} />}
+        left={<NavPillButton icon={IconClose} onPress={() => goBackOr(router)} />}
         right={<NavPillButton icon={IconArrowTopRight} onPress={() => Linking.openURL(QNET_SCHEDULE_URL)} />}
       />
 

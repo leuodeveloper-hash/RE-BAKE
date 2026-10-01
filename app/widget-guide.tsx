@@ -12,6 +12,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {IconArrowLeft} from '@components/Icon/IconIndex';
+import {goBackOr} from '@utils/navigation';
 
 /**
  * "홈 화면 위젯" 안내 화면. 로그인 없이도 접근 가능(시험 알림과 동일).
@@ -60,7 +61,7 @@ export default function WidgetGuideRoute() {
       </SafeAreaView>
 
       <FloatingNavBar
-        left={<NavPillButton icon={IconArrowLeft} onPress={() => router.back()} />}
+        left={<NavPillButton icon={IconArrowLeft} onPress={() => goBackOr(router)} />}
       />
     </View>
   );

@@ -33,6 +33,11 @@ export interface ReviewLogSheetProps {
   selectedRecipe?: {id: string; title: string; imageUri?: string};
   /** Depth 2 직접 진입용: 미리 계산된 세션별 회고 */
   sessionReviews?: {id: string; label: string; reviews: ReviewData[]}[];
+  /** 회고가 없을 때 보여줄 '만들었는데 회고 없는' 레시피 — 누르면 onWriteReview */
+  writeCandidates?: Recipe[];
+  onWriteReview?: (recipe: Recipe) => void;
+  /** 상세(회차별 회고)에서 회고 줄을 누르면 — 그 회차 레시피 id로 수정 시트를 연다 */
+  onEditReview?: (recipeId: string) => void;
   /** 레시피 프레스 콜백 (GroupScreen에서 상세로 이동) */
   onRecipePress?: (recipeId: string) => void;
 }
@@ -44,6 +49,9 @@ export function ReviewLogSheet({
   allRecipes,
   selectedRecipe: selectedRecipeProp,
   sessionReviews: sessionReviewsProp,
+  writeCandidates,
+  onWriteReview,
+  onEditReview,
   onRecipePress,
 }: ReviewLogSheetProps) {
   const styles = useThemedStyles(createStyles);
@@ -259,8 +267,40 @@ export function ReviewLogSheet({
                   variant="simple"
                   title={t('reviewLog.noRecipeSearchResult', {query: searchQuery.trim()})}
                 />
+              ) : writeCandidates && writeCandidates.length > 0 ? (
+                // 팩뷰 빈 노트와 같은 안내 — 만든 레시피로 바로 회고 쓰기
+                <View style={styles.writeList}>
+                  <Text style={styles.writePrompt}>{t('retrospectiveNote.writePrompt')}</Text>
+                  {writeCandidates.map(r => (
+                    <RecipeCard
+                      key={r.id}
+                      title={r.title}
+                      customSubtitle={t('retrospectiveNote.writeAction')}
+                      imageUrl={r.imageUri}
+                      layout="list"
+                      size="small"
+                      placeholderIcon={IconChartNoAxesGantt}
+                      placeholderIconColor={colors['custom/light-blue-var']}
+                      onPress={() => onWriteReview?.(r)}
+                    />
+                  ))}
+                </View>
               ) : (
-                <EmptyState variant="simple" title={emptyRetrospectiveMessage(t)} />
+                // 만든 레시피가 없으면 예시 회고 — 어떤 걸 남기는 곳인지 보여준다
+                <View style={styles.writeList}>
+                  <Text style={styles.writePrompt}>{t('retrospectiveNote.emptyGuide')}</Text>
+                  <View style={styles.exampleCard}>
+                    <RecipeCard
+                      title={t('retrospectiveNote.exampleEvaluation')}
+                      customSubtitle={t('retrospectiveNote.exampleImprovement')}
+                      subtitleIcon={IconCornerDownRight}
+                      layout="list"
+                      size="small"
+                      placeholderIcon={IconChartNoAxesGantt}
+                      placeholderIconColor={colors['custom/light-blue-var']}
+                    />
+                  </View>
+                </View>
               )}
             </View>
           )}
@@ -311,7 +351,10 @@ export function ReviewLogSheet({
                         leadingNumber={isMulti ? sessionNum : j + 1}
                         placeholderIcon={IconChartNoAxesGantt}
                         placeholderIconColor={colors['custom/light-blue-var']}
-                        onPress={isMulti ? () => { onClose(); onRecipePress?.(session.id); } : undefined}
+                        // 회고 줄을 누르면 그 회차 회고 수정(없으면 예전처럼 여러 회차일 때 그 레시피로)
+                        onPress={onEditReview
+                          ? () => onEditReview(session.id)
+                          : isMulti ? () => { onClose(); onRecipePress?.(session.id); } : undefined}
                       />
                     ))
                   ) : (
@@ -342,6 +385,20 @@ export function ReviewLogSheet({
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  writeList: {
+    alignSelf: 'stretch',
+    gap: Spacing.xs,
+  },
+  writePrompt: {
+    ...Typography.label.medium,
+    color: colors['foreground/on-surface-muted'],
+    paddingHorizontal: Spacing.smd,
+    paddingBottom: Spacing.xs,
+  },
+  // 예시 회고 — 흐리게
+  exampleCard: {
+    opacity: 0.5,
+  },
   // 헤더
   header: {
     flexDirection: 'row',

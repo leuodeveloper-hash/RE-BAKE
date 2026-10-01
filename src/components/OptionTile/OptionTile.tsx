@@ -81,7 +81,8 @@ export function OptionTile({
           color={selected ? colors[tone.fg] : colors['foreground/on-surface-muted']}
         />
       )}
-      <Text style={[styles.label, size === 'large' && styles.labelLarge, selected && {color: colors[tone.fg]}]} numberOfLines={2}>{label}</Text>
+      {/* large는 높이가 낮은 자리(요리모드 재료)에 쓰여 한 줄 — 길면 말줄임 */}
+      <Text style={[styles.label, size === 'large' && styles.labelLarge, selected && {color: colors[tone.fg]}]} numberOfLines={size === 'large' ? 1 : 2}>{label}</Text>
       {sublabel ? (
         <Text style={[styles.sublabel, size === 'large' && styles.sublabelLarge, selected && {color: colors[tone.fg]}]} numberOfLines={1}>{sublabel}</Text>
       ) : null}

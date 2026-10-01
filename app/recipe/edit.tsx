@@ -40,7 +40,7 @@ export default function RecipeNewRoute() {
   const {exploreCookbooks, reload: exploreReload} = useExploreRecipeContext();
   const {t} = useTranslation();
 
-  // 공식(둘러보기) 레시피를 만들 때 인라인으로 쿡북을 추가하면 개인 색맵이 아니라
+  // 공식(둘러보기) 레시피를 만들 때 인라인으로 레시피 북을 추가하면 개인 색맵이 아니라
   // explore_cookbooks(Firestore)에 만들어야 한다. (개인 데이터로 새던 누수 수정)
   const handleSetCookbookColor = useCallback(async (name: string, color: AvatarColor) => {
     if (isExploreTarget) {

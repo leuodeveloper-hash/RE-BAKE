@@ -21,7 +21,8 @@ export interface PackBoardProps {
 
 // 스택 + 라벨 + 여백. 팩(202)과 차이가 클수록 보드가 길어지고, 화면보다
 // 길어지면 가운데 정렬되면서 위아래가 휑해진다.
-const ROW_HEIGHT = 268;
+// 아이폰처럼 좁은 화면에서 벙벙해 보여 268→236으로 줄였다(팩 202 + 라벨·여백)
+const ROW_HEIGHT = 236;
 const PACK_HEIGHT = 202;
 
 // 결정적 해시 → 매 렌더마다 흩뿌림이 바뀌지 않도록 id 기반 시드 사용
@@ -53,7 +54,8 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
     // 세로로 움직일 데가 없다. 폭에 맞춰 열 수를 정하고 아래로 쌓아
     // 위아래·좌우로 자유롭게 움직이게 한다.
     const slackV = Math.max(0, ROW_HEIGHT - PACK_HEIGHT);
-    const cellW = PACK_WIDTH + 56;
+    // 칸 사이 여백 — 56이면 좁은 화면에서 팩 사이가 휑했다
+    const cellW = PACK_WIDTH + 32;
     // 화면 폭에 딱 맞춰 열을 채우면 가로로 넘칠 일이 없어 좌우로 움직일 데가 없다.
     // 화면보다 한 열 넓게 잡아 사방으로 펼친다 — 보드를 돌아다니는 느낌.
     const innerW = Math.max(cellW, (boardWidth ?? cellW * 3) - PAD_H * 2);
@@ -89,8 +91,9 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
       const colOffset = 0;
 
       // 행 단위 stagger 대신 per-item 랜덤 오프셋 → 두 줄 격자처럼 보이지 않게 흩뿌림
-      const jitterX = (seeded(h) - 0.5) * cellW * 0.5;
-      const jitterY = (seeded(h + 7) - 0.5) * (slackV + 16);
+      // 흔들림도 줄인다 — 흩어진 느낌은 남기고 틈은 덜 벌어지게
+      const jitterX = (seeded(h) - 0.5) * cellW * 0.3;
+      const jitterY = (seeded(h + 7) - 0.5) * (slackV + 8);
       // 사진+종이 덩어리만 살짝 기울인다(뱃지는 RecipePack에서 제외)
       const rotate = (seeded(h + 5) - 0.5) * 5; // ±2.5deg
 

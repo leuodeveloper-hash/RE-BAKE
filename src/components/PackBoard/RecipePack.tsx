@@ -59,6 +59,10 @@ export interface PackCardData {
   title: string;
   /** 종이를 채울 레시피 미리보기 텍스트 (재료/도구/스텝) */
   paperPreview?: string[];
+  /** 회고 사진 카드: 사진 위 태그(레시피북·공법·회차) */
+  tags?: string[];
+  /** 회고 사진 카드: 날짜 줄 (만든 날) */
+  dateText?: string;
 }
 
 export interface RecipePackProps {
@@ -86,6 +90,14 @@ export interface RecipePackProps {
   iconColor?: string;
   /** 잠긴 레시피 — 뱃지에 자물쇠 표시 */
   locked?: boolean;
+  /** 회고 노트 하단 라벨(예: '1/3 회고') — note 형태 전용 */
+  metaText?: string;
+  /** note 전용: 누르면 지금 보고 있는 카드 순서로 호출(onPress 대신). 빈 노트의 '회고 쓰기'용 */
+  onCardPress?: (index: number) => void;
+  /** note 전용: 예시 내용 — 종이를 흐리게 그려 실제 회고가 아님을 드러낸다 */
+  example?: boolean;
+  /** note 전용: 사진 카드 형태 — [사진+태그+뱃지] 위, [날짜·회고·→] 아래. 레시피별 회고 팩용 */
+  photoCard?: boolean;
   /** 'book' = 레시피 북 전용 책 형태, 'note' = 회고 노트 형태(PackBoard에서 RetrospectiveNote로 렌더) */
   variant?: 'default' | 'book' | 'note';
   /** 책 표지 하단 좌측 부가정보 (예: "3개의 레시피") */
@@ -147,7 +159,7 @@ export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom
     </View>
   );
 
-  // 레시피 북 전용: 정사각 그레이 표지에 제목(쿡북 색 글자)을 얹은 포스터 형태 + 중앙 썸넬. 뱃지 없음.
+  // 레시피 북 전용: 정사각 그레이 표지에 제목(레시피 북 색 글자)을 얹은 포스터 형태 + 중앙 썸넬. 뱃지 없음.
   if (variant === 'book') {
     const BOOK_W = Math.round(188 * 1.44); // 271 (책만 1.44배)
     const BOOK_H = BOOK_W; // 정사각
@@ -314,7 +326,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     alignItems: 'center',
   },
   // 레시피 북 책 표지 (3:4) — 색은 레시피 북 색(iconColor) 주입
-  // 포스터형 표지: 정사각 진한 그레이 배경, 썸넬 중앙 + 제목(쿡북 색)을 썸넬에 살짝 걸침
+  // 포스터형 표지: 정사각 진한 그레이 배경, 썸넬 중앙 + 제목(레시피 북 색)을 썸넬에 살짝 걸침
   bookCover: {
     alignItems: 'center',
     justifyContent: 'center',

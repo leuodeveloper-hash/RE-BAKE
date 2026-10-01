@@ -1,5 +1,6 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Animated, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
+import {Animated, Easing, InteractionManager, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
+import {triggerHaptic} from '@utils/haptics';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import {AppBar, APPBAR_CONTENT_BOTTOM} from '@components/Navigation';
@@ -33,6 +34,7 @@ import {Typography} from '@constants/typography';
 import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconList, IconLayoutGrid, IconNoteFilled, IconEyeClosed} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import type {Recipe} from '../src/types/recipe';
+import {goBackOr} from '@utils/navigation';
 
 /**
  * 한 줄에 놓을 칸 수 — 화면 너비로 정한다.
@@ -66,28 +68,57 @@ type StampAxis = 'cookbook' | 'date';
  * 방금 찍은 스탬프 등장 — 작게 시작해 살짝 튀어오른다.
  * 어디에 붙었는지 눈이 따라가도록.
  */
-function HighlightPop({active, children}: {active: boolean; children: React.ReactNode}) {
-  const scale = useRef(new Animated.Value(active ? 0.6 : 1)).current;
+/**
+ * 방금 찍은 칸 — 화면 전환·로딩이 끝나면 위에서 크게 내려와 "탁!" 붙는다(살짝 튕기며, 진동과 함께).
+ * 바로 보이면 "이미 있던 것"처럼 보여 모은 느낌이 안 난다. 붙고 나면 onLanded(회고 시트).
+ */
+function HighlightPop({active, children, onLanded}: {active: boolean; children: React.ReactNode; onLanded?: () => void}) {
+  const scale = useRef(new Animated.Value(active ? 1.8 : 1)).current;
+  const opacity = useRef(new Animated.Value(active ? 0 : 1)).current;
+  const rotate = useRef(new Animated.Value(active ? 1 : 0)).current;
   useEffect(() => {
     if (!active) return;
-    scale.setValue(0.6);
-    Animated.spring(scale, {toValue: 1, friction: 5, tension: 140, useNativeDriver: true}).start();
-  }, [active, scale]);
+    scale.setValue(1.8);
+    opacity.setValue(0);
+    rotate.setValue(1);
+    // 전환 애니메이션이 끝나고 화면이 그려진 뒤(고정 시간 아님)
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const task = InteractionManager.runAfterInteractions(() => {
+      timer = setTimeout(land, 120);
+    });
+    function land() {
+      Animated.parallel([
+        // 내려찍기 — 빠르게
+        Animated.timing(scale, {toValue: 0.92, duration: 160, easing: Easing.in(Easing.quad), useNativeDriver: true}),
+        Animated.timing(opacity, {toValue: 1, duration: 120, useNativeDriver: true}),
+        Animated.timing(rotate, {toValue: 0, duration: 160, useNativeDriver: true}),
+      ]).start(() => {
+        triggerHaptic('medium'); // 닿는 순간 "탁"
+        Animated.spring(scale, {toValue: 1, friction: 4, tension: 220, useNativeDriver: true}).start(() => onLanded?.());
+      });
+    }
+    return () => { task.cancel(); if (timer) clearTimeout(timer); };
+    // onLanded는 붙는 순간 한 번 부르면 된다
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [active, scale, opacity, rotate]);
   if (!active) return <>{children}</>;
-  return <Animated.View style={{transform: [{scale}]}}>{children}</Animated.View>;
+  const spin = rotate.interpolate({inputRange: [0, 1], outputRange: ['0deg', '-12deg']});
+  return <Animated.View style={{opacity, transform: [{scale}, {rotate: spin}]}}>{children}</Animated.View>;
 }
 
 /** 리스트 행의 스탬프 크기 */
 const LIST_STAMP = 36;
 
 /** 그리드·리스트가 같은 그림을 쓴다 — 채운 칸은 스탬프, 빈 칸은 점 */
-function SlotStamp({slot, size, styles, colors, highlight}: {
+function SlotStamp({slot, size, styles, colors, highlight, onLanded}: {
   slot: StampSlot;
   size: number;
   styles: ReturnType<typeof createStyles>;
   colors: ReturnType<typeof useColors>;
   /** 방금 찍은 칸 — 어디에 붙었는지 눈에 띄게 */
   highlight?: boolean;
+  /** 방금 찍은 스탬프가 붙은 직후 */
+  onLanded?: () => void;
 }) {
   if (!slot.madeAt) {
     // 빈 칸은 모두 점선 실루엣 — 무엇이 들어올 자리인지 모양으로 보인다.
@@ -95,7 +126,7 @@ function SlotStamp({slot, size, styles, colors, highlight}: {
     return <Stamp size={size} index={slot.order} outline />;
   }
   return (
-    <HighlightPop active={!!highlight}>
+    <HighlightPop active={!!highlight} onLanded={onLanded}>
       {/* 회차가 여럿이면 뒤에 한 장 더 깔아 "여러 번 만들었음"을 보인다 */}
       {slot.count > 1 && (
         <Stamp
@@ -228,6 +259,7 @@ export default function StampsRoute() {
     // 가져온 레시피는 원본과 사본이 둘 다 있으므로 sourceId로 중복을 막는다.
     const importedSources = new Set(recipes.map(r => r.sourceId).filter(Boolean) as string[]);
     for (const r of [...exploreRecipes.filter(x => !importedSources.has(x.id)), ...recipes]) {
+      if (r.kind === 'tip') continue; // 팁은 만드는 게 아니라 스탬프 칸이 없다
       const key = r.remakeGroupId ?? r.id;
       if (seen.has(key)) continue;
       seen.add(key);
@@ -290,28 +322,41 @@ export default function StampsRoute() {
   // 방금 찍은 레시피 — 회고가 아직 없을 때만 권유를 띄운다(쓰고 나면 사라진다)
   const justRecipe = useMemo(() => {
     if (!just) return undefined;
-    const r = recipes.find(x => x.id === just);
-    // 해제했으면 권유도 사라져야 한다 — 찍지도 않은 것에 회고를 권할 이유가 없다
-    if (!r?.madeAt) return undefined;
+    // 공식(둘러보기) 레시피에도 찍는다 — 내 레시피만 찾으면 권유가 안 뜬다
+    const r = recipes.find(x => x.id === just) ?? exploreRecipes.find(x => x.id === just);
+    // 해제했으면 권유도 사라져야 한다 — 찍지도 않은 것에 회고를 권할 이유가 없다.
+    // 스탬프는 계정에 보관한다(madeAtOf) — Recipe.madeAt만 보면 늘 비어 권유가 안 떴다
+    if (!r || !madeAtOf(r)) return undefined;
     const rv = reviewOf(r.id);
     const hasReview = !!(rv?.evaluation?.trim() || rv?.improvement?.trim());
     return hasReview ? undefined : r;
-  }, [just, recipes, reviewOf]);
+  }, [just, recipes, exploreRecipes, reviewOf, madeAtOf]);
+
+  // 스탬프가 "탁" 붙은 뒤 회고 쓰기 바텀시트(한 번만, 회고 없을 때만)
+  const autoReviewShown = useRef(false);
+  const handleStampLanded = useCallback(() => {
+    if (!justRecipe || autoReviewShown.current) return;
+    autoReviewShown.current = true;
+    setTimeout(() => setReviewTarget(justRecipe), 250);
+  }, [justRecipe]);
 
   const allSections = axis === 'cookbook' ? cookbookSections : dateSections;
   /**
    * "만든 것만" — 빈 칸을 걷어낸다.
    * 진도(done/total)는 그대로 둬야 몇 개 남았는지 알 수 있다.
    */
+  // 아직 하나도 안 찍었으면(게스트·처음) 전체 칸을 보여준다 — '만든 것만'이면
+  // 북마다 점선 한 칸만 남아 무엇을 모으는지(공식 레시피) 보이지 않는다
+  const anyMade = useMemo(() => allSections.some(sec => sec.slots.some(sl => sl.madeAt)), [allSections]);
   const sections = useMemo(() => {
-    if (!madeOnly) return allSections;
+    if (!madeOnly || !anyMade) return allSections;
     return allSections.map(sec => {
       const made = sec.slots.filter(sl => sl.madeAt);
       // 하나도 못 채운 섹션은 첫 칸(점선)을 남긴다 — 섹션째 사라지면
       // "없다"는 빈 화면이 떠서 무엇을 모으는 곳인지조차 안 보인다
       return {...sec, slots: made.length > 0 ? made : sec.slots.slice(0, 1)};
     });
-  }, [allSections, madeOnly]);
+  }, [allSections, madeOnly, anyMade]);
   const madeCount = useMemo(
     () => [...recipes, ...exploreRecipes].filter(r => madeAtOf(r)).length,
     [recipes, exploreRecipes, madeAtOf],
@@ -347,7 +392,7 @@ export default function StampsRoute() {
         centered
         title={t('stamps.title')}
         leftIcon={IconClose}
-        onLeftPress={() => router.back()}
+        onLeftPress={() => goBackOr(router)}
         rightIcon={IconFilter}
         onRightPress={() => setAxisMenu(v => !v)}
         rightMenu={
@@ -421,13 +466,9 @@ export default function StampsRoute() {
               actionLabel={t('home.exploreRecipes')}
               onAction={() => router.push('/(tabs)/explore' as any)}
             />
-          ) : madeCount === 0 ? (
-            <EmptyState
-              category="no-recipe"
-              title={t('stamps.emptyTitle')}
-              subtitle={t('stamps.emptySubtitle')}
-            />
           ) : (
+            // 0개여도 칸(공식 레시피 포함)을 그대로 보여준다 — 빈 화면으로 바꾸면
+            // 게스트는 늘 아무것도 못 본다. 빈 스티커를 누르면 게스트는 로그인으로.
             <ContentContainer style={styles.content}>
               <InlineBanner
                 icon={IconBookFilled}
@@ -480,9 +521,9 @@ export default function StampsRoute() {
                       {section.slots.map((slot, i) => (
                         <Pressable
                           key={slot.recipe.id}
-                          onPress={() => { if (!user) { openAuthSheet(); return; } setSelected(slot); }}
+                          onPress={() => { if (!user) { openAuthSheet({onSuccess: () => setSelected(slot)}); return; } setSelected(slot); }}
                           style={[styles.gridCell, {width: slotSize, height: slotSize}]}>
-                          <SlotStamp slot={slot} size={slotSize} styles={styles} colors={colors} highlight={slot.recipe.id === just} />
+                          <SlotStamp slot={slot} size={slotSize} styles={styles} colors={colors} highlight={slot.recipe.id === just} onLanded={slot.recipe.id === just ? handleStampLanded : undefined} />
                         </Pressable>
                       ))}
                     </View>
@@ -491,10 +532,10 @@ export default function StampsRoute() {
                       {section.slots.map((slot, i) => (
                         <Pressable
                           key={slot.recipe.id}
-                          onPress={() => { if (!user) { openAuthSheet(); return; } setSelected(slot); }}
+                          onPress={() => { if (!user) { openAuthSheet({onSuccess: () => setSelected(slot)}); return; } setSelected(slot); }}
                           style={styles.listRow}>
                           <View style={styles.listThumb}>
-                            <SlotStamp slot={slot} size={LIST_STAMP} styles={styles} colors={colors} highlight={slot.recipe.id === just} />
+                            <SlotStamp slot={slot} size={LIST_STAMP} styles={styles} colors={colors} highlight={slot.recipe.id === just} onLanded={slot.recipe.id === just ? handleStampLanded : undefined} />
                           </View>
                           <Text
                             style={[styles.listTitle, !slot.madeAt && styles.listTitleMuted]}

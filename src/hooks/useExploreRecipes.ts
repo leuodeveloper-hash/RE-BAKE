@@ -96,7 +96,7 @@ function migrateRecipe(recipe: any): Recipe {
 export interface ExploreCookbook {
   name: string;
   color: string;
-  /** 숨김 — 어드민만 보임, 다른 유저 둘러보기에서 이 쿡북과 소속 레시피 전부 미노출 */
+  /** 숨김 — 어드민만 보임, 다른 유저 둘러보기에서 이 레시피 북과 소속 레시피 전부 미노출 */
   hidden?: boolean;
 }
 
@@ -193,7 +193,7 @@ export function useExploreRecipes(onError?: (msg: string) => void, isAdmin = fal
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchFromFirestore]);
 
-  // 숨김 필터: 비어드민은 숨김 쿡북 + 그 소속 레시피 + 개별 숨김 레시피를 제외.
+  // 숨김 필터: 비어드민은 숨김 레시피 북 + 그 소속 레시피 + 개별 숨김 레시피를 제외.
   // (원본은 상태/캐시에 그대로 두고 노출 시점에만 필터 → 어드민 토글이 즉시 반영)
   const hiddenCookbookNames = useMemo(
     () => new Set(exploreCookbooks.filter(c => c.hidden).map(c => c.name)),

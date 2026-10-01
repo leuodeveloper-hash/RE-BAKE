@@ -51,7 +51,7 @@ export default function RecipeEditRoute() {
     return merged;
   }, [isExploreTarget, cookbookColors, exploreCookbooks]);
 
-  // 공식(둘러보기) 레시피 편집 중 인라인 쿡북 추가 → 개인 색맵이 아니라 explore_cookbooks(Firestore)로.
+  // 공식(둘러보기) 레시피 편집 중 인라인 레시피 북 추가 → 개인 색맵이 아니라 explore_cookbooks(Firestore)로.
   const handleSetCookbookColor = useCallback(async (name: string, color: AvatarColor) => {
     if (isExploreTarget) {
       try {
@@ -117,7 +117,7 @@ export default function RecipeEditRoute() {
         const {imageSource: _imgSrc, ...rest} = data;
         const serializable = stripUndefined(rest);
         // merge:true는 undefined(삭제된 필드)를 무시하므로 → 비운 optional 필드는 deleteField()로 명시해 실제 삭제.
-        const OPTIONAL_FIELDS = ['sourceUrl', 'referenceUrl', 'advice', 'advicePhotos', 'imageUri', 'imageUris', 'ratio', 'time', 'servings', 'method'] as const;
+        const OPTIONAL_FIELDS = ['sourceUrl', 'referenceUrl', 'advice', 'advicePhotos', 'kind', 'imageUri', 'imageUris', 'ratio', 'time', 'servings', 'method'] as const;
         for (const f of OPTIONAL_FIELDS) {
           if ((rest as any)[f] === undefined) (serializable as any)[f] = deleteField();
         }

@@ -583,6 +583,7 @@ export function RecipeListTemplate({
         onCookbookPress={item.cookbook && onCookbookPress ? () => onCookbookPress(item.cookbook) : undefined}
         onMethodPress={item.method && onMethodPress ? () => onMethodPress(item.method!) : undefined}
         cookbook={item.cookbook}
+        isTip={item.kind === 'tip'}
         method={item.method}
         specificGravity={item.specificGravity}
         // reviewCount는 리메이크 그룹 합계(호출부가 계산) — 없으면 이 레시피 것

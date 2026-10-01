@@ -369,6 +369,8 @@ export function CookingMode({
   }, [ingredientGroups]);
 
   const allIngredientsChecked = allIngredientNames.length > 0 && allIngredientNames.every(n => checkedIngredients.has(n));
+  // 전체선택 버튼에 붙는 진행 수 — 몇 개 챙겼는지 한눈에
+  const checkedIngredientCount = allIngredientNames.filter(n => checkedIngredients.has(n)).length;
 
   const toggleAllIngredients = useCallback(() => {
     if (allIngredientsChecked) {
@@ -2125,7 +2127,14 @@ export function CookingMode({
           }
           bottomAction={
             <>
-              <Button label={allIngredientsChecked ? t('cookingMode.deselectAll') : t('cookingMode.selectAll')} variant="soft" onPress={toggleAllIngredients} style={{flex: 1}} />
+              <Button
+                label={allIngredientsChecked ? t('cookingMode.deselectAll') : t('cookingMode.selectAll')}
+                // 오른쪽에 남은 재료 수 — 다 챙기면 숨긴다
+                trailingText={allIngredientNames.length - checkedIngredientCount > 0 ? String(allIngredientNames.length - checkedIngredientCount) : undefined}
+                variant="soft"
+                onPress={toggleAllIngredients}
+                style={{flex: 1}}
+              />
               {allIngredientsChecked && (
                 <Button label={t('cookingMode.prepDone')} onPress={() => { setShowIngredientList(false); setIsInitialIngredientSheet(false); }} style={{flex: 1}} />
               )}
@@ -2273,8 +2282,9 @@ const createStyles = (colors: SemanticColors) =>
       flexBasis: 'auto',
       paddingHorizontal: TILE_GAP / 2,
       marginBottom: TILE_GAP,
-      // 이름이 길고 짧아도 칸 크기가 같아 보이도록 높이를 고정한다
-      height: 76,
+      // 이름이 길고 짧아도 칸 크기가 같아 보이도록 높이를 고정한다.
+      // 이름(14)·분량(12) 한 줄씩 꼭 맞는 높이 — 두 줄 대비로 76을 두면 대부분 휑했다
+      height: 60,
     },
     topLeft: {
       flexDirection: 'row',

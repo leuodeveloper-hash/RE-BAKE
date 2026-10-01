@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Platform, View, StyleSheet} from 'react-native';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -105,7 +105,7 @@ export default function RecipeDetailRoute() {
   }, [recipe, id, findRecipeById, exploreRecipes, router]);
 
   const madeCount = useMadeCount();
-  const {saveReview, reviewsOf} = useRecipeReviews();
+  const {reviewsOf} = useRecipeReviews();
   const {setMade, madeAtOf} = useMadeStamps();
   const isMyRecipe = recipes.some(r => r.id === id);
   const isExploreRecipe = !isMyRecipe && exploreRecipes.some(r => r.id === id);
@@ -179,7 +179,8 @@ export default function RecipeDetailRoute() {
       // 플랜 시트를 바로 띄운다 — 스낵바로 한 번 더 누르게 하면 흐름이 끊긴다.
       // 게스트는 로그인이 먼저(구독하려면 계정이 있어야 한다) → 성공 후 플랜.
       // 대기 시간은 onSubscribe(잠금 해제)와 같은 값으로 맞춘다.
-      if (!user) openAuthSheet({onSuccess: () => setTimeout(openPlanSheet, 300)});
+      // 게스트는 로그인 → 플랜(로그인 시트가 공통으로 플랜을 띄운다)
+      if (!user) openAuthSheet();
       else openPlanSheet();
       return;
     }
@@ -258,8 +259,14 @@ const handleDelete = useCallback(async () => {
     showSnackbar(t('id.comingSoon'));
   }, [showSnackbar, t]);
 
+  const importRef = useRef<() => void>(() => {});
   const handleImport = useCallback(() => {
     if (!recipe) return;
+    // 게스트는 로그인 → 플랜 선택(공통) → 이어서 복사 — 목록에서 복사할 때와 같다
+    if (!user) {
+      openAuthSheet({onSuccess: () => setTimeout(() => importRef.current(), 300)});
+      return;
+    }
     const copied = {
       ...recipe,
       id: `user_${Date.now()}`,
@@ -281,7 +288,8 @@ const handleDelete = useCallback(async () => {
       label: t('id.goTo'),
       onPress: () => router.navigate('/'),
     });
-  }, [recipe, setRecipes, showSnackbar, router, t, user, handle, displayName, avatarSeed]);
+  }, [recipe, setRecipes, showSnackbar, router, t, user, handle, displayName, avatarSeed, openAuthSheet]);
+  importRef.current = handleImport;
 
   const handleRemake = useCallback(() => {
     if (!recipe) return;
@@ -609,15 +617,17 @@ const handleDelete = useCallback(async () => {
         referenceUrl={recipe.referenceUrl}
         isMade={isMade}
         stampIndex={madeCount}
-        onMadeChange={handleMadeChange}
+        // 팁은 만드는 게 아니라 읽는 정보 — 만들었어요·다시 만들기·회고에서 빠진다
+        onMadeChange={recipe?.kind === 'tip' ? undefined : handleMadeChange}
+        isTip={recipe?.kind === 'tip'}
         onFeedback={isExploreRecipe ? handleFeedback : undefined}
-        onSaveReview={(review) => saveReview(id, review)}
+        // 회고는 스탬프북에서 — 스탬프가 붙은 뒤 회고 시트가 뜬다(두 번 묻지 않게)
         onBack={handleBack}
         onComingSoon={handleComingSoon}
         onEdit={canEdit ? handleEdit : undefined}
         onDownloadPhoto={handleDownloadPhoto}
         onDelete={canDelete ? handleDelete : undefined}
-        onRemake={isMyRecipe ? handleRemake : undefined}
+        onRemake={isMyRecipe && recipe?.kind !== 'tip' ? handleRemake : undefined}
         onImport={!isMyRecipe && !alreadyImported ? handleImport : undefined}
         onCookbookChange={isMyRecipe ? handleCookbookChange : undefined}
         availableCookbooks={availableCookbooks}
@@ -715,7 +725,7 @@ const handleDelete = useCallback(async () => {
           // 로그인 상태면 PlanSheet 바로 오픈 (UnlockDialog 애니메이션 대기 200ms)
           setTimeout(() => {
             if (!user) {
-              openAuthSheet({onSuccess: () => setTimeout(openPlanSheet, 300)});
+              openAuthSheet(); // 로그인 → 플랜(공통)
             } else {
               openPlanSheet();
             }

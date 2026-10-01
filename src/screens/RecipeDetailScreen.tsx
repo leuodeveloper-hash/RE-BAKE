@@ -160,6 +160,8 @@ export interface RecipeDetailScreenProps {
   onEdit?: (section?: string) => void;
   onDelete?: () => void;
   onRemake?: () => void;
+  /** 팁(실기 준비물 등) — 요리모드·회고 섹션을 숨긴다 */
+  isTip?: boolean;
   /** 둘러보기에서 진입 시: 내 레시피로 복사 */
   onImport?: () => void;
   /** 인라인 편집 시: 변경 데이터 전달 */
@@ -382,6 +384,7 @@ export function RecipeDetailScreen({
   onEdit,
   onDelete,
   onRemake,
+  isTip = false,
   onImport,
   onUpdate,
   onCookingModeChange,
@@ -1139,7 +1142,7 @@ export function RecipeDetailScreen({
                         titleNumberOfLines={0}
                         onPress={() => {
                           setCookingModeInitialIndex(groupOffset + index);
-                          setShowCookingMode(true);
+                          if (!isTip) setShowCookingMode(true);
                         }}
                         // 롱프레스 = 이 과정을 편집 (탭은 요리모드)
                         // 어느 과정을 눌렀는지까지 전달 — 편집에서 그 줄로 스크롤·포커스
@@ -1192,7 +1195,7 @@ export function RecipeDetailScreen({
                     titleNumberOfLines={0}
                     onPress={() => {
                       setCookingModeInitialIndex(index);
-                      setShowCookingMode(true);
+                      if (!isTip) setShowCookingMode(true);
                     }}
                   >
                     <Text style={styles.stepDescription}>
@@ -1248,7 +1251,7 @@ export function RecipeDetailScreen({
                       ? stepGroups.reduce((sum, g) => sum + g.steps.length, 0)
                       : (steps?.length ?? 0);
                     setCookingModeInitialIndex(totalSteps);
-                    setShowCookingMode(true);
+                    if (!isTip) setShowCookingMode(true);
                   }}
                 >
                   <RichText style={styles.adviceText}>{advice}</RichText>
@@ -1258,7 +1261,8 @@ export function RecipeDetailScreen({
           </Animated.View>
         ) : null}
 
-        {/* Review Section */}
+        {/* Review Section — 팁엔 회고가 없다 */}
+        {!isTip && (
         <Animated.View
           onLayout={(e) => { sectionPositions.current.review = e.nativeEvent.layout.y; }}
           style={{opacity: sectionAnims[2]}}
@@ -1319,6 +1323,7 @@ export function RecipeDetailScreen({
             )}
           </ContentContainer>
         </Animated.View>
+        )}
 
         {/* Prev / Next Recipe Navigation */}
         {recipeItems && recipeItems.length > 1 && currentRecipeId && onRecipeSelect && (() => {
@@ -1423,12 +1428,15 @@ export function RecipeDetailScreen({
         }
         right={
           <GlassContainer contentStyle={navPillStyle}>
-            <IconButton
-              icon={IconPlayFilled}
-              onPress={locked ? () => setShowUnlockDialog(true) : () => { setCookingModeShowIngredients(true); setShowCookingMode(true); }}
-              variant="ghost-primary"
-              size="medium"
-            />
+            {/* 팁엔 요리모드가 없다 */}
+            {!isTip && (
+              <IconButton
+                icon={IconPlayFilled}
+                onPress={locked ? () => setShowUnlockDialog(true) : () => { setCookingModeShowIngredients(true); setShowCookingMode(true); }}
+                variant="ghost-primary"
+                size="medium"
+              />
+            )}
             <IconButton
               icon={IconEllipsisVertical}
               onPress={handleMenuPress}
@@ -1783,7 +1791,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
     gap: 3,
-    // 칸이 모자라면 쿡북·공법 텍스트가 양보(줄임표) → 뒤의 참고 링크 칩은 안 눌리게
+    // 칸이 모자라면 레시피 북·공법 텍스트가 양보(줄임표) → 뒤의 참고 링크 칩은 안 눌리게
     flexShrink: 1,
     minWidth: 0,
   },

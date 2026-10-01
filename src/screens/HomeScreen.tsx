@@ -162,7 +162,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   // 문의는 메일 앱을 열지 않고 앱 안에서 받는다(주소 비노출)
   const [inquiryOpen, setInquiryOpen] = useState(false);
   const madeCount = useMadeCount();
-  const {saveReview, reviewsOf} = useRecipeReviews();
+  const {reviewsOf} = useRecipeReviews();
   const {setMade, madeAtOf} = useMadeStamps();
   const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
 
@@ -530,9 +530,22 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   }, [reload, exploreReload]);
 
   // 그룹 모드: 홈 평면 리스트 대신 그룹 화면을 호스팅
+  // 만들었어요 시트 — 목록·팩뷰(회고 노트의 [만들었어요]) 어디서 열어도 같은 시트
+  const madeSheet = (
+    <MadeConfirmSheet
+      visible={!!madeSheetRecipe}
+      onClose={() => setMadeSheetRecipe(null)}
+      imageUri={madeSheetRecipe?.imageUri}
+      stampIndex={madeCount}
+      onConfirm={handleMadeConfirm}
+      // 회고는 시트에서 받지 않는다 — 스탬프북으로 가서 스탬프가 "탁" 붙은 뒤 회고 시트가 뜬다
+    />
+  );
+
   if (groupAxis !== 'all') {
     // 홈 = 내 개인 레시피 북만. 공식(explore) 데이터는 GroupScreen에 주입하지 않는다 (둘러보기 전용)
     return (
+      <>
       <GroupScreen
         recipes={recipes}
         // 둘러보기 레시피에 쓴 회고도 내 기록 — 회고 노트 목록에 보여준다(작성자 홈은 제외)
@@ -557,6 +570,8 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
         }}
         bookCarousel
       />
+      {madeSheet}
+      </>
     );
   }
 
@@ -768,17 +783,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
         }}
       />
 
-      <MadeConfirmSheet
-        visible={!!madeSheetRecipe}
-        onClose={() => setMadeSheetRecipe(null)}
-        imageUri={madeSheetRecipe?.imageUri}
-        stampIndex={madeCount}
-        onConfirm={handleMadeConfirm}
-        // 찍은 김에 바로 회고까지 — 계정에 보관해 공식 레시피에도 남길 수 있다
-        onSaveReview={(review) => {
-          if (madeSheetRecipe) saveReview(madeSheetRecipe.id, review);
-        }}
-      />
+      {madeSheet}
 
       {/* 레시피 북 선택 바텀시트 */}
       <CookbookSelectSheet

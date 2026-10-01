@@ -10,6 +10,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {useTranslation} from '@contexts/LanguageContext';
+import {goBackOr} from '@utils/navigation';
 
 export default function PrivacyScreen() {
   const styles = useThemedStyles(createStyles);
@@ -62,7 +63,7 @@ export default function PrivacyScreen() {
       </SafeAreaView>
 
       <FloatingNavBar
-        left={<NavPillButton icon={IconArrowLeft} onPress={() => router.back()} />}
+        left={<NavPillButton icon={IconArrowLeft} onPress={() => goBackOr(router)} />}
       />
     </View>
   );

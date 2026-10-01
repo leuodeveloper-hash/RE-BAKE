@@ -44,9 +44,12 @@ export default function ExploreRoute() {
 
   const myRecipeSourceIds = useMemo(() => recipes.map(r => r.sourceId ?? r.id), [recipes]);
 
+  // 로그인 직후엔 이 콜백이 아직 게스트 시절 값이라 — 다시 부를 땐 최신 걸 쓴다
+  const importRef = useRef<(recipe: Recipe) => void>(() => {});
   const handleImportRecipe = useCallback((recipe: Recipe) => {
     if (!user) {
-      setShowPlanSheet(true);
+      // 게스트: 로그인 → 플랜 선택(공통) → 이어서 복사
+      openAuthSheet({onSuccess: () => setTimeout(() => importRef.current(recipe), 300)});
       return;
     }
     const copied: Recipe = {
@@ -64,7 +67,8 @@ export default function ExploreRoute() {
       label: t('explore.goTo'),
       onPress: () => router.navigate('/'),
     });
-  }, [user, setRecipes, showSnackbar, router, t]);
+  }, [user, setRecipes, showSnackbar, router, t, openAuthSheet]);
+  importRef.current = handleImportRecipe;
 
   const handleRecipePress = useCallback((recipe: Recipe, locked?: boolean) => {
     const params = locked ? 'from=explore&locked=1' : 'from=explore';

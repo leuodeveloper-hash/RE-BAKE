@@ -32,6 +32,8 @@ export interface ButtonProps {
   // ComponentType — SVG 컴포넌트가 FC가 아닐 수도 있어 더 넓은 쪽으로 받는다
   icon?: React.ComponentType<SvgProps>;
   trailingIcon?: React.FC<SvgProps>;
+  /** 라벨 오른쪽 보조 글자(예: 남은 개수) — 같은 색, 옅게 */
+  trailingText?: string;
 }
 
 const SIZE_CONFIG = {
@@ -53,6 +55,7 @@ export function Button({
   style,
   icon: Icon,
   trailingIcon: TrailingIcon,
+  trailingText,
 }: ButtonProps) {
   const colors = useColors();
   const {pressHandlers, animatedStyle} = usePressScale();
@@ -144,13 +147,17 @@ export function Button({
         {...(disabled || loading ? {} : pressHandlers)}
         disabled={disabled || loading}>
         {({pressed}: {pressed: boolean}) => (
-          <Animated.View style={[getContainerStyle(pressed), animatedStyle, (Icon || TrailingIcon || loading) && {flexDirection: 'row' as const, gap: sizeConfig.gap}]}>
+          <Animated.View style={[getContainerStyle(pressed), animatedStyle, (Icon || TrailingIcon || trailingText || loading) && {flexDirection: 'row' as const, gap: sizeConfig.gap}]}>
             {loading ? (
               <ActivityIndicator size="small" color={getTextColor()} />
             ) : (
               Icon && <Icon width={18} height={18} color={getTextColor()} />
             )}
             <Text style={[styles.label, {color: getTextColor()}]}>{label}</Text>
+            {/* 라벨과 구분되게 조금 띄우고 옅게 */}
+            {!loading && trailingText ? (
+              <Text style={[styles.label, styles.trailingText, {color: getTextColor()}]}>{trailingText}</Text>
+            ) : null}
             {!loading && TrailingIcon && <TrailingIcon width={18} height={18} color={getTextColor()} />}
           </Animated.View>
         )}
@@ -160,6 +167,10 @@ export function Button({
 }
 
 const styles = StyleSheet.create({
+  trailingText: {
+    marginLeft: 4,
+    opacity: 0.5,
+  },
   label: {
     fontFamily: Typography.label['xlarge - semibold'].fontFamily,
     fontSize: Typography.label['xlarge - semibold'].fontSize,

@@ -29,6 +29,7 @@ import {useTranslation} from '@contexts/LanguageContext';
 import {SvgProps} from 'react-native-svg';
 import {IconArrowTopRight, IconChartNoAxesGantt, IconEllipsisVertical, IconLockFilled, IconEyeClosed, IconPhoto, IconPinFilled} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
+import {Button} from '@components/Button';
 import {Thumbnail} from '@components/Thumbnail';
 
 // ---- 무지개 radial shimmer (Apple Intelligence 스타일, 반경이 커지며 펄스) ----
@@ -435,8 +436,21 @@ export interface RecipeCardProps {
   size?: 'default' | 'small';
   /** list 레이아웃 썸네일 앞 번호 */
   leadingNumber?: number;
+  /** 팁(실기 준비물 등) — 메타 줄 맨 앞에 '팁'. 같은 레시피북 안에서도 레시피와 구분된다 */
+  isTip?: boolean;
+  /** list 레이아웃 오른쪽 버튼(예: 회고 노트의 '회고 쓰기') — 메뉴 버튼 대신 */
+  trailingAction?: {label: string; onPress: () => void};
+  /** list 레이아웃 제목 위 오버라인(작은 회색 글씨) — 회고 노트에서 요리명 */
+  overline?: string;
+  /** 오버라인 앞 아이콘 */
+  overlineIcon?: React.FC<SvgProps>;
   /** list 레이아웃 커스텀 서브타이틀 (제공 시 cookbook·method 대신 표시) */
   customSubtitle?: string;
+  /**
+   * customSubtitle 크기 — 'large'면 한 단계 크게(12→14, 회고 노트의 개선점),
+   * 'body'면 본문 레귤러(안내 문구처럼 굵지 않게).
+   */
+  subtitleSize?: 'medium' | 'large' | 'body';
   /** customSubtitle 최대 줄 수 (기본: 1). 설명형이면 2 등으로 늘려 두 줄 표시 */
   subtitleNumberOfLines?: number;
   /** 커스텀 서브타이틀 아이콘 */
@@ -490,6 +504,11 @@ export function RecipeCard({
   size = 'default',
   leadingNumber,
   customSubtitle,
+  overline,
+  overlineIcon: OverlineIcon,
+  trailingAction,
+  isTip = false,
+  subtitleSize = 'medium',
   subtitleNumberOfLines = 1,
   subtitleIcon: SubtitleIcon,
   paperPreview,
@@ -510,23 +529,29 @@ export function RecipeCard({
   // 메타 줄 세그먼트: 각 항목이 자기 링크로 이동(핸들→작성자, 레시피북→북, 공법→공법).
   // 색은 전부 동일(muted). 링크 여부와 무관하게 톤 통일.
   const metaSegments: {key: string; text: string; onPress?: () => void}[] = [];
+  // 팁은 맨 앞에 — 같은 레시피북 안에서도, 어느 보기(2열 포함)에서도 구분되게
+  if (isTip) metaSegments.push({key: 'kind', text: t('recipeEdit.kindTip')});
   if (authorHandle) metaSegments.push({key: 'author', text: `@${authorHandle}`, onPress: onAuthorPress});
   if (cookbook) metaSegments.push({key: 'cookbook', text: cookbook, onPress: onCookbookPress});
   if (method) metaSegments.push({key: 'method', text: method, onPress: onMethodPress});
   if (specificGravity) metaSegments.push({key: 'sg', text: t('recipeCard.specificGravity', {value: specificGravity})});
   const hasMeta = metaSegments.length > 0;
+  // 2열(그리드)은 폭이 좁아 작성자·레시피북만 — 공법·비중·회고 수까지 넣으면 줄이 넘친다
+  const GRID_META_KEYS = ['kind', 'author', 'cookbook'];
+  const hasGridMeta = metaSegments.some(seg => GRID_META_KEYS.includes(seg.key));
 
   // 세그먼트 렌더 — textStyle(레이아웃별 서브타이틀 스타일) 위에 링크 여부만 구분.
   //
   // limit: 2열 그리드처럼 폭이 좁은 곳에서 쓴다. 모든 조각에 flexShrink가 걸려 있어
   // 항목이 많으면 저마다 조금씩 줄어들어 전부 잘려 읽을 수 없게 된다. 다 우겨넣지 말고
   // 앞쪽(작성자·레시피북)만 남기는 편이 낫다.
-  const renderMeta = (textStyle: any, opts?: {limit?: number; wrap?: boolean}) => {
-    const {limit, wrap} = opts ?? {};
+  const renderMeta = (textStyle: any, opts?: {limit?: number; wrap?: boolean; keys?: string[]}) => {
+    const {limit, wrap, keys} = opts ?? {};
+    const segments = keys ? metaSegments.filter(seg => keys.includes(seg.key)) : metaSegments;
     // wrap이면 줄이지도 자르지도 않는다 — 줄바꿈으로 넘긴다(리스트뷰).
     const segStyle = wrap ? undefined : styles.metaSegment;
     const lineProps = wrap ? {} : {numberOfLines: 1, ellipsizeMode: 'tail' as const};
-    return (limit ? metaSegments.slice(0, limit) : metaSegments).map(seg => (
+    return (limit ? segments.slice(0, limit) : segments).map(seg => (
       <React.Fragment key={seg.key}>
         {seg.onPress ? (
           // flexShrink: 폭이 모자라면 이 조각이 줄어들며 말줄임(…)이 나온다.
@@ -622,7 +647,16 @@ export function RecipeCard({
           )}
 
           {/* 콘텐츠 */}
-          <View style={isSmall ? styles.listContentSmall : styles.listContent}>
+          <View style={[isSmall ? styles.listContentSmall : styles.listContent, overline ? styles.listContentTight : null]}>
+            {/* 제목 위 오버라인 — 회고 노트의 요리명 */}
+            {overline ? (
+              <View style={styles.overline}>
+                {OverlineIcon && (
+                  <OverlineIcon width={11} height={11} color={colors['foreground/on-surface-muted']} />
+                )}
+                <Text style={styles.overlineText} numberOfLines={1}>{overline}</Text>
+              </View>
+            ) : null}
             {!!title && (
               <View style={styles.gridTitleRow}>
                 {pinned && (
@@ -641,11 +675,17 @@ export function RecipeCard({
               </View>
             )}
             {customSubtitle ? (
-              <View style={styles.listSubtitleRow}>
+              <View style={[styles.listSubtitleRow, SubtitleIcon ? styles.listSubtitleRowWithIcon : null]}>
                 {SubtitleIcon && (
-                  <SubtitleIcon width={12} height={12} color={colors['foreground/on-surface-muted']} />
+                  <SubtitleIcon width={subtitleSize === 'large' ? 14 : 12} height={subtitleSize === 'large' ? 14 : 12} color={colors['foreground/on-surface-muted']} />
                 )}
-                <Text style={styles.listSubtitle} numberOfLines={subtitleNumberOfLines}>
+                <Text
+                  style={[
+                    styles.listSubtitle,
+                    subtitleSize === 'large' && styles.listSubtitleLarge,
+                    subtitleSize === 'body' && styles.listSubtitleBody,
+                  ]}
+                  numberOfLines={subtitleNumberOfLines}>
                   {customSubtitle}
                 </Text>
               </View>
@@ -664,8 +704,10 @@ export function RecipeCard({
             )}
           </View>
 
-          {/* 메뉴 버튼 (잠금 여부 무관하게 trailing은 ...) */}
-          {(onMenuPress || trailingIcon) ? (
+          {/* 오른쪽 버튼(있으면 메뉴 대신) */}
+          {trailingAction ? (
+            <Button label={trailingAction.label} variant="soft" size="small" onPress={trailingAction.onPress} />
+          ) : (onMenuPress || trailingIcon) ? (
             <View ref={menuButtonRef}>
               <IconButton
                 icon={trailingIcon || IconEllipsisVertical}
@@ -786,19 +828,12 @@ export function RecipeCard({
               {made && <View style={[styles.madeDot, {backgroundColor: colors['foreground/on-surface-muted']}]} />}
             </View>
           )}
-          {(hasMeta || reviewCount > 0 || hasReference) && (
+          {hasGridMeta && (
             <View style={styles.gridSubtitleRow}>
               <View style={styles.gridMetaGroup}>
-                {/* 2열도 말줄임 없이 전부 — 좁으면 다음 줄로 넘긴다 */}
-                {renderMeta(styles.gridSubtitle, {wrap: true})}
-                <MetaLinkIcon show={hasReference} size={12} color={colors['foreground/on-surface-muted']} />
+                {/* 2열은 작성자·레시피북만, 말줄임 없이 — 좁으면 다음 줄로 넘긴다 */}
+                {renderMeta(styles.gridSubtitle, {wrap: true, keys: GRID_META_KEYS})}
               </View>
-              {reviewCount > 0 && (
-                <View style={styles.gridReviewBadge}>
-                  <IconChartNoAxesGantt width={12} height={12} color={colors['foreground/on-surface-muted']} />
-                  <Text style={styles.gridSubtitle}>{reviewCount}</Text>
-                </View>
-              )}
             </View>
           )}
         </View>
@@ -1115,6 +1150,22 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     letterSpacing: -0.25,
     color: colors['foreground/on-surface'],
   },
+  overline: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    // 요리명만 살짝 띄운다 — 평가·개선점은 붙여 한 덩어리
+    marginBottom: 2,
+  },
+  // 오버라인이 있으면 세 줄이 한 덩어리로 읽히게 줄 간격을 없앤다
+  listContentTight: {
+    gap: 0,
+  },
+  overlineText: {
+    ...Typography.label.small,
+    color: colors['foreground/on-surface-muted'],
+    flexShrink: 1,
+  },
   listSubtitleRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1124,6 +1175,21 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     // 가로는 구분용으로 넓게, 세로는 좁게 분리한다.
     columnGap: Spacing.smd,
     rowGap: Spacing.xs,
+  },
+  // ↳ 아이콘과 글은 한 몸 — 메타 조각 간격(12) 대신 붙인다
+  listSubtitleRowWithIcon: {
+    columnGap: Spacing.xs,
+  },
+  listSubtitleBody: {
+    fontFamily: Typography.body.small.fontFamily,
+    fontSize: Typography.body.small.fontSize,
+    fontWeight: Typography.body.small.fontWeight as '400',
+    lineHeight: Typography.body.small.lineHeight,
+    letterSpacing: Typography.body.small.letterSpacing,
+  },
+  listSubtitleLarge: {
+    fontSize: Typography.label['large - semibold'].fontSize,
+    lineHeight: Typography.label['large - semibold'].lineHeight,
   },
   listSubtitle: {
     fontFamily: Typography.label.medium.fontFamily,

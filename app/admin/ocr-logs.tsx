@@ -21,6 +21,7 @@ import {Radius} from '@constants/tokens';
 import {Typography} from '@constants/typography';
 import type {SemanticColors} from '@constants/tokens';
 import type {OcrLogInput} from '@utils/ocrLog';
+import {goBackOr} from '@utils/navigation';
 
 interface OcrLogRow extends OcrLogInput {
   id: string;
@@ -149,7 +150,7 @@ export default function AdminOcrLogsRoute() {
 
       <FloatingNavBar
         title={t('adminOcrLogs.title')}
-        left={<NavPillButton icon={IconClose} onPress={() => router.back()} />}
+        left={<NavPillButton icon={IconClose} onPress={() => goBackOr(router)} />}
       />
 
       {viewer && (

@@ -191,6 +191,9 @@ export function BottomSheet({
   const contentTouchStartY = useRef(0);
   const contentTouchStartX = useRef(0);
   const scrollOffsetY = useRef(0);
+  // 하단 버튼 흐림을 켤지 — 내용이 넘쳐 스크롤될 때만
+  const [scrollViewH, setScrollViewH] = useState(0);
+  const [scrollContentH, setScrollContentH] = useState(0);
 
   const onDragGrant = useCallback((e: GestureResponderEvent) => {
     dragStartY.current = e.nativeEvent.pageY;
@@ -323,6 +326,8 @@ export function BottomSheet({
                   bounces={false}
                   showsVerticalScrollIndicator={false}
                   style={bottomAction ? {flexShrink: 1} : undefined}
+                  onLayout={e => setScrollViewH(e.nativeEvent.layout.height)}
+                  onContentSizeChange={(_, h) => setScrollContentH(h)}
                   contentContainerStyle={[styles.content, bottomAction ? styles.contentWithAction : null]}
                   onScroll={(e) => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }}
                   scrollEventThrottle={16}
@@ -331,7 +336,10 @@ export function BottomSheet({
                 </ScrollView>
               )}
               {bottomAction ? (
-                <BottomActionBar background={backgroundColor ?? colors['surface/bright']}>
+                <BottomActionBar
+                  background={backgroundColor ?? colors['surface/bright']}
+                  // 흐림(위쪽 24px)은 내용이 스크롤될 때만 — 짧은 시트에선 마지막 줄을 덮어 버튼과 겹쳐 보였다
+                  showTopMask={!fullScreen && scrollContentH > scrollViewH + 1}>
                   {bottomAction}
                 </BottomActionBar>
               ) : null}

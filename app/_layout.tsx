@@ -595,11 +595,10 @@ function GlobalPlanSheet() {
 
   const handleSubscribePress = useCallback(async (pkg?: any) => {
     if (!user) {
-      // 게스트: PlanSheet 닫고 → AuthSheet 열기 → 성공 시 PlanSheet 재오픈
+      // 게스트: PlanSheet 닫고 → AuthSheet 열기 (성공하면 GlobalAuthSheet가 PlanSheet를 다시 연다)
+      // 로그인이 끝나면 GlobalAuthSheet가 플랜 시트를 다시 띄운다(모든 로그인 공통)
       close();
-      setTimeout(() => {
-        openAuthSheet({onSuccess: () => setTimeout(openPlanSheet, 300)});
-      }, 300);
+      setTimeout(() => openAuthSheet(), 300);
       return;
     }
     // 상품을 못 불러온 경우(결제 비활성/스토어 미등록) — 구매를 시도하지 않는다
@@ -618,9 +617,20 @@ function GlobalPlanSheet() {
   return <PlanSheet visible={visible} onClose={close} isPro={isPro} onSubscribePress={handleSubscribePress} />;
 }
 
+/**
+ * 로그인 시트 — 어디서 로그인하든 같은 순서: 로그인 → 플랜 선택 → 원래 하려던 동작.
+ * Pro가 아니면 플랜 시트를 먼저 보여주고, 닫으면 이어서 원래 동작(onSuccess)을 한다.
+ */
 function GlobalAuthSheet() {
   const {visible, close, fireSuccess} = useAuthSheet();
-  return <AuthSheet visible={visible} onClose={close} onSuccess={fireSuccess} />;
+  const {open: openPlanSheet} = usePlanSheet();
+  const {isPro} = useSubscription();
+  const handleSuccess = useCallback(() => {
+    const next = fireSuccess();
+    if (isPro) { next?.(); return; }
+    setTimeout(() => openPlanSheet({onClose: next ?? undefined}), 300);
+  }, [fireSuccess, isPro, openPlanSheet]);
+  return <AuthSheet visible={visible} onClose={close} onSuccess={handleSuccess} />;
 }
 
 // 무료 유저가 둘러보기에서 열람 가능한 레시피 수 (ExploreScreen FREE_RECIPE_COUNT와 일치)

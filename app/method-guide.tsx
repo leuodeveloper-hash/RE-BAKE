@@ -13,6 +13,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {IconArrowLeft, IconProcess} from '@components/Icon/IconIndex';
 import {PASTRY_METHODS, BAKERY_METHODS, type MethodCategory} from '@constants/bakingMethods';
+import {goBackOr} from '@utils/navigation';
 
 export default function MethodGuideRoute() {
   const styles = useThemedStyles(createStyles);
@@ -66,7 +67,7 @@ export default function MethodGuideRoute() {
       <FloatingNavBar
         title={t('methodGuide.title')}
         left={
-          <NavPillButton icon={IconArrowLeft} onPress={() => router.back()} />
+          <NavPillButton icon={IconArrowLeft} onPress={() => goBackOr(router)} />
         }
       />
     </View>

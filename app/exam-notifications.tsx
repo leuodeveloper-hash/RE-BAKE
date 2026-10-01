@@ -17,6 +17,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {IconArrowLeft, IconBellFilled, IconCircleInfo} from '@components/Icon/IconIndex';
+import {goBackOr} from '@utils/navigation';
 
 export default function ExamNotificationsRoute() {
   const styles = useThemedStyles(createStyles);
@@ -168,7 +169,7 @@ export default function ExamNotificationsRoute() {
 
       <FloatingNavBar
         left={
-          <NavPillButton icon={IconArrowLeft} onPress={() => router.back()} />
+          <NavPillButton icon={IconArrowLeft} onPress={() => goBackOr(router)} />
         }
         right={
           <NavPillButton icon={IconCircleInfo} onPress={() => router.push('/exam-schedule' as any)} />

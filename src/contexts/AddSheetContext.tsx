@@ -25,7 +25,7 @@ interface AddSheetContextValue {
   /** 편집 대상 (null이면 추가 모드) */
   cookbookEditTarget: CookbookEditTarget | null;
   setCookbookEditTarget: (target: CookbookEditTarget | null) => void;
-  /** 쿡북 추가 다이얼로그의 '공식 레시피 북' 토글 초기값 (둘러보기에서 추가 시 true) */
+  /** 레시피 북 추가 다이얼로그의 '공식 레시피 북' 토글 초기값 (둘러보기에서 추가 시 true) */
   cookbookInitialOfficial: boolean;
   setCookbookInitialOfficial: (v: boolean) => void;
   /** 레시피 북 생성 후 콜백 (RecipeEditScreen 등에서 활용) */

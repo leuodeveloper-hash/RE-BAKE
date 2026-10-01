@@ -10,7 +10,7 @@ interface AuthSheetContextValue {
   open: (opts?: OpenOptions) => void;
   close: () => void;
   /** 성공 콜백 호출 (AuthSheet 내부용) */
-  fireSuccess: () => void;
+  fireSuccess: () => (() => void) | null;
 }
 
 const AuthSheetContext = createContext<AuthSheetContextValue | null>(null);
@@ -29,11 +29,12 @@ export function AuthSheetProvider({children}: {children: React.ReactNode}) {
     onSuccessRef.current = null;
   }, []);
 
-  const fireSuccess = useCallback(() => {
+  /** 로그인 성공 — 시트를 닫고, 원래 하려던 동작(onSuccess)을 돌려준다. 실행은 호출부가 정한다 */
+  const fireSuccess = useCallback((): (() => void) | null => {
     const cb = onSuccessRef.current;
     onSuccessRef.current = null;
     setVisible(false);
-    if (cb) cb();
+    return cb;
   }, []);
 
   const value = useMemo(() => ({visible, open, close, fireSuccess}), [visible, open, close, fireSuccess]);

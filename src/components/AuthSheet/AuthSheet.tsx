@@ -5,6 +5,7 @@ import {useRouter} from 'expo-router';
 import {BottomSheet} from '@components/BottomSheet';
 import {Button} from '@components/Button';
 import {TextInput} from '@components/TextInput';
+import {InputGroup} from '@components/InputGroup';
 import {AppBar} from '@components/Navigation';
 import {IconGoogle, IconMailFilled, IconArrowLeft, IconClose} from '@components/Icon/IconIndex';
 import {useAuth} from '@contexts/AuthContext';
@@ -100,28 +101,23 @@ export function AuthSheet({visible, onClose, onSuccess}: AuthSheetProps) {
             onRightPress={handleClose}
           />
           <View style={styles.authForm}>
-          <View style={styles.authFieldGroup}>
-            <View style={styles.authFieldRow}>
-              <TextInput
-                style="ghost"
-                placeholder={t('auth.emailPlaceholder')}
-                value={email}
-                onChangeText={setEmail}
-                keyboardType="email-address"
-                autoCapitalize="none"
-              />
-            </View>
-            <View style={styles.authFieldDivider} />
-            <View style={styles.authFieldRow}>
-              <TextInput
-                style="ghost"
-                placeholder={t('auth.passwordPlaceholder')}
-                value={password}
-                onChangeText={setPassword}
-                secureTextEntry
-              />
-            </View>
-          </View>
+          <InputGroup>
+            <TextInput
+              style="ghost"
+              placeholder={t('auth.emailPlaceholder')}
+              value={email}
+              onChangeText={setEmail}
+              keyboardType="email-address"
+              autoCapitalize="none"
+            />
+            <TextInput
+              style="ghost"
+              placeholder={t('auth.passwordPlaceholder')}
+              value={password}
+              onChangeText={setPassword}
+              secureTextEntry
+            />
+          </InputGroup>
           <View style={styles.authButtons}>
             <Button
               label={isLoginMode ? t('auth.loginButton') : t('auth.signupButton')}
@@ -188,22 +184,6 @@ const createStyles = (colors: SemanticColors) =>
       paddingHorizontal: Spacing.md,
       paddingBottom: Spacing.lg,
       gap: Spacing.md,
-    },
-    authFieldGroup: {
-      backgroundColor: colors['fill/subtle'],
-      borderRadius: Radius['radius-lg'],
-      overflow: 'hidden',
-    },
-    authFieldRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      minHeight: 52,
-      paddingHorizontal: Spacing.md,
-    },
-    authFieldDivider: {
-      height: StyleSheet.hairlineWidth,
-      backgroundColor: colors['border/muted'],
-      marginHorizontal: Spacing.md,
     },
     authButtons: {
       gap: Spacing.sm,

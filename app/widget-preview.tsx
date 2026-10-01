@@ -15,6 +15,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {IconArrowLeft, IconClockFilled, IconUndo} from '@components/Icon/IconIndex';
 import {previewExamWidget, restoreExamWidget, type WidgetPreviewCase, type PreviewDiscipline} from '@utils/examWidgetSync';
+import {goBackOr} from '@utils/navigation';
 
 /**
  * 위젯 미리보기 (어드민 전용 도구).
@@ -128,7 +129,7 @@ export default function WidgetPreviewRoute() {
       </SafeAreaView>
 
       <FloatingNavBar
-        left={<NavPillButton icon={IconArrowLeft} onPress={() => router.back()} />}
+        left={<NavPillButton icon={IconArrowLeft} onPress={() => goBackOr(router)} />}
       />
     </View>
   );
