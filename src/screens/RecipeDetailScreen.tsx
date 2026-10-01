@@ -1301,6 +1301,17 @@ export function RecipeDetailScreen({
                     <Text style={styles.stepDescription}>{reviews[reviews.length - 1].improvement}</Text>
                   </ListItem>
                 ) : null}
+                {/* 회고 사진 — 과정 사진과 같은 형식(탭하면 크게) */}
+                {(reviews[reviews.length - 1].photos?.length ?? 0) > 0 ? (
+                  <ListItem showDivider={false}>
+                    <StepPhotos
+                      photos={normalizeStepPhotos(reviews[reviews.length - 1].photos!)}
+                      mode="view"
+                      paddingTop={false}
+                      onPhotoPress={i => openPhotoViewer(normalizeStepPhotos(reviews[reviews.length - 1].photos!), i)}
+                    />
+                  </ListItem>
+                ) : null}
               </Card>
             ) : (
               <Card>

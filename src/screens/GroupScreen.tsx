@@ -412,7 +412,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         onPress: () => { setRetroTarget(recipe); setShowReviewSheet(true); },
       };
     });
-    if (reviewedPacks.length + writePacks.length > 0) return [...reviewedPacks, ...writePacks];
+    // 리스트와 같은 순서 — 써야 할 것(회고를 기다려요) 먼저, 쓴 회고 다음
+    if (reviewedPacks.length + writePacks.length > 0) return [...writePacks, ...reviewedPacks];
     {
       // 레시피가 하나도 없으면 예시 회고(흐리게) — 누르면 레시피 목록으로
       return [{
@@ -822,8 +823,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
             {/* 회고 노트 섹션 */}
             {viewMode === 'list' && showRetrospectiveSection && (
               <View style={styles.section}>
-                {/* 레시피북·공법 리스트와 같은 구성 — 머리글 SectionHeader, 행은 RecipeCard(이름·메타·회고 수) */}
-                <SectionHeader title={t('group.retroNote')} style={styles.sectionHeader} />
+                {/* 레시피북·공법 리스트와 같은 구성 — 머리글 SectionHeader, 행은 RecipeCard.
+                    써야 할 것(회고를 기다려요)과 쓴 것(회고 노트)을 구역으로 나눈다 — 한 목록에 섞이면 애매했다 */}
                 {/* 팩뷰와 같은 구성: 회고 있는 레시피(최근 회고) → 회고 쓰기 3개 → 둘 다 없으면 예시 */}
                 {retrospectives.length + reviewCandidates.length > 0 ? (
                   <View>
@@ -858,7 +859,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                           write: true,
                         })),
                       ];
-                      return rows.map((row, idx) => (
+                      const renderRow = (row: typeof rows[number], idx: number, list: typeof rows) => (
                         <RecipeCard
                           key={row.key}
                           id={row.recipe.id}
@@ -876,12 +877,32 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                           paperTitle={row.recipe.title}
                           layout="list"
                           onPress={row.onPress}
-                          hideDivider={idx === rows.length - 1}
+                          hideDivider={idx === list.length - 1}
                         />
-                      ));
+                      );
+                      const waiting = rows.filter(r => r.write);
+                      const written = rows.filter(r => !r.write);
+                      return (
+                        <>
+                          {waiting.length > 0 && (
+                            <>
+                              <SectionHeader title={t('retrospectiveNote.waitingTitle')} style={styles.sectionHeader} />
+                              {waiting.map((row, idx) => renderRow(row, idx, waiting))}
+                            </>
+                          )}
+                          {written.length > 0 && (
+                            <>
+                              <SectionHeader title={t('group.retroNote')} style={styles.sectionHeader} />
+                              {written.map((row, idx) => renderRow(row, idx, written))}
+                            </>
+                          )}
+                        </>
+                      );
                     })()}
                   </View>
                 ) : (
+                  <>
+                  <SectionHeader title={t('group.retroNote')} style={styles.sectionHeader} />
                   <View style={{opacity: 0.5}}>
                     <RecipeCard
                       title={t('retrospectiveNote.exampleEvaluation')}
@@ -893,6 +914,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                       hideDivider
                     />
                   </View>
+                  </>
                 )}
               </View>
             )}

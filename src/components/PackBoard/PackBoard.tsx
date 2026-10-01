@@ -5,6 +5,10 @@ import {RetrospectiveNote} from './RetrospectiveNote';
 
 export interface PackBoardItem extends RecipePackProps {
   id: string;
+  /** 팩 대신 그릴 화면(예: 게스트 랜딩 카드). 기울이지 않는다 */
+  custom?: React.ReactNode;
+  /** custom 화면의 크기 — 주변 팩을 이만큼 비켜 놓는다(없으면 팩 크기로 본다) */
+  customSize?: {w: number; h: number};
 }
 
 export interface PackBoardProps {
@@ -17,6 +21,8 @@ export interface PackBoardProps {
   entrance?: boolean;
   /** 회차 플로우 펼침 시: 이 id 팩은 숨김(오버레이가 대신 그림), 나머지는 흐리게 */
   dimExceptId?: string;
+  /** 처음 화면 가운데에 둘 지점(보드 좌표) — custom(랜딩 카드)이 있으면 그 중심을 알려준다 */
+  onFocusPoint?: (p: {x: number; y: number} | null) => void;
 }
 
 // 스택 + 라벨 + 여백. 팩(202)과 차이가 클수록 보드가 길어지고, 화면보다
@@ -43,7 +49,7 @@ function seeded(seed: number): number {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
-export function PackBoard({items, height, boardWidth, entrance = false, dimExceptId}: PackBoardProps) {
+export function PackBoard({items, height, boardWidth, entrance = false, dimExceptId, onFocusPoint}: PackBoardProps) {
   const intro = useRef(new Animated.Value(entrance ? 0 : 1)).current;
 
   const {placed, width, contentHeight, originX, originY} = useMemo(() => {
@@ -62,7 +68,11 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
     const fitCols = Math.max(1, Math.floor(innerW / cellW));
     // 화면에 들어가는 수보다 두 열 넓게 — 한 열만 더하면 넘치는 폭이 100px도
     // 안 돼 좌우로 거의 못 움직인다
-    const columns = Math.max(1, Math.min(fitCols + 2, items.length));
+    // 팩이 많으면 아래로만 길어지지 않게 — 보드를 가로로 조금 넓게(가로 ≈ 세로의 1.4배) 펼친다.
+    // 정사각으로 맞추면 흔들림·여백 탓에 세로가 더 길어져 위아래 스크롤만 많았다.
+    const BOARD_ASPECT = 1.4; // 1이면 세로만, 2면 가로만 스크롤돼 그 사이
+    const squareCols = Math.ceil(Math.sqrt(items.length * (ROW_HEIGHT / cellW) * BOARD_ASPECT));
+    const columns = Math.max(1, Math.min(Math.max(fitCols + 2, squareCols), items.length));
     const rows = Math.ceil(items.length / columns);
     const vOffset = PAD_V;
 
@@ -91,16 +101,18 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
       const colOffset = 0;
 
       // 행 단위 stagger 대신 per-item 랜덤 오프셋 → 두 줄 격자처럼 보이지 않게 흩뿌림
-      // 흔들림도 줄인다 — 흩어진 느낌은 남기고 틈은 덜 벌어지게
-      const jitterX = (seeded(h) - 0.5) * cellW * 0.3;
-      const jitterY = (seeded(h + 7) - 0.5) * (slackV + 8);
-      // 사진+종이 덩어리만 살짝 기울인다(뱃지는 RecipePack에서 제외)
-      const rotate = (seeded(h + 5) - 0.5) * 5; // ±2.5deg
+      // 책상에 흩뿌린 느낌 — 위치를 조금 더 흔들되 서로 겹치진 않을 만큼
+      const jitterX = (seeded(h) - 0.5) * cellW * 0.4;
+      const jitterY = (seeded(h + 7) - 0.5) * (slackV + 24);
+      // 사진+종이 덩어리를 툭 던져 둔 듯 기울인다(뱃지는 RecipePack에서 제외)
+      const rotate = (seeded(h + 5) - 0.5) * 14; // ±7deg
 
       let top = vOffset + colOffset + row * ROW_HEIGHT + slackV / 2 + jitterY;
       // 화면 높이로 가두지 않는다 — 아래로 쌓여야 세로로 움직일 수 있다
       top = Math.max(PAD_V, top);
-      const left = PAD_H + col * cellW + jitterX;
+      // 홀수 줄은 반 칸 옆으로 — 바둑판처럼 줄이 맞아 보이지 않게
+      const stagger = row % 2 === 1 ? cellW / 2 : 0;
+      const left = PAD_H + col * cellW + stagger + jitterX;
 
       // 뱃지 위치: id 시드로 결정적 랜덤. 카드 1장짜리(짧은 팩)는 우측에 두면 여백에
       // 떠 보이므로 좌측/하단중앙만, 여러 장 펼쳐진 긴 팩은 5개 위치 전부에서 랜덤.
@@ -116,15 +128,77 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
 
     // 보드 높이는 팩이 실제로 차지한 만큼 — height(뷰포트 전체)를 쓰면
     // 팩 아래 빈 공간까지 콘텐츠로 잡혀, 중앙 정렬해도 위가 뜬다.
+    // 가운데 랜딩 카드(custom) 주위는 비운다 — 팩이 바짝 붙으면 헤드라인·버튼이 묻힌다.
+    // 카드 둘레 여백 구역에 걸치는 팩은 카드 중심에서 바깥 방향으로 밀어낸다.
+    const hero = placed.find(p => p.item.custom);
+    if (hero) {
+      const CLEAR = 44; // 카드 둘레 여백 — 64면 카드 주변이 너무 비었다
+      const heroW = hero.item.customSize?.w ?? PACK_WIDTH;
+      const heroH = hero.item.customSize?.h ?? PACK_HEIGHT;
+      // 카드를 자기 칸 가운데로 — 팩보다 크면 오른쪽·아래로 삐져나온다
+      hero.left -= (heroW - PACK_WIDTH) / 2;
+      hero.top -= (heroH - PACK_HEIGHT) / 2;
+      hero.rotate = 0;
+      const hx = hero.left + heroW / 2;
+      const hy = hero.top + heroH / 2;
+      // 카드 중심과 팩 중심 사이 최소 거리 = 두 반폭의 합 + 여백
+      const halfW = heroW / 2 + PACK_WIDTH / 2 + CLEAR;
+      const halfH = heroH / 2 + PACK_HEIGHT / 2 + CLEAR;
+      for (const p of placed) {
+        if (p === hero) continue;
+        const cx = p.left + PACK_WIDTH / 2;
+        const cy = p.top + PACK_HEIGHT / 2;
+        let dx = cx - hx;
+        let dy = cy - hy;
+        if (dx === 0 && dy === 0) dx = 1;
+        // 카드 둘레 타원 안에 들어온 팩만 — 축 하나로 경계까지 딱 밀면 줄 맞춰 비켜난 듯 보인다.
+        // 중심에서 바깥 방향(대각선 포함)으로, 팩마다 조금씩 다른 거리만큼 민다.
+        const d = Math.hypot(dx / halfW, dy / halfH);
+        if (d >= 1) continue;
+        const extra = 1 + seeded(hashStr(p.item.id) + 11) * 0.25; // 1~1.25배 — 너무 멀리 밀리지 않게
+        const k = extra / Math.max(d, 0.05);
+        p.left += dx * k - dx;
+        p.top += dy * k - dy;
+      }
+      // 밀려서 보드 밖(왼쪽·위)으로 나간 만큼 전체를 옮긴다
+      const minLeft = Math.min(...placed.map(p => p.left));
+      const minTop = Math.min(...placed.map(p => p.top));
+      const fixX = minLeft < PAD_H ? PAD_H - minLeft : 0;
+      const fixY = minTop < PAD_V ? PAD_V - minTop : 0;
+      if (fixX || fixY) for (const p of placed) { p.left += fixX; p.top += fixY; }
+      maxRight = Math.max(...placed.map(p => p.left + (p.item.customSize?.w ?? PACK_WIDTH)));
+    }
     const maxBottom = placed.reduce((m, p) => Math.max(m, p.top + PACK_HEIGHT), 0);
+    // 상하좌우 어느 쪽으로든 움직일 수 있게 — 보드가 화면보다 작으면 그 방향은 스크롤이 안 된다.
+    // 화면의 1.3배를 최소로 잡고, 남는 만큼 팩 덩어리를 가운데로 민다.
+    const minW = (boardWidth ?? 0) * 1.3;
+    const minH = height * 1.3;
+    const rawW = maxRight + PAD_H;
+    const rawH = maxBottom + PAD_V;
+    const shiftX = Math.max(0, (minW - rawW) / 2);
+    const shiftY = Math.max(0, (minH - rawH) / 2);
+    if (shiftX > 0 || shiftY > 0) {
+      for (const p of placed) { p.left += shiftX; p.top += shiftY; }
+    }
     return {
       placed,
-      width: maxRight + PAD_H,
-      contentHeight: maxBottom + PAD_V,
+      width: Math.max(rawW, minW),
+      contentHeight: Math.max(rawH, minH),
       originX: 0,
       originY: height / 2 - PACK_HEIGHT / 2,
     };
   }, [items, height, boardWidth]);
+
+  // 랜딩 카드가 있으면 그 중심을 캔버스에 알린다 — 들어갈 때 화면 정중앙에 두려고
+  const focus = useMemo(() => {
+    const hero = placed.find(p => p.item.custom);
+    if (!hero) return null;
+    return {
+      x: hero.left + (hero.item.customSize?.w ?? PACK_WIDTH) / 2,
+      y: hero.top + (hero.item.customSize?.h ?? PACK_HEIGHT) / 2,
+    };
+  }, [placed]);
+  React.useEffect(() => { onFocusPoint?.(focus); }, [focus, onFocusPoint]);
 
   // 등장 애니메이션 (부드럽게: 적은 튀어나옴 + 완만한 스태거)
   React.useEffect(() => {
@@ -179,7 +253,9 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
             ]}>
             {/* 활성(원본)은 오버레이가 맨 위에 그리므로 보드에선 숨김 */}
             <View style={{opacity: isActive ? 0 : dimmed ? 0.5 : 1}}>
-              {item.variant === 'note' ? (
+              {item.custom ? (
+                item.custom
+              ) : item.variant === 'note' ? (
                 <RetrospectiveNote {...item} rotate={rotate} />
               ) : (
                 <RecipePack

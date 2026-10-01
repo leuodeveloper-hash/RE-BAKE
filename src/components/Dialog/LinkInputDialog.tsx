@@ -1,5 +1,10 @@
-import React, {useEffect, useState} from 'react';
-import {StyleSheet, View} from 'react-native';
+import React, {useEffect, useMemo, useState} from 'react';
+import {ScrollView, StyleSheet, View} from 'react-native';
+import {IconButton} from '@components/IconButton';
+import {ListItem} from '@components/ListItem';
+import {IconAdd, IconClose, IconBookFilled, IconExprolerBookFilled} from '@components/Icon/IconIndex';
+import {useRecipes} from '@contexts/RecipeContext';
+import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
 import {IconLink} from '@components/Icon/IconIndex';
@@ -32,11 +37,32 @@ export function LinkInputDialog({
   const {t} = useTranslation();
   const [url, setUrl] = useState(initialUrl);
   const [label, setLabel] = useState(initialLabel);
+  // 주소 칸 뒤 [+] — 다른 레시피를 골라 링크로 건다(앱 안에서 그 레시피로 이동)
+  const [picking, setPicking] = useState(false);
+  const [query, setQuery] = useState('');
+  const {recipes} = useRecipes();
+  const {recipes: exploreRecipes} = useExploreRecipeContext();
 
   // 열릴 때마다 현재 값으로 초기화
   useEffect(() => {
-    if (visible) { setUrl(initialUrl); setLabel(initialLabel); }
+    if (visible) { setUrl(initialUrl); setLabel(initialLabel); setPicking(false); setQuery(''); }
   }, [visible, initialUrl, initialLabel]);
+
+  // 내 레시피 + 둘러보기(공식) — 이름으로 찾는다
+  const candidates = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    const all = [
+      ...recipes.map(r => ({recipe: r, official: false})),
+      ...exploreRecipes.filter(r => !r.hidden).map(r => ({recipe: r, official: true})),
+    ];
+    return (q ? all.filter(({recipe}) => recipe.title.toLowerCase().includes(q)) : all).slice(0, 30);
+  }, [recipes, exploreRecipes, query]);
+
+  const pickRecipe = (id: string, title: string) => {
+    setUrl(`recipe/${id}`);
+    if (!label.trim()) setLabel(title);
+    setPicking(false);
+  };
 
   return (
     <Dialog
@@ -60,17 +86,50 @@ export function LinkInputDialog({
           placeholder={t('recipeEdit.linkLabelPlaceholder')}
           clearable
         />
-        <TextInput
-          label={t('recipeEdit.linkUrl')}
-          value={url}
-          onChangeText={setUrl}
-          placeholder="https://"
-          keyboardType="url"
-          autoCapitalize="none"
-          autoCorrect={false}
-          autoFocus
-          clearable
-        />
+        <View style={styles.urlRow}>
+          <View style={styles.urlInput}>
+            <TextInput
+              label={t('recipeEdit.linkUrl')}
+              value={url}
+              onChangeText={setUrl}
+              placeholder="https://"
+              keyboardType="url"
+              autoCapitalize="none"
+              autoCorrect={false}
+              autoFocus
+              clearable
+            />
+          </View>
+          <IconButton
+            icon={picking ? IconClose : IconAdd}
+            variant="soft"
+            size="medium"
+            onPress={() => setPicking(p => !p)}
+          />
+        </View>
+        {/* 레시피 고르기 — 고르면 주소가 recipe/id로 채워진다 */}
+        {picking && (
+          <View style={styles.picker}>
+            <TextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder={t('recipeEdit.linkRecipeSearch')}
+              clearable
+              autoFocus
+            />
+            <ScrollView style={styles.pickerList} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+              {candidates.map(({recipe, official}, i) => (
+                <ListItem
+                  key={`${official ? 'e' : 'm'}-${recipe.id}`}
+                  title={recipe.title}
+                  leading={{type: 'icon', icon: official ? IconExprolerBookFilled : IconBookFilled}}
+                  showDivider={i < candidates.length - 1}
+                  onPress={() => pickRecipe(recipe.id, recipe.title)}
+                />
+              ))}
+            </ScrollView>
+          </View>
+        )}
       </View>
     </Dialog>
   );
@@ -79,6 +138,20 @@ export function LinkInputDialog({
 const createStyles = (_colors: SemanticColors) => StyleSheet.create({
   body: {
     gap: Spacing.md,
+  },
+  urlRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    gap: Spacing.sm,
+  },
+  urlInput: {
+    flex: 1,
+  },
+  picker: {
+    gap: Spacing.sm,
+  },
+  pickerList: {
+    maxHeight: 240,
   },
 });
 

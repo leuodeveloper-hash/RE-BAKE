@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import {doc, getDoc, setDoc} from 'firebase/firestore';
 import {db} from '@config/firebase';
 import {useAuth} from '@contexts/AuthContext';
+import {isLocalUri, uploadImageTo} from '@utils/imageUpload';
 import type {ReviewData} from '@components/Dialog/ReviewDialog';
 
 const CACHE_KEY = 'recipe_reviews';
@@ -74,27 +75,58 @@ function useRecipeReviewsState() {
    * 회고 저장. 넘기지 않은 칸은 기존 값을 둔다 — 만들었어요 시트처럼 평가만 받는
    * 곳에서 저장해도 전에 써 둔 개선점이 지워지지 않게(레시피당 회고는 하나라 덮어쓴다).
    */
+  /** 회고 맵을 캐시·계정에 쓴다 */
+  const persist = useCallback((next: RecipeReviews) => {
+    AsyncStorage.setItem(CACHE_KEY, JSON.stringify(next)).catch(() => {});
+    const uid = uidRef.current;
+    if (uid) {
+      // merge: users 문서엔 handle 등 다른 필드가 있어 통째로 덮으면 안 된다
+      setDoc(doc(db, 'users', uid), {recipeReviews: next}, {merge: true})
+        .catch(e => console.warn('[useRecipeReviews] 계정 회고 저장 실패:', e));
+    }
+  }, []);
+
   const saveReview = useCallback((recipeId: string, input: Partial<ReviewData>) => {
+    let saved: ReviewData | undefined;
     setReviews(prev => {
+      const photos = input.photos ?? prev[recipeId]?.photos ?? [];
       const review: ReviewData = {
         evaluation: input.evaluation ?? prev[recipeId]?.evaluation ?? '',
         improvement: input.improvement ?? prev[recipeId]?.improvement ?? '',
+        ...(photos.length > 0 ? {photos} : {}),
       };
       const next = {...prev};
-      const empty = !review.evaluation?.trim() && !review.improvement?.trim();
+      const empty = !review.evaluation?.trim() && !review.improvement?.trim() && photos.length === 0;
       if (empty) delete next[recipeId];
       else next[recipeId] = review;
-
-      AsyncStorage.setItem(CACHE_KEY, JSON.stringify(next)).catch(() => {});
-      const uid = uidRef.current;
-      if (uid) {
-        // merge: users 문서엔 handle 등 다른 필드가 있어 통째로 덮으면 안 된다
-        setDoc(doc(db, 'users', uid), {recipeReviews: next}, {merge: true})
-          .catch(e => console.warn('[useRecipeReviews] 계정 회고 저장 실패:', e));
-      }
+      saved = empty ? undefined : review;
+      persist(next);
       return next;
     });
-  }, []);
+
+    // 사진은 로그인 상태면 Storage에 올려 URL로 바꾼다 — 로컬 경로를 계정에 두면
+    // 다른 기기에서 안 보이고, 웹 data: URL은 문서 크기 한도(1MB)를 넘긴다.
+    const uid = uidRef.current;
+    const local = saved?.photos?.filter(isLocalUri) ?? [];
+    if (!uid || local.length === 0) return;
+    (async () => {
+      const uploaded = await Promise.all((saved!.photos ?? []).map(async (uri, i) => {
+        if (!isLocalUri(uri)) return uri;
+        try {
+          return await uploadImageTo(uri, `review_photos/${uid}/${recipeId}_p${i}_${Date.now()}`);
+        } catch (e) {
+          console.warn('[useRecipeReviews] 회고 사진 업로드 실패:', e);
+          return uri;
+        }
+      }));
+      setReviews(prev => {
+        if (!prev[recipeId]) return prev;
+        const next = {...prev, [recipeId]: {...prev[recipeId], photos: uploaded}};
+        persist(next);
+        return next;
+      });
+    })();
+  }, [persist]);
 
   const reviewOf = useCallback((recipeId: string) => reviews[recipeId], [reviews]);
 
@@ -106,7 +138,7 @@ function useRecipeReviewsState() {
    */
   const reviewsOf = useCallback((recipe?: {id: string; reviews?: ReviewData[]}): ReviewData[] => {
     if (!recipe) return [];
-    const own = (recipe.reviews ?? []).filter(rv => rv.evaluation?.trim() || rv.improvement?.trim());
+    const own = (recipe.reviews ?? []).filter(rv => rv.evaluation?.trim() || rv.improvement?.trim() || rv.photos?.length);
     const mine = reviews[recipe.id];
     return mine ? [...own, mine] : own;
   }, [reviews]);

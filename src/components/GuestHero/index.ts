@@ -1,0 +1,1 @@
+export {GuestHero} from './GuestHero';

@@ -1,5 +1,6 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {View, StyleSheet} from 'react-native';
+import {GuestHero} from '@components/GuestHero';
 import {useRouter} from 'expo-router';
 import {doc, updateDoc, deleteField, deleteDoc} from 'firebase/firestore';
 import {ExploreScreen} from '@screens/ExploreScreen';
@@ -165,6 +166,8 @@ export default function ExploreRoute() {
   return (
     <View style={[styles.container, {backgroundColor: colors['surface/dim']}]}>
       <ExploreScreen
+        // 게스트: 팩 보기 한가운데 랜딩 카드 — 로그인 → 플랜(공통 흐름)
+        guestHero={!user ? <GuestHero onLogin={() => openAuthSheet()} /> : undefined}
         data={exploreRecipes}
         loading={exploreLoading}
         isAdmin={isAdmin}

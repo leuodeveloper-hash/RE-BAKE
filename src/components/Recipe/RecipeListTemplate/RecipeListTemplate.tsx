@@ -268,6 +268,8 @@ export interface RecipeListHelpers {
 }
 
 export interface RecipeListTemplateProps {
+  /** 팩 보기 한가운데에 놓을 화면(게스트 랜딩 카드) */
+  packHero?: React.ReactNode;
   data: Recipe[];
   loading?: boolean;
   onRecipePress: (recipe: Recipe) => void;
@@ -313,6 +315,7 @@ export interface RecipeListTemplateProps {
 }
 
 export function RecipeListTemplate({
+  packHero,
   data,
   loading = false,
   onRecipePress,
@@ -638,6 +641,7 @@ export function RecipeListTemplate({
                 insetBottom={TABBAR_BOTTOM_SPACE}
                 recipes={loading || !layoutLoaded ? [] : sortedData}
                 lockedRecipeIds={lockedRecipeIds}
+                hero={packHero}
                 onRecipePress={(id) => {
                   const r = sortedData.find(x => x.id === id) ?? ({id} as Recipe);
                   onRecipePress(r);

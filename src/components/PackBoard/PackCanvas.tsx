@@ -1,4 +1,5 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
+import {TABLET_BREAKPOINT} from '@constants/breakpoints';
 import {LayoutChangeEvent, Platform, StyleSheet, View, type ViewStyle} from 'react-native';
 import {Gesture, GestureDetector} from 'react-native-gesture-handler';
 import Animated, {runOnJS, useAnimatedStyle, useSharedValue, withDecay, withSpring} from 'react-native-reanimated';
@@ -12,6 +13,8 @@ const DOT_GAP = 22;
 const DOT_R = 1;
 
 const MIN_ZOOM = 0.4;
+/** 모바일 진입 배율 — 기본 배율의 이만큼(팩이 조금 작게, 한 화면에 더 많이) */
+const MOBILE_SCALE = 0.8;
 const MAX_ZOOM = 2.4;
 // 줌 경계 밖 고무줄 저항(클수록 더 늘어남) + 릴리즈 스냅 스프링
 const ZOOM_RUBBER = 0.35;
@@ -47,6 +50,8 @@ export function PackCanvas({items, entrance, dimExceptId, insetTop = 0, insetBot
   const colors = useColors();
   const [viewport, setViewport] = useState({w: 0, h: 0});
   const [content, setContent] = useState({w: 0, h: 0});
+  // 처음 화면 가운데에 둘 지점(랜딩 카드 중심) — 없으면 보드 가운데
+  const [focusPoint, setFocusPoint] = useState<{x: number; y: number} | null>(null);
 
   // 보드 높이 = 뷰포트 높이(세로는 창에 맞춰 채움). 항목이 많으면 가로로 길어지고,
   // 넘치는 가로는 좌우 스와이프(팬)/핀치로 로밍.
@@ -175,12 +180,13 @@ export function PackCanvas({items, entrance, dimExceptId, insetTop = 0, insetBot
   const lastFitKey = useRef('');
   useEffect(() => {
     if (viewport.w <= 0 || content.w <= 0) return;
-    const key = `${Math.round(viewport.w)}x${Math.round(viewport.h)}|${Math.round(content.w)}x${Math.round(content.h)}`;
+    const key = `${Math.round(viewport.w)}x${Math.round(viewport.h)}|${Math.round(content.w)}x${Math.round(content.h)}|${focusPoint ? `${Math.round(focusPoint.x)},${Math.round(focusPoint.y)}` : ''}`;
     if (lastFitKey.current === key) return;
     lastFitKey.current = key;
     // 진입 배율은 줄이지 않는다 — 세로에 맞춰 축소하면 팩이 작아져 뭉쳐 보인다.
     // 넘치는 만큼은 스크롤로 본다.
-    const fit = BASE_SCALE;
+    // 모바일(좁은 화면)은 한 화면에 팩이 너무 적게 보인다 — 진입 배율을 조금 줄인다
+    const fit = viewport.w < TABLET_BREAKPOINT ? BASE_SCALE * MOBILE_SCALE : BASE_SCALE;
     fitScale.value = fit;
     scale.value = fit;
     // 줌아웃 하한: 가로·세로 모두 들어가는 배율(=전체가 다 보이는 지점)
@@ -189,14 +195,20 @@ export function PackCanvas({items, entrance, dimExceptId, insetTop = 0, insetBot
     minScale.value = clampW(
       Math.min(viewport.w / content.w, viewport.h / content.h),
       0.55,
-      BASE_SCALE,
+      fit,
     );
     // 상하좌우 중앙 — 위/아래 UI를 뺀 실제로 보이는 영역 기준이라야
     // 가려지는 쪽으로 치우치지 않는다
     const visibleH = viewport.h - insetTop - insetBottom;
-    ty.value = insetTop + (visibleH - content.h * fit) / 2;
-    tx.value = (viewport.w - content.w * fit) / 2;
-  }, [viewport, content, scale, tx, ty, fitScale, minScale, insetTop, insetBottom]);
+    if (focusPoint) {
+      // 랜딩 카드를 보이는 영역 정중앙에
+      ty.value = insetTop + visibleH / 2 - focusPoint.y * fit;
+      tx.value = viewport.w / 2 - focusPoint.x * fit;
+    } else {
+      ty.value = insetTop + (visibleH - content.h * fit) / 2;
+      tx.value = (viewport.w - content.w * fit) / 2;
+    }
+  }, [viewport, content, scale, tx, ty, fitScale, minScale, insetTop, insetBottom, focusPoint]);
 
   return (
     <View style={styles.viewport} onLayout={handleViewportLayout}>
@@ -226,7 +238,7 @@ export function PackCanvas({items, entrance, dimExceptId, insetTop = 0, insetBot
           ]}
           pointerEvents="box-none">
           <View onLayout={handleContentLayout}>
-            {boardHeight > 0 && <PackBoard items={guardedItems} height={boardHeight} boardWidth={viewport.w} entrance={entrance} dimExceptId={dimExceptId} />}
+            {boardHeight > 0 && <PackBoard items={guardedItems} height={boardHeight} boardWidth={viewport.w} entrance={entrance} dimExceptId={dimExceptId} onFocusPoint={setFocusPoint} />}
           </View>
         </Animated.View>
       </GestureDetector>

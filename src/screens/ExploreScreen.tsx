@@ -53,6 +53,8 @@ const makeAdminCardMenuItems = (t: (key: string, params?: Record<string, unknown
   getRecipeMenuItems({t, showPin: true, isPinned, showImport: true, showEdit: true, showDelete: true});
 
 export interface ExploreScreenProps {
+  /** 게스트 랜딩 카드 — 팩 보기 한가운데 */
+  guestHero?: React.ReactNode;
   data: Recipe[];
   loading?: boolean;
   isAdmin?: boolean;
@@ -76,6 +78,7 @@ export interface ExploreScreenProps {
 }
 
 export function ExploreScreen({
+  guestHero,
   data,
   loading = false,
   isAdmin = false,
@@ -348,6 +351,7 @@ export function ExploreScreen({
   return (
     <>
     <RecipeListTemplate
+      packHero={guestHero}
       data={paywallData}
       loading={loading}
       authorHandle="bakey"

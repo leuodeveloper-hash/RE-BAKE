@@ -10,7 +10,7 @@ import {usePressScale} from '@hooks/usePressScale';
 import {GradientGlow} from './GradientGlow';
 
 export type ButtonVariant = 'filled' | 'soft' | 'outlined' | 'ghost';
-export type ButtonSize = 'small' | 'medium';
+export type ButtonSize = 'small' | 'medium' | 'large';
 export type ButtonShape = 'pill' | 'square';
 
 export interface ButtonProps {
@@ -39,6 +39,8 @@ export interface ButtonProps {
 const SIZE_CONFIG = {
   small: {height: 32, paddingHorizontal: Spacing.smd, gap: 4, borderRadius: Radius['radius-full']},
   medium: {height: 48, paddingHorizontal: 20, gap: 6, borderRadius: Radius['radius-full']},
+  // 랜딩처럼 화면의 주인공 버튼 — medium보다 한 단계 크게
+  large: {height: 56, paddingHorizontal: 28, gap: 8, borderRadius: Radius['radius-full']},
 } as const;
 
 export function Button({
@@ -153,7 +155,7 @@ export function Button({
             ) : (
               Icon && <Icon width={18} height={18} color={getTextColor()} />
             )}
-            <Text style={[styles.label, {color: getTextColor()}]}>{label}</Text>
+            <Text style={[styles.label, size === 'large' && styles.labelLarge, {color: getTextColor()}]}>{label}</Text>
             {/* 라벨과 구분되게 조금 띄우고 옅게 */}
             {!loading && trailingText ? (
               <Text style={[styles.label, styles.trailingText, {color: getTextColor()}]}>{trailingText}</Text>
@@ -170,6 +172,10 @@ const styles = StyleSheet.create({
   trailingText: {
     marginLeft: 4,
     opacity: 0.5,
+  },
+  labelLarge: {
+    fontSize: 17,
+    lineHeight: 22,
   },
   label: {
     fontFamily: Typography.label['xlarge - semibold'].fontFamily,

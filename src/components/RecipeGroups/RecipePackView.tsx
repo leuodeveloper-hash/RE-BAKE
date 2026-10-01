@@ -13,6 +13,8 @@ export interface RecipePackViewProps {
   onRecipePress?: (recipeId: string) => void;
   /** 잠긴 레시피 id (둘러보기 무료 유저) — 뱃지에 자물쇠 */
   lockedRecipeIds?: Set<string>;
+  /** 보드 한가운데(첫 칸)에 놓을 화면 — 게스트 랜딩 카드 */
+  hero?: React.ReactNode;
 }
 
 /**
@@ -20,7 +22,7 @@ export interface RecipePackViewProps {
  * 묶음이 아니라 레시피=팩 (전체 축은 묶는 기준이 없으므로 레시피 그대로 팩화).
  * 탭하면 해당 레시피 상세로 이동.
  */
-export function RecipePackView({recipes, onRecipePress, lockedRecipeIds, insetTop, insetBottom}: RecipePackViewProps) {
+export function RecipePackView({recipes, onRecipePress, lockedRecipeIds, insetTop, insetBottom, hero}: RecipePackViewProps) {
   const packs = useMemo<PackBoardItem[]>(() => {
     // 회차(remakeGroup)는 최신 1개로 묶음 — 3회차여도 1팩(1개 레시피로 계산)
     const byGroup = new Map<string, Recipe>();
@@ -29,7 +31,7 @@ export function RecipePackView({recipes, onRecipePress, lockedRecipeIds, insetTo
       const ex = byGroup.get(key);
       if (!ex || parseSession(r.session).current > parseSession(ex.session).current) byGroup.set(key, r);
     }
-    return [...byGroup.values()].map(r => ({
+    const recipePacks: PackBoardItem[] = [...byGroup.values()].map(r => ({
       id: r.id,
       title: r.title,
       subtitle: r.cookbook || '',
@@ -37,7 +39,12 @@ export function RecipePackView({recipes, onRecipePress, lockedRecipeIds, insetTo
       cards: recipeCoverCards([r]),
       onPress: () => onRecipePress?.(r.id),
     }));
-  }, [recipes, onRecipePress, lockedRecipeIds]);
+    // 보드는 첫 항목을 정중앙에 둔다 — 랜딩 카드를 맨 앞에 넣으면 팩들이 그 주위로 퍼진다
+    return hero && recipePacks.length > 0
+      // 크기는 GuestHero(폭 320, 로고·헤드라인·서브카피·버튼 높이)와 맞춘다
+      ? [{id: '__hero__', title: '', subtitle: '', cards: [], custom: hero, customSize: {w: 350, h: 360}}, ...recipePacks]
+      : recipePacks;
+  }, [recipes, onRecipePress, lockedRecipeIds, hero]);
 
   return <PackCanvas items={packs} insetTop={insetTop} insetBottom={insetBottom} />;
 }

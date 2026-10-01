@@ -1,5 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
+import {StepPhotos} from '@components/StepPhotos';
+import {normalizeStepPhotos} from '@utils/stepPhotos';
 import {BottomSheet} from './BottomSheet';
 import {TextInput as StyledTextInput} from '@components/TextInput';
 import {RecipeCard} from '@components/Recipe/RecipeCard';
@@ -340,8 +342,8 @@ export function ReviewLogSheet({
                 <View key={session.id}>
                   {session.reviews.length > 0 ? (
                     session.reviews.map((rv, j) => (
+                      <React.Fragment key={`${session.id}-${j}`}>
                       <RecipeCard
-                        key={`${session.id}-${j}`}
                         title={rv.evaluation || ''}
                         customSubtitle={rv.improvement || undefined}
                         subtitleIcon={rv.improvement ? IconCornerDownRight : undefined}
@@ -356,6 +358,13 @@ export function ReviewLogSheet({
                           ? () => onEditReview(session.id)
                           : isMulti ? () => { onClose(); onRecipePress?.(session.id); } : undefined}
                       />
+                      {/* 회고 사진 — 과정 사진과 같은 형식(탭하면 크게) */}
+                      {(rv.photos?.length ?? 0) > 0 && (
+                        <View style={styles.reviewPhotos}>
+                          <StepPhotos photos={normalizeStepPhotos(rv.photos!)} mode="view" paddingTop={false} />
+                        </View>
+                      )}
+                      </React.Fragment>
                     ))
                   ) : (
                     <RecipeCard
@@ -385,6 +394,10 @@ export function ReviewLogSheet({
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  reviewPhotos: {
+    paddingHorizontal: Spacing.md,
+    paddingBottom: Spacing.sm,
+  },
   writeList: {
     alignSelf: 'stretch',
     gap: Spacing.xs,
