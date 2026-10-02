@@ -352,6 +352,8 @@ export function ExploreScreen({
     <>
     <RecipeListTemplate
       packHero={guestHero}
+      // 로그인 전 첫 화면은 항상 팩뷰 랜딩 — 저장된 보기(기본 그리드)를 따르면 랜딩 카드가 안 보였다
+      forceLayout={guestHero ? 'pack' : undefined}
       data={paywallData}
       loading={loading}
       authorHandle="bakey"
