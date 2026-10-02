@@ -239,8 +239,10 @@ const createStyles = (colors: SemanticColors) =>
     numberContainer: {
       backgroundColor: colors['surface/container'],
     },
+    // 오른쪽 값 — 다른 줄의 값(마지막 동기화, 레시피북 이름 등)과 같은 body.medium.
+    // label.medium(12)이라 스탬프북 개수만 한 단계 작아 보였다.
     trailingValue: {
-      ...Typography.label.medium,
+      ...Typography.body.medium,
       color: colors['foreground/on-surface-muted'],
     },
     numberText: {

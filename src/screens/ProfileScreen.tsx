@@ -479,9 +479,7 @@ export function ProfileScreen({
                 <ListItem
                   title={t('profile.lastSync')}
                   leading={{type: 'icon', icon: IconCloudFilled}}
-                  trailing={{type: 'custom', element: (
-                    <Text style={styles.syncTime}>{syncLabel}</Text>
-                  )}}
+                  trailingValue={syncLabel ?? undefined}
                   showDivider={false}
                 />
               )}
@@ -874,13 +872,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontFamily: Typography.label.medium.fontFamily,
     fontSize: Typography.label.medium.fontSize,
     color: colors['foreground/on-surface-disabled'],
-  },
-  syncTime: {
-    fontFamily: Typography.body.medium.fontFamily,
-    fontSize: Typography.body.medium.fontSize,
-    fontWeight: Typography.body.medium.fontWeight as '400',
-    lineHeight: Typography.body.medium.lineHeight,
-    color: colors['foreground/on-surface-muted'],
   },
   planSheetContent: {
     paddingVertical: 24,
