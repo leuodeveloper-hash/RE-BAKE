@@ -950,5 +950,6 @@
   "sharedCookbook.unpublish": "공개 해제",
   "sharedCookbook.unpublished": "공개를 해제했어요",
   "sharedCookbook.failed": "처리하지 못했어요. 잠시 후 다시 시도해 주세요.",
-  "recipeEdit.kind": "타입"
+  "recipeEdit.kind": "타입",
+  "recipeDetail.heroPhotoMax": "사진은 {{count}}장까지 넣을 수 있어요"
 }

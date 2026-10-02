@@ -965,5 +965,6 @@
   "sharedCookbook.unpublish": "Make private",
   "sharedCookbook.unpublished": "This recipe book is now private",
   "sharedCookbook.failed": "Something went wrong. Please try again.",
-  "recipeEdit.kind": "Type"
+  "recipeEdit.kind": "Type",
+  "recipeDetail.heroPhotoMax": "You can add up to {{count}} photos"
 }

@@ -605,7 +605,9 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
   const hasStep = stepGroups.some(g => g.bulkMode)
     ? stepGroups.some(g => resolveGroupSteps(g).length > 0)
     : stepGroups.some(g => g.steps.some(s => s.description.trim()));
-  const canSave = isDirty && hasTitle && hasIngredient && hasStep;
+  // 팁은 제목만 있으면 된다 — 재료·과정이 없는 팁도 있다(실기 준비물, 주의사항 등)
+  const isTip = kind === 'tip';
+  const canSave = isDirty && hasTitle && (isTip || (hasIngredient && hasStep));
   const [saving, setSaving] = useState(false);
   // 닫기 확인: 변경사항이 있고 실제 입력한 내용이 있을 때만(빈 폼은 그냥 닫음)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -630,7 +632,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
     const hasIng = ingredientGroups.some(g =>
       g.bulkMode ? g.bulkText.split(',').some(s => s.trim()) : g.ingredients.some(i => i.name.trim()),
     );
-    if (!hasIng) {
+    if (!hasIng && kind !== 'tip') {
       const y = sectionPositions.current['ingredients'];
       if (y != null) scrollViewRef.current?.scrollTo({y: y - 80, animated: true});
       setTimeout(() => sectionInputRefs.current['ingredients']?.focus(), 300);
@@ -639,7 +641,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
     const hasStp = stepGroups.some(g => g.bulkMode)
       ? stepGroups.some(g => resolveGroupSteps(g).length > 0)
       : stepGroups.some(g => g.steps.some(s => s.description.trim()));
-    if (!hasStp) {
+    if (!hasStp && kind !== 'tip') {
       const y = sectionPositions.current['steps'];
       if (y != null) scrollViewRef.current?.scrollTo({y: y - 80, animated: true});
       setTimeout(() => sectionInputRefs.current['steps']?.focus(), 300);
@@ -2885,7 +2887,8 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
           </ContentContainer>
           </View>
         )}
-        {isFieldActive('review') && (
+        {/* 팁은 만들기·회고에서 빠지므로 회고 칸도 숨긴다 */}
+        {isFieldActive('review') && kind !== 'tip' && (
           <View onLayout={e => { sectionPositions.current['review'] = e.nativeEvent.layout.y; }}>
           <ContentContainer style={(isFieldActive('cookbook') || isFieldActive('advice')) ? styles.navItemGap : styles.section}>
             {/* 회고 카드 — 회고 창·만들었어요 시트와 같은 공통 ReviewFields */}

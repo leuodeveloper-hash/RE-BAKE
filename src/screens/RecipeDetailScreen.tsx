@@ -562,12 +562,16 @@ export function RecipeDetailScreen({
   }, [onUpdate]);
   const heroUris = useMemo(() => heroPhotos.map(p => p.uri), [heroPhotos]);
   const handleHeroAdd = useCallback(async (source: PhotoSource) => {
+    if (heroUris.length >= MAX_HERO_PHOTOS) {
+      showSnackbar(t('recipeDetail.heroPhotoMax', {count: MAX_HERO_PHOTOS}));
+      return;
+    }
     const uri = await pickHeroPhoto(source);
     if (!uri) return;
     const next = [...heroUris, uri].slice(0, MAX_HERO_PHOTOS);
     saveHeroPhotos(next);
     setViewerIndex(next.length - 1);
-  }, [pickHeroPhoto, heroUris, saveHeroPhotos]);
+  }, [pickHeroPhoto, heroUris, saveHeroPhotos, showSnackbar, t]);
 
   const [searchFilter, setSearchFilter] = useState<'cookbook' | 'method' | null>(null);
   const [showReviewSheet, setShowReviewSheet] = useState(false);
@@ -1582,8 +1586,9 @@ export function RecipeDetailScreen({
       <PhotoViewer
         photos={viewerIsHero ? heroPhotos : viewerPhotos}
         index={viewerIndex}
-        // 상단 사진은 상세에서 바로 올린다(최대 3장, 업로드만) — 편집 권한이 있을 때만
-        onAdd={viewerIsHero && canEdit && heroPhotos.length < MAX_HERO_PHOTOS ? handleHeroAdd : undefined}
+        // 상단 사진은 상세에서 바로 올린다(최대 3장, 업로드만) — 편집 권한이 있을 때만.
+        // 3장이 차도 버튼은 남긴다 — 숨기면 기능이 없는 줄 안다. 누르면 최대 장수를 알린다.
+        onAdd={viewerIsHero && canEdit ? handleHeroAdd : undefined}
         onIndexChange={setViewerIndex}
         onClose={() => setViewerIndex(null)}
         onDownload={onDownloadPhoto && viewerIndex !== null
