@@ -89,6 +89,20 @@ async function uploadLocalImages(recipe: Recipe): Promise<Recipe> {
     }
   }
 
+  // 추가 상단 사진(대표 뒤 2장) — 빠져 있어서 로컬 경로(웹은 data: URL)가 그대로 동기화됐다.
+  // 다른 기기에서 안 보이고, 웹은 문서가 1MB를 넘어 저장 자체가 실패했다.
+  if (updated.imageUris?.some(isLocalUri)) {
+    updated.imageUris = await Promise.all(
+      updated.imageUris.map(async (uri, i) => {
+        if (!isLocalUri(uri)) return uri;
+        try {
+          changed = true;
+          return await uploadRecipeImage(uri, `${recipe.id}_hero${i + 1}`);
+        } catch (e) { console.warn('[Storage] extra hero upload failed:', e); return uri; }
+      }),
+    );
+  }
+
   // 베이키의 조언 사진 — 빠져 있으면 로컬 경로가 그대로 동기화돼 다른 기기에서 안 보인다
   if (updated.advicePhotos?.some(isLocalUri)) {
     updated.advicePhotos = await Promise.all(
@@ -545,7 +559,7 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
         a.remove();
       }, 100);
     } else {
-      const FileSystem = require('expo-file-system');
+      const FileSystem = require('expo-file-system/legacy');
       const Sharing = require('expo-sharing');
       const fileUri = FileSystem.documentDirectory + filename;
       await FileSystem.writeAsStringAsync(fileUri, json);
@@ -617,7 +631,7 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
         (async () => {
           try {
             const DocumentPicker = require('expo-document-picker');
-            const FileSystem = require('expo-file-system');
+            const FileSystem = require('expo-file-system/legacy');
             const result = await DocumentPicker.getDocumentAsync({
               type: 'application/json',
               copyToCacheDirectory: true,

@@ -11,7 +11,9 @@ export async function getPersistentUri(uri: string, base64?: string | null): Pro
   // documentDirectory로 복사해 영구 보관 (재진입/앱 재시작 후에도 유지).
   if (Platform.OS !== 'web') {
     try {
-      const FileSystem = require('expo-file-system');
+      // SDK 54부터 기본 진입점은 새 API라 documentDirectory가 없다 → 복사를 건너뛰고
+      // 임시(캐시) 경로를 그대로 써서, iOS가 캐시를 비우면 사진이 사라졌다. 기존 API는 /legacy.
+      const FileSystem = require('expo-file-system/legacy');
       if (!FileSystem?.documentDirectory) return uri;
       const dir = `${FileSystem.documentDirectory}recipe_photos/`;
       await FileSystem.makeDirectoryAsync(dir, {intermediates: true}).catch(() => {});
@@ -67,8 +69,10 @@ export async function uploadImageTo(uri: string, path: string): Promise<string> 
     const blob = await response.blob();
     await uploadBytes(storageRef, blob);
   } else {
-    // 네이티브: expo-file-system base64 → uploadString
-    const FileSystem = require('expo-file-system');
+    // 네이티브: expo-file-system base64 → uploadString.
+    // SDK 54 기본 진입점(새 API)의 readAsStringAsync는 예외를 던져 아이폰·안드로이드 업로드가
+    // 전부 실패하고 로컬 경로만 남았다 — 기존 API(/legacy)를 쓴다.
+    const FileSystem = require('expo-file-system/legacy');
     const base64 = await FileSystem.readAsStringAsync(uri, {
       encoding: FileSystem.EncodingType.Base64,
     });
