@@ -12,18 +12,6 @@ import {MENU_GAP} from './RecipeEditScreen.constants';
  * 화면 파일이 3,786줄이라 읽기 어려워 스타일(418줄)만 떼어냈다. 내용은 그대로다.
  */
 export const createStyles = (colors: SemanticColors) => StyleSheet.create({
-  // 타입(레시피/팁) — 제목 카드 위에 붙는 인라인 한 줄: 라벨 + 텍스트 탭
-  kindInline: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: Spacing.md,
-    marginBottom: Spacing.sm,
-  },
-  kindLabel: {
-    ...Typography.label.large,
-    color: colors['foreground/on-surface-muted'],
-  },
   container: {
     flex: 1,
     alignItems: 'center',

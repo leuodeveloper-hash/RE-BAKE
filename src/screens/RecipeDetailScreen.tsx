@@ -534,7 +534,7 @@ export function RecipeDetailScreen({
     setViewerIndex(index);
   }, []);
 
-  /** 상단 사진 고르기 — 편집 화면과 같은 정사각 자르기. 촬영/갤러리 */
+  /** 상단 사진 고르기 — 편집 화면과 같은 옵션(원본 비율). 촬영/갤러리 */
   const pickHeroPhoto = useCallback(async (source: PhotoSource): Promise<string | null> => {
     const isCamera = source === 'camera';
     const ok = await ensureImagePermission(isCamera ? 'camera' : 'mediaLibrary', {
@@ -547,7 +547,8 @@ export function RecipeDetailScreen({
     });
     if (!ok) return null;
     const options: ImagePicker.ImagePickerOptions = {
-      mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8, base64: Platform.OS === 'web',
+      // 정사각으로 자르지 않는다. 자르기 화면은 안드로이드만(자유 비율) — iOS 자르기는 정사각만 돼서 끈다
+      mediaTypes: ['images'], allowsEditing: Platform.OS === 'android', quality: 0.8, base64: Platform.OS === 'web',
     };
     const result = isCamera
       ? await ImagePicker.launchCameraAsync(options)

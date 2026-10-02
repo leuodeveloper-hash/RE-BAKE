@@ -87,6 +87,7 @@ import {normalizeStepPhotos} from '@utils/stepPhotos';
 import {
   IconClose,
   IconTick,
+  IconSparkleFilled,
   IconEllipsisVertical,
   IconPhoto,
   IconClockFilled,
@@ -705,8 +706,8 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
       if (!ok) return;
     }
     const options: ImagePicker.ImagePickerOptions = {
-      allowsEditing: true,
-      aspect: [1, 1],
+      // 정사각으로 자르지 않는다. 자르기 화면은 안드로이드만(자유 비율) — iOS 자르기는 정사각만 돼서 끈다
+      allowsEditing: Platform.OS === 'android',
       quality: 0.8,
       base64: Platform.OS === 'web',
     };
@@ -732,8 +733,8 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
   /** 뷰어에서 추가분 교체 — imageUris의 idx 자리를 새로 고른 사진으로 바꾼다 */
   const replaceExtraHeroAt = useCallback(async (idx: number) => {
     const result = await ImagePicker.launchImageLibraryAsync({
-      allowsEditing: true,
-      aspect: [1, 1],
+      // 정사각으로 자르지 않는다. 자르기 화면은 안드로이드만(자유 비율) — iOS 자르기는 정사각만 돼서 끈다
+      allowsEditing: Platform.OS === 'android',
       quality: 0.8,
       base64: Platform.OS === 'web',
     });
@@ -1652,21 +1653,6 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
         scrollEnabled={drag.scrollEnabled}>
         {/* Spacer for nav bar */}
         <View style={{height: 72 + insets.top}} />
-
-        {/* 타입(레시피/팁) — 폼 맨 위에 붙는 인라인 한 줄(카드 없이 라벨 + 텍스트 탭, 프로필 '테마'와 같은 탭).
-            팁(실기 준비물처럼 읽는 정보)은 만들기·회고·요리모드에서 빠진다.
-            어드민이 공식으로 올린다 — 일반 사용자에겐 숨긴다(이미 팁인 건 보여줘 되돌릴 수 있게) */}
-        {(isAdmin || kind === 'tip') && (
-          <ContentContainer style={styles.kindInline}>
-            <Text style={styles.kindLabel}>{t('recipeEdit.kind')}</Text>
-            <Tabs
-              variant="text"
-              tabs={[{id: 'recipe', label: t('recipeEdit.kindRecipe')}, {id: 'tip', label: t('recipeEdit.kindTip')}]}
-              selectedId={kind}
-              onSelect={id => setKind(id as 'recipe' | 'tip')}
-            />
-          </ContentContainer>
-        )}
 
         {/* Title & Description */}
         <View style={{zIndex: showMethodMenu ? 100 : 1, elevation: showMethodMenu ? 100 : 1}}>
@@ -2848,6 +2834,32 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
                   </View>
                 )}}
                 onPress={handleCookbookPress}
+                showDivider={false}
+              />
+            </Card>
+          </ContentContainer>
+        )}
+        {/* 타입(레시피/팁) — 레시피북 바로 아래, 같은 카드 형식의 한 줄. 오른쪽은 프로필 '테마'와 같은 텍스트 탭.
+            팁(실기 준비물처럼 읽는 정보)은 만들기·회고·요리모드에서 빠진다.
+            어드민이 공식으로 올린다 — 일반 사용자에겐 숨긴다(이미 팁인 건 보여줘 되돌릴 수 있게) */}
+        {(isAdmin || kind === 'tip') && (
+          <ContentContainer style={isFieldActive('cookbook') ? styles.navItemGap : styles.section}>
+            <Card>
+              <ListItem
+                title={t('recipeEdit.kind')}
+                leading={{type: 'custom', element: (
+                  <View style={styles.cookbookLeadingSlot}>
+                    <IconSparkleFilled width={20} height={20} color={colors['foreground/on-surface-muted']} />
+                  </View>
+                )}}
+                trailing={{type: 'custom', element: (
+                  <Tabs
+                    variant="text"
+                    tabs={[{id: 'recipe', label: t('recipeEdit.kindRecipe')}, {id: 'tip', label: t('recipeEdit.kindTip')}]}
+                    selectedId={kind}
+                    onSelect={id => setKind(id as 'recipe' | 'tip')}
+                  />
+                )}}
                 showDivider={false}
               />
             </Card>
