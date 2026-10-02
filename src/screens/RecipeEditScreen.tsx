@@ -35,6 +35,7 @@ import {StepPhotos} from '@components/StepPhotos';
 import {FieldManageDialog, TimeDialog, ServingsDialog, IngredientAmountDialog} from '@components/Dialog';
 import type {ReviewData} from '@components/Dialog';
 import {TextInput} from '@components/TextInput';
+import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {Tabs} from '@components/Tabs';
 import {ReviewFields} from '@components/Dialog/ReviewFields';
 import {AutoGrowInput} from '@components/AutoGrowInput';
@@ -418,6 +419,9 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
   const [sourceUrl, setSourceUrl] = useState(recipe?.sourceUrl ?? '');
   // 공식(둘러보기) 레시피 숨김 — 어드민만 보임(다른 유저 비공개). 개발 중 콘텐츠 가림용.
   const [hidden, setHidden] = useState(() => !!recipe?.hidden);
+  const {exploreCookbooks} = useExploreRecipeContext();
+  /** 공식 레시피가 속한 북이 숨김인지 — 숨김이면 레시피 개별 공개 설정은 의미가 없다 */
+  const bookHidden = !!isExplore && !!exploreCookbooks?.find(c => c.name === cookbook)?.hidden;
   // 종류 — 기본은 레시피, 실기 준비물 같은 건 팁
   const [kind, setKind] = useState<'recipe' | 'tip'>(() => recipe?.kind ?? 'recipe');
   // PiP는 앱 루트에서 단일 인스턴스로 관리 (화면 전환 시에도 유지)
@@ -3105,7 +3109,8 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
             {isExplore && (
               <View style={styles.hiddenInline}>
                 <Text style={styles.hiddenLabel} numberOfLines={1}>{t('recipeEdit.hidden')}</Text>
-                <Switch value={hidden} onValueChange={setHidden} />
+                {/* 레시피북이 숨김이면 그 북 레시피는 어차피 안 보인다 — 개별 공개/비공개는 비활성(켜짐 고정) */}
+                <Switch value={bookHidden || hidden} onValueChange={setHidden} disabled={bookHidden} />
               </View>
             )}
             <GlassContainer contentStyle={navPillStyle}>

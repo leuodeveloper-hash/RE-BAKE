@@ -4,8 +4,11 @@ import {FloatingNavBar, navPillStyle} from '@components/Navigation';
 import {Breadcrumb} from '@components/Navigation/Breadcrumb';
 import {GlassContainer, MAX_CONTENT_WIDTH} from '@components/Container';
 import {IconButton} from '@components/IconButton';
-import {IconAdd, IconEllipsisVertical, IconEdit, IconTrash, IconArrowDownToLine, IconList, IconCards, IconShare} from '@components/Icon/IconIndex';
-import {shareOfficialCookbook, sharePersonalCookbook} from '@utils/shareCookbook';
+import {IconAdd, IconEllipsisVertical, IconEdit, IconTrash, IconArrowDownToLine, IconList, IconCards, IconShare, IconLock} from '@components/Icon/IconIndex';
+import {shareOfficialCookbook, sharePersonalCookbook, setCookbookPublic} from '@utils/shareCookbook';
+import {usePublicCookbooks} from '@hooks/usePublicCookbooks';
+import {Dialog} from '@components/Dialog';
+import {Button} from '@components/Button';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {RecipeCard} from '@components/Recipe/RecipeCard';
 import {ScrollView} from 'react-native';
@@ -90,23 +93,45 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
   const activeIsExplore = isExploreName?.(active) ?? false;
   const canEditDelete = !activeIsExplore || !!isAdmin; // 일반 북은 모두, 공식 북은 어드민만
   // 리스트뷰 케밥 메뉴(GroupScreen)와 동일하게 아이콘 + 짧은 레이블로 통일.
+  const publicBooks = usePublicCookbooks();
+  const activeIsPublic = !activeIsExplore && publicBooks.has(active);
+  const [confirmPublish, setConfirmPublish] = useState(false);
   const moreItems = [
     {id: 'share', label: t('groupExpandOverlay.shareCookbook'), icon: IconShare},
+    ...(activeIsPublic ? [{id: 'unpublish', label: t('sharedCookbook.unpublish'), icon: IconLock}] : []),
     ...(canEditDelete && onEditCookbook ? [{id: 'edit', label: t('groupExpandOverlay.editCookbook'), icon: IconEdit}] : []),
     ...(canEditDelete && onDeleteCookbook ? [{id: 'delete', label: t('groupExpandOverlay.deleteCookbook'), icon: IconTrash}] : []),
     ...(onDownloadPdf ? [{id: 'pdf', label: t('groupExpandOverlay.downloadPdf'), icon: IconArrowDownToLine}] : []),
   ];
 
-  // 북 공유 — 공식 북은 이름 기반 링크, 개인 북은 스냅샷 업로드 후 링크. (링크 복사 시 스낵바)
-  const handleShareCookbook = useCallback(() => {
+  // 북 공유 — 공식 북은 바로 링크. 개인 북은 공개된 북의 주소를 공유(처음이면 공개할지 먼저 묻는다)
+  const shareActive = useCallback(() => {
     const onCopied = () => showSnackbar(t('groupExpandOverlay.linkCopied'), {tone: 'positive'});
     const onError = () => showSnackbar(t('groupExpandOverlay.shareFailed'), {tone: 'error'});
-    if (activeIsExplore) {
-      shareOfficialCookbook({name: active, onCopied, onError});
-    } else {
-      sharePersonalCookbook({name: active, recipes, onCopied, onError});
+    if (activeIsExplore) shareOfficialCookbook({name: active, onCopied, onError});
+    else sharePersonalCookbook({name: active, onCopied, onError});
+  }, [activeIsExplore, active, showSnackbar, t]);
+  const handleShareCookbook = useCallback(() => {
+    if (!activeIsExplore && !activeIsPublic) setConfirmPublish(true);
+    else shareActive();
+  }, [activeIsExplore, activeIsPublic, shareActive]);
+  const handlePublishAndShare = useCallback(async () => {
+    setConfirmPublish(false);
+    try {
+      await setCookbookPublic(active, true);
+      shareActive();
+    } catch {
+      showSnackbar(t('sharedCookbook.failed'), {tone: 'error'});
     }
-  }, [activeIsExplore, active, recipes, showSnackbar, t]);
+  }, [active, shareActive, showSnackbar, t]);
+  const handleUnpublish = useCallback(async () => {
+    try {
+      await setCookbookPublic(active, false);
+      showSnackbar(t('sharedCookbook.unpublished'), {tone: 'positive'});
+    } catch {
+      showSnackbar(t('sharedCookbook.failed'), {tone: 'error'});
+    }
+  }, [active, showSnackbar, t]);
 
   const {width: W, height: H} = Dimensions.get('window');
   const originCx = origin.x + origin.width / 2;
@@ -194,6 +219,19 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
 
   return (
     <View style={[StyleSheet.absoluteFill, styles.root]}>
+      <Dialog
+        visible={confirmPublish}
+        onClose={() => setConfirmPublish(false)}
+        icon={IconShare}
+        title={t('sharedCookbook.publishTitle')}
+        description={t('sharedCookbook.publishDesc')}
+        actions={
+          <>
+            <Button label={t('sharedCookbook.cancel')} variant="soft" onPress={() => setConfirmPublish(false)} />
+            <Button label={t('sharedCookbook.publishAndShare')} onPress={handlePublishAndShare} />
+          </>
+        }
+      />
       <Animated.View style={[styles.panel, {opacity: panelOpacity}]}>
         <FloatingNavBar
           left={
@@ -262,6 +300,7 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
                   onSelect={id => {
                     setShowMoreMenu(false);
                     if (id === 'share') handleShareCookbook();
+                    else if (id === 'unpublish') handleUnpublish();
                     else if (id === 'edit') onEditCookbook?.(active, activeIsExplore);
                     else if (id === 'delete') onDeleteCookbook?.(active, activeIsExplore);
                     else if (id === 'pdf') onDownloadPdf?.(active);

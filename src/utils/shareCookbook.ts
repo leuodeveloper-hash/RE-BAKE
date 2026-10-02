@@ -1,9 +1,8 @@
 import {Platform, Share} from 'react-native';
-import {doc, setDoc, serverTimestamp} from 'firebase/firestore';
+import {doc, setDoc, arrayUnion, arrayRemove} from 'firebase/firestore';
 import {db, auth} from '@config/firebase';
-import {getCookbookShareUrl} from '@config/share';
+import {getOfficialCookbookShareUrl, getPersonalCookbookShareUrl} from '@config/share';
 import {translate, deviceLanguage} from '../i18n';
-import type {Recipe} from '../types/recipe';
 
 const t = (key: string, params?: Record<string, string | number>) =>
   translate(deviceLanguage(), key, params);
@@ -34,14 +33,6 @@ async function shareUrl(url: string, subject: string, onCopied?: () => void, onE
   }
 }
 
-/** shareId 생성 — URL-safe 랜덤 10자 */
-function makeShareId(): string {
-  const chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
-  let id = '';
-  for (let i = 0; i < 10; i++) id += chars[Math.floor(Math.random() * chars.length)];
-  return id;
-}
-
 export interface ShareOfficialCookbookArgs {
   name: string;
   onCopied?: () => void;
@@ -50,48 +41,33 @@ export interface ShareOfficialCookbookArgs {
 
 /** 공식 북 공유 — 이름 기반 URL을 바로 공유 (Firestore에 이미 있음). */
 export async function shareOfficialCookbook({name, onCopied, onError}: ShareOfficialCookbookArgs): Promise<void> {
-  const url = getCookbookShareUrl('o', name);
+  const url = getOfficialCookbookShareUrl(name);
   await shareUrl(url, t('shareRecipe.cookbookWithTitle', {title: name}), onCopied, onError);
 }
 
 export interface SharePersonalCookbookArgs {
   name: string;
-  recipes: Recipe[];
-  authorId?: string;
-  authorName?: string;
-  /** 재공유 시 기존 shareId 재사용(링크 안정). 없으면 새로 생성 */
-  existingShareId?: string;
   onCopied?: () => void;
   onError?: (message: string) => void;
 }
 
-/**
- * 개인 북 공유 — 공유 시점의 레시피들을 `shared_cookbooks/{shareId}`에 스냅샷 업로드 후 링크 공유.
- * (이미지는 로그인 사용자 레시피면 이미 원격 URL이므로 그대로 담김.)
- * @returns 사용된 shareId (재공유 시 저장해두면 링크 유지)
- */
-export async function sharePersonalCookbook({
-  name, recipes, authorId, authorName, existingShareId, onCopied, onError,
-}: SharePersonalCookbookArgs): Promise<string | null> {
+/** 개인 북 공유 — 공개해 둔 북의 주소를 공유한다 (공개는 setCookbookPublic으로 먼저) */
+export async function sharePersonalCookbook({name, onCopied, onError}: SharePersonalCookbookArgs): Promise<void> {
   const uid = auth.currentUser?.uid;
-  if (!uid) { onError?.(t('shareRecipe.shareFailed')); return null; }
+  if (!uid) { onError?.(t('shareRecipe.shareFailed')); return; }
+  await shareUrl(getPersonalCookbookShareUrl(uid, name), t('shareRecipe.cookbookWithTitle', {title: name}), onCopied, onError);
+}
 
-  const shareId = existingShareId ?? makeShareId();
-  try {
-    await setDoc(doc(db, 'shared_cookbooks', shareId), {
-      name,
-      ownerUid: uid,
-      authorId: authorId ?? null,
-      authorName: authorName ?? null,
-      recipes,
-      createdAt: serverTimestamp(),
-    });
-  } catch {
-    onError?.(t('shareRecipe.shareFailed'));
-    return null;
-  }
-
-  const url = getCookbookShareUrl('s', shareId);
-  await shareUrl(url, t('shareRecipe.cookbookWithTitle', {title: name}), onCopied, onError);
-  return shareId;
+/**
+ * 개인 북 공개/해제 — `public_cookbooks/{uid}.names`에 이름을 넣고 뺀다.
+ * 규칙이 이 목록을 보고 해당 북 레시피만 누구나 읽게 열어 준다.
+ */
+export async function setCookbookPublic(name: string, isPublic: boolean): Promise<void> {
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error('not signed in');
+  await setDoc(
+    doc(db, 'public_cookbooks', uid),
+    {names: isPublic ? arrayUnion(name) : arrayRemove(name)},
+    {merge: true},
+  );
 }

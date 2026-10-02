@@ -548,9 +548,11 @@ export function RecipeDetailScreen({
     }
     const idx = recipeItems.findIndex(r => r.id === currentRecipeId);
     if (idx === -1) return {prevRecipeId: undefined, nextRecipeId: undefined};
+    // 서큘러 — 끝에서 멈추지 않고 처음/마지막으로 돌아간다
+    const n = recipeItems.length;
     return {
-      prevRecipeId: idx > 0 ? recipeItems[idx - 1].id : undefined,
-      nextRecipeId: idx < recipeItems.length - 1 ? recipeItems[idx + 1].id : undefined,
+      prevRecipeId: recipeItems[(idx - 1 + n) % n].id,
+      nextRecipeId: recipeItems[(idx + 1) % n].id,
     };
   }, [recipeItems, currentRecipeId]);
 

@@ -29,13 +29,16 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import type {Recipe} from '../types/recipe';
-import {IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconChartNoAxesGantt, IconChevronRight, IconCornerDownRight, IconSparkle, IconProcess, IconCards, IconCardsFilled, IconArrowDownToLine, IconList, IconClose} from '@components/Icon/IconIndex';
+import {IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconChartNoAxesGantt, IconChevronRight, IconCornerDownRight, IconGlobeFilled, IconSparkle, IconProcess, IconCards, IconCardsFilled, IconArrowDownToLine, IconList, IconClose} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import {buildPaperPreview} from '@utils/recipePaperPreview';
 import {coverCards, recipeCoverCards, emptyCoverCard} from '@utils/cookbookCards';
 import {deriveBookAuthors} from '@utils/bookAuthors';
 import type {ExploreCookbook} from '@hooks/useExploreRecipes';
 import {axisLabel, DEFAULT_AXES, useAxisMenuItems, type AxisOverrides, type GroupAxis} from '@components/RecipeGroups/groupAxis';
+import {doc, writeBatch} from 'firebase/firestore';
+import {db} from '@config/firebase';
+import {useSnackbar} from '@contexts/SnackbarContext';
 
 // 축 정의는 공통 모듈(groupAxis)로 일원화 — 재노출(기존 import 경로 호환)
 export type {GroupAxis};
@@ -116,6 +119,33 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
     {id: 'rename', label: t('group.edit'), icon: IconEdit},
     {id: 'delete', label: t('group.delete'), icon: IconTrash, destructive: true},
   ], [t]);
+  // 공식(둘러보기) 북 — 어드민만: 북 안 숨김 레시피를 한 번에 공개
+  const OFFICIAL_COOKBOOK_MENU_ITEMS = useMemo(() => [
+    {id: 'publishAll', label: t('group.publishAll'), icon: IconGlobeFilled},
+    ...COOKBOOK_MENU_ITEMS,
+  ], [COOKBOOK_MENU_ITEMS, t]);
+  const {showSnackbar} = useSnackbar();
+
+  /**
+   * 북의 숨김 레시피를 모두 공개로 — 북 자체가 숨김이면 북도 공개한다
+   * (북이 숨김이면 안의 레시피가 공개여도 사용자에겐 안 보인다).
+   */
+  const publishAllInBook = async (name: string) => {
+    const hiddenIds = [...recipes, ...(exploreRecipes ?? [])]
+      .filter(r => r.cookbook === name && r.hidden)
+      .map(r => r.id);
+    try {
+      const batch = writeBatch(db);
+      for (const id of new Set(hiddenIds)) batch.update(doc(db, 'explore_recipes', id), {hidden: false});
+      batch.set(doc(db, 'explore_cookbooks', name), {hidden: false}, {merge: true});
+      await batch.commit();
+      showSnackbar(t('group.publishAllDone', {name, count: new Set(hiddenIds).size}), {tone: 'positive'});
+      onRefresh?.();
+    } catch (e) {
+      console.warn('[publishAllInBook] 실패:', e);
+      showSnackbar(t('group.publishAllFailed'), {tone: 'error'});
+    }
+  };
   const {setShowCookbookDialog, setCookbookEditTarget, setCookbookInitialOfficial} = useAddSheet();
   const {pullProgress, isRefreshing, refreshStripProgress, refreshOpacity, refreshGapHeight, handleScroll} = usePullProgress(onRefresh);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
@@ -553,6 +583,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
       setDeleteTarget(target);
       setDeleteTargetIsExplore(cookbooksAreOfficial);
       setShowDeleteDialog(true);
+    } else if (id === 'publishAll' && target) {
+      publishAllInBook(target);
     } else {
       onComingSoon();
     }
@@ -569,6 +601,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
       setDeleteTarget(target);
       setDeleteTargetIsExplore(true);
       setShowDeleteDialog(true);
+    } else if (id === 'publishAll' && target) {
+      publishAllInBook(target);
     }
   };
 
@@ -934,7 +968,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
       {/* 레시피 북 오버플로우 메뉴 */}
       {cookbookMenuTarget ? (
         <Menu
-          items={COOKBOOK_MENU_ITEMS}
+          items={cookbooksAreOfficial && isAdmin ? OFFICIAL_COOKBOOK_MENU_ITEMS : COOKBOOK_MENU_ITEMS}
           visible={!!cookbookMenuTarget}
           onSelect={handleCookbookMenuSelect}
           style={cookbookMenuPosition ? {
@@ -949,7 +983,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
       {/* 둘러보기 레시피 북 오버플로우 메뉴 */}
       {exploreCookbookMenuTarget ? (
         <Menu
-          items={COOKBOOK_MENU_ITEMS}
+          items={isAdmin ? OFFICIAL_COOKBOOK_MENU_ITEMS : COOKBOOK_MENU_ITEMS}
           visible={!!exploreCookbookMenuTarget}
           onSelect={handleExploreCookbookMenuSelect}
           style={cookbookMenuPosition ? {

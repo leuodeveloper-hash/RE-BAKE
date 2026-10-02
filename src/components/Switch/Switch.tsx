@@ -13,9 +13,11 @@ interface SwitchProps {
   label?: string;
   value: boolean;
   onValueChange: (value: boolean) => void;
+  /** 비활성 — 바꿀 수 없는 상태(흐리게, 눌러도 안 바뀜) */
+  disabled?: boolean;
 }
 
-export function Switch({label, value, onValueChange}: SwitchProps) {
+export function Switch({label, value, onValueChange, disabled = false}: SwitchProps) {
   const styles = useThemedStyles(createStyles);
   // 손잡이가 미끄러지듯 — 값만 바꾸면 툭 점프해 껐는지 켰는지 눈이 못 따라간다
   const anim = useRef(new Animated.Value(value ? 1 : 0)).current;
@@ -32,7 +34,8 @@ export function Switch({label, value, onValueChange}: SwitchProps) {
 
   return (
     <Pressable
-      style={styles.container}
+      style={[styles.container, disabled && {opacity: 0.4}]}
+      disabled={disabled}
       onPress={() => { triggerHaptic('light'); onValueChange(!value); }}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
       <View style={[styles.track, value && styles.trackActive]}>

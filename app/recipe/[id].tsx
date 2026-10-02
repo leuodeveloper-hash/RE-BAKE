@@ -19,6 +19,7 @@ import {db} from '@config/firebase';
 import {OFFICIAL_AUTHOR_ID, OFFICIAL_AUTHOR_HANDLE, OFFICIAL_AUTHOR_DISPLAY_NAME, resolveAuthorHandle} from '../../src/types/author';
 import {parseSession, formatSession, sortSessionGroup} from '@utils/session';
 import {shareRecipe} from '@utils/shareRecipe';
+import {getSharedRecipe} from '@utils/sharedRecipeCache';
 import {uploadRecipeImage, isLocalUri} from '@utils/imageUpload';
 import {getColorVarKey} from '@components/ColorPicker';
 import {DEFAULT_COOKBOOK_COLOR} from '@contexts/RecipeContext';
@@ -63,7 +64,7 @@ export default function RecipeDetailRoute() {
   // 라우트가 바뀌면(다른 레시피로 진입) active id 동기화
   useEffect(() => { if (routeId) setId(routeId); }, [routeId]);
 
-  const recipe = findRecipeById(id) ?? exploreRecipes.find(r => r.id === id);
+  const recipe = findRecipeById(id) ?? exploreRecipes.find(r => r.id === id) ?? getSharedRecipe(id);
 
   // 마지막으로 본 레시피 저장 → 앱 재시작 시 이 화면으로 복귀 (_layout에서 사용).
   // + 위젯 "본 것 제외" 순환용 seen 기록. 실제 존재하는 레시피일 때만.
@@ -96,7 +97,7 @@ export default function RecipeDetailRoute() {
   useEffect(() => {
     if (recipe || !id) return;
     const timer = setTimeout(() => {
-      if (!findRecipeById(id) && !exploreRecipes.find(r => r.id === id)) {
+      if (!findRecipeById(id) && !exploreRecipes.find(r => r.id === id) && !getSharedRecipe(id)) {
         AsyncStorage.removeItem('last_viewed_recipe_id');
         router.replace('/');
       }

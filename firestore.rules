@@ -26,15 +26,25 @@ service cloud.firestore {
       allow write: if request.auth != null;
     }
 
+    // public_cookbooks/{uid}: 공개한 개인 북 이름 목록(names). 누구나 읽고, 본인만 쓴다.
+    match /public_cookbooks/{uid} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.uid == uid;
+    }
+
     // admin: 로그인 사용자 본인 문서만 읽기 (쓰기는 Firebase Console에서만)
     match /admin/{uid} {
       allow read: if request.auth != null && request.auth.uid == uid;
       allow write: if false;
     }
 
-    // user_recipes: 본인 레시피만 읽기/쓰기
+    // user_recipes: 본인 레시피만 읽기/쓰기.
+    // 단, 공개한 북(public_cookbooks/{uid}.names)에 속한 레시피는 누구나 읽기.
+    // ⚠️ 공개 북 목록 쿼리는 반드시 where('cookbook','==',이름)으로 제약할 것.
     match /user_recipes/{uid}/recipes/{recipeId} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
+      allow read: if exists(/databases/$(database)/documents/public_cookbooks/$(uid))
+        && resource.data.cookbook in get(/databases/$(database)/documents/public_cookbooks/$(uid)).data.names;
     }
 
     // explore_recipes: 숨김(hidden==true)은 어드민만. 그 외 공개.
