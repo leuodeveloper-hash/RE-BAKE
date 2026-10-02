@@ -2,7 +2,9 @@ import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {
   Animated,
   GestureResponderEvent,
+  Keyboard,
   Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -113,6 +115,17 @@ export function BottomSheet({
   const contentHeight = useRef(0);
   // 내부 마운트 상태: 닫기 애니메이션 완료까지 유지
   const [mounted, setMounted] = useState(false);
+  // 키보드 높이 — 시트 안 입력칸(검색·회고 등)이 키보드에 가려지지 않게 시트를 그만큼 올린다.
+  // Modal 안이라 화면 자동 리사이즈가 안 먹어 직접 잰다.
+  const [keyboardHeight, setKeyboardHeight] = useState(0);
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
+    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
+    const show = Keyboard.addListener(showEvt, e => setKeyboardHeight(e.endCoordinates.height));
+    const hide = Keyboard.addListener(hideEvt, () => setKeyboardHeight(0));
+    return () => { show.remove(); hide.remove(); };
+  }, []);
   const closingRef = useRef(false);
 
   const onCloseRef = useRef(onClose);
@@ -244,7 +257,7 @@ export function BottomSheet({
   }
 
   const inner = (
-      <View style={[styles.container, !fullScreen && {paddingBottom: Math.max(Spacing.sm, safeBottom)}, fullScreen && styles.containerFullScreen]}>
+      <View style={[styles.container, !fullScreen && {paddingBottom: keyboardHeight > 0 ? keyboardHeight + Spacing.sm : Math.max(Spacing.sm, safeBottom)}, fullScreen && styles.containerFullScreen]}>
         {/* 배경 오버레이 */}
         <Animated.View
           style={[
@@ -270,7 +283,7 @@ export function BottomSheet({
             fullScreen && !fullScreenRounded && styles.sheetFullScreenSquare,
             fullScreen && backgroundColor ? {backgroundColor} : undefined,
             height !== 'auto' && !fullScreen && {height},
-            !fullScreen && {maxHeight: windowHeight - safeTop - safeBottom - Spacing.sm * 2},
+            !fullScreen && {maxHeight: windowHeight - safeTop - (keyboardHeight > 0 ? keyboardHeight : safeBottom) - Spacing.sm * 2},
             maxWidth != null && {maxWidth},
             {transform: [{translateY}], opacity: sheetOpacity},
           ]}

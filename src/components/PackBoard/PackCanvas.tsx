@@ -112,6 +112,12 @@ export function PackCanvas({items, entrance, dimExceptId, insetTop = 0, insetBot
     .onUpdate(e => {
       tx.value = savedTx.value + e.translationX;
       ty.value = savedTy.value + e.translationY;
+    })
+    // 끝나는 방식과 상관없이(취소·실패 포함) 드래그 표시를 푼다.
+    // 시트(Modal)가 뜨며 제스처를 빼앗기면 onEnd가 안 와서 드래그 중으로 남았고,
+    // 그 뒤로 팩 탭이 전부 무시됐다(회고 노트를 한 번 열고 닫으면 안 눌림).
+    .onFinalize(() => {
+      runOnJS(clearDraggedSoon)();
     });
 
   // 핀치: 뷰포트 중앙을 고정점으로 줌 (focal 기준이면 손가락 위치 따라 좌하단으로 쏠림)
@@ -148,6 +154,9 @@ export function PackCanvas({items, entrance, dimExceptId, insetTop = 0, insetBot
         ty.value = withSpring(cy - (cy - ty.value) * k, SNAP_SPRING);
         scale.value = withSpring(target, SNAP_SPRING);
       }
+      runOnJS(clearDraggedSoon)();
+    })
+    .onFinalize(() => {
       runOnJS(clearDraggedSoon)();
     });
 
