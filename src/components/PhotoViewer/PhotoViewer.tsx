@@ -23,10 +23,10 @@ export interface PhotoViewerProps {
   onIndexChange: (index: number) => void;
   onClose: () => void;
   /** 편집 가능하면 우측 상단에 교체·삭제 버튼 (없으면 읽기 전용) */
-  onReplace?: () => void;
+  onReplace?: () => void | Promise<void>;
   onDelete?: () => void;
   /** 사진 추가 — 뷰어 안에서 바로 한 장 더 올릴 때. [+]를 누르면 촬영/갤러리 메뉴가 뜬다 */
-  onAdd?: (source: PhotoSource) => void;
+  onAdd?: (source: PhotoSource) => void | Promise<void>;
   /**
    * 우측 상단 다운로드 버튼. 주면 보이고, 없으면 감춘다.
    * 유료 여부 판단·유도는 호출부가 한다 — 공통 뷰어가 구독을 알 필요는 없다.
@@ -71,6 +71,21 @@ export function PhotoViewer({
   const currentCaption = index !== null ? photos[index]?.caption ?? '' : '';
   const [draft, setDraft] = useState(currentCaption);
   const [showAddMenu, setShowAddMenu] = useState(false);
+  // iOS는 전체화면 창(Modal)이 떠 있으면 사진 고르기 화면을 띄우는 요청을 조용히 무시한다.
+  // 그래서 고르기 전에 뷰어 창을 잠깐 내리고(onDismiss를 기다려), 고른 뒤 다시 올린다.
+  const [suspended, setSuspended] = useState(false);
+  const pendingPickRef = useRef<(() => void | Promise<void>) | null>(null);
+  const runPick = useCallback((fn: () => void | Promise<void>) => {
+    if (Platform.OS !== 'ios') { fn(); return; }
+    pendingPickRef.current = fn;
+    setSuspended(true);
+  }, []);
+  const handleDismiss = useCallback(async () => {
+    const fn = pendingPickRef.current;
+    pendingPickRef.current = null;
+    if (!fn) return;
+    try { await fn(); } finally { setSuspended(false); }
+  }, []);
   useEffect(() => { setDraft(currentCaption); }, [index, currentCaption]);
   const commitCaption = useCallback(() => {
     if (index === null || !onCaptionChange) return;
@@ -104,7 +119,7 @@ export function PhotoViewer({
   if (!uri) return null;
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={close} statusBarTranslucent>
+    <Modal visible={!suspended} transparent animationType="fade" onRequestClose={close} onDismiss={handleDismiss} statusBarTranslucent>
       <SafeAreaProvider>
         <ForceDarkTheme>
           <KeyboardAvoidingView
@@ -114,14 +129,16 @@ export function PhotoViewer({
             <Pressable style={StyleSheet.absoluteFill} onPress={close} />
             {/* Pressable에 높이를 줘야 안쪽 Image의 height:'100%'가 기준을 갖는다
                 (auto 높이면 퍼센트가 0으로 계산돼 이미지가 안 보인다) */}
-            <Pressable
-              // 한 장뿐이면 "다음"이 없다 → 배경과 같이 탭하면 닫힌다
-              onPress={total > 1 ? undefined : close}
+            {/* Pressable이 아니라 View — Pressable은 자기 터치 처리기가 우리 응답자(onResponder*)를
+                덮어써서 앱에서 좌우 스와이프가 먹지 않았다(웹만 됐다). */}
+            <View
               style={styles.imageFrame}
-              onStartShouldSetResponder={() => total > 1}
+              onStartShouldSetResponder={() => true}
               onResponderGrant={e => { swipeXRef.current = e.nativeEvent.pageX; }}
               onResponderRelease={e => {
                 const dx = e.nativeEvent.pageX - swipeXRef.current;
+                // 한 장뿐이면 "다음"이 없다 → 배경과 같이 탭하면 닫힌다
+                if (total <= 1) { if (Math.abs(dx) < 40) close(); return; }
                 if (Math.abs(dx) < 40) { goNext(); return; } // 탭
                 if (dx < 0) goNext(); else goPrev();
               }}>
@@ -130,7 +147,7 @@ export function PhotoViewer({
                 style={[styles.image, {width: Math.min(Math.max(containerWidth * 0.92, 280), MAX_CONTENT_WIDTH)}]}
                 resizeMode="contain"
               />
-            </Pressable>
+            </View>
             {/* 설명 — 편집 가능하면 입력칸, 아니면 있을 때만 글자 */}
             {onCaptionChange ? (
               <TextInput
@@ -163,7 +180,7 @@ export function PhotoViewer({
                     <IconButton icon={IconAdd} onPress={() => setShowAddMenu(v => !v)} variant="ghost-primary" size="medium" forcePressed={showAddMenu} />
                   )}
                   {onReplace && (
-                    <IconButton icon={IconPhoto} onPress={onReplace} variant="ghost-primary" size="medium" />
+                    <IconButton icon={IconPhoto} onPress={() => runPick(onReplace)} variant="ghost-primary" size="medium" />
                   )}
                   {onDelete && (
                     <IconButton icon={IconTrash} onPress={onDelete} variant="ghost-primary" size="medium" />
@@ -177,7 +194,7 @@ export function PhotoViewer({
                 <Menu
                   items={photoSourceMenuItems(t)}
                   visible={showAddMenu}
-                  onSelect={id => { setShowAddMenu(false); onAdd(id as PhotoSource); }}
+                  onSelect={id => { setShowAddMenu(false); runPick(() => onAdd(id as PhotoSource)); }}
                   onClose={() => setShowAddMenu(false)}
                 />
               ) : undefined}
