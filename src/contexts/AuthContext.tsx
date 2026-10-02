@@ -22,22 +22,34 @@ import {RANDOM_AVATARS} from '@components/Avatar/avatars';
 import {auth, db} from '@config/firebase';
 
 const GUEST_AVATAR_SEED_KEY = '@bakle_avatar_seed';
-const DAILY_SIGNUP_LIMIT = 10;
+// 가입 한도 — 하루 100명, 전체 1,000명(베타 운영 규모). 숫자를 바꾸면 안내 문구도 같이 바뀐다
+const DAILY_SIGNUP_LIMIT = 100;
+const TOTAL_SIGNUP_LIMIT = 1000;
+/** 전체 누적 카운터 — 날짜 문서와 같은 컬렉션이라 보안 규칙(signupLimits/{day})을 그대로 탄다 */
+const TOTAL_KEY = 'total';
 
 async function checkSignupLimit(): Promise<void> {
   const todayKey = new Date().toISOString().slice(0, 10);
-  const ref = doc(db, 'signupLimits', todayKey);
-  const snap = await getDoc(ref);
-  const count = snap.exists() ? snap.data().count : 0;
-  if (count >= DAILY_SIGNUP_LIMIT) {
-    throw new Error('오늘의 가입 한도(10명)에 도달했습니다. 내일 다시 시도해주세요.');
+  const [daySnap, totalSnap] = await Promise.all([
+    getDoc(doc(db, 'signupLimits', todayKey)),
+    getDoc(doc(db, 'signupLimits', TOTAL_KEY)),
+  ]);
+  const total = totalSnap.exists() ? totalSnap.data().count : 0;
+  if (total >= TOTAL_SIGNUP_LIMIT) {
+    throw new Error(`지금은 가입 인원(${TOTAL_SIGNUP_LIMIT}명)이 모두 찼어요. 자리가 나면 다시 열게요.`);
+  }
+  const today = daySnap.exists() ? daySnap.data().count : 0;
+  if (today >= DAILY_SIGNUP_LIMIT) {
+    throw new Error(`오늘의 가입 한도(${DAILY_SIGNUP_LIMIT}명)에 도달했어요. 내일 다시 시도해주세요.`);
   }
 }
 
 async function incrementSignupCount(): Promise<void> {
   const todayKey = new Date().toISOString().slice(0, 10);
-  const ref = doc(db, 'signupLimits', todayKey);
-  await setDoc(ref, {count: increment(1)}, {merge: true});
+  await Promise.all([
+    setDoc(doc(db, 'signupLimits', todayKey), {count: increment(1)}, {merge: true}),
+    setDoc(doc(db, 'signupLimits', TOTAL_KEY), {count: increment(1)}, {merge: true}),
+  ]);
 }
 
 const GOOGLE_WEB_CLIENT_ID = '420587944388-nh09tqe1o1gmsreuf55qesjjmalgtmg0.apps.googleusercontent.com';

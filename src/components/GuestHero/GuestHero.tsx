@@ -28,22 +28,15 @@ export function GuestHero({onLogin}: GuestHeroProps) {
       {/* 맨 위 작은 로고 */}
       <IconLogoSymbol width={28} height={28} color={colors['foreground/on-surface-muted']} style={styles.logo} />
       {/* 한 문장 헤드라인 — "일상적 레시피, 베이클" */}
-      {(() => {
-        // 둘째 줄("베이클")만 그린→블루 그라디언트
-        const [first, ...rest] = t('guestHero.headline').split('\n');
-        return (
-          <>
-            <Text style={styles.headline}>{first}</Text>
-            {rest.length > 0 && (
-              // 잎(라임)에서 하늘(라이트 블루)로 — 디자인 토큰 색
-              <GradientText
-                style={styles.headline}
-                // 라임(lime/50)에서 크림(cream/60)으로, 디자인 토큰 색. 배경이 크림이라 더 밝으면 글자가 묻힌다
-                colors={[PrimitiveColors['lime/50'], PrimitiveColors['cream/60']]}>{rest.join('\n')}</GradientText>
-            )}
-          </>
-        );
-      })()}
+      {/* 카피 전체는 기본 글자색, 오른쪽 아래에서 소라색이 살짝 원형으로 번진다 */}
+      <GradientText
+        style={styles.headline}
+        colors={[PrimitiveColors['light-blue/90'], colors['foreground/on-surface'] as string]}
+        locations={[0, 1]}
+        // 살짝만 — 오른쪽 아래 귀퉁이에서 작게
+        radial={{center: {x: 0.9, y: 0.85}, radius: 0.4}}>
+        {t('guestHero.headline')}
+      </GradientText>
       {/* 서브카피 */}
       <Text style={styles.subcopy}>{t('guestHero.subcopy')}</Text>
       <Button label={t('guestHero.login')} onPress={onLogin} size="medium" style={styles.button} />
