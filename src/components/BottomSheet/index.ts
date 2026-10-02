@@ -1,4 +1,4 @@
-export {BottomSheet} from './BottomSheet';
+export {BottomSheet, SHEET_MAX_WIDTH, sheetContentWidth} from './BottomSheet';
 export type {BottomSheetProps} from './BottomSheet';
 export {SheetHeader} from './SheetHeader';
 export type {SheetHeaderProps} from './SheetHeader';

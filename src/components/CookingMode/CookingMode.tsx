@@ -14,6 +14,7 @@ import {
   Text,
   TextInput as RNTextInput,
   View,
+  useWindowDimensions,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {recognizeImageText} from '@utils/recipeOcr';
@@ -28,7 +29,7 @@ import {PhotoViewer} from '@components/PhotoViewer';
 import {stableStringify} from '@utils/stableStringify';
 import {GlassContainer, Card, MAX_CONTENT_WIDTH, ContentMask} from '@components/Container';
 import {OptionTile} from '@components/OptionTile';
-import {BottomSheet, MadeConfirmSheet} from '@components/BottomSheet';
+import {BottomSheet, MadeConfirmSheet, sheetContentWidth} from '@components/BottomSheet';
 import {Snackbar, type SnackbarTone} from '@components/Snackbar';
 import {IconButton} from '@components/IconButton';
 import {Selector} from '@components/Selector';
@@ -168,7 +169,7 @@ export interface CookingModeProps {
 
 
 
-/** 재료 타일 사이 간격 — gap 대신 마진으로 준다(퍼센트 폭에서 gap은 안 빠진다) */
+/** 재료 타일 사이 간격 */
 const TILE_GAP = 8;
 
 const MAX_PHOTOS = 3;
@@ -324,6 +325,10 @@ export function CookingMode({
   const [showIngredientList, setShowIngredientList] = useState(false);
   // 재료를 타일로 볼지 목록으로 볼지 — 이름이 길면 목록이 읽기 편하다
   const [ingredientLayout, setIngredientLayout] = useState<'grid' | 'list'>('grid');
+  // 4열 타일 한 칸 폭 — 스탬프북 칸과 같은 방식: 화면 폭에서 좌우 패딩·칸 사이 gap을 빼고 나눈다.
+  // 퍼센트(25%)는 아이폰에서 칸이 좌우로 접혀 보였다. 측정 없이 첫 렌더부터 맞는다.
+  const {width: windowWidth} = useWindowDimensions();
+  const tileWidth = Math.floor((sheetContentWidth(windowWidth) - Spacing.smd * 2 - TILE_GAP * 3) / 4);
   /** 4열 타일 한 칸 폭 — 줄 너비에서 gap(8) 세 칸을 빼고 나눈다 */
   const [editAdvice, setEditAdvice] = useState(advice ?? '');
   const [editAdvicePhotos, setEditAdvicePhotos] = useState<string[]>(advicePhotos ?? []);
@@ -2170,7 +2175,7 @@ export function CookingMode({
                       selectedStyle="outline"
                       // 요리 중엔 멀리서 본다 — 한 단계 큰 글자
                       size="large"
-                      style={styles.ingredientTile}
+                      style={[styles.ingredientTile, {width: tileWidth}]}
                     />
                   );
                 })}
@@ -2258,10 +2263,9 @@ const createStyles = (colors: SemanticColors) =>
     ingredientTiles: {
       flexDirection: 'row',
       flexWrap: 'wrap',
-      // gap 대신 칸마다 마진을 준다 — gap은 퍼센트 폭에서 빠지지 않아
-      // 폭을 재서 빼야 했고, 첫 렌더에 측정값이 없어 칸이 쪼그라들었다.
-      // 그룹 라벨(SectionHeader 내부 패딩)과 좌우를 맞추되 마진만큼 덜 준다.
-      paddingHorizontal: Spacing.smd - TILE_GAP / 2,
+      gap: TILE_GAP,
+      // 그룹 라벨(SectionHeader 내부 패딩)과 같은 값이라야 좌우가 맞는다
+      paddingHorizontal: Spacing.smd,
       paddingBottom: Spacing.sm,
     },
     // 목록도 같은 좌우 여백 — 없으면 행이 시트 끝에 붙는다
@@ -2270,16 +2274,13 @@ const createStyles = (colors: SemanticColors) =>
       paddingBottom: Spacing.sm,
     },
     ingredientTile: {
-      // 4열 — 폭은 25%, 칸 사이는 마진으로 벌린다(측정이 필요 없다).
+      // 4열 — 폭은 화면 폭으로 계산해 넘긴다(tileWidth), 칸 사이는 줄의 gap.
       // OptionTile 바깥 래퍼가 flex:1이라 그대로 두면 flex가 폭을 이겨
       // 재료 수만큼 한 줄에 다 들어간다(7개가 한 줄로 늘어났다).
       // flex:1은 flexBasis:0도 포함하므로 basis까지 되돌려야 width가 쓰인다.
-      width: '25%',
       flexGrow: 0,
       flexShrink: 0,
       flexBasis: 'auto',
-      paddingHorizontal: TILE_GAP / 2,
-      marginBottom: TILE_GAP,
       // 이름이 길고 짧아도 칸 크기가 같아 보이도록 높이를 고정한다.
       // 이름(14)·분량(12) 한 줄씩 꼭 맞는 높이 — 두 줄 대비로 76을 두면 대부분 휑했다
       height: 60,

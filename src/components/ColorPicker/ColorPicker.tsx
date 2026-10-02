@@ -58,6 +58,14 @@ export function getColorVarKey(color: AvatarColor): keyof SemanticColors {
   return `custom/${slug}-var` as keyof SemanticColors;
 }
 
+/**
+ * 레시피북 색 — 팩 표지·앱바·목록 아이콘이 모두 이 한 값을 쓴다.
+ * -var(반투명)는 표지 위 글씨가 비치고 아이콘마다 진하기가 달라 보여 솔리드로 통일.
+ */
+export function getCookbookColorKey(color: AvatarColor): keyof SemanticColors {
+  return getColorVarKey(color).replace('-var', '') as keyof SemanticColors;
+}
+
 export interface ColorPickerProps {
   selected: AvatarColor;
   onSelect: (color: AvatarColor) => void;

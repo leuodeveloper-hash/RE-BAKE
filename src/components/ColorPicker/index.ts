@@ -1,2 +1,2 @@
-export {ColorPicker, getColorValue, getColorVarKey} from './ColorPicker';
+export {ColorPicker, getColorValue, getColorVarKey, getCookbookColorKey} from './ColorPicker';
 export type {ColorPickerProps} from './ColorPicker';

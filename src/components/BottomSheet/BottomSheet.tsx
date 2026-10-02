@@ -370,6 +370,18 @@ export function BottomSheet({
   );
 }
 
+/** 시트 최대 폭 */
+export const SHEET_MAX_WIDTH = 478;
+
+/**
+ * 시트 본문(스크롤 내용)의 실제 폭 — 화면 폭만으로 바로 계산한다.
+ * 칸 폭을 퍼센트로 주면 iOS에서 접혀 보이고, onLayout으로 재면 첫 렌더에 값이 없어
+ * 칸이 쪼그라든다. 둘 다 피하려고 바깥 여백·최대 폭·본문 패딩을 그대로 뺀다.
+ */
+export function sheetContentWidth(windowWidth: number): number {
+  return Math.min(windowWidth - Spacing.sm * 2, SHEET_MAX_WIDTH) - Spacing.xs * 2;
+}
+
 const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
     container: {
@@ -382,7 +394,7 @@ const createStyles = (colors: SemanticColors) =>
       backgroundColor: colors['overlay/strong'],
     },
     sheetContainer: {
-      maxWidth: 478,
+      maxWidth: SHEET_MAX_WIDTH,
       width: '100%',
       alignSelf: 'center',
       backgroundColor: colors['surface/bright'],

@@ -7,7 +7,7 @@ import {IconAdd, IconBookFilled} from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 import {useTranslation} from '@contexts/LanguageContext';
-import {getColorVarKey} from '@components/ColorPicker';
+import {getCookbookColorKey} from '@components/ColorPicker';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
@@ -102,7 +102,7 @@ export function CookbookSelectSheet({
                 <BookIcon
                   width={20}
                   height={20}
-                  color={colors[getColorVarKey(cbColor || 'brown')]}
+                  color={colors[getCookbookColorKey(cbColor || 'brown')]}
                 />
                 <Text style={styles.itemLabel}>{name}</Text>
                 {renderItemTrailing?.(name)}

@@ -21,7 +21,7 @@ import {parseSession, formatSession, sortSessionGroup} from '@utils/session';
 import {shareRecipe} from '@utils/shareRecipe';
 import {getSharedRecipe} from '@utils/sharedRecipeCache';
 import {uploadRecipeImage, isLocalUri} from '@utils/imageUpload';
-import {getColorVarKey} from '@components/ColorPicker';
+import {getCookbookColorKey} from '@components/ColorPicker';
 import {DEFAULT_COOKBOOK_COLOR} from '@contexts/RecipeContext';
 import {IconTrashFilled, IconExprolerBookFilled} from '@components/Icon/IconIndex';
 import {CookbookSelectSheet} from '@components/BottomSheet';
@@ -128,7 +128,7 @@ export default function RecipeDetailRoute() {
       label: r.title,
       imageUrl: r.imageUri,
       iconColor: r.cookbook
-        ? colors[getColorVarKey(cookbookColors[r.cookbook] ?? DEFAULT_COOKBOOK_COLOR)]
+        ? colors[getCookbookColorKey(cookbookColors[r.cookbook] ?? DEFAULT_COOKBOOK_COLOR)]
         : undefined,
       searchableTexts: toSearchable(r),
     }));
@@ -137,7 +137,7 @@ export default function RecipeDetailRoute() {
       label: r.title,
       imageUrl: r.imageUri,
       iconColor: r.cookbook
-        ? colors[getColorVarKey((exploreCookbookColorMap.get(r.cookbook) ?? 'orange') as any)]
+        ? colors[getCookbookColorKey((exploreCookbookColorMap.get(r.cookbook) ?? 'orange') as any)]
         : undefined,
       searchableTexts: toSearchable(r),
     }));
@@ -654,6 +654,13 @@ const handleDelete = useCallback(async () => {
                     const nextUri = isLocalUri(uri) ? await uploadRecipeImage(uri, `explore_${id}_p${Date.now()}_${i}`) : uri;
                     return typeof p === 'string' ? nextUri : {...p, uri: nextUri};
                   }));
+                // 상단 사진(상세 뷰어에서 바로 올린 것 포함)
+                if (typeof uploaded.imageUri === 'string' && isLocalUri(uploaded.imageUri)) {
+                  uploaded.imageUri = await uploadRecipeImage(uploaded.imageUri, `explore_${id}_h${Date.now()}`);
+                }
+                if (Array.isArray(uploaded.imageUris) && uploaded.imageUris.some((u: string) => isLocalUri(u))) {
+                  uploaded.imageUris = await uploadPhotos(uploaded.imageUris);
+                }
                 if (uploaded.stepGroups) {
                   uploaded.stepGroups = await Promise.all(
                     uploaded.stepGroups.map(async (g: any) => ({
@@ -744,24 +751,26 @@ const handleDelete = useCallback(async () => {
         onSourcePress={recipe.sourceAuthorId ? () => router.push(`/u/${resolveAuthorHandle(recipe.sourceAuthorId, recipe.sourceHandle) ?? recipe.sourceAuthorId}` as any) : undefined}
         {...(() => {
           // 작성자 = 레시피에 박제된 값 우선(복사본은 원본 작성자 유지). 박제값이 없는 순수 내 레시피만 내 계정으로 폴백.
-          const hasStamped = !!recipe.authorId;
+          // 둘러보기 레시피인데 작성자가 비어 있으면(예전에 어드민이 올린 것) 공식(베이키)으로 본다
+          const authorId = recipe.authorId ?? (isExploreRecipe ? OFFICIAL_AUTHOR_ID : undefined);
+          const hasStamped = !!authorId;
           // 표시는 전부 @handle로 통일. 공식은 최신 handle(bakey)로 치환, 핸들 없는 게스트는 @guest.
-          const stampedHandle = resolveAuthorHandle(recipe.authorId, recipe.authorHandle);
+          const stampedHandle = resolveAuthorHandle(authorId, recipe.authorHandle);
           const badgeName = hasStamped
             ? `@${stampedHandle ?? 'guest'}`
             : `@${handle ?? 'guest'}`;
           const badgeSeed = hasStamped
-            ? (recipe.authorAvatarSeed ?? recipe.authorId)
+            ? (recipe.authorAvatarSeed ?? authorId)
             : (avatarSeed != null ? String(avatarSeed) : undefined);
-          const targetAuthorId = hasStamped ? recipe.authorId : user?.uid;
+          const targetAuthorId = hasStamped ? authorId : user?.uid;
           // URL은 handle 기반(핸들=주소 일치). 박제 handle → 공식 치환 → 폴백 순.
           const targetHandle = hasStamped
-            ? (resolveAuthorHandle(recipe.authorId, recipe.authorHandle) ?? recipe.authorId)
+            ? (resolveAuthorHandle(authorId, recipe.authorHandle) ?? authorId)
             : (handle ?? user?.uid);
           return {
             authorHandle: badgeName,
             authorAvatarSeed: badgeSeed,
-            authorId: hasStamped ? recipe.authorId : user?.uid,
+            authorId: hasStamped ? authorId : user?.uid,
             onAuthorPress: targetAuthorId ? () => router.push(`/u/${targetHandle}` as any) : undefined,
           };
         })()}

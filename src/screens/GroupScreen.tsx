@@ -17,7 +17,7 @@ import {Tabs} from '@components/Tabs';
 import {Dialog} from '@components/Dialog';
 import {Button} from '@components/Button';
 import {ReviewLogSheet} from '@components/BottomSheet';
-import {getColorVarKey} from '@components/ColorPicker';
+import {getCookbookColorKey} from '@components/ColorPicker';
 import {PullIndicator, RefreshGap, usePullProgress} from '@components/PullIndicator';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
@@ -327,7 +327,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         // 미분류는 고정 옐로 표지 위에서 라이트/다크 대비가 뜨지 않도록 fixed 색 사용
         iconColor: isUngrouped
           ? colors['foreground/on-surface-fixed']
-          : colors[getColorVarKey(cookbookColors[cb.name] || DEFAULT_COOKBOOK_COLOR).replace('-var', '') as keyof typeof colors],
+          : colors[getCookbookColorKey(cookbookColors[cb.name] || DEFAULT_COOKBOOK_COLOR)],
         cards,
         variant: 'book' as const,
         authors: deriveBookAuthors(cb.items),
@@ -785,7 +785,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                                   reviewCount={cookbook.items.reduce((sum, r) => sum + reviewsOf(r).length, 0)}
                                   layout="list"
                                   placeholderIcon={axisOverrides?.cookbook?.icon ?? IconBookFilled}
-                                  placeholderIconColor={isUngrouped ? colors['foreground/on-surface-muted'] : colors[getColorVarKey(cookbookColors[cookbook.name] || DEFAULT_COOKBOOK_COLOR)]}
+                                  placeholderIconColor={isUngrouped ? colors['foreground/on-surface-muted'] : colors[getCookbookColorKey(cookbookColors[cookbook.name] || DEFAULT_COOKBOOK_COLOR)]}
                                   onPress={() => onCookbookPress?.(cookbook.name)}
                                   hidden={cookbooksAreOfficial ? exploreCookbookHiddenMap.get(cookbook.name) : undefined}
                                   // 공식 북(둘러보기)은 어드민만 편집·삭제. 개인 북(홈)은 소유자 항상 가능
@@ -808,7 +808,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                                   reviewCount={cookbook.items.reduce((sum: number, r) => sum + reviewsOf(r).length, 0)}
                                   layout="list"
                                   placeholderIcon={IconExprolerBookFilled}
-                                  placeholderIconColor={isExploreUngrouped ? colors['foreground/on-surface-muted'] : colors[getColorVarKey(ecColor)]}
+                                  placeholderIconColor={isExploreUngrouped ? colors['foreground/on-surface-muted'] : colors[getCookbookColorKey(ecColor)]}
                                   onPress={() => onExploreCookbookPress?.(cookbook.name)}
                                   hidden={exploreCookbookHiddenMap.get(cookbook.name)}
                                   onMenuPress={isAdmin ? (pos) => handleExploreCookbookMenuPress(cookbook.name, pos) : undefined}

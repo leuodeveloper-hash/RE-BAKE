@@ -503,7 +503,7 @@
   "privacy.section7Title": "7. 쿠키 및 추적",
   "privacy.section8Body": "본 방침은 필요에 따라 변경될 수 있으며, 변경 시 서비스 내에서 공지합니다.",
   "privacy.section8Title": "8. 방침 변경",
-  "privacy.section9Body": "개인정보 처리에 관한 문의사항은 앱 내 프로필 화면의 문의하기를 통해 연락해 주세요.",
+  "privacy.section9Body": "개인정보 처리에 관한 문의사항은 앱 내 프로필 화면의 문의하기 또는 이메일(hello@bakle.app)로 연락해 주세요.",
   "privacy.section9Title": "9. 문의",
   "privacy.title": "개인정보 처리방침",
   "profile.adminTools": "관리자 도구",
@@ -869,7 +869,7 @@
   "subscription.proTitle": "베이클 Pro",
   "takePhoto": "카메라로 촬영",
   "terms.lastUpdated": "최종 수정일: 2026년 9월 30일",
-  "terms.section10Body": "서비스 이용에 관한 문의사항은 앱 내 프로필 화면의 문의하기를 통해 연락해 주세요.",
+  "terms.section10Body": "서비스 이용에 관한 문의사항은 앱 내 프로필 화면의 문의하기 또는 이메일(hello@bakle.app)로 연락해 주세요.",
   "terms.section10Title": "10. 문의",
   "terms.section1Body": "베이클(이하 \"서비스\")은 베이킹 레시피를 기록, 관리, 공유할 수 있는 모바일 및 웹 애플리케이션입니다. 본 약관은 서비스 이용에 관한 기본적인 사항을 규정합니다.",
   "terms.section1Title": "1. 서비스 개요",
@@ -949,5 +949,6 @@
   "sharedCookbook.cancel": "취소",
   "sharedCookbook.unpublish": "공개 해제",
   "sharedCookbook.unpublished": "공개를 해제했어요",
-  "sharedCookbook.failed": "처리하지 못했어요. 잠시 후 다시 시도해 주세요."
+  "sharedCookbook.failed": "처리하지 못했어요. 잠시 후 다시 시도해 주세요.",
+  "recipeEdit.kind": "타입"
 }

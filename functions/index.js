@@ -61,7 +61,8 @@ const GMAIL_APP_PASSWORD = defineSecret('GMAIL_APP_PASSWORD');
 
 /** 보내는/받는 주소 — 서버에만 둔다 */
 const MAIL_FROM = 'leuo.developer@gmail.com';
-const MAIL_TO = 'leuo.developer@gmail.com';
+// hello@bakle.app은 Cloudflare 이메일 라우팅으로 같은 Gmail에 들어오고, Gmail 필터가 라벨로 모은다
+const MAIL_TO = 'hello@bakle.app';
 
 const escapeHtml = (s) =>
   String(s ?? '').replace(/[&<>"']/g, (c) =>

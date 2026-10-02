@@ -23,7 +23,7 @@ import {
   IconUserFilled,
   IconAdd,
 } from '@components/Icon/IconIndex';
-import {getColorVarKey} from '@components/ColorPicker/ColorPicker';
+import {getCookbookColorKey} from '@components/ColorPicker/ColorPicker';
 import type {ExploreCookbook} from '@hooks/useExploreRecipes';
 import {GroupScreen} from './GroupScreen';
 import {axisLabel, useAxisMenuItems, type AxisOverrides, type GroupAxis} from '@components/RecipeGroups/groupAxis';
@@ -195,7 +195,7 @@ export function ExploreScreen({
         id: r.id,
         label: r.title,
         locked: lockedRecipeIds?.has(r.id),
-        iconColor: r.cookbook ? colors[getColorVarKey((ecColor ?? 'orange') as any)] : undefined,
+        iconColor: r.cookbook ? colors[getCookbookColorKey((ecColor ?? 'orange') as any)] : undefined,
         searchableTexts: [r.cookbook, r.method, r.specificGravity].filter(Boolean) as string[],
       };
     }),

@@ -38,6 +38,11 @@ import {ReviewLogSheet} from '@components/BottomSheet';
 import {Thumbnail} from '@components/Thumbnail';
 import {StepPhotos} from '@components/StepPhotos';
 import {PhotoViewer} from '@components/PhotoViewer';
+import * as ImagePicker from 'expo-image-picker';
+import {ensureImagePermission} from '@utils/imagePermission';
+import {getPersistentUri, MAX_HERO_PHOTOS} from '@utils/imageUpload';
+import {useSnackbar} from '@contexts/SnackbarContext';
+import {photoSourceMenuItems, type PhotoSource} from '@utils/photoSourceMenu';
 import {MadeConfirmSheet, RecipeFeedbackSheet} from '@components/BottomSheet';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {normalizeStepPhotos} from '@utils/stepPhotos';
@@ -425,6 +430,7 @@ export function RecipeDetailScreen({
 }: RecipeDetailScreenProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
+  const {showSnackbar} = useSnackbar();
   const {width: windowWidth} = useWindowDimensions();
   const colors = useColors();
   const canEdit = !!onUpdate;
@@ -519,10 +525,49 @@ export function RecipeDetailScreen({
     [imageUri, imageUris],
   );
 
-  const openPhotoViewer = useCallback((photos: {uri: string}[], index: number) => {
+  // 상단 사진 뷰어인지 — 맞으면 뷰어가 늘 최신 heroPhotos를 보여주고, 편집 가능하면 추가·교체·삭제를 단다
+  const [viewerIsHero, setViewerIsHero] = useState(false);
+  const [showHeroAddMenu, setShowHeroAddMenu] = useState(false);
+  const openPhotoViewer = useCallback((photos: {uri: string}[], index: number, hero = false) => {
     setViewerPhotos(photos);
+    setViewerIsHero(hero);
     setViewerIndex(index);
   }, []);
+
+  /** 상단 사진 고르기 — 편집 화면과 같은 정사각 자르기. 촬영/갤러리 */
+  const pickHeroPhoto = useCallback(async (source: PhotoSource): Promise<string | null> => {
+    const isCamera = source === 'camera';
+    const ok = await ensureImagePermission(isCamera ? 'camera' : 'mediaLibrary', {
+      deniedMessage: t(isCamera ? 'recipeEdit.cameraPermissionNeeded' : 'recipeEdit.photoPermissionNeeded'),
+      showSnackbar,
+      settingsTitle: t(isCamera ? 'permission.cameraTitle' : 'permission.photoTitle'),
+      settingsBody: t(isCamera ? 'permission.cameraBody' : 'permission.photoBody'),
+      settingsConfirmLabel: t('permission.openSettings'),
+      settingsCancelLabel: t('permission.cancel'),
+    });
+    if (!ok) return null;
+    const options: ImagePicker.ImagePickerOptions = {
+      mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.8, base64: Platform.OS === 'web',
+    };
+    const result = isCamera
+      ? await ImagePicker.launchCameraAsync(options)
+      : await ImagePicker.launchImageLibraryAsync(options);
+    if (result.canceled || !result.assets[0]) return null;
+    return getPersistentUri(result.assets[0].uri, result.assets[0].base64);
+  }, [showSnackbar, t]);
+
+  /** 상단 사진 목록(대표 + 추가분)을 통째로 바꿔 저장한다 */
+  const saveHeroPhotos = useCallback((uris: string[]) => {
+    onUpdate?.({imageUri: uris[0] ?? null, imageUris: uris.slice(1)});
+  }, [onUpdate]);
+  const heroUris = useMemo(() => heroPhotos.map(p => p.uri), [heroPhotos]);
+  const handleHeroAdd = useCallback(async (source: PhotoSource) => {
+    const uri = await pickHeroPhoto(source);
+    if (!uri) return;
+    const next = [...heroUris, uri].slice(0, MAX_HERO_PHOTOS);
+    saveHeroPhotos(next);
+    setViewerIndex(next.length - 1);
+  }, [pickHeroPhoto, heroUris, saveHeroPhotos]);
 
   const [searchFilter, setSearchFilter] = useState<'cookbook' | 'method' | null>(null);
   const [showReviewSheet, setShowReviewSheet] = useState(false);
@@ -849,7 +894,7 @@ export function RecipeDetailScreen({
                   기준이 바뀌어 레이아웃이 깨진다. 같은 자리에 투명 영역만 겹친다. */}
               <Pressable
                 style={styles.heroImage}
-                onLongPress={() => { triggerHaptic('medium'); openPhotoViewer(heroPhotos, 0); }}
+                onLongPress={() => { triggerHaptic('medium'); openPhotoViewer(heroPhotos, 0, true); }}
               />
               {/* 장식용 어둡기 레이어 — Pressable 위에 덮이므로 터치를 통과시킨다.
                   (웹은 DOM 이벤트라 이게 없으면 롱프레스가 이 레이어에 먹혀 뷰어가 안 열린다) */}
@@ -893,7 +938,12 @@ export function RecipeDetailScreen({
               />
             </>
           ) : null}
-          <View style={styles.heroContentWrapper}>
+          {/* 사진이 없으면 상단을 길게 눌러 바로 올린다(뷰어의 [+]와 같은 동작).
+              감싸는 Pressable이라 작성자·레시피북 같은 안쪽 버튼은 그대로 눌린다. */}
+          <Pressable
+            style={styles.heroContentWrapper}
+            disabled={!!imageUri || !canEdit}
+            onLongPress={() => { triggerHaptic('medium'); setShowHeroAddMenu(true); }}>
             <ContentContainer style={styles.heroContent}>
               <View style={styles.heroTitleRow}>
                 <Text style={styles.heroTitle}>
@@ -962,8 +1012,21 @@ export function RecipeDetailScreen({
                 })()}
               </View>
             </ContentContainer>
-          </View>
+          </Pressable>
         </View>
+
+        {/* 빈 상단 사진 자리 — 길게 누르면 촬영/갤러리 (편집 화면과 같은 메뉴) */}
+        {!imageUri && canEdit && (
+          <View style={{zIndex: 100, elevation: 100}}>
+            <Menu
+              items={photoSourceMenuItems(t)}
+              visible={showHeroAddMenu}
+              onSelect={id => { setShowHeroAddMenu(false); handleHeroAdd(id as PhotoSource); }}
+              onClose={() => setShowHeroAddMenu(false)}
+              style={{right: Spacing.md, top: -Spacing.md}}
+            />
+          </View>
+        )}
 
         {/* Meta Info Cards */}
         <Animated.View style={{opacity: sectionAnims[0]}}>
@@ -1517,12 +1580,14 @@ export function RecipeDetailScreen({
 
       {/* 스텝 사진 전체보기 (읽기 전용 — 편집은 편집화면/요리모드에서) */}
       <PhotoViewer
-        photos={viewerPhotos}
+        photos={viewerIsHero ? heroPhotos : viewerPhotos}
         index={viewerIndex}
+        // 상단 사진은 상세에서 바로 올린다(최대 3장, 업로드만) — 편집 권한이 있을 때만
+        onAdd={viewerIsHero && canEdit && heroPhotos.length < MAX_HERO_PHOTOS ? handleHeroAdd : undefined}
         onIndexChange={setViewerIndex}
         onClose={() => setViewerIndex(null)}
         onDownload={onDownloadPhoto && viewerIndex !== null
-          ? () => onDownloadPhoto(viewerPhotos[viewerIndex]?.uri ?? '')
+          ? () => onDownloadPhoto((viewerIsHero ? heroPhotos : viewerPhotos)[viewerIndex]?.uri ?? '')
           : undefined}
       />
 

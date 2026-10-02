@@ -15,7 +15,8 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import * as Haptics from 'expo-haptics';
-import {getPersistentUri} from '@utils/imageUpload';
+import {getPersistentUri, MAX_HERO_PHOTOS} from '@utils/imageUpload';
+import {photoSourceMenuItems} from '@utils/photoSourceMenu';
 import {PhotoViewer} from '@components/PhotoViewer';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {FloatingNavBar, NavPillButton, navPillStyle, NAV_PILL_HEIGHT} from '@components/Navigation';
@@ -30,13 +31,13 @@ import {Popover} from '@components/Popover';
 import {CookbookSelectSheet, PasteRecipeSheet} from '@components/BottomSheet';
 import {EditableChip} from '@components/EditableChip';
 import {Switch} from '@components/Switch';
+import {Tabs} from '@components/Tabs';
 import {OptionTile} from '@components/OptionTile';
 import {StepPhotos} from '@components/StepPhotos';
 import {FieldManageDialog, TimeDialog, ServingsDialog, IngredientAmountDialog} from '@components/Dialog';
 import type {ReviewData} from '@components/Dialog';
 import {TextInput} from '@components/TextInput';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
-import {Tabs} from '@components/Tabs';
 import {ReviewFields} from '@components/Dialog/ReviewFields';
 import {AutoGrowInput} from '@components/AutoGrowInput';
 import {DragHandle} from '@components/DragHandle';
@@ -48,7 +49,7 @@ import {LinkTargetProvider, useLinkTarget} from '@contexts/LinkTargetContext';
 import {UrlField, isUrlLike} from '@components/UrlField/UrlField';
 import {LinkInputDialog} from '@components/Dialog';
 import {Tooltip} from '@components/Tooltip';
-import {getColorVarKey} from '@components/ColorPicker';
+import {getCookbookColorKey} from '@components/ColorPicker';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import {RainbowText, BulkTypingOverlay} from '@components/RainbowText';
 import {SkeletonLine} from '@components/SkeletonLine';
@@ -141,7 +142,7 @@ type TFn = (key: string, params?: Record<string, any>) => string;
 // 메뉴 아이템
 
 /** 상단 이미지는 대표 1장 + 추가 2장까지 (스텝 사진과 동일한 3장 제한) */
-const MAX_EXTRA_HERO = 2;
+const MAX_EXTRA_HERO = MAX_HERO_PHOTOS - 1;
 const makeEditMenuItems = (t: TFn) => [
   {id: 'import-url', label: t('recipeEdit.importFromSite'), icon: IconImport},
   // 묶음별 "한 번에 쓰기"는 그 묶음만 고친다 — 이건 레시피 전체를 채우므로
@@ -1650,18 +1651,19 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
         {/* Spacer for nav bar */}
         <View style={{height: 72 + insets.top}} />
 
-        {/* 종류 — 레시피(기본) / 팁(실기 준비물처럼 읽는 정보). 팁은 만들기·회고·요리모드에서 빠진다 */}
-        {/* 팁은 어드민이 공식으로 올린다 — 일반 사용자에겐 전환을 숨긴다(이미 팁인 건 보여줘 되돌릴 수 있게) */}
+        {/* 타입(레시피/팁) — 폼 맨 위에 붙는 인라인 한 줄(카드 없이 라벨 + 텍스트 탭, 프로필 '테마'와 같은 탭).
+            팁(실기 준비물처럼 읽는 정보)은 만들기·회고·요리모드에서 빠진다.
+            어드민이 공식으로 올린다 — 일반 사용자에겐 숨긴다(이미 팁인 건 보여줘 되돌릴 수 있게) */}
         {(isAdmin || kind === 'tip') && (
-        <ContentContainer style={styles.kindTabs}>
-          <Tabs
-            tabs={[{id: 'recipe', label: t('recipeEdit.kindRecipe')}, {id: 'tip', label: t('recipeEdit.kindTip')}]}
-            selectedId={kind}
-            // 종류는 레시피북과 따로 — 같은 북(예: 제과기능사) 안에 레시피와 팁이 함께 있다
-            onSelect={id => setKind(id as 'recipe' | 'tip')}
-            fullWidth
-          />
-        </ContentContainer>
+          <ContentContainer style={styles.kindInline}>
+            <Text style={styles.kindLabel}>{t('recipeEdit.kind')}</Text>
+            <Tabs
+              variant="text"
+              tabs={[{id: 'recipe', label: t('recipeEdit.kindRecipe')}, {id: 'tip', label: t('recipeEdit.kindTip')}]}
+              selectedId={kind}
+              onSelect={id => setKind(id as 'recipe' | 'tip')}
+            />
+          </ContentContainer>
         )}
 
         {/* Title & Description */}
@@ -1787,8 +1789,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
               </Pressable>
               <Menu
                 items={[
-                  {id: 'camera', label: t('recipeEdit.takePhoto'), icon: IconCameraFilled},
-                  {id: 'gallery', label: t('recipeEdit.chooseFromGallery'), icon: IconPhoto},
+                  ...photoSourceMenuItems(t),
                   // 대표가 있어야 "추가"가 의미 있다. 3장을 채우면 추가 항목을 감춘다.
                   ...(imageUri && imageUris.length < MAX_EXTRA_HERO
                     ? [{id: 'add', label: t('recipeEdit.addPhoto'), icon: IconFilesFilled}]
@@ -2833,7 +2834,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
                       width: 20,
                       height: 20,
                       color: cookbook
-                        ? colors[getColorVarKey(cookbookColorsProp?.[cookbook] || (isExplore ? 'orange' : 'brown'))]
+                        ? colors[getCookbookColorKey(cookbookColorsProp?.[cookbook] || (isExplore ? 'orange' : 'brown'))]
                         : colors['foreground/on-surface-muted'],
                     })}
                   </View>
@@ -3392,7 +3393,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
           else replaceExtraHeroAt(idx - 1);
         }}
         // 3장을 채우면 감춘다 — 더 넣을 자리가 없다
-        onAdd={imageUris.length < MAX_EXTRA_HERO ? () => pickImage('gallery', 'extra') : undefined}
+        onAdd={imageUris.length < MAX_EXTRA_HERO ? source => pickImage(source, 'extra') : undefined}
         onDelete={() => { if (heroViewerIndex !== null) removeHeroAt(heroViewerIndex); }}
       />
     </View>

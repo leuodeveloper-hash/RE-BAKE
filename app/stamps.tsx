@@ -15,7 +15,7 @@ import {SectionHeader} from '@components/SectionHeader';
 import {ReviewDialog} from '@components/Dialog';
 import {Stamp, stampShapeSeed} from '@components/Stamp';
 import {StampDetailSheet} from '@components/BottomSheet';
-import {getColorVarKey} from '@components/ColorPicker';
+import {getCookbookColorKey} from '@components/ColorPicker';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import {useColors} from '@contexts/ThemeContext';
 import {useThemedStyles} from '@hooks/useThemedStyles';
@@ -247,8 +247,7 @@ export default function StampsRoute() {
   const bookColor = useCallback((name: string) => {
     const official = exploreCookbooks.find(c => c.name === name)?.color;
     const mine = cookbookColors[name];
-    const key = getColorVarKey((official as AvatarColor) || mine || DEFAULT_COOKBOOK_COLOR);
-    return colors[key.replace('-var', '') as keyof typeof colors] as string;
+    return colors[getCookbookColorKey((official as AvatarColor) || mine || DEFAULT_COOKBOOK_COLOR)] as string;
   }, [exploreCookbooks, cookbookColors, colors]);
 
   const cookbookSections = useMemo(() => {

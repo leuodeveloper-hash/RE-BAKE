@@ -9,6 +9,7 @@ import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useColors} from '@contexts/ThemeContext';
 import {useAuth} from '@contexts/AuthContext';
+import {OFFICIAL_AUTHOR_ID, OFFICIAL_AUTHOR_HANDLE, OFFICIAL_AUTHOR_DISPLAY_NAME} from '../../src/types/author';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {uploadRecipeImage, isLocalUri} from '@utils/imageUpload';
@@ -108,7 +109,15 @@ export default function RecipeNewRoute() {
     if (isExploreTarget) {
       try {
         const {imageSource, ...rest} = newRecipe;
-        const serializable = stripUndefined(rest);
+        // 둘러보기에 올리는 건 어드민 — 작성자는 공식(베이키)으로 박제한다.
+        // 없으면 상세가 '내 레시피'로 보고 올린 어드민 계정 이름을 띄웠다.
+        const serializable = stripUndefined({
+          ...rest,
+          authorId: OFFICIAL_AUTHOR_ID,
+          authorHandle: OFFICIAL_AUTHOR_HANDLE,
+          authorDisplayName: OFFICIAL_AUTHOR_DISPLAY_NAME,
+          authorAvatarSeed: OFFICIAL_AUTHOR_ID,
+        });
         await setDoc(doc(db, 'explore_recipes', id), serializable);
         showSnackbar(t('edit.recipeAddedToExplore'), {tone: 'positive'});
       } catch {

@@ -96,3 +96,6 @@ export function isLocalUri(uri: string): boolean {
   if (uri.startsWith('data:')) return true;
   return !uri.startsWith('http://') && !uri.startsWith('https://');
 }
+
+/** 레시피 상단(대표+추가) 사진 최대 장수 — 편집 화면·상세 뷰어 공용 */
+export const MAX_HERO_PHOTOS = 3;

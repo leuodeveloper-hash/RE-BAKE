@@ -6,6 +6,8 @@ import {GlassContainer} from '@components/Container';
 import {IconButton} from '@components/IconButton';
 import {IconClose, IconPhoto, IconTrash, IconArrowDownToLine, IconAdd} from '@components/Icon/IconIndex';
 import {ForceDarkTheme} from '@contexts/ThemeContext';
+import {Menu} from '@components/Menu';
+import {photoSourceMenuItems, type PhotoSource} from '@utils/photoSourceMenu';
 import {useTranslation} from '@contexts/LanguageContext';
 import {Typography} from '@constants/typography';
 import {Spacing} from '@constants/spacing';
@@ -23,8 +25,8 @@ export interface PhotoViewerProps {
   /** 편집 가능하면 우측 상단에 교체·삭제 버튼 (없으면 읽기 전용) */
   onReplace?: () => void;
   onDelete?: () => void;
-  /** 사진 추가 — 뷰어 안에서 바로 한 장 더 올릴 때 */
-  onAdd?: () => void;
+  /** 사진 추가 — 뷰어 안에서 바로 한 장 더 올릴 때. [+]를 누르면 촬영/갤러리 메뉴가 뜬다 */
+  onAdd?: (source: PhotoSource) => void;
   /**
    * 우측 상단 다운로드 버튼. 주면 보이고, 없으면 감춘다.
    * 유료 여부 판단·유도는 호출부가 한다 — 공통 뷰어가 구독을 알 필요는 없다.
@@ -68,6 +70,7 @@ export function PhotoViewer({
   // 설명 입력 임시값 — 사진이 바뀌면 그 사진 값으로 다시 채운다
   const currentCaption = index !== null ? photos[index]?.caption ?? '' : '';
   const [draft, setDraft] = useState(currentCaption);
+  const [showAddMenu, setShowAddMenu] = useState(false);
   useEffect(() => { setDraft(currentCaption); }, [index, currentCaption]);
   const commitCaption = useCallback(() => {
     if (index === null || !onCaptionChange) return;
@@ -157,7 +160,7 @@ export function PhotoViewer({
               right={hasRightActions ? (
                 <GlassContainer contentStyle={navPillStyle}>
                   {onAdd && (
-                    <IconButton icon={IconAdd} onPress={onAdd} variant="ghost-primary" size="medium" />
+                    <IconButton icon={IconAdd} onPress={() => setShowAddMenu(v => !v)} variant="ghost-primary" size="medium" forcePressed={showAddMenu} />
                   )}
                   {onReplace && (
                     <IconButton icon={IconPhoto} onPress={onReplace} variant="ghost-primary" size="medium" />
@@ -169,6 +172,14 @@ export function PhotoViewer({
                     <IconButton icon={IconArrowDownToLine} onPress={onDownload} variant="ghost-primary" size="medium" />
                   )}
                 </GlassContainer>
+              ) : undefined}
+              rightMenu={onAdd ? (
+                <Menu
+                  items={photoSourceMenuItems(t)}
+                  visible={showAddMenu}
+                  onSelect={id => { setShowAddMenu(false); onAdd(id as PhotoSource); }}
+                  onClose={() => setShowAddMenu(false)}
+                />
               ) : undefined}
             />
           </KeyboardAvoidingView>

@@ -17,7 +17,7 @@ import {
 } from '@components/Icon/IconIndex';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import type {SemanticColors} from '@constants/tokens';
-import {getColorVarKey} from '@components/ColorPicker';
+import {getCookbookColorKey} from '@components/ColorPicker';
 
 type TFunction = (key: string, params?: Record<string, unknown>) => string;
 
@@ -104,7 +104,7 @@ export function getCookbookSubmenuItems(options: CookbookSubmenuOptions): {
       id: `cookbook:${name}`,
       label: name,
       icon: IconBookFilled,
-      iconColor: avatarColor ? colors[getColorVarKey(avatarColor)] : undefined,
+      iconColor: avatarColor ? colors[getCookbookColorKey(avatarColor)] : undefined,
     });
   }
   const selectedId = currentCookbook

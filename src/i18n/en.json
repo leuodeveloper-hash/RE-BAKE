@@ -518,7 +518,7 @@
   "privacy.section7Title": "7. Cookies and Tracking",
   "privacy.section8Body": "This policy may change as needed; we will announce any changes within the Service.",
   "privacy.section8Title": "8. Changes to This Policy",
-  "privacy.section9Body": "For questions about how we handle personal information, please contact us through Inquiry on the Profile screen in the app.",
+  "privacy.section9Body": "For questions about how we handle personal information, please contact us through Inquiry on the Profile screen in the app or by email at hello@bakle.app.",
   "privacy.section9Title": "9. Contact",
   "privacy.title": "Privacy Policy",
   "profile.adminTools": "Admin Tools",
@@ -884,7 +884,7 @@
   "subscription.proTitle": "Bakecycle Pro",
   "takePhoto": "Take photo",
   "terms.lastUpdated": "Last updated: September 30, 2026",
-  "terms.section10Body": "For questions about using the Service, please contact us through Inquiry on the Profile screen in the app.",
+  "terms.section10Body": "For questions about using the Service, please contact us through Inquiry on the Profile screen in the app or by email at hello@bakle.app.",
   "terms.section10Title": "10. Contact",
   "terms.section1Body": "Bakle (the \"Service\") is a mobile and web application for recording, managing, and sharing baking recipes. These Terms set out the basic conditions for using the Service.",
   "terms.section1Title": "1. Service Overview",
@@ -964,5 +964,6 @@
   "sharedCookbook.cancel": "Cancel",
   "sharedCookbook.unpublish": "Make private",
   "sharedCookbook.unpublished": "This recipe book is now private",
-  "sharedCookbook.failed": "Something went wrong. Please try again."
+  "sharedCookbook.failed": "Something went wrong. Please try again.",
+  "recipeEdit.kind": "Type"
 }
