@@ -117,7 +117,8 @@ export function useExploreRecipes(onError?: (msg: string) => void, isAdmin = fal
     const cbRef = collection(db, 'explore_cookbooks');
     const [recSnap, cbSnap] = await Promise.all([
       getDocs(isAdmin ? recRef : query(recRef, where('hidden', '==', false))),
-      getDocs(isAdmin ? cbRef : query(cbRef, where('hidden', '==', false))),
+      // 북은 숨김까지 전부 읽는다 — 숨김 북 이름을 알아야 그 북 레시피를 걸러낸다(아래 hiddenCookbookNames)
+      getDocs(cbRef),
     ]);
     const allRecipes: Recipe[] = recSnap.docs.map(d => migrateRecipe({id: d.id, ...d.data()}));
     const visible = filterVisible(allRecipes);

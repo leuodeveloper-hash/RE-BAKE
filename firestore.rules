@@ -61,9 +61,10 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // explore_cookbooks: 숨김(hidden==true)은 어드민만. 그 외 공개. (list는 where hidden==false 필요)
+    // explore_cookbooks: 북 목록(이름·색·숨김 여부)은 누구나 읽는다.
+    // 앱이 숨김 북을 알아야 그 북의 레시피를 걸러낼 수 있다(숨김 북을 못 읽으면 레시피가 그대로 보였다).
     match /explore_cookbooks/{docId} {
-      allow read: if isAdmin() || resource.data.hidden == false;
+      allow read: if true;
       allow write: if isAdmin();
     }
 

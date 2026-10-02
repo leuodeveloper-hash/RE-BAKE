@@ -445,6 +445,13 @@ function NavigationContent() {
           // 색상/숨김만 변경 (merge로 createdAt 등 기존 필드 보존)
           await setDoc(doc(db, 'explore_cookbooks', name), {name, color, hidden: !!hidden}, {merge: true});
         }
+        // 북을 비공개/공개로 바꾸면 그 북의 레시피도 같이 바꾼다 — 북만 숨기면 레시피는
+        // 공개로 남아 링크로 열리고, 화면에서 걸러내는 것에만 기대게 된다.
+        // 비공개로 저장할 땐 늘 맞춘다(이미 숨김인 북도 다시 저장하면 레시피가 따라온다). 공개는 바뀔 때만.
+        if (hidden || !!cookbookEditTarget!.hidden) {
+          const inBook = await getDocs(query(collection(db, 'explore_recipes'), where('cookbook', '==', name)));
+          await Promise.all(inBook.docs.map(d => updateDoc(d.ref, {hidden: !!hidden})));
+        }
         await exploreReload();
         showSnackbar(t('layout.officialCookbookUpdated', {name}));
       } catch (e) {
