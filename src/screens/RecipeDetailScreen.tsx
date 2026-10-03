@@ -432,6 +432,10 @@ export function RecipeDetailScreen({
   const {t} = useTranslation();
   const {showSnackbar} = useSnackbar();
   const {width: windowWidth} = useWindowDimensions();
+  // 상단 이미지 틀 — 최대 1000폭을 화면 가운데에. 퍼센트 이동(translateX -50%)·margin auto는
+  // 아이패드(네이티브)에서 어긋나 마스크가 밀려 보였다 → 숫자로 바로 계산해 이미지·마스크·배지가 같은 틀을 쓴다.
+  const heroFrameWidth = Math.min(windowWidth, HERO_MAX_WIDTH);
+  const heroFrame = {left: (windowWidth - heroFrameWidth) / 2, width: heroFrameWidth};
   const colors = useColors();
   const canEdit = !!onUpdate;
   const SECTION_TABS = useMemo(() => makeSectionTabs(t), [t]);
@@ -887,7 +891,7 @@ export function RecipeDetailScreen({
                   (RN Image는 로드 전 빈 공간→툭 나타남). RecipeCard와 동일 방식. */}
               <ExpoImage
                 source={{uri: imageUri}}
-                style={styles.heroImage}
+                style={[styles.heroImage, heroFrame]}
                 contentFit="cover"
                 cachePolicy="memory-disk"
                 transition={200}
@@ -898,7 +902,7 @@ export function RecipeDetailScreen({
                   이미지를 Pressable로 감싸지 않는다 — heroImage가 position:absolute라
                   기준이 바뀌어 레이아웃이 깨진다. 같은 자리에 투명 영역만 겹친다. */}
               <Pressable
-                style={styles.heroImage}
+                style={[styles.heroImage, heroFrame]}
                 onLongPress={() => { triggerHaptic('medium'); openPhotoViewer(heroPhotos, 0, true); }}
               />
               {/* 장식용 어둡기 레이어 — Pressable 위에 덮이므로 터치를 통과시킨다.
@@ -907,7 +911,7 @@ export function RecipeDetailScreen({
               {/* 여러 장이면 장수 배지 — 롱프레스 뷰어에서 스와이프로 넘길 수 있음을 알린다
                   (배지가 없으면 추가 이미지가 있는지 알 방법이 없다) */}
               {heroPhotos.length > 1 && (
-                <View style={styles.heroCountBadge} pointerEvents="none">
+                <View style={[styles.heroCountBadge, {right: heroFrame.left + Spacing.sm}]} pointerEvents="none">
                   <AppIcon icon={IconFilesFilled} size="xs" color={colors['foreground/on-accent']} />
                   <Text style={styles.heroCountText}>{heroPhotos.length}</Text>
                 </View>
@@ -922,7 +926,7 @@ export function RecipeDetailScreen({
                     start={{x: 0, y: 0.5}} end={{x: 1, y: 0.5}}
                     colors={[colors['surface/dim'], colors['surface/dim'] + '00']}
                     locations={[0, 0.35]}
-                    style={styles.heroSideGradient}
+                    style={[styles.heroSideGradient, heroFrame]}
                     pointerEvents="none"
                   />
                   {/* 우측 페이드 */}
@@ -930,7 +934,7 @@ export function RecipeDetailScreen({
                     start={{x: 0, y: 0.5}} end={{x: 1, y: 0.5}}
                     colors={[colors['surface/dim'] + '00', colors['surface/dim']]}
                     locations={[0.65, 1]}
-                    style={styles.heroSideGradient}
+                    style={[styles.heroSideGradient, heroFrame]}
                     pointerEvents="none"
                   />
                 </>
@@ -938,7 +942,7 @@ export function RecipeDetailScreen({
               <LinearGradient
                 colors={[colors['surface/dim'] + '00', colors['surface/dim']]}
                 locations={[0.5, 0.85]}
-                style={styles.heroGradient}
+                style={[styles.heroGradient, heroFrame]}
                 pointerEvents="none"
               />
             </>
@@ -1772,25 +1776,15 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     // 넓은 화면(아이패드 등): 이미지 최대폭 1000으로 제한하고 가로 중앙정렬.
     // left:0+right:0는 박스를 전체폭으로 고정해 maxWidth/margin auto 중앙정렬이
     // 안 먹으므로, left:50% + translateX(-50%)로 확실히 가운데에 둔다.
-    left: '50%',
-    transform: [{translateX: '-50%'}],
-    width: '100%',
+    // 가로 위치·폭은 heroFrame(숫자)로 준다
     height: HERO_HEIGHT + 56,
-    maxWidth: HERO_MAX_WIDTH,
   },
   heroGradient: {
     position: 'absolute',
-    left: 0,
-    right: 0,
     bottom: -56,
     height: '100%',
-    // 이미지와 동일 폭(1000)·중앙정렬 → 이미지 밖 좌우 영역까지 덮지 않게
-    maxWidth: HERO_MAX_WIDTH,
-    marginHorizontal: 'auto',
+    // 가로 위치·폭은 heroFrame — 이미지와 같은 틀이라 이미지 밖 좌우를 덮지 않는다
   },
-  // 좌우 페이드 — heroImage와 "동일한" 중앙정렬(left:50% + translateX -50%).
-  // marginHorizontal:'auto'는 RN 네이티브(아이패드)의 absolute에서 안 먹어 left:0만 적용→왼쪽 쏠림.
-  // heroImage가 이 방식으로 웹·네이티브 둘 다 정확히 중앙정렬되므로 페이드도 동일하게 맞춘다.
   heroCountBadge: {
     position: 'absolute',
     top: Spacing.sm,
@@ -1811,10 +1805,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     position: 'absolute',
     top: 0,
     height: HERO_HEIGHT + 56,
-    left: '50%',
-    transform: [{translateX: '-50%'}],
-    width: '100%',
-    maxWidth: HERO_MAX_WIDTH,
+    // 가로 위치·폭은 heroFrame
   },
   heroTextOverlay: {
     position: 'absolute',

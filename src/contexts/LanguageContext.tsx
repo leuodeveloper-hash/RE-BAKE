@@ -1,4 +1,5 @@
 import React, {createContext, useCallback, useContext, useEffect, useMemo, useState} from 'react';
+import {Platform} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {type Language, deviceLanguage, translate} from '../i18n';
 
@@ -26,6 +27,14 @@ export function LanguageProvider({children}: {children: React.ReactNode}) {
       if (v === 'ko' || v === 'en') setLang(v);
     }).catch(() => {});
   }, []);
+
+  // 웹: 페이지 언어 표시(<html lang>)를 실제 화면 언어에 맞춘다.
+  // 틀(public/index.html)은 ko 기본이라, 영어 화면이면 번역 제안·스크린리더가 어긋난다.
+  useEffect(() => {
+    if (Platform.OS === 'web' && typeof document !== 'undefined') {
+      document.documentElement.lang = language;
+    }
+  }, [language]);
 
   const setLanguage = useCallback((lang: Language) => {
     setLang(lang);
