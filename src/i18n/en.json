@@ -989,5 +989,12 @@
   "recipeEdit.pasteRule.step": "Step",
   "recipeEdit.pasteRule.note": "Note",
   "recipeEdit.pasteMark.tip": "> Tip:",
-  "recipeEdit.pasteMark.caution": "> Caution:"
+  "recipeEdit.pasteMark.caution": "> Caution:",
+  "recipeImagePicker.menu": "From a recipe",
+  "recipeImagePicker.title": "Read from a recipe photo",
+  "recipeImagePicker.mine": "My recipes",
+  "recipeImagePicker.explore": "Explore",
+  "recipeInputFloatingBar.scanFromRecipe": "Recipe photo",
+  "recipeImagePicker.read": "Read this photo",
+  "recipeImagePicker.readMany": "Read {{count}} photos"
 }

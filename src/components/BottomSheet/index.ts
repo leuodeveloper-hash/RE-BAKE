@@ -17,3 +17,5 @@ export type {InquirySheetProps} from './InquirySheet';
 export {PasteRecipeSheet} from './PasteRecipeSheet';
 export {AddRecipeSheet} from './AddRecipeSheet';
 export type {AddRecipeSheetProps, AddRecipeInput} from './AddRecipeSheet';
+export {RecipeImagePickerSheet} from './RecipeImagePickerSheet';
+export type {RecipeImagePickerSheetProps} from './RecipeImagePickerSheet';

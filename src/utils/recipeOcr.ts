@@ -24,7 +24,14 @@ export function normalizeOcrWhitespace(s: string): string {
  * 한국어 모델은 한글 + 영문/숫자를 함께 인식하므로 혼합 레시피도 처리됨.
  */
 export async function recognizeImageText(imageUri: string): Promise<string> {
-  const result = await TextRecognition.recognize(imageUri, TextRecognitionScript.KOREAN);
+  // 기기 인식기는 로컬 파일만 읽는다 — 레시피에 올라간 사진(https)이면 먼저 내려받는다
+  let uri = imageUri;
+  if (/^https?:/.test(imageUri)) {
+    const FileSystem = require('expo-file-system/legacy');
+    const target = `${FileSystem.cacheDirectory}ocr_${Date.now()}.jpg`;
+    uri = (await FileSystem.downloadAsync(imageUri, target)).uri;
+  }
+  const result = await TextRecognition.recognize(uri, TextRecognitionScript.KOREAN);
   return normalizeOcrWhitespace(result.text || '');
 }
 

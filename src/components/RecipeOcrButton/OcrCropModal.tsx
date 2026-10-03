@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useState} from 'react';
-import {LayoutChangeEvent, Modal, StyleSheet, View} from 'react-native';
+import {LayoutChangeEvent, Modal, Platform, StyleSheet, View} from 'react-native';
 import {GestureHandlerRootView, Gesture, GestureDetector} from 'react-native-gesture-handler';
 import Animated, {useAnimatedStyle, useSharedValue} from 'react-native-reanimated';
 import {SafeAreaProvider, SafeAreaView} from 'react-native-safe-area-context';
@@ -20,6 +20,8 @@ export interface OcrCropModalProps {
   onCancel: () => void;
   /** 크롭 완료 → 잘라낸 이미지 URI 전달 */
   onConfirm: (croppedUri: string) => void;
+  /** 창이 완전히 내려간 뒤 — iOS는 이 창이 떠 있는 동안 다른 시트를 못 띄운다 */
+  onDismissed?: () => void;
 }
 
 /** 크롭 박스 최소 크기 (화면 pt) */
@@ -60,8 +62,15 @@ export function OcrCropModal({
   imageHeight,
   onCancel,
   onConfirm,
+  onDismissed,
 }: OcrCropModalProps) {
   const {t} = useTranslation();
+  // iOS 외에는 onDismiss가 없다 — 닫히는 순간 알린다
+  const wasVisible = React.useRef(visible);
+  useEffect(() => {
+    if (wasVisible.current && !visible && Platform.OS !== 'ios') onDismissed?.();
+    wasVisible.current = visible;
+  }, [visible, onDismissed]);
   const [container, setContainer] = useState({w: 0, h: 0});
   const [processing, setProcessing] = useState(false);
 
@@ -213,6 +222,7 @@ export function OcrCropModal({
   return (
     <Modal
       visible={visible}
+      onDismiss={onDismissed}
       animationType="fade"
       transparent={false}
       statusBarTranslucent

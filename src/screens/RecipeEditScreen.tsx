@@ -3256,6 +3256,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         })() : null;
         return (
         <RecipeInputFloatingBar
+          // 스캔 메뉴의 [이 레시피 사진] — 지금 편집 중인 상단 사진에서 읽는다
+          currentRecipePhotos={{title, imageUri: imageUri ?? undefined, imageUris}}
           field={focusedOcrField ?? ocrFieldRef.current ?? 'title'}
           ocrDisabled={!isOcrField}
           onAddChip={() => {

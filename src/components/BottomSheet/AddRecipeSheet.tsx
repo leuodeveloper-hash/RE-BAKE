@@ -5,7 +5,7 @@ import {OptionTile} from '@components/OptionTile';
 import {Menu} from '@components/Menu';
 import {ListItem, LIST_ITEM_TITLE_TEXT} from '@components/ListItem';
 import {IconThumbnail} from '@components/Thumbnail';
-import {IconScanText, IconUrl, IconText, IconBookFilled, IconAdd} from '@components/Icon/IconIndex';
+import {IconScanText, IconUrl, IconText, IconBookFilled, IconAdd, IconNoteFilled} from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 import {useTranslation} from '@contexts/LanguageContext';
@@ -15,7 +15,8 @@ import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {Radius} from '@constants/tokens';
 
-export type AddRecipeInput = 'text' | 'url' | PhotoSource;
+/** recipe: 기존 레시피 사진에서 */
+export type AddRecipeInput = 'text' | 'url' | 'recipe' | PhotoSource;
 
 export interface AddRecipeSheetProps {
   visible: boolean;
@@ -58,9 +59,9 @@ export function AddRecipeSheet({visible, onClose, onStartRecipe, onCreateCookboo
                   style={styles.tileFill} onPress={() => setPhotoMenuOpen(v => !v)} />,
                   photoMenuOpen ? (
                     <Menu
-                      items={photoSourceMenuItems(t)}
+                      items={[...photoSourceMenuItems(t), {id: 'recipe', label: t('recipeImagePicker.menu'), icon: IconNoteFilled}]}
                       visible
-                      onSelect={id => { setPhotoMenuOpen(false); start(id as PhotoSource); }}
+                      onSelect={id => { setPhotoMenuOpen(false); start(id as AddRecipeInput); }}
                       onClose={() => setPhotoMenuOpen(false)}
                       style={styles.photoMenu}
                     />

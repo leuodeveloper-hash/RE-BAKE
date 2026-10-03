@@ -41,12 +41,14 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {ContentMask} from '@components/Container';
 import {BottomTabBar, type TabItem} from '@components/Navigation/BottomTabBar';
-import {AddRecipeSheet, PasteRecipeSheet, type AddRecipeInput} from '@components/BottomSheet';
+import {AddRecipeSheet, PasteRecipeSheet, RecipeImagePickerSheet, type AddRecipeInput} from '@components/BottomSheet';
 import * as ImagePicker from 'expo-image-picker';
 import {ensureImagePermission} from '@utils/imagePermission';
 import {getPersistentUri} from '@utils/imageUpload';
 import {recognizeImageText, normalizeOcrWhitespace} from '@utils/recipeOcr';
 import {setPendingRecipeText} from '@utils/pendingRecipeText';
+import {OcrCropModal} from '@components/RecipeOcrButton';
+import {prepareRecipeImageForCrop, type OcrCropTarget} from '@utils/ocrImageSource';
 import {Snackbar} from '@components/Snackbar';
 import {CookbookDialog, Dialog} from '@components/Dialog';
 import {Button} from '@components/Button';
@@ -417,28 +419,39 @@ function NavigationContent() {
     const result = isCamera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
-    // 시트를 먼저 열고(읽는 중 스켈레톤), 다 읽으면 무지개 타이핑으로 채운다
+    const uri = await getPersistentUri(asset.uri, asset.base64);
+    // 읽을 영역부터 고른다(편집 화면 OCR과 같은 영역 선택). 크기를 모르면 전체로 바로 읽는다.
+    if (asset.width && asset.height) setCropTarget({uri, width: asset.width, height: asset.height});
+    else runImageToTextRef.current?.(uri);
+  }, [t, showLayoutSnackbar]);
+
+  // 기존 레시피 사진에서 — 요리 → 사진을 고르면 그 사진 글자를 읽어 텍스트 시트로
+  const [recipeImagePicker, setRecipeImagePicker] = useState(false);
+  const pickedImageRef = useRef<string | null>(null);
+  // 영역 선택 — 고른 사진에서 읽을 부분만 잘라 읽는다. 잘라낸 사진은 창이 내려간 뒤 읽는다(iOS).
+  const [cropTarget, setCropTarget] = useState<OcrCropTarget | null>(null);
+  const croppedRef = useRef<string | null>(null);
+  const runImageToTextRef = useRef<((uri: string) => void) | null>(null);
+  const runImageToText = useCallback(async (uri: string) => {
     setPaste({visible: true, loading: true});
     try {
-      const uri = await getPersistentUri(asset.uri, asset.base64);
       const text = normalizeOcrWhitespace(await recognizeImageText(uri));
-      if (!text.trim()) {
-        setPaste({visible: true});
-        showLayoutSnackbar(t('recipeEdit.ocrEmpty'), {tone: 'error'});
-        return;
-      }
+      if (!text.trim()) { setPaste({visible: true}); showLayoutSnackbar(t('recipeEdit.ocrEmpty'), {tone: 'error'}); return; }
       setPaste({visible: true, text, animate: true});
     } catch {
       setPaste({visible: true});
       showLayoutSnackbar(t('recipeEdit.ocrEmpty'), {tone: 'error'});
     }
   }, [t, showLayoutSnackbar]);
+  runImageToTextRef.current = runImageToText;
 
   const handleStartRecipe = useCallback((input: AddRecipeInput) => {
     if (input === 'url') { router.push('/recipe/edit?input=url' as any); return; }
     pendingAddRef.current = input === 'text'
       ? () => setPaste({visible: true})
-      : () => { runPhotoToText(input); };
+      : input === 'recipe'
+        ? () => setRecipeImagePicker(true)
+        : () => { runPhotoToText(input); };
   }, [router, runPhotoToText]);
   const handleCreateCookbook = useCallback(() => {
     pendingAddRef.current = () => {
@@ -622,6 +635,36 @@ function NavigationContent() {
             onStartRecipe={handleStartRecipe}
             onCreateCookbook={handleCreateCookbook}
             onDismissed={handleAddSheetDismissed}
+          />
+          {/* 기존 레시피 사진 고르기 — 고르면 시트가 내려간 뒤 글자를 읽는다 */}
+          <RecipeImagePickerSheet
+            visible={recipeImagePicker}
+            onClose={() => setRecipeImagePicker(false)}
+            myRecipes={recipes}
+            exploreRecipes={exploreRecipesAll}
+            onPick={uri => { pickedImageRef.current = uri; setRecipeImagePicker(false); }}
+            onDismissed={() => {
+              const uri = pickedImageRef.current;
+              pickedImageRef.current = null;
+              if (!uri) return;
+              prepareRecipeImageForCrop(uri)
+                .then(setCropTarget)
+                .catch(() => runImageToText(uri));
+            }}
+          />
+          {/* 읽을 영역 고르기 — 편집 화면 OCR과 같은 공통 창 */}
+          <OcrCropModal
+            visible={!!cropTarget}
+            imageUri={cropTarget?.uri ?? null}
+            imageWidth={cropTarget?.width ?? 0}
+            imageHeight={cropTarget?.height ?? 0}
+            onCancel={() => setCropTarget(null)}
+            onConfirm={cropped => { croppedRef.current = cropped; setCropTarget(null); }}
+            onDismissed={() => {
+              const cropped = croppedRef.current;
+              croppedRef.current = null;
+              if (cropped) runImageToText(cropped);
+            }}
           />
           {/* 텍스트 시트 — 텍스트 붙여넣기 / 사진에서 읽은 글을 확인 후 [적용] */}
           <PasteRecipeSheet
