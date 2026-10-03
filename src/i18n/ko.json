@@ -969,7 +969,7 @@
   "layout.addUrl": "URL",
   "layout.addText": "텍스트",
   "layout.addCookbookDesc": "레시피를 정리해보세요.",
-  "recipeEdit.pasteRule.group": "묶음 이름",
+  "recipeEdit.pasteRule.group": "재료·도구·과정",
   "recipeEdit.pasteRule.ingredient": "재료",
   "recipeEdit.pasteRule.step": "과정",
   "recipeEdit.pasteRule.note": "덧붙임",
@@ -981,5 +981,6 @@
   "recipeImagePicker.explore": "둘러보기",
   "recipeInputFloatingBar.scanFromRecipe": "레시피 사진",
   "recipeImagePicker.read": "이 사진 읽기",
-  "recipeImagePicker.readMany": "{{count}}장 읽기"
+  "recipeImagePicker.readMany": "{{count}}장 읽기",
+  "recipeEdit.pasteRule.subgroup": "하위 묶음"
 }

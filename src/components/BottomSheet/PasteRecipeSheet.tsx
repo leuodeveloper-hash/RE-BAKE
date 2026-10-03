@@ -34,6 +34,7 @@ export interface PasteRecipeSheetProps {
 /** 붙여넣기 규칙 — 기호(뱃지)와 뜻 */
 const PASTE_RULES = [
   {key: 'group', marks: ['##']},
+  {key: 'subgroup', marks: ['###']},
   {key: 'ingredient', marks: ['-']},
   {key: 'step', marks: ['1.']},
   // 팁·주의 기호는 언어마다 다르다(> 팁: / > Tip:) — 번역 키로

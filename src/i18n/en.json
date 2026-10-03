@@ -984,7 +984,7 @@
   "layout.addUrl": "URL",
   "layout.addText": "Text",
   "layout.addCookbookDesc": "Organize your recipes.",
-  "recipeEdit.pasteRule.group": "Group name",
+  "recipeEdit.pasteRule.group": "Ingredients · Tools · Steps",
   "recipeEdit.pasteRule.ingredient": "Ingredient",
   "recipeEdit.pasteRule.step": "Step",
   "recipeEdit.pasteRule.note": "Note",
@@ -996,5 +996,6 @@
   "recipeImagePicker.explore": "Explore",
   "recipeInputFloatingBar.scanFromRecipe": "Recipe photo",
   "recipeImagePicker.read": "Read this photo",
-  "recipeImagePicker.readMany": "Read {{count}} photos"
+  "recipeImagePicker.readMany": "Read {{count}} photos",
+  "recipeEdit.pasteRule.subgroup": "Sub-group"
 }

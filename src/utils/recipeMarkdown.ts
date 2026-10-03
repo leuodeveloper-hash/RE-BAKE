@@ -12,6 +12,7 @@ import type {IngredientGroup, StepGroup, Step} from '../types/recipe';
  *   ## 재료 / 가루 / 반죽   → 재료 묶음(제목이 그대로 묶음 이름)
  *   ## 도구
  *   ## 과정 / 만들기        → 과정 묶음
+ *   ### 반죽 / 굽기          → 하위 묶음 — 바로 위 ## 섹션(재료·과정)의 묶음 이름이 된다
  *   - 박력분 400g           → 재료 한 줄
  *   1. 거품기에 치기        → 과정 한 줄
  *   > 팁: ...               → 바로 앞 과정의 팁
@@ -73,6 +74,13 @@ export function parseRecipeMarkdown(text: string): ParsedMarkdownRecipe {
       const title = heading[2].trim();
       if (level === 1 && !out.title) {
         out.title = title;
+        continue;
+      }
+      // ### 이하는 하위 묶음 — 섹션 종류(재료·도구·과정)는 바로 위 ##를 따르고 이름만 새로 연다.
+      // (### 굽기가 '과정' 낱말이 아니어도 과정 섹션 아래면 과정 묶음이다)
+      if (level >= 3) {
+        if (kind === 'ingredient') pushIngGroup(title);
+        else if (kind === 'step') pushStepGroup(title);
         continue;
       }
       kind = sectionKind(title);
