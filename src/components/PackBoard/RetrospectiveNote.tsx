@@ -122,9 +122,10 @@ export function RetrospectiveNote({
               pointerEvents="none"
             />
             <View style={styles.thumbText}>
-              {/* 맨 위: 회차("1/1회차") → 레시피북·공법 → 품목명 */}
-              {metaText ? <Text style={styles.thumbMeta} numberOfLines={1}>{metaText}</Text> : null}
-              {tagLine ? <Text style={styles.thumbMeta} numberOfLines={1}>{tagLine}</Text> : null}
+              {/* 한 줄: 레시피북 · 공법 · 회차("1/1회차") → 그 아래 품목명 */}
+              {(tagLine || metaText) ? (
+                <Text style={styles.thumbMeta} numberOfLines={1}>{[tagLine, metaText].filter(Boolean).join(' · ')}</Text>
+              ) : null}
               <Text style={styles.thumbTitle} numberOfLines={1}>{current.title}</Text>
             </View>
           </View>

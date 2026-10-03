@@ -1,4 +1,5 @@
 import {Platform} from 'react-native';
+import {effectiveExamDate, loadChosenDates} from '@utils/examChosenDate';
 import {fetchExamSchedules} from '@utils/examSchedules';
 import {getExamTypes, toExamType, scheduleExamLabel} from '@constants/examTypes';
 import {translate, deviceLanguage} from '../i18n';
@@ -59,7 +60,10 @@ export async function syncExamWidget(): Promise<void> {
 
     {
       // 실기·필기를 모두 가져온다 — 어느 쪽이든 가장 급한 일정을 보여준다
-      const schedules = await fetchExamSchedules(['practical', 'written']);
+      // 필기처럼 기간이 있는 시험은 내가 고른 날을 시험일로 넘긴다(위젯은 examDate로 D-day를 센다)
+      const chosen = await loadChosenDates();
+      const schedules = (await fetchExamSchedules(['practical', 'written']))
+        .map(s => ({...s, examDate: effectiveExamDate(s, chosen)}));
       const labelByType = Object.fromEntries(getExamTypes(t).map(e => [e.id, e.label]));
       const now = Date.now();
 

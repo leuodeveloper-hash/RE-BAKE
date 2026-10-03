@@ -966,5 +966,17 @@
   "sharedCookbook.unpublished": "This recipe book is now private",
   "sharedCookbook.failed": "Something went wrong. Please try again.",
   "recipeEdit.kind": "Type",
-  "recipeDetail.heroPhotoMax": "You can add up to {{count}} photos"
+  "recipeDetail.heroPhotoMax": "You can add up to {{count}} photos",
+  "examschedule.pickDate": "Pick my exam day",
+  "examschedule.myExamDate": "My exam day {{date}}",
+  "examschedule.pickDateTitle": "My exam day",
+  "examschedule.pickDateNone": "Not picked (first day)",
+  "examschedule.dayLabel": "{{month}}/{{day}} ({{weekday}})",
+  "examschedule.weekday0": "Sun",
+  "examschedule.weekday1": "Mon",
+  "examschedule.weekday2": "Tue",
+  "examschedule.weekday3": "Wed",
+  "examschedule.weekday4": "Thu",
+  "examschedule.weekday5": "Fri",
+  "examschedule.weekday6": "Sat"
 }

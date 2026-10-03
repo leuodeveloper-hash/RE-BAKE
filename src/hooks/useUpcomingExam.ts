@@ -2,6 +2,7 @@ import {useCallback, useEffect, useState} from 'react';
 import {AppState} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {fetchExamSchedules} from '@utils/examSchedules';
+import {effectiveExamDate, loadChosenDates} from '@utils/examChosenDate';
 import {getExamTypes, toExamType, type ExamType} from '@constants/examTypes';
 import {useTranslation} from '@contexts/LanguageContext';
 
@@ -50,11 +51,13 @@ export function useUpcomingExam() {
       if (targets.length === 0) { setExam(null); return; }
 
       const schedules = await fetchExamSchedules(targets);
+      // 필기처럼 기간이 있는 시험은 내가 고른 날 기준
+      const chosen = await loadChosenDates();
       const labelByType = Object.fromEntries(getExamTypes(t).map(e => [e.id, e.label]));
 
       // 아직 안 지난 시험 중 가장 가까운 것
       const upcoming = schedules
-        .map(s => ({s, days: daysUntil(s.examDate)}))
+        .map(s => ({s, days: daysUntil(effectiveExamDate(s, chosen))}))
         .filter((x): x is {s: typeof schedules[number]; days: number} => x.days !== null)
         .sort((a, b) => a.days - b.days)[0];
 

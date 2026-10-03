@@ -1,4 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {Dimensions, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -378,6 +379,14 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
     .sort((a, b) => (madeAtOf(b) ?? '').localeCompare(madeAtOf(a) ?? '')),
   [retrospectiveSource, madeAtOf, reviewsOf]);
 
+  // 회고가 하나도 없을 때 보여줄 예시 — 둘러보기 레시피 하나(사진 있는 일반 레시피)를 빌려
+  // 실제 회고 노트처럼 보이게 한다. 글은 예시 회고 문구, 누르면 레시피 목록으로.
+  const {recipes: exploreAll} = useExploreRecipeContext();
+  const exampleRecipe = useMemo(
+    () => exploreAll.find(r => r.imageUri && r.kind !== 'tip' && !r.hidden) ?? null,
+    [exploreAll],
+  );
+
   const retrospectivePacks = useMemo<PackBoardItem[]>(() => {
     // 회고 쓰기 팩 — 회고가 있어도 늘 뒤에 붙인다(만들었거나 최근 추가한, 회고 없는 레시피 3개)
     const writePacks: PackBoardItem[] = reviewCandidates.map(r => ({
@@ -454,14 +463,15 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         photoCard: true,
         example: true,
         cards: [{
-          title: t('retrospectiveNote.exampleTitle'),
+          title: exampleRecipe?.title ?? '',
+          imageUrl: exampleRecipe?.imageUri,
+          tags: exampleRecipe ? [exampleRecipe.cookbook, exampleRecipe.method?.trim()].filter((v): v is string => !!v) : undefined,
           paperPreview: [t('retrospectiveNote.exampleEvaluation'), `↳ ${t('retrospectiveNote.exampleImprovement')}`],
         }],
-        metaText: t('retrospectiveNote.exampleTitle'),
         onPress: () => onAxisChange('all'),
       }];
     }
-  }, [retrospectives, retrospectiveSource, reviewsOf, reviewCandidates, onAxisChange, madeAtOf, t]);
+  }, [retrospectives, retrospectiveSource, reviewsOf, reviewCandidates, onAxisChange, madeAtOf, t, exampleRecipe]);
 
   // 활성 축에 따른 팩 목록
   const activePacks = axis === 'cookbook' ? cookbookPacks : axis === 'method' ? methodPacks : retrospectivePacks;
@@ -938,9 +948,14 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                   <>
                   <SectionHeader title={t('group.retroNote')} style={styles.sectionHeader} />
                   <View style={{opacity: 0.5}}>
+                    {/* 회고가 없을 때 — 둘러보기 레시피 하나를 빌려 실제 회고 줄처럼(요리명 · 평가 · ↳ 개선점). '예시' 표기는 하지 않는다(흐리게만) */}
                     <RecipeCard
+                      overline={exampleRecipe?.title}
                       title={t('retrospectiveNote.exampleEvaluation')}
-                      cookbook={`↳ ${t('retrospectiveNote.exampleImprovement')}`}
+                      customSubtitle={t('retrospectiveNote.exampleImprovement')}
+                      subtitleSize="large"
+                      subtitleIcon={IconCornerDownRight}
+                      imageUrl={exampleRecipe?.imageUri}
                       layout="list"
                       placeholderIcon={IconChartNoAxesGantt}
                       placeholderIconColor={colors['custom/light-blue-var']}

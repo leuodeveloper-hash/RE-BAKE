@@ -66,10 +66,11 @@ const COLOR_SCHEMES: Record<InlineBannerColor, ColorScheme> = {
   warning: {
     bg: 'custom/yellow-subtle',
     border: 'custom/yellow-border',
-    text: 'custom/yellow',
+    // 글씨는 노란 배경 위에서 읽히는 on-container(진한 노랑) — custom/yellow는 배경과 대비가 약했다
+    text: 'custom/yellow-on-container',
     iconColor: 'custom/yellow',
     actionBg: 'custom/yellow-subtle',
-    actionText: 'custom/yellow',
+    actionText: 'custom/yellow-on-container',
   },
 };
 

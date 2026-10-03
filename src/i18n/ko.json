@@ -951,5 +951,17 @@
   "sharedCookbook.unpublished": "공개를 해제했어요",
   "sharedCookbook.failed": "처리하지 못했어요. 잠시 후 다시 시도해 주세요.",
   "recipeEdit.kind": "타입",
-  "recipeDetail.heroPhotoMax": "사진은 {{count}}장까지 넣을 수 있어요"
+  "recipeDetail.heroPhotoMax": "사진은 {{count}}장까지 넣을 수 있어요",
+  "examschedule.pickDate": "내 시험일 고르기",
+  "examschedule.myExamDate": "내 시험일 {{date}}",
+  "examschedule.pickDateTitle": "내 시험일",
+  "examschedule.pickDateNone": "고르지 않음 (첫날 기준)",
+  "examschedule.dayLabel": "{{month}}월 {{day}}일 ({{weekday}})",
+  "examschedule.weekday0": "일",
+  "examschedule.weekday1": "월",
+  "examschedule.weekday2": "화",
+  "examschedule.weekday3": "수",
+  "examschedule.weekday4": "목",
+  "examschedule.weekday5": "금",
+  "examschedule.weekday6": "토"
 }

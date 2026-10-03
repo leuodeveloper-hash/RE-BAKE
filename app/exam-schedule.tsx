@@ -15,8 +15,15 @@ import {fetchAllSchedules, type ExamSchedule} from '@utils/examSchedules';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {IconClose, IconArrowTopRight, IconDotFilled, IconCircleCheckFilled, IconCircleDot} from '@components/Icon/IconIndex';
+import {IconClose, IconArrowTopRight, IconDotFilled, IconCircleCheckFilled, IconCircleDot, IconTick, IconChevronDown} from '@components/Icon/IconIndex';
 import {goBackOr} from '@utils/navigation';
+import {BottomSheet} from '@components/BottomSheet';
+import {ListItem} from '@components/ListItem';
+import {syncExamWidget} from '@utils/examWidgetSync';
+import {
+  canChooseExamDate, chosenDateKey, effectiveExamDate, examPeriodDays,
+  pullChosenDatesFromAccount, setChosenDate, type ExamChosenDates,
+} from '@utils/examChosenDate';
 
 // 큐넷 기능사 정기 시험일정 페이지
 const QNET_SCHEDULE_URL = 'https://www.q-net.or.kr/crf021.do?id=crf02101&scheType=04';
@@ -30,6 +37,13 @@ function kindLabel(examType: ScheduleExamType, t: TranslateFn): string {
 function examPeriod(s: ExamSchedule): string {
   if (s.examEndDate) return `${shortDate(s.examDate)}~${shortDate(s.examEndDate)}`;
   return shortDate(s.examDate);
+}
+
+/** 'YYYY-MM-DD' → 'M월 D일 (요일)' */
+function dayLabel(iso: string, t: TranslateFn): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  const wd = new Date(y, m - 1, d).getDay();
+  return t('examschedule.dayLabel', {month: m, day: d, weekday: t(`examschedule.weekday${wd}`)});
 }
 
 /** 회차 라벨에서 연도 접두사 제거 ('2026년 3회' → '3회') */
@@ -64,8 +78,9 @@ function formatDday(diffDays: number): string {
  * (접수/발표가 아니라 "시험까지 며칠"을 보여준다. 실기는 examDate=시작일.)
  * examDate 없으면 시험일 대체 불가 → 접수/발표 순으로 폴백, 그것도 없으면 TBD.
  */
-function ddayLabel(s: ExamSchedule): string {
-  const iso = s.examDate ?? s.registrationStart ?? s.resultDate;
+function ddayLabel(s: ExamSchedule, chosen: ExamChosenDates): string {
+  // 필기처럼 기간이 있으면 내가 고른 날 기준
+  const iso = (s.examDate ? effectiveExamDate(s, chosen) : undefined) ?? s.registrationStart ?? s.resultDate;
   const diff = iso ? daysUntil(iso) : null;
   if (diff === null) return 'TBD';
   return formatDday(diff);
@@ -124,6 +139,19 @@ export default function ExamScheduleRoute() {
     }
   }, []);
   useEffect(() => { loadSchedules(); }, [loadSchedules]);
+
+  // 내가 고른 시험일(필기 기간 중 하루) — 계정 값을 이어받아 온다
+  const [chosen, setChosen] = useState<ExamChosenDates>({});
+  useEffect(() => { pullChosenDatesFromAccount().then(setChosen); }, []);
+  const [pickTarget, setPickTarget] = useState<ExamSchedule | null>(null);
+  const handlePickDate = useCallback(async (iso: string | null) => {
+    const target = pickTarget;
+    setPickTarget(null);
+    if (!target) return;
+    setChosen(await setChosenDate(chosenDateKey(target), iso));
+    // 위젯도 고른 날 기준으로
+    syncExamWidget();
+  }, [pickTarget]);
   const onRefresh = useCallback(async () => {
     setRefreshing(true);
     await loadSchedules();
@@ -261,6 +289,8 @@ export default function ExamScheduleRoute() {
                       variant={variant}
                       styles={styles}
                       colors={colors}
+                      chosen={chosen}
+                      onPickDate={!past && canChooseExamDate(s) ? () => setPickTarget(s) : undefined}
                     />
                   );
                 });
@@ -270,6 +300,35 @@ export default function ExamScheduleRoute() {
           </ContentContainer>
         </ScrollView>
       </SafeAreaView>
+
+      {/* 내 시험일 고르기 — 필기 기간 중 하루 */}
+      <BottomSheet
+        visible={!!pickTarget}
+        onClose={() => setPickTarget(null)}
+        title={t('examschedule.pickDateTitle')}
+        description={pickTarget ? `${cleanRound(pickTarget.round)} ${kindLabel(pickTarget.examType, t)} · ${examPeriod(pickTarget)}` : undefined}>
+        {pickTarget && (() => {
+          const current = chosen[chosenDateKey(pickTarget)];
+          return (
+            <>
+              <ListItem
+                title={t('examschedule.pickDateNone')}
+                trailing={!current ? {type: 'icon', icon: IconTick} : undefined}
+                onPress={() => handlePickDate(null)}
+              />
+              {examPeriodDays(pickTarget).map((iso, i, arr) => (
+                <ListItem
+                  key={iso}
+                  title={dayLabel(iso, t)}
+                  trailing={current === iso ? {type: 'icon', icon: IconTick} : undefined}
+                  onPress={() => handlePickDate(iso)}
+                  showDivider={i < arr.length - 1}
+                />
+              ))}
+            </>
+          );
+        })()}
+      </BottomSheet>
 
       <FloatingNavBar
         left={<NavPillButton icon={IconClose} onPress={() => goBackOr(router)} />}
@@ -292,9 +351,13 @@ interface PeriodItemProps {
   variant: 'past' | 'current' | 'upcoming';
   styles: ReturnType<typeof createStyles>;
   colors: SemanticColors;
+  chosen: ExamChosenDates;
+  /** 필기 기간 중 내 시험일 고르기 — 고를 수 있는 일정에만 */
+  onPickDate?: () => void;
 }
 
-function PeriodItem({schedule: s, gradientIndex, isFirst, isLast, variant, styles, colors}: PeriodItemProps) {
+function PeriodItem({schedule: s, gradientIndex, isFirst, isLast, variant, styles, colors, chosen, onPickDate}: PeriodItemProps) {
+  const picked = chosen[chosenDateKey(s)];
   const {t} = useTranslation();
   const isPast = variant === 'past';
   const title = `${cleanRound(s.round)} ${kindLabel(s.examType, t)}`.trim();
@@ -325,7 +388,7 @@ function PeriodItem({schedule: s, gradientIndex, isFirst, isLast, variant, style
         shape="rounded"
         type="gradient"
         gradientIndex={gradientIndex}
-        monogram={ddayLabel(s)}
+        monogram={ddayLabel(s, chosen)}
         style={isPast ? styles.avatarPast : undefined}
       />
 
@@ -342,6 +405,14 @@ function PeriodItem({schedule: s, gradientIndex, isFirst, isLast, variant, style
             <>{'  ·  '}{t('examschedule.labelResult')}: {shortDate(s.resultDate)}</>
           )}
         </Text>
+        {onPickDate && (
+          <Pressable onPress={onPickDate} hitSlop={6} style={styles.pickDate}>
+            <Text style={styles.pickDateText}>
+              {picked ? t('examschedule.myExamDate', {date: shortDate(picked)}) : t('examschedule.pickDate')}
+            </Text>
+            <IconChevronDown width={14} height={14} color={colors['foreground/on-surface-muted']} />
+          </Pressable>
+        )}
       </View>
     </View>
   );
@@ -500,6 +571,18 @@ const createStyles = (colors: SemanticColors) =>
       ...Typography.label.medium,
       color: colors['foreground/on-surface-muted'],
       marginTop: 4,
+    },
+    pickDate: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 2,
+      marginTop: Spacing.xs,
+    },
+    pickDateText: {
+      ...Typography.label.medium,
+      color: colors['foreground/on-surface'],
+      textDecorationLine: 'underline',
     },
     datesPast: {
       color: colors['foreground/on-surface-disabled'],
