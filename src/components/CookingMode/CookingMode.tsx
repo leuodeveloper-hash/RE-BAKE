@@ -29,7 +29,7 @@ import {PhotoViewer} from '@components/PhotoViewer';
 import {stableStringify} from '@utils/stableStringify';
 import {GlassContainer, Card, MAX_CONTENT_WIDTH, ContentMask} from '@components/Container';
 import {OptionTile} from '@components/OptionTile';
-import {BottomSheet, MadeConfirmSheet, sheetContentWidth} from '@components/BottomSheet';
+import {BottomSheet, MadeConfirmSheet, sheetTileWidth} from '@components/BottomSheet';
 import {Snackbar, type SnackbarTone} from '@components/Snackbar';
 import {IconButton} from '@components/IconButton';
 import {Selector} from '@components/Selector';
@@ -328,7 +328,7 @@ export function CookingMode({
   // 4열 타일 한 칸 폭 — 스탬프북 칸과 같은 방식: 화면 폭에서 좌우 패딩·칸 사이 gap을 빼고 나눈다.
   // 퍼센트(25%)는 아이폰에서 칸이 좌우로 접혀 보였다. 측정 없이 첫 렌더부터 맞는다.
   const {width: windowWidth} = useWindowDimensions();
-  const tileWidth = Math.floor((sheetContentWidth(windowWidth) - Spacing.smd * 2 - TILE_GAP * 3) / 4);
+  const tileWidth = sheetTileWidth(windowWidth, 4, Spacing.smd, TILE_GAP);
   /** 4열 타일 한 칸 폭 — 줄 너비에서 gap(8) 세 칸을 빼고 나눈다 */
   const [editAdvice, setEditAdvice] = useState(advice ?? '');
   const [editAdvicePhotos, setEditAdvicePhotos] = useState<string[]>(advicePhotos ?? []);
@@ -2166,17 +2166,20 @@ export function CookingMode({
                       onPress={() => toggleIngredient(ing.name)}
                     />
                   ) : (
-                    <OptionTile
-                      key={`list-${gIdx}-${ing.name}`}
-                      label={ing.name}
-                      sublabel={ing.amount}
-                      selected={checked}
-                      onPress={() => toggleIngredient(ing.name)}
-                      selectedStyle="outline"
-                      // 요리 중엔 멀리서 본다 — 한 단계 큰 글자
-                      size="large"
-                      style={[styles.ingredientTile, {width: tileWidth}]}
-                    />
+                    // 칸 크기는 바깥 View가 숫자로 고정한다 — OptionTile 안쪽(Pressable·Card)의
+                    // flex 설정과 섞이면 아이폰에서 칸이 좌우로 찌그러졌다. 안쪽은 이 칸을 꽉 채우기만 한다.
+                    <View key={`list-${gIdx}-${ing.name}`} style={[styles.ingredientTile, {width: tileWidth}]}>
+                      <OptionTile
+                        label={ing.name}
+                        sublabel={ing.amount}
+                        selected={checked}
+                        onPress={() => toggleIngredient(ing.name)}
+                        selectedStyle="outline"
+                        // 요리 중엔 멀리서 본다 — 한 단계 큰 글자
+                        size="large"
+                        style={styles.ingredientTileFill}
+                      />
+                    </View>
                   );
                 })}
               </View>
@@ -2274,16 +2277,19 @@ const createStyles = (colors: SemanticColors) =>
       paddingBottom: Spacing.sm,
     },
     ingredientTile: {
-      // 4열 — 폭은 화면 폭으로 계산해 넘긴다(tileWidth), 칸 사이는 줄의 gap.
-      // OptionTile 바깥 래퍼가 flex:1이라 그대로 두면 flex가 폭을 이겨
-      // 재료 수만큼 한 줄에 다 들어간다(7개가 한 줄로 늘어났다).
-      // flex:1은 flexBasis:0도 포함하므로 basis까지 되돌려야 width가 쓰인다.
+      // 4열 칸(바깥 View) — 폭은 화면 폭으로 계산해 넘긴다(tileWidth), 칸 사이는 줄의 gap.
+      // 늘거나 줄지 않게 고정한다(줄의 flexWrap 안에서 숫자 폭 그대로).
       flexGrow: 0,
       flexShrink: 0,
       flexBasis: 'auto',
       // 이름이 길고 짧아도 칸 크기가 같아 보이도록 높이를 고정한다.
       // 이름(14)·분량(12) 한 줄씩 꼭 맞는 높이 — 두 줄 대비로 76을 두면 대부분 휑했다
       height: 60,
+    },
+    // 칸 안의 OptionTile — 칸을 꽉 채운다
+    ingredientTileFill: {
+      width: '100%',
+      height: '100%',
     },
     topLeft: {
       flexDirection: 'row',

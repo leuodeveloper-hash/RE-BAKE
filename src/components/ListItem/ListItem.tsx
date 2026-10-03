@@ -28,6 +28,8 @@ export type ListItemVariant = 'default' | 'yellow';
 export interface ListItemProps {
   /** 기본 텍스트 타이틀 (children이 없을 때 사용) */
   title?: string;
+  /** 제목 아래 설명 한 줄 (muted) */
+  description?: string;
   /** 커스텀 콘텐츠 (title 대신 사용) */
   children?: React.ReactNode;
   /** 왼쪽 슬롯 (아이콘, 숫자, 아이콘 버튼) */
@@ -51,6 +53,8 @@ export interface ListItemProps {
   /** 롱프레스 — 보기 화면에서 해당 행을 편집으로 넘기는 용도 등 */
   onLongPress?: () => void;
   style?: ViewStyle;
+  /** 행 안쪽 여백(상하좌우 같은 값) — 기본은 좌우 12·상하 8. 큰 카드형 줄(예: [+] 시트 레시피북 만들기)에서 16 등 */
+  padding?: number;
 }
 
 // ---- 슬롯 렌더러 ----
@@ -113,8 +117,18 @@ function renderSlotElement(
 
 // ---- ListItem 컴포넌트 ----
 
+/** 목록 줄 제목 글자 — 옆에 놓이는 버튼(OptionTile) 라벨도 이걸 써서 크기를 맞춘다 */
+export const LIST_ITEM_TITLE_TEXT = {
+  fontFamily: Typography.body.medium.fontFamily,
+  fontSize: Typography.body.medium.fontSize,
+  fontWeight: Typography.body.medium.fontWeight as '500',
+  lineHeight: Typography.body.medium.lineHeight,
+  letterSpacing: -0.25,
+};
+
 export function ListItem({
   title,
+  description,
   children,
   leading,
   trailing,
@@ -126,6 +140,7 @@ export function ListItem({
   onPress,
   onLongPress,
   style,
+  padding,
 }: ListItemProps) {
   const colors = useColors();
   const styles = useThemedStyles(createStyles);
@@ -147,11 +162,12 @@ export function ListItem({
           styles.stateLayer,
           Platform.OS === 'web' && ({cursor: 'pointer'} as any),
           multiline && styles.stateLayerTop,
+          padding != null && {paddingHorizontal: padding, paddingVertical: padding},
           pressed && (isYellow ? styles.stateLayerPressedYellow : styles.stateLayerPressed),
           disabled && styles.disabled,
         ],
       }
-    : {style: [styles.stateLayer, multiline && styles.stateLayerTop, disabled && styles.disabled]};
+    : {style: [styles.stateLayer, multiline && styles.stateLayerTop, padding != null && {paddingHorizontal: padding, paddingVertical: padding}, disabled && styles.disabled]};
 
   return (
     <View style={style}>
@@ -159,9 +175,12 @@ export function ListItem({
         {leading && renderSlotElement(leading, colors, styles, resolvedVariant)}
         <View style={styles.content}>
           {children ?? (
-            <Text style={[styles.title, isYellow && styles.titleYellow]} numberOfLines={titleNumberOfLines || undefined}>
-              {title}
-            </Text>
+            <>
+              <Text style={[styles.title, isYellow && styles.titleYellow]} numberOfLines={titleNumberOfLines || undefined}>
+                {title}
+              </Text>
+              {description ? <Text style={styles.description} numberOfLines={1}>{description}</Text> : null}
+            </>
           )}
         </View>
         {trailingValue ? <Text style={styles.trailingValue}>{trailingValue}</Text> : null}
@@ -270,13 +289,15 @@ const createStyles = (colors: SemanticColors) =>
       paddingVertical: 4,
     },
     title: {
-      fontFamily: Typography.body.medium.fontFamily,
-      fontSize: Typography.body.medium.fontSize,
-      fontWeight: Typography.body.medium.fontWeight as '500',
-      lineHeight: Typography.body.medium.lineHeight,
-      letterSpacing: -0.25,
+      ...LIST_ITEM_TITLE_TEXT,
       color: colors['foreground/on-surface'],
       marginTop: FONT_BASELINE_OFFSET,
+    },
+    // 설명 — 캡션 서체(Figma caption-medium, label.small)
+    description: {
+      ...Typography.label.small,
+      color: colors['foreground/on-surface-muted'],
+      marginTop: 2,
     },
     dividerContainer: {
       // 디바이더(선) 대신 칸과 칸 사이 1px 배경색 간격으로 구분

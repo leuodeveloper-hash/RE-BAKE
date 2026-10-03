@@ -43,7 +43,8 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
                   type="icon"
                   icon={icon}
                   shape="circle"
-                  size="medium"
+                  // 한 단계 크게(36→48) — 다이얼로그·시트 머리 아이콘이 제목에 비해 작아 보였다
+                  size="large"
                   color={avatarColor}
                 />
               )

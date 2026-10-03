@@ -1,5 +1,5 @@
 import React from 'react';
-import {Pressable, StyleSheet, Text, View, ViewStyle, type StyleProp} from 'react-native';
+import {Pressable, StyleSheet, Text, View, ViewStyle, type StyleProp, TextStyle} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import type {SemanticColors} from '@constants/tokens';
 
@@ -38,6 +38,14 @@ export interface OptionTileProps {
   /** 글자 크기 (기본 medium) */
   size?: OptionTileSize;
   style?: StyleProp<ViewStyle>;
+  /** 칸 배경 — bright(기본, 카드) / faint(흰 시트 위 회색 칸) */
+  surface?: 'bright' | 'faint';
+  /** 아이콘·라벨 사이 간격 (기본 Spacing.xs) */
+  gap?: number;
+  /** 고르기 전 아이콘 색 (기본 muted) — [+] 시트처럼 칸마다 색을 줄 때 */
+  iconColor?: string;
+  /** 라벨 글자 스타일 덮어쓰기 — 옆 목록 줄 제목과 크기를 맞출 때 */
+  labelStyle?: StyleProp<TextStyle>;
   onPress?: () => void;
 }
 
@@ -58,6 +66,10 @@ export function OptionTile({
   selectedStyle = 'fill',
   size = 'medium',
   style,
+  surface = 'bright',
+  gap,
+  labelStyle,
+  iconColor,
   onPress,
 }: OptionTileProps) {
   const styles = useThemedStyles(createStyles);
@@ -67,6 +79,8 @@ export function OptionTile({
     <Card
       style={[
         styles.card,
+        surface === 'faint' && styles.cardFaint,
+        gap != null && {gap},
         // outline은 "테두리가 있는 타입" — 고르기 전에도 선이 보이고,
         // 고르면 그 선이 진해진다. 선이 아예 없으면 어디가 칸인지 모른다.
         selectedStyle === 'outline' && styles.cardOutline,
@@ -78,11 +92,11 @@ export function OptionTile({
         <AppIcon
           icon={icon}
           size={iconSize}
-          color={selected ? colors[tone.fg] : colors['foreground/on-surface-muted']}
+          color={selected ? colors[tone.fg] : iconColor ?? colors['foreground/on-surface-muted']}
         />
       )}
       {/* large는 높이가 낮은 자리(요리모드 재료)에 쓰여 한 줄 — 길면 말줄임 */}
-      <Text style={[styles.label, size === 'large' && styles.labelLarge, selected && {color: colors[tone.fg]}]} numberOfLines={size === 'large' ? 1 : 2}>{label}</Text>
+      <Text style={[styles.label, size === 'large' && styles.labelLarge, labelStyle, selected && {color: colors[tone.fg]}]} numberOfLines={size === 'large' ? 1 : 2}>{label}</Text>
       {sublabel ? (
         <Text style={[styles.sublabel, size === 'large' && styles.sublabelLarge, selected && {color: colors[tone.fg]}]} numberOfLines={1}>{sublabel}</Text>
       ) : null}
@@ -99,6 +113,10 @@ export function OptionTile({
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   pressable: {
     flex: 1,
+  },
+  // 흰 시트 위에선 bright 카드가 배경과 같아 칸이 안 보인다 → 회색 칸
+  cardFaint: {
+    backgroundColor: colors['fill/faint'],
   },
   cardOutline: {
     borderWidth: 1,

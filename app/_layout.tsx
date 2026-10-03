@@ -40,7 +40,13 @@ import {useThemedStyles} from '@hooks/useThemedStyles';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {ContentMask} from '@components/Container';
-import {BottomTabBar, type TabItem, type AddMenuItem} from '@components/Navigation/BottomTabBar';
+import {BottomTabBar, type TabItem} from '@components/Navigation/BottomTabBar';
+import {AddRecipeSheet, PasteRecipeSheet, type AddRecipeInput} from '@components/BottomSheet';
+import * as ImagePicker from 'expo-image-picker';
+import {ensureImagePermission} from '@utils/imagePermission';
+import {getPersistentUri} from '@utils/imageUpload';
+import {recognizeImageText, normalizeOcrWhitespace} from '@utils/recipeOcr';
+import {setPendingRecipeText} from '@utils/pendingRecipeText';
 import {Snackbar} from '@components/Snackbar';
 import {CookbookDialog, Dialog} from '@components/Dialog';
 import {Button} from '@components/Button';
@@ -388,36 +394,68 @@ function NavigationContent() {
     {id: 'profile', label: user ? t('layout.tabMe') : t('layout.tabGuest'), icon: IconUserFilled, useRandomAvatar: true, avatarSeed: avatarSeed ?? 0, onPress: () => router.navigate('/profile' as any)},
   ], [router, setShowAddSheet, setShowSearchSheet, avatarSeed, user, t]);
 
-  const addMenuItems = useMemo<AddMenuItem[]>(() => {
-    const items: AddMenuItem[] = [
-      {id: 'recipe', label: t('layout.addRecipe'), icon: IconNoteFilled, iconColor: colors['custom/lime']},
-    ];
-    if (isAdmin) {
-      items.push({id: 'official', label: t('layout.addOfficialRecipe'), icon: LogoBadge, iconColor: colors['custom/yellow-var']});
-    }
-    items.push({id: 'cookbook', label: t('layout.addCookbook'), icon: IconBookFilled, iconColor: colors['custom/brown-var']});
-    if (isAdmin) {
-      items.push({id: 'official-cookbook', label: t('layout.addOfficialCookbook'), icon: IconExprolerBookFilled, iconColor: colors['custom/orange-var']});
-    }
-    return items;
-  }, [colors, isAdmin, t]);
+  // 하단 탭 [+] 시트 — 위 3칸(이미지·URL·텍스트)으로 새 레시피를 채워 시작, 아래 줄은 새 레시피북
+  // 텍스트·이미지는 편집 화면으로 바로 가지 않고 텍스트 시트에서 확인 → [적용]하면 새 레시피로.
+  // 시트(Modal)가 떠 있는 동안 iOS는 다른 창(사진 고르기·다른 시트)을 못 띄우므로,
+  // 고른 일은 기억해 뒀다가 [+] 시트가 완전히 내려간 뒤(onDismissed) 이어 한다.
+  const {showSnackbar: showLayoutSnackbar} = useSnackbar();
+  const pendingAddRef = useRef<(() => void) | null>(null);
+  const [paste, setPaste] = useState<{visible: boolean; text?: string; loading?: boolean; animate?: boolean}>({visible: false});
 
-  const handleAddItemPress = useCallback((item: AddMenuItem) => {
-    setShowAddSheet(false);
-    if (item.id === 'recipe') {
-      router.push('/recipe/edit');
-    } else if (item.id === 'official') {
-      router.push('/recipe/edit?target=explore' as any);
-    } else if (item.id === 'cookbook') {
+  const runPhotoToText = useCallback(async (source: 'camera' | 'gallery') => {
+    const isCamera = source === 'camera';
+    const ok = await ensureImagePermission(isCamera ? 'camera' : 'mediaLibrary', {
+      deniedMessage: t(isCamera ? 'recipeEdit.cameraPermissionNeeded' : 'recipeEdit.photoPermissionNeeded'),
+      showSnackbar: showLayoutSnackbar,
+      settingsTitle: t(isCamera ? 'permission.cameraTitle' : 'permission.photoTitle'),
+      settingsBody: t(isCamera ? 'permission.cameraBody' : 'permission.photoBody'),
+      settingsConfirmLabel: t('permission.openSettings'),
+      settingsCancelLabel: t('permission.cancel'),
+    });
+    if (!ok) return;
+    const opts: ImagePicker.ImagePickerOptions = {mediaTypes: ['images'], quality: 0.9, base64: Platform.OS === 'web'};
+    const result = isCamera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
+    if (result.canceled || !result.assets[0]) return;
+    const asset = result.assets[0];
+    // 시트를 먼저 열고(읽는 중 스켈레톤), 다 읽으면 무지개 타이핑으로 채운다
+    setPaste({visible: true, loading: true});
+    try {
+      const uri = await getPersistentUri(asset.uri, asset.base64);
+      const text = normalizeOcrWhitespace(await recognizeImageText(uri));
+      if (!text.trim()) {
+        setPaste({visible: true});
+        showLayoutSnackbar(t('recipeEdit.ocrEmpty'), {tone: 'error'});
+        return;
+      }
+      setPaste({visible: true, text, animate: true});
+    } catch {
+      setPaste({visible: true});
+      showLayoutSnackbar(t('recipeEdit.ocrEmpty'), {tone: 'error'});
+    }
+  }, [t, showLayoutSnackbar]);
+
+  const handleStartRecipe = useCallback((input: AddRecipeInput) => {
+    if (input === 'url') { router.push('/recipe/edit?input=url' as any); return; }
+    pendingAddRef.current = input === 'text'
+      ? () => setPaste({visible: true})
+      : () => { runPhotoToText(input); };
+  }, [router, runPhotoToText]);
+  const handleCreateCookbook = useCallback(() => {
+    pendingAddRef.current = () => {
       setCookbookEditTarget(null);
       setCookbookInitialOfficial(false);
       setShowCookbookDialog(true);
-    } else if (item.id === 'official-cookbook') {
-      setCookbookEditTarget(null);
-      setCookbookInitialOfficial(true);
-      setShowCookbookDialog(true);
-    }
-  }, [router, setShowAddSheet, setCookbookEditTarget, setShowCookbookDialog]);
+    };
+  }, [setCookbookEditTarget, setCookbookInitialOfficial, setShowCookbookDialog]);
+  const handleAddSheetDismissed = useCallback(() => {
+    const next = pendingAddRef.current;
+    pendingAddRef.current = null;
+    next?.();
+  }, []);
+  const handlePasteApply = useCallback((text: string) => {
+    setPendingRecipeText(text);
+    router.push('/recipe/edit?input=paste' as any);
+  }, [router]);
 
   const handleCookbookConfirm = useCallback(async (name: string, color: AvatarColor, isOfficial?: boolean, hidden?: boolean) => {
     // 중앙 가드: 이름이 공식(explore) 레시피 북이면 어느 경로로 왔든 개인 데이터로 새지 않게 Firestore 경로로.
@@ -565,12 +603,6 @@ function NavigationContent() {
 
       {shouldShowTabBar && (
         <>
-          {/* 스크림 */}
-          {showAddSheet && (
-            <Pressable style={tabStyles.scrim} onPress={handleAddSheetClose}>
-              <BlurView intensity={20} tint="dark" style={StyleSheet.absoluteFill} />
-            </Pressable>
-          )}
 
           {/* 하단 콘텐츠 마스크 그라디언트 */}
           {!hideContentMask && <ContentMask topHeight={0} />}
@@ -580,12 +612,26 @@ function NavigationContent() {
             <BottomTabBar
               tabs={tabs}
               activeTab={activeTab}
-              expanded={showAddSheet}
-              onClose={handleAddSheetClose}
-              addMenuItems={addMenuItems}
-              onAddItemPress={handleAddItemPress}
             />
           </View>
+
+          {/* [+] 시트 — 공통 바텀시트(위 3칸 버튼 · 아래 레시피북 만들기) */}
+          <AddRecipeSheet
+            visible={showAddSheet}
+            onClose={handleAddSheetClose}
+            onStartRecipe={handleStartRecipe}
+            onCreateCookbook={handleCreateCookbook}
+            onDismissed={handleAddSheetDismissed}
+          />
+          {/* 텍스트 시트 — 텍스트 붙여넣기 / 사진에서 읽은 글을 확인 후 [적용] */}
+          <PasteRecipeSheet
+            visible={paste.visible}
+            onClose={() => setPaste({visible: false})}
+            onApply={handlePasteApply}
+            initialText={paste.text}
+            loading={paste.loading}
+            animateInitial={paste.animate}
+          />
         </>
       )}
     </>

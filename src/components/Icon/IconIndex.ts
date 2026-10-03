@@ -46,6 +46,8 @@ export {default as IconMailFilled} from '../../../assets/icons/mail_filled.svg';
 export {default as IconCamera} from '../../../assets/icons/camera.svg';
 export {default as IconCameraFilled} from '../../../assets/icons/camera_filled.svg';
 export {default as IconScanText} from '../../../assets/icons/scan-text.svg';
+export {default as IconText} from '../../../assets/icons/text.svg';
+export {default as IconUrl} from '../../../assets/icons/url.svg';
 export {default as IconEdit} from '../../../assets/icons/edit.svg';
 export {default as IconEditFilled} from '../../../assets/icons/edit_filled.svg';
 export {default as IconTrash} from '../../../assets/icons/trash.svg';

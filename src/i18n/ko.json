@@ -963,5 +963,16 @@
   "examschedule.weekday3": "수",
   "examschedule.weekday4": "목",
   "examschedule.weekday5": "금",
-  "examschedule.weekday6": "토"
+  "examschedule.weekday6": "토",
+  "recipeEdit.ocrEmpty": "사진에서 글자를 찾지 못했어요",
+  "layout.addImage": "이미지",
+  "layout.addUrl": "URL",
+  "layout.addText": "텍스트",
+  "layout.addCookbookDesc": "레시피를 정리해보세요.",
+  "recipeEdit.pasteRule.group": "묶음 이름",
+  "recipeEdit.pasteRule.ingredient": "재료",
+  "recipeEdit.pasteRule.step": "과정",
+  "recipeEdit.pasteRule.note": "덧붙임",
+  "recipeEdit.pasteMark.tip": "> 팁:",
+  "recipeEdit.pasteMark.caution": "> 주의:"
 }

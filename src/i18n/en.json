@@ -978,5 +978,16 @@
   "examschedule.weekday3": "Wed",
   "examschedule.weekday4": "Thu",
   "examschedule.weekday5": "Fri",
-  "examschedule.weekday6": "Sat"
+  "examschedule.weekday6": "Sat",
+  "recipeEdit.ocrEmpty": "Couldn't find any text in the photo",
+  "layout.addImage": "Image",
+  "layout.addUrl": "URL",
+  "layout.addText": "Text",
+  "layout.addCookbookDesc": "Organize your recipes.",
+  "recipeEdit.pasteRule.group": "Group name",
+  "recipeEdit.pasteRule.ingredient": "Ingredient",
+  "recipeEdit.pasteRule.step": "Step",
+  "recipeEdit.pasteRule.note": "Note",
+  "recipeEdit.pasteMark.tip": "> Tip:",
+  "recipeEdit.pasteMark.caution": "> Caution:"
 }

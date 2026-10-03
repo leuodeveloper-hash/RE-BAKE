@@ -1,3 +1,4 @@
+import {IconThumbnail} from '@components/Thumbnail';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   Animated,
@@ -606,30 +607,15 @@ export function RecipeCard({
 
           {/* 썸네일 — 레시피 북 등 placeholderIcon 명시 시엔 원래 Thumbnail, 아니면 stacked */}
           {PlaceholderIcon !== IconPhoto ? (
-            <View
-              style={{
-                width: isSmall ? 44 : 64,
-                height: isSmall ? 44 : 64,
-                borderRadius: isSmall ? Radius['radius-sm'] : Radius['radius-md'],
-                backgroundColor: colors['fill/subtle'],
-                alignItems: 'center',
-                justifyContent: 'center',
-                overflow: 'hidden',
-              }}>
+            <IconThumbnail size={isSmall ? 44 : 64} icon={PlaceholderIcon} iconColor={placeholderIconColor}>
               {hasImage ? (
                 <FadeInImage
                   source={{uri: imageUrl!}}
                   style={styles.listImage}
                   resizeMode="cover"
                 />
-              ) : (
-                <PlaceholderIcon
-                  width={isSmall ? 18 : 24}
-                  height={isSmall ? 18 : 24}
-                  color={placeholderIconColor || colors['foreground/on-surface-muted']}
-                />
-              )}
-            </View>
+              ) : undefined}
+            </IconThumbnail>
           ) : (
             <View style={[styles.listStackedWrapper, {width: isSmall ? 44 : 64, height: isSmall ? 44 : 64}]}>
               {/* 겹침은 팩뷰 전용 — 이미지 있으면 슬롯을 꽉 채운 단일 썸네일,

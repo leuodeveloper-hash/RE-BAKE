@@ -1,4 +1,4 @@
-export {BottomSheet, SHEET_MAX_WIDTH, sheetContentWidth} from './BottomSheet';
+export {BottomSheet, SHEET_MAX_WIDTH, sheetContentWidth, sheetTileWidth} from './BottomSheet';
 export type {BottomSheetProps} from './BottomSheet';
 export {SheetHeader} from './SheetHeader';
 export type {SheetHeaderProps} from './SheetHeader';
@@ -15,3 +15,5 @@ export type {RecipeFeedbackSheetProps} from './RecipeFeedbackSheet';
 export {InquirySheet} from './InquirySheet';
 export type {InquirySheetProps} from './InquirySheet';
 export {PasteRecipeSheet} from './PasteRecipeSheet';
+export {AddRecipeSheet} from './AddRecipeSheet';
+export type {AddRecipeSheetProps, AddRecipeInput} from './AddRecipeSheet';

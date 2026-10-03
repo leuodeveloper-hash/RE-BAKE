@@ -44,6 +44,11 @@ const VELOCITY_THRESHOLD = 800;
 export interface BottomSheetProps {
   visible: boolean;
   onClose: () => void;
+  /**
+   * 시트가 화면에서 완전히 내려간 뒤 — iOS는 시트(Modal)가 떠 있는 동안 사진 고르기 등
+   * 다른 창을 못 띄우므로, 닫고 나서 이어 할 일은 여기서 한다.
+   */
+  onDismissed?: () => void;
   children: React.ReactNode;
   title?: string;
   description?: string;
@@ -83,6 +88,7 @@ export interface BottomSheetProps {
 export function BottomSheet({
   visible,
   onClose,
+  onDismissed,
   children,
   title,
   description,
@@ -115,6 +121,7 @@ export function BottomSheet({
   const contentHeight = useRef(0);
   // 내부 마운트 상태: 닫기 애니메이션 완료까지 유지
   const [mounted, setMounted] = useState(false);
+  const wasMountedRef = useRef(false);
   // 키보드 높이 — 시트 안 입력칸(검색·회고 등)이 키보드에 가려지지 않게 시트를 그만큼 올린다.
   // Modal 안이라 화면 자동 리사이즈가 안 먹어 직접 잰다.
   const [keyboardHeight, setKeyboardHeight] = useState(0);
@@ -130,6 +137,13 @@ export function BottomSheet({
 
   const onCloseRef = useRef(onClose);
   onCloseRef.current = onClose;
+  const onDismissedRef = useRef(onDismissed);
+  onDismissedRef.current = onDismissed;
+  // iOS는 Modal의 onDismiss로(창이 실제로 내려간 뒤), 그 외는 언마운트 직후 알린다
+  useEffect(() => {
+    if (!mounted && wasMountedRef.current && Platform.OS !== 'ios') onDismissedRef.current?.();
+    wasMountedRef.current = mounted;
+  }, [mounted]);
 
   // 닫기 애니메이션
   const animateClose = useCallback((velocity?: number) => {
@@ -377,7 +391,8 @@ export function BottomSheet({
       transparent
       animationType="none"
       statusBarTranslucent
-      onRequestClose={handleBackdropPress}>
+      onRequestClose={handleBackdropPress}
+      onDismiss={() => onDismissedRef.current?.()}>
       {inner}
     </Modal>
   );
@@ -393,6 +408,15 @@ export const SHEET_MAX_WIDTH = 478;
  */
 export function sheetContentWidth(windowWidth: number): number {
   return Math.min(windowWidth - Spacing.sm * 2, SHEET_MAX_WIDTH) - Spacing.xs * 2;
+}
+
+/**
+ * 시트 안 칸 나누기(재료 준비 4칸, [+] 시트 3칸 등)의 한 칸 폭.
+ * 칸은 이 숫자 폭을 가진 바깥 View로 감싸고 안쪽 타일은 꽉 채우기만 한다 —
+ * 퍼센트·flex로 나누면 아이폰에서 칸이 좌우로 찌그러졌다.
+ */
+export function sheetTileWidth(windowWidth: number, columns: number, rowPadding: number, gap: number): number {
+  return Math.floor((sheetContentWidth(windowWidth) - rowPadding * 2 - gap * (columns - 1)) / columns);
 }
 
 const createStyles = (colors: SemanticColors) =>

@@ -14,6 +14,7 @@ import {
   useWindowDimensions,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
+import {takePendingRecipeText} from '@utils/pendingRecipeText';
 import * as Haptics from 'expo-haptics';
 import {getPersistentUri, MAX_HERO_PHOTOS} from '@utils/imageUpload';
 import {photoSourceMenuItems} from '@utils/photoSourceMenu';
@@ -191,7 +192,7 @@ export function RecipeEditScreen(props: RecipeEditScreenProps) {
   );
 }
 
-function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColors: cookbookColorsProp, onSetCookbookColor, initialSection, initialCookbook, isExplore, onDeleteCookbook}: RecipeEditScreenProps) {
+function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks, cookbookColors: cookbookColorsProp, onSetCookbookColor, initialSection, initialCookbook, isExplore, onDeleteCookbook}: RecipeEditScreenProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const {t} = useTranslation();
@@ -865,6 +866,20 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
     showSnackbar(t('recipeEdit.pasteApplied'), {tone: 'positive'});
   }, [showSnackbar, t]);
 
+  // 하단 탭 [+]에서 시작 — 시트에서 확인한 글(텍스트·사진 글자)은 바로 적용,
+  // URL은 원본 링크 칸을 열어 붙여넣으면 가져온다(만개의레시피 등).
+  const [pasteInitial, setPasteInitial] = useState<string | undefined>(undefined);
+  const startedInputRef = useRef(false);
+  useEffect(() => {
+    if (!initialInput || recipe || startedInputRef.current) return;
+    startedInputRef.current = true;
+    if (initialInput === 'url') { handleMenuSelectRef.current?.('import-url'); return; }
+    const text = takePendingRecipeText();
+    if (text) applyMarkdown(text);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const handleMenuSelectRef = useRef<((id: string) => void) | null>(null);
   const handleMenuSelect = (id: string) => {
     setShowMenu(false);
     if (id === 'field-manage') {
@@ -881,6 +896,7 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
       }, 50);
     }
   };
+  handleMenuSelectRef.current = handleMenuSelect;
 
   const handleCookbookPress = () => {
     setShowCookbookMenu(true);
@@ -3036,8 +3052,9 @@ function RecipeEditScreenInner({onClose, onSave, recipe, cookbooks, cookbookColo
       {/* 필드관리 다이얼로그 */}
       <PasteRecipeSheet
         visible={pasteOpen}
-        onClose={() => setPasteOpen(false)}
+        onClose={() => { setPasteOpen(false); setPasteInitial(undefined); }}
         onApply={applyMarkdown}
+        initialText={pasteInitial}
       />
 
       <FieldManageDialog

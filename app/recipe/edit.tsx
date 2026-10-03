@@ -33,7 +33,7 @@ function stripUndefined(obj: any): any {
 export default function RecipeNewRoute() {
   const router = useRouter();
   const colors = useColors();
-  const {target, cookbook} = useLocalSearchParams<{target?: string; cookbook?: string}>();
+  const {target, cookbook, input} = useLocalSearchParams<{target?: string; cookbook?: string; input?: string}>();
   const isExploreTarget = target === 'explore';
   const {user} = useAuth();
   const {setRecipes, availableCookbooks, cookbookColors, setCookbookColor} = useRecipes();
@@ -134,6 +134,7 @@ export default function RecipeNewRoute() {
     <SafeAreaProvider>
       <View style={[styles.container, {backgroundColor: colors['surface/dim']}]}>
         <RecipeEditScreen
+          initialInput={input === 'paste' || input === 'url' ? input : undefined}
           cookbooks={isExploreTarget
             ? [...new Set([...DEFAULT_EXPLORE_COOKBOOKS, ...exploreCookbooks.map(c => c.name)])]
             : availableCookbooks}

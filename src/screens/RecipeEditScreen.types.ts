@@ -59,6 +59,11 @@ export interface StepGroup {
 }
 
 export interface RecipeEditScreenProps {
+  /**
+   * 새로 만들 때 처음 채우는 방법 — 하단 탭 [+] 시트에서 넘어온다.
+   * paste: 시트에서 확인한 글(텍스트·사진 글자)을 적용 / url: 원본 링크 칸을 열어 가져오기
+   */
+  initialInput?: 'paste' | 'url';
   onClose?: () => void;
   onSave?: (data: {
     title: string;
