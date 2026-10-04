@@ -713,7 +713,7 @@
   "recipeEdit.linkMessage": "Enter a URL for the selected text. Leave empty to remove the link.",
   "recipeEdit.linkTitle": "Add link",
   "recipeEdit.linkUrl": "URL",
-  "recipeEdit.linkRecipeSearch": "Search recipes",
+  "recipeEdit.linkRecipeSearch": "Search tips",
   "recipeEdit.methodPlaceholder": "Method",
   "recipeEdit.moveGroupDown": "Move down",
   "recipeEdit.moveGroupUp": "Move up",

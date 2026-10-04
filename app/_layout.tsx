@@ -22,6 +22,7 @@ import {useExamNotificationPrefs} from '@hooks/useExamNotificationPrefs';
 import {SubscriptionProvider, useSubscription} from '@contexts/SubscriptionContext';
 import {PlanSheetProvider, usePlanSheet} from '@contexts/PlanSheetContext';
 import {AuthSheetProvider, useAuthSheet} from '@contexts/AuthSheetContext';
+import {RecipeLinkProvider} from '@contexts/RecipeLinkContext';
 import {PlanSheet} from '@components/PlanSheet';
 import {AuthSheet} from '@components/AuthSheet';
 import {ExploreRecipeProvider, useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
@@ -891,6 +892,8 @@ export default function RootLayout() {
             <MadeStampsProvider>
             <RecipeReviewsProvider>
             <AddSheetProvider>
+              {/* 본문 링크 — 팁은 바텀시트, 레시피는 상세, 그 밖은 브라우저 */}
+              <RecipeLinkProvider>
               <PlanSheetProvider>
                 <AuthSheetProvider>
                   <YouTubePlayerProvider>
@@ -906,6 +909,7 @@ export default function RootLayout() {
                   </YouTubePlayerProvider>
                 </AuthSheetProvider>
               </PlanSheetProvider>
+              </RecipeLinkProvider>
             </AddSheetProvider>
             </RecipeReviewsProvider>
             </MadeStampsProvider>

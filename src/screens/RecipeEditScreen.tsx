@@ -630,9 +630,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const hasStep = stepGroups.some(g => g.bulkMode)
     ? stepGroups.some(g => resolveGroupSteps(g).length > 0)
     : stepGroups.some(g => g.steps.some(s => s.description.trim()));
-  // 팁은 제목만 있으면 된다 — 재료·과정이 없는 팁도 있다(실기 준비물, 주의사항 등)
+  // 재료는 필수가 아니다(재료 없이 과정만 있는 레시피도 있다). 팁은 제목만 있으면 된다.
   const isTip = kind === 'tip';
-  const canSave = isDirty && hasTitle && (isTip || (hasIngredient && hasStep));
+  const canSave = isDirty && hasTitle && (isTip || hasStep);
   const [saving, setSaving] = useState(false);
   // 닫기 확인: 변경사항이 있고 실제 입력한 내용이 있을 때만(빈 폼은 그냥 닫음)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -654,15 +654,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
       titleInputRef.current?.focus();
       return;
     }
-    const hasIng = ingredientGroups.some(g =>
-      g.bulkMode ? g.bulkText.split(',').some(s => s.trim()) : g.ingredients.some(i => i.name.trim()),
-    );
-    if (!hasIng && kind !== 'tip') {
-      const y = sectionPositions.current['ingredients'];
-      if (y != null) scrollViewRef.current?.scrollTo({y: y - 80, animated: true});
-      setTimeout(() => sectionInputRefs.current['ingredients']?.focus(), 300);
-      return;
-    }
+    // 재료는 필수가 아니다 — 비어 있어도 저장한다(과정만 있는 레시피도 있다)
     const hasStp = stepGroups.some(g => g.bulkMode)
       ? stepGroups.some(g => resolveGroupSteps(g).length > 0)
       : stepGroups.some(g => g.steps.some(s => s.description.trim()));

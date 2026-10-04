@@ -1,6 +1,6 @@
 import React, {useCallback} from 'react';
-import {Linking, StyleProp, Text, TextStyle, View} from 'react-native';
-import {useRouter} from 'expo-router';
+import {StyleProp, Text, TextStyle, View} from 'react-native';
+import {useRecipeLink, internalRecipeId} from '@contexts/RecipeLinkContext';
 import {IconArrowTopRight} from '@components/Icon/IconIndex';
 import {useColors} from '@contexts/ThemeContext';
 import {parseRichText} from '@utils/richText';
@@ -24,19 +24,10 @@ export interface RichTextProps {
  */
 export function RichText({children, style, numberOfLines, inline}: RichTextProps) {
   const colors = useColors();
-  const router = useRouter();
   const segments = parseRichText(children ?? '');
-
-  const open = useCallback((url: string) => {
-    // 앱 안의 다른 레시피를 가리키는 링크는 라우터로 바로 연다.
-    // Linking.openURL로 보내면 앱 밖으로 나갔다 되돌아와 화면이 깜빡인다.
-    const internal = url.match(/^(?:bakle:\/\/)?\/?recipe\/([^/?#]+)/);
-    if (internal) {
-      router.push(`/recipe/${internal[1]}` as any);
-      return;
-    }
-    Linking.openURL(url).catch(() => { /* 열 수 없는 주소는 무시 */ });
-  }, [router]);
+  // 링크 종류별로 연다 — 팁은 바텀시트, 레시피는 앱 안 상세, 그 밖은 브라우저(RecipeLinkContext)
+  const {openLink, isTipLink} = useRecipeLink();
+  const open = useCallback((url: string) => openLink(url), [openLink]);
 
   // 링크가 없으면 굳이 조각내지 않는다 (인라인이면 문자열 그대로)
   if (!segments.some(s => s.url)) {
@@ -45,21 +36,32 @@ export function RichText({children, style, numberOfLines, inline}: RichTextProps
       : <Text style={style} numberOfLines={numberOfLines}>{children}</Text>;
   }
 
-  const parts = segments.map((seg, i) => seg.url ? (
+  const parts = segments.map((seg, i) => seg.url && isTipLink(seg.url) ? (
+    // 팁 링크 — 본문 글자 그대로에 밑줄만(화살표·색 없이). 누르면 팁 바텀시트
+    <Text
+      key={i}
+      onPress={() => open(seg.url!)}
+      style={{textDecorationLine: 'underline', textDecorationColor: colors['border/strong']}}>
+      {seg.text}
+    </Text>
+  ) : seg.url ? (
     <Text
       key={i}
       onPress={() => open(seg.url!)}
       // 참고링크/출처(UrlField)와 동일한 링크 표현으로 통일:
       // 옅은 보더 색 언더라인 + 우상단 화살표
+      // 노란 글자는 없앴다 — 본문 글자 색 그대로 + 밑줄
       style={{
-        color: colors['custom/yellow-var'],
         textDecorationLine: 'underline',
-        textDecorationColor: colors['border/normal'],
+        textDecorationColor: colors['border/strong'],
       }}>
       {seg.text}
-      <View style={{transform: [{translateY: 2}]}}>
-        <IconArrowTopRight width={14} height={14} color={colors['custom/yellow-var']} />
-      </View>
+      {/* 화살표는 밖(새 창)으로 나가는 링크에만 — 앱 안 레시피 링크는 밑줄만 */}
+      {!internalRecipeId(seg.url) && (
+        <View style={{transform: [{translateY: 2}]}}>
+          <IconArrowTopRight width={14} height={14} color={colors['foreground/on-surface-muted']} />
+        </View>
+      )}
     </Text>
   ) : (
     <Text key={i}>{seg.text}</Text>

@@ -698,7 +698,7 @@
   "recipeEdit.linkMessage": "선택한 텍스트에 연결할 주소를 입력하세요. 비우면 링크가 해제됩니다.",
   "recipeEdit.linkTitle": "링크 넣기",
   "recipeEdit.linkUrl": "주소",
-  "recipeEdit.linkRecipeSearch": "레시피 이름으로 찾기",
+  "recipeEdit.linkRecipeSearch": "팁 이름으로 찾기",
   "recipeEdit.methodPlaceholder": "공법",
   "recipeEdit.moveGroupDown": "아래로 이동",
   "recipeEdit.moveGroupUp": "위로 이동",
