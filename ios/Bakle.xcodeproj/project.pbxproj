@@ -263,11 +263,11 @@
 				13B07F871A680F5B00A75B9A /* Sources */,
 				13B07F8C1A680F5B00A75B9A /* Frameworks */,
 				13B07F8E1A680F5B00A75B9A /* Resources */,
+				XX72A8CFBF0FBA13A79902XX /* Embed Foundation Extensions */,
 				00DD1BFF1BD5951E006B06BC /* Bundle React Native code and images */,
 				800E24972A6A228C8D4807E9 /* [CP] Copy Pods Resources */,
 				9DEA0B9A7630384A37BBC39F /* [CP] Embed Pods Frameworks */,
 				452CCD04CE7BAD9AA5408F59 /* [CP-User] [RNGoogleMobileAds] Configuration */,
-				XX72A8CFBF0FBA13A79902XX /* Embed Foundation Extensions */,
 				49D53DD902BC8FD630E198E3 /* [CP-User] [RNFB] Core Configuration */,
 			);
 			buildRules = (

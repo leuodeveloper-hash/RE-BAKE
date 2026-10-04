@@ -585,9 +585,8 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
       onOverlayPress={closeLocalMenus}
       extraOverlayVisible={showMoreMenu || crumbMenu !== null}
       onRefresh={reload}
+      // 배너가 없으면 undefined — 빈 조각을 넘기면 상단 줄 자리(여백)가 남는다
       listHeaderExtra={
-        <>
-        {
         // 시험이 임박하면 그 배너를 먼저 — 기한이 있어 더 시급하다
         upcomingExam ? (
           <InlineBanner
@@ -601,7 +600,6 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
               label: t('home.examSchedule'),
               onPress: () => router.navigate('/exam-schedule' as any),
             }}
-            style={styles.localBanner}
           />
         ) : !isAuthorMode && isGuest && !guestBannerDismissed ? (
         <InlineBanner
@@ -614,10 +612,8 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
             onPress: () => router.navigate('/profile' as any),
           }}
           onClose={() => setGuestBannerDismissed(true)}
-          style={styles.localBanner}
         />
-      ) : undefined}
-        </>
+      ) : undefined
       }
       listEmptyComponent={
         !isLoading ? (
@@ -802,8 +798,5 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   deleteAllCount: {
     color: colors['foreground/on-surface-var'],
-  },
-  localBanner: {
-    marginBottom: Spacing.sm,
   },
 });

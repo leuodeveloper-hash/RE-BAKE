@@ -730,6 +730,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   listHeaderExtra: {
     paddingTop: APPBAR_HEIGHT,
     paddingHorizontal: Spacing.md,
+    // 상단 줄(배너 등)과 목록 사이 16 — 이 템플릿을 쓰는 모든 목록 화면 공통(화면마다 여백 주지 않는다)
+    paddingBottom: Spacing.md,
     zIndex: 3,
   },
   packEmpty: {

@@ -142,11 +142,22 @@ export function BottomSheet({
   onCloseRef.current = onClose;
   const onDismissedRef = useRef(onDismissed);
   onDismissedRef.current = onDismissed;
-  // iOS는 Modal의 onDismiss로(창이 실제로 내려간 뒤), 그 외는 언마운트 직후 알린다
+  // iOS는 Modal의 onDismiss로(창이 실제로 내려간 뒤), 그 외는 언마운트 직후 알린다.
+  // iOS 새 아키텍처에선 onDismiss가 안 오는 경우가 있어(레시피북 만들기 팝업이 안 뜸) 잠시 뒤 대신 알린다 — 한 번만.
+  const dismissedSentRef = useRef(true);
+  const fireDismissed = useCallback(() => {
+    if (dismissedSentRef.current) return;
+    dismissedSentRef.current = true;
+    onDismissedRef.current?.();
+  }, []);
   useEffect(() => {
-    if (!mounted && wasMountedRef.current && Platform.OS !== 'ios') onDismissedRef.current?.();
+    if (mounted) dismissedSentRef.current = false;
+    if (!mounted && wasMountedRef.current) {
+      if (Platform.OS !== 'ios') fireDismissed();
+      else setTimeout(fireDismissed, 350);
+    }
     wasMountedRef.current = mounted;
-  }, [mounted]);
+  }, [mounted, fireDismissed]);
 
   // 닫기 애니메이션
   const animateClose = useCallback((velocity?: number) => {
@@ -395,7 +406,7 @@ export function BottomSheet({
       animationType="none"
       statusBarTranslucent
       onRequestClose={handleBackdropPress}
-      onDismiss={() => onDismissedRef.current?.()}>
+      onDismiss={fireDismissed}>
       {inner}
     </Modal>
   );
