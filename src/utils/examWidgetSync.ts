@@ -1,5 +1,5 @@
 import {Platform} from 'react-native';
-import {effectiveExamDate, loadChosenDates} from '@utils/examChosenDate';
+import {canChooseExamDate, chosenDateKey, effectiveExamDate, loadChosenDates} from '@utils/examChosenDate';
 import {fetchExamSchedules} from '@utils/examSchedules';
 import {getExamTypes, toExamType, scheduleExamLabel} from '@constants/examTypes';
 import {translate, deviceLanguage} from '../i18n';
@@ -63,7 +63,7 @@ export async function syncExamWidget(): Promise<void> {
       // 필기처럼 기간이 있는 시험은 내가 고른 날을 시험일로 넘긴다(위젯은 examDate로 D-day를 센다)
       const chosen = await loadChosenDates();
       const schedules = (await fetchExamSchedules(['practical', 'written']))
-        .map(s => ({...s, examDate: effectiveExamDate(s, chosen)}));
+        .map(s => ({...s, examDate: effectiveExamDate(s, chosen), picked: !!chosen[chosenDateKey(s)] && canChooseExamDate(s)}));
       const labelByType = Object.fromEntries(getExamTypes(t).map(e => [e.id, e.label]));
       const now = Date.now();
 
@@ -81,9 +81,18 @@ export async function syncExamWidget(): Promise<void> {
         return times.length > 0 ? Math.min(...times) : Infinity;
       };
 
+      // 오늘 자정 — 내가 고른 시험일은 '그날 하루'가 끝날 때까지 남은 것으로 본다(당일 D-day)
+      const today = new Date(); today.setHours(0, 0, 0, 0);
+      const dayOf = (iso: string) => { const d = new Date(iso); d.setHours(0, 0, 0, 0); return d.getTime(); };
+
       for (const discipline of WIDGET_DISCIPLINES) {
-        const upcoming = schedules
-          .filter(s => s.examType.startsWith(discipline) && nextMoment(s) !== Infinity)
+        const mine = schedules.filter(s => s.examType.startsWith(discipline));
+        // 내가 고른 시험일이 아직 남았으면(오늘 포함) 그 시험을 우선 — 다른 회차 접수일보다 먼저 보여준다
+        const picked = mine
+          .filter(s => s.picked && dayOf(s.examDate) >= today.getTime())
+          .sort((a, b) => dayOf(a.examDate) - dayOf(b.examDate))[0];
+        const upcoming = picked ?? mine
+          .filter(s => nextMoment(s) !== Infinity)
           .sort((a, b) => nextMoment(a) - nextMoment(b))[0];
         if (!upcoming) continue;
         byDiscipline[discipline] = {
@@ -93,7 +102,8 @@ export async function syncExamWidget(): Promise<void> {
             || labelByType[toExamType(upcoming.examType)]
             || t('examNotifications.defaultExamLabel'),
           round: upcoming.round ?? '',
-          registrationStart: upcoming.registrationStart ?? '',
+          // 고른 시험은 시험일 D-day로 — 접수 카운트다운을 띄우지 않는다
+          registrationStart: upcoming === picked ? '' : (upcoming.registrationStart ?? ''),
         };
       }
     }

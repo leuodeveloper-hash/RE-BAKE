@@ -27,7 +27,7 @@ import {IconTrashFilled, IconExprolerBookFilled} from '@components/Icon/IconInde
 import {CookbookSelectSheet} from '@components/BottomSheet';
 import {Dialog} from '@components/Dialog';
 import {Button} from '@components/Button';
-import {SUBSCRIPTION_ENABLED} from '@contexts/SubscriptionContext';
+import {SUBSCRIPTION_ENABLED, useSubscription} from '@contexts/SubscriptionContext';
 import {usePlanSheet} from '@contexts/PlanSheetContext';
 import {savePhoto} from '@utils/savePhoto';
 import {usePdfExportQuota} from '@hooks/usePdfExportQuota';
@@ -59,7 +59,11 @@ export default function RecipeDetailRoute() {
   const {limits, tier} = useEntitlement();
   const pdfLimit = limits.quota.pdfExports;
   const {t} = useTranslation();
-  const isLocked = lockedParam === '1' && !unlocked;
+  // 잠금은 목록에서 넘긴 표시(locked=1)지만, 구독 중이면 풀린다.
+  // 로그인 직후엔 구독 확인이 끝나기 전 잠깐 isPro가 false라 잠금 화면이 번쩍였다 →
+  // 로그인한 상태에서 확인 중일 때는 잠그지 않고 기다린다(게스트는 바로 잠근다).
+  const {isPro, isLoading: subLoading} = useSubscription();
+  const isLocked = lockedParam === '1' && !unlocked && !isPro && !(user && subLoading);
 
   // 라우트가 바뀌면(다른 레시피로 진입) active id 동기화
   useEffect(() => { if (routeId) setId(routeId); }, [routeId]);

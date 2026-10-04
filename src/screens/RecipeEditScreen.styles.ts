@@ -163,6 +163,14 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flex: 1,
     zIndex: 10,
   },
+  // 한번에 쓰기 인식 메뉴 — 머리 오른쪽 버튼 바로 아래, 오른쪽 맞춤
+  bulkScanMenu: {
+    position: 'absolute' as const,
+    top: '100%' as any,
+    right: 0,
+    marginTop: 4,
+    zIndex: 20,
+  },
   photoMenu: {
     position: 'absolute' as const,
     top: '100%' as any,

@@ -46,6 +46,7 @@ import * as ImagePicker from 'expo-image-picker';
 import {ensureImagePermission} from '@utils/imagePermission';
 import {getPersistentUri} from '@utils/imageUpload';
 import {recognizeImageText, normalizeOcrWhitespace} from '@utils/recipeOcr';
+import {ocrTextToMarkdown} from '@utils/ocrText';
 import {setPendingRecipeText} from '@utils/pendingRecipeText';
 import {OcrCropModal} from '@components/RecipeOcrButton';
 import {prepareRecipeImageForCrop, type OcrCropTarget} from '@utils/ocrImageSource';
@@ -63,7 +64,7 @@ import {
   IconNoteFilled,
 } from '@components/Icon/IconIndex';
 import {collection, deleteDoc, doc, getDocs, query, setDoc, updateDoc, where} from 'firebase/firestore';
-import {db} from '@config/firebase';
+import {db, auth} from '@config/firebase';
 import {useRecipes} from '@contexts/RecipeContext';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 // 로딩 화면 로고 — 버건디(reddark)는 브랜드색이지만 로딩 배경 위에서 과했다.
@@ -437,7 +438,8 @@ function NavigationContent() {
     try {
       const text = normalizeOcrWhitespace(await recognizeImageText(uri));
       if (!text.trim()) { setPaste({visible: true}); showLayoutSnackbar(t('recipeEdit.ocrEmpty'), {tone: 'error'}); return; }
-      setPaste({visible: true, text, animate: true});
+      // 읽은 글을 쓰기 규칙(# 제목 / ## 재료 / ## 과정)으로 정리해 채운다 — 그대로면 적용 때 전부 과정이 됐다
+      setPaste({visible: true, text: ocrTextToMarkdown(text) || text, animate: true});
     } catch {
       setPaste({visible: true});
       showLayoutSnackbar(t('recipeEdit.ocrEmpty'), {tone: 'error'});
@@ -689,6 +691,16 @@ function GlobalPlanSheet() {
   const {showSnackbar} = useSnackbar();
   const {t} = useTranslation();
 
+  // 로그인 전엔 플랜부터 보여주지 않는다 — 이미 구독한 사람이 로그인만 안 했을 수도 있다.
+  // 어디서 열었든(잠긴 레시피·PDF·프로필 등) 여기서 막고 로그인부터 → 끝나면 GlobalAuthSheet가
+  // 구독 여부를 확인해 필요할 때만 플랜을 다시 연다.
+  const signedIn = !!user && !!auth.currentUser;
+  useEffect(() => {
+    if (!visible || signedIn) return;
+    close();
+    setTimeout(() => openAuthSheet(), 300);
+  }, [visible, signedIn, close, openAuthSheet]);
+
   const handleSubscribePress = useCallback(async (pkg?: any) => {
     if (!user) {
       // 게스트: PlanSheet 닫고 → AuthSheet 열기 (성공하면 GlobalAuthSheet가 PlanSheet를 다시 연다)
@@ -710,7 +722,8 @@ function GlobalPlanSheet() {
     // 실패·취소는 스토어가 자체 UI로 알리므로 별도 안내하지 않는다
   }, [user, close, openAuthSheet, openPlanSheet, purchasePackage, showSnackbar, t]);
 
-  return <PlanSheet visible={visible} onClose={close} isPro={isPro} onSubscribePress={handleSubscribePress} />;
+  // 로그인 전엔 한 프레임도 보이지 않게 — 위 효과가 로그인 시트로 돌린다
+  return <PlanSheet visible={visible && signedIn} onClose={close} isPro={isPro} onSubscribePress={handleSubscribePress} />;
 }
 
 /**
@@ -720,12 +733,31 @@ function GlobalPlanSheet() {
 function GlobalAuthSheet() {
   const {visible, close, fireSuccess} = useAuthSheet();
   const {open: openPlanSheet} = usePlanSheet();
-  const {isPro} = useSubscription();
+  const {isPro, isLoading: subLoading} = useSubscription();
+  // 로그인 직후엔 구독 확인(RevenueCat logIn)이 아직 안 끝나 isPro가 false로 남아 있다.
+  // 바로 판단하면 이미 구독한 사람에게도 플랜 시트가 떴다 → 확인이 끝난 뒤(또는 4초) 결정한다.
+  const pendingRef = useRef<{next: (() => void) | null; sawLoading: boolean} | null>(null);
+  const decide = useCallback((pro: boolean) => {
+    const p = pendingRef.current;
+    if (!p) return;
+    pendingRef.current = null;
+    if (pro) { p.next?.(); return; }
+    setTimeout(() => openPlanSheet({onClose: p.next ?? undefined}), 300);
+  }, [openPlanSheet]);
+  useEffect(() => {
+    const p = pendingRef.current;
+    if (!p) return;
+    if (subLoading) { p.sawLoading = true; return; }
+    if (p.sawLoading || isPro) decide(isPro);
+  }, [subLoading, isPro, decide]);
   const handleSuccess = useCallback(() => {
-    const next = fireSuccess();
-    if (isPro) { next?.(); return; }
-    setTimeout(() => openPlanSheet({onClose: next ?? undefined}), 300);
-  }, [fireSuccess, isPro, openPlanSheet]);
+    pendingRef.current = {next: fireSuccess(), sawLoading: false};
+    // 확인이 시작조차 안 되면(웹·구독 꺼짐) 오래 기다리지 않는다 / 시작됐는데 안 끝나면 4초에서 끊는다
+    setTimeout(() => { if (pendingRef.current && !pendingRef.current.sawLoading) decide(isProRef.current); }, 1200);
+    setTimeout(() => decide(isProRef.current), 4000);
+  }, [fireSuccess, decide]);
+  const isProRef = useRef(isPro);
+  isProRef.current = isPro;
   return <AuthSheet visible={visible} onClose={close} onSuccess={handleSuccess} />;
 }
 

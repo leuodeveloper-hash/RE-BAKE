@@ -706,7 +706,7 @@
   "recipeEdit.importNoData": "Couldn't find recipe data on this page",
   "recipeEdit.importSuccess": "Recipe imported",
   "recipeEdit.ingredientNamePlaceholder": "e.g. Potato",
-  "recipeEdit.ingredientsBulkPlaceholder": "e.g. Flour 200g, sugar 50g, a bit of butter",
+  "recipeEdit.ingredientsBulkPlaceholder": "e.g. Flour 200g, sugar 50g\n## Topping\nA bit of butter",
   "recipeEdit.ingredientsLabel": "Ingredients",
   "recipeEdit.linkLabel": "Text",
   "recipeEdit.linkLabelPlaceholder": "Text to show as link",
@@ -736,7 +736,7 @@
   "recipeEdit.session": "Session",
   "recipeEdit.splitGroupHere": "Split group here",
   "recipeEdit.stepDescriptionPlaceholder": "e.g. Add water and batter, then whisk.",
-  "recipeEdit.stepsBulkPlaceholder": "Write one step per line\ne.g. Whisk water and batter.\nPour into the pan and bake at 180°C for 25 min.",
+  "recipeEdit.stepsBulkPlaceholder": "One step per line, ## to start a group\n1. Whisk water and batter\n> Tip: no lumps\n## Bake\n1. Bake at 180°C for 25 min",
   "recipeEdit.stepsLabel": "Steps",
   "recipeEdit.takePhoto": "Camera",
   "recipeEdit.time": "Time",
@@ -997,5 +997,6 @@
   "recipeInputFloatingBar.scanFromRecipe": "Recipe photo",
   "recipeImagePicker.read": "Read this photo",
   "recipeImagePicker.readMany": "Read {{count}} photos",
-  "recipeEdit.pasteRule.subgroup": "Sub-group"
+  "recipeEdit.pasteRule.subgroup": "Sub-group",
+  "recipeEdit.pasteRule.tool": "Tool"
 }

@@ -125,3 +125,103 @@ export function parseRecipeMarkdown(text: string): ParsedMarkdownRecipe {
   out.stepGroups = out.stepGroups.filter(g => g.steps.length > 0);
   return out;
 }
+
+/**
+ * 한번에 쓰기(재료·과정 칸 하나)도 텍스트 시트와 같은 쓰기 규칙으로 읽는다.
+ * 칸이 이미 재료/과정으로 정해져 있으므로 섹션 대신 `##`(또는 `###`)가 곧 하위 묶음이다.
+ * 규칙 해석은 parseRecipeMarkdown 하나로 — 칸 종류 섹션을 앞에 붙이고, 칸 안 제목은 하위 묶음(###)으로 바꿔 넘긴다.
+ * 제목 없이 시작한 줄들은 fallbackTitle(원래 묶음 이름) 묶음에 담긴다.
+ */
+function asSection(text: string, sectionTitle: string, splitCommas: boolean): string {
+  const lines = (text ?? '').split(/\r?\n/).flatMap(raw => {
+    const line = raw.trim();
+    if (/^#{1,6}\s*\S/.test(line)) return [`### ${line.replace(/^#{1,6}\s*/, '')}`];
+    // 재료는 예전처럼 쉼표로 이어 써도 된다 — 한 줄에 여러 개
+    return splitCommas && !line.startsWith('>') ? line.split(',').map(s => s.trim()).filter(Boolean) : [line];
+  });
+  return `## ${sectionTitle}\n${lines.join('\n')}`;
+}
+
+export function parseBulkIngredientGroups(text: string, fallbackTitle: string): IngredientGroup[] {
+  const groups = parseRecipeMarkdown(asSection(text, '재료', true)).ingredientGroups;
+  return groups.map(g => (g.title === '재료' ? {...g, title: fallbackTitle} : g));
+}
+
+export function parseBulkStepGroups(text: string, fallbackTitle: string): StepGroup[] {
+  const groups = parseRecipeMarkdown(asSection(text, '과정', false)).stepGroups;
+  return groups.map(g => (g.title === '과정' ? {...g, title: fallbackTitle} : g));
+}
+
+/** 재료 묶음들 → 한번에 쓰기 칸 하나(묶음이 둘 이상이면 `## 이름` 줄로 나눈다) */
+export function ingredientGroupsToBulk(groups: {title?: string; ingredients: {name?: string; amount?: string; unit?: string}[]}[]): string {
+  const withHeading = groups.length > 1;
+  return groups.map(g => {
+    const line = g.ingredients
+      .map(i => [i.name?.trim(), `${i.amount ?? ''}${i.unit ?? ''}`.trim()].filter(Boolean).join(' '))
+      .filter(Boolean)
+      .join(', ');
+    return withHeading ? `## ${g.title || ''}\n${line}`.trim() : line;
+  }).filter(Boolean).join('\n');
+}
+
+/** 과정 묶음들 → 한번에 쓰기 칸 하나(팁·주의는 `> 팁:` / `> 주의:` 줄로) */
+export function stepGroupsToBulk(groups: {title?: string; steps: {description?: string; tip?: string; caution?: string}[]}[]): string {
+  const withHeading = groups.length > 1;
+  return groups.map(g => {
+    const body = g.steps
+      .filter(s => s.description?.trim())
+      .map((s, i) => [
+        `${i + 1}. ${s.description!.trim()}`,
+        s.tip?.trim() ? `> 팁: ${s.tip.trim()}` : '',
+        s.caution?.trim() ? `> 주의: ${s.caution.trim()}` : '',
+      ].filter(Boolean).join('\n'))
+      .join('\n');
+    return withHeading ? `## ${g.title || ''}\n${body}`.trim() : body;
+  }).filter(Boolean).join('\n');
+}
+
+/**
+ * 레시피 전체 → 쓰기 규칙 글(텍스트 시트에 미리 채우기). parseRecipeMarkdown으로 다시 읽으면 같은 구성이 된다.
+ *   # 제목 / ## 재료 → ### 묶음 → - 재료 분량 / ## 도구 → - 도구 / ## 과정 → ### 묶음 → 1. 설명 (> 팁: / > 주의:)
+ */
+export function recipeToMarkdown(r: {
+  title?: string;
+  ingredientGroups: {title?: string; ingredients: {name?: string; amount?: string; unit?: string}[]}[];
+  tools?: {name?: string}[];
+  stepGroups: {title?: string; steps: {description?: string; tip?: string; caution?: string}[]}[];
+}): string {
+  const out: string[] = [];
+  if (r.title?.trim()) out.push(`# ${r.title.trim()}`);
+
+  const ingGroups = r.ingredientGroups
+    .map(g => ({title: g.title?.trim() ?? '', items: g.ingredients
+      .map(i => [i.name?.trim(), `${i.amount ?? ''}${i.unit ?? ''}`.trim()].filter(Boolean).join(' '))
+      .filter(Boolean)}))
+    .filter(g => g.items.length > 0);
+  if (ingGroups.length > 0) {
+    out.push('', '## 재료');
+    for (const g of ingGroups) {
+      // 묶음 이름이 '재료'와 같거나 비었으면 따로 적지 않는다(섹션 이름이 곧 묶음)
+      if (g.title && g.title !== '재료') out.push(`### ${g.title}`);
+      out.push(...g.items.map(x => `- ${x}`));
+    }
+  }
+
+  const tools = (r.tools ?? []).map(t => t.name?.trim()).filter(Boolean);
+  if (tools.length > 0) out.push('', '## 도구', ...tools.map(x => `- ${x}`));
+
+  const stepGroups = r.stepGroups.filter(g => g.steps.some(s => s.description?.trim()));
+  if (stepGroups.length > 0) {
+    out.push('', '## 과정');
+    for (const g of stepGroups) {
+      const title = g.title?.trim() ?? '';
+      if (title && title !== '과정') out.push(`### ${title}`);
+      g.steps.filter(s => s.description?.trim()).forEach((s, i) => {
+        out.push(`${i + 1}. ${s.description!.trim()}`);
+        if (s.tip?.trim()) out.push(`> 팁: ${s.tip.trim()}`);
+        if (s.caution?.trim()) out.push(`> 주의: ${s.caution.trim()}`);
+      });
+    }
+  }
+  return out.join('\n').trim();
+}

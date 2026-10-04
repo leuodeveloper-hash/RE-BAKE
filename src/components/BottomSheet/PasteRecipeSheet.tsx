@@ -5,7 +5,7 @@ import {Button} from '@components/Button';
 import {AutoGrowInput} from '@components/AutoGrowInput';
 import {BulkTypingOverlay} from '@components/RainbowText';
 import {SkeletonLine} from '@components/SkeletonLine';
-import {Badge} from '@components/Badge';
+import {WritingRules} from '@components/WritingRules';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
 import {Spacing} from '@constants/spacing';
@@ -31,15 +31,6 @@ export interface PasteRecipeSheetProps {
  * 묶음별 "한 번에 쓰기"는 그 묶음만 고치지만 이건 레시피 전체를 덮어쓴다 —
  * 덮어쓴다는 사실을 설명에 밝혀 두고, 빈 칸이면 버튼이 눌리지 않게 한다.
  */
-/** 붙여넣기 규칙 — 기호(뱃지)와 뜻 */
-const PASTE_RULES = [
-  {key: 'group', marks: ['##']},
-  {key: 'subgroup', marks: ['###']},
-  {key: 'ingredient', marks: ['-']},
-  {key: 'step', marks: ['1.']},
-  // 팁·주의 기호는 언어마다 다르다(> 팁: / > Tip:) — 번역 키로
-  {key: 'note', marks: ['recipeEdit.pasteMark.tip', 'recipeEdit.pasteMark.caution']},
-];
 
 export function PasteRecipeSheet({visible, onClose, onApply, initialText, loading, animateInitial}: PasteRecipeSheetProps) {
   const styles = useThemedStyles(createStyles);
@@ -86,14 +77,7 @@ export function PasteRecipeSheet({visible, onClose, onApply, initialText, loadin
           )}
         </View>
         {/* 쓰는 규칙 — 기호는 회색 뱃지로, 뜻은 옆 글자로 */}
-        <View style={styles.rules}>
-          {PASTE_RULES.map(r => (
-            <View key={r.key} style={styles.rule}>
-              {r.marks.map(m => <Badge key={m} label={m.startsWith('recipeEdit.') ? t(m) : m} />)}
-              <Text style={styles.hint}>{t(`recipeEdit.pasteRule.${r.key}`)}</Text>
-            </View>
-          ))}
-        </View>
+        <WritingRules kind="recipe" />
       </View>
     </BottomSheet>
   );
@@ -123,17 +107,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   inputPad: {
     paddingHorizontal: Spacing.smd,
     paddingVertical: Spacing.sm,
-  },
-  rules: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    columnGap: Spacing.smd,
-    rowGap: Spacing.xs,
-  },
-  rule: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
   },
   hint: {
     ...Typography.label.medium,

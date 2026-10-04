@@ -1,4 +1,4 @@
-import React, {useCallback, useRef, useState} from 'react';
+import React, {useCallback, useState} from 'react';
 import {Keyboard, Platform, ViewStyle} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {useSnackbar} from '@contexts/SnackbarContext';
@@ -16,9 +16,6 @@ import {dismissKeyboardAndWait} from '@utils/keyboard';
 import {ensureImagePermission} from '@utils/imagePermission';
 import {useTranslation} from '@contexts/LanguageContext';
 import {OcrCropModal} from './OcrCropModal';
-import {RecipeImagePickerSheet} from '@components/BottomSheet/RecipeImagePickerSheet';
-import {prepareRecipeImageForCrop} from '@utils/ocrImageSource';
-import type {Recipe} from '../../types/recipe';
 
 export interface RecipeInputFloatingBarProps {
   /** 어떤 필드 타입에 결과를 적용할지 */
@@ -65,10 +62,11 @@ export interface RecipeInputFloatingBarProps {
   /** 칩추가 등 부모가 주입하는 툴바 하위 뎁스 뷰. 스캔 뎁스보다 우선순위 낮음. */
   subView?: ToolbarSubView | null;
   /**
-   * 지금 편집 중인 레시피의 사진 — 스캔 메뉴에 [이 레시피 사진]이 생겨 그 사진에서 읽는다.
-   * 이미 그 레시피라 레시피 고르기 없이 사진만 고른다.
+   * 스캔 메뉴의 [레시피 사진] — 누르면 화면(부모)이 사진 고르기 → 영역 선택 → 읽기를 한다.
+   * 창들을 툴바 안에 두면 키보드가 내려가며 툴바가 사라질 때 같이 사라져(아이폰) 부모가 맡는다.
+   * 없으면 메뉴에서 뺀다.
    */
-  currentRecipePhotos?: Pick<Recipe, 'title' | 'imageUri' | 'imageUris'>;
+  onScanFromRecipe?: (field: RecipeOcrField) => void;
   style?: ViewStyle;
 }
 
@@ -98,14 +96,9 @@ export function RecipeInputFloatingBar({
   onPickActiveChange,
   ocrDisabled = false,
   subView,
-  currentRecipePhotos,
+  onScanFromRecipe,
   style,
 }: RecipeInputFloatingBarProps) {
-  // [이 레시피 사진] — 사진 고르기 시트 → 시트가 내려간 뒤 영역 선택으로
-  const [photoSheet, setPhotoSheet] = useState(false);
-  const photoFieldRef = useRef<RecipeOcrField | null>(null);
-  const pickedPhotoRef = useRef<string | null>(null);
-  const hasRecipePhotos = !!(currentRecipePhotos?.imageUri || currentRecipePhotos?.imageUris?.length);
   const {showSnackbar} = useSnackbar();
   const {t} = useTranslation();
   const {user} = useAuth();
@@ -304,35 +297,17 @@ export function RecipeInputFloatingBar({
                 pickImage('library');
               },
             },
-            ...(hasRecipePhotos ? [{
+            ...(onScanFromRecipe ? [{
               label: t('recipeInputFloatingBar.scanFromRecipe'),
               icon: IconNoteFilled as any,
-              onPress: async () => {
-                onPickActiveChange?.(true);
+              onPress: () => {
                 setShowScanMenu(false);
-                photoFieldRef.current = field;
-                await dismissKeyboardAndWait();
-                setPhotoSheet(true);
+                onPickActiveChange?.(false);
+                onScanFromRecipe(field);
               },
             }] : []),
           ],
         } : subView) : null}
-      />
-      <RecipeImagePickerSheet
-        visible={photoSheet}
-        onClose={() => setPhotoSheet(false)}
-        fixedRecipe={currentRecipePhotos}
-        onPick={uri => { pickedPhotoRef.current = uri; setPhotoSheet(false); }}
-        onDismissed={() => {
-          const uri = pickedPhotoRef.current;
-          const capturedField = photoFieldRef.current;
-          pickedPhotoRef.current = null;
-          if (!uri || !capturedField) { onPickActiveChange?.(false); return; }
-          // 고른 사진도 촬영·갤러리와 같은 영역 선택을 거친다
-          prepareRecipeImageForCrop(uri)
-            .then(target => setCropTarget({...target, field: capturedField}))
-            .catch(() => runOcrPipeline(uri, capturedField).finally(() => onPickActiveChange?.(false)));
-        }}
       />
       <OcrCropModal
         visible={!!cropTarget}

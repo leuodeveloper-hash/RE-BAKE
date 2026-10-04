@@ -83,3 +83,53 @@ export function parseIngredientLines(lines: string[]): ParsedIngredient[] {
     .map(splitNameAmount)
     .filter(i => i.name.length > 0 && i.name.length <= 40);
 }
+
+const INGREDIENT_HEADINGS = /^(재료|반죽\s*재료|필요\s*재료|배합|배합표|ingredients?)(?=$|[\s:：(（])/i;
+const STEP_HEADINGS = /^(만드는\s*법|만들기|과정|조리\s*과정|조리법|방법|순서|공정|steps?|method|directions?)(?=$|[\s:：(（])/i;
+const TOOL_HEADINGS = /^(도구|기구|준비물|tools?|equipment)(?=$|[\s:：(（])/i;
+
+/**
+ * 사진에서 읽은 글 → 쓰기 규칙 글(# 제목 / ## 재료 / ## 과정 …).
+ * 그대로 넣으면 `##`가 없어 [적용] 때 모든 줄이 과정이 됐다 — 읽은 글을 규칙에 맞춰 정리해 준다.
+ *  - "재료", "만드는 법" 같은 머리글이 있으면 그 기준으로 나눈다
+ *  - 머리글이 없으면 분량(200g, 2개, 1큰술…)이 붙은 줄은 재료, 나머지 문장은 과정
+ *  - 맨 첫 줄이 짧고 분량이 없으면 제목
+ * 정리한 글은 사용자가 시트에서 확인·수정한 뒤 적용한다(완벽하지 않아도 고치기 쉽게).
+ */
+export function ocrTextToMarkdown(text: string): string {
+  const lines = (text ?? '').split(/\r?\n/).map(l => stripOcrNoise(l)).filter(Boolean);
+  if (lines.length === 0) return '';
+
+  let title: string | undefined;
+  const ingredients: string[] = [];
+  const tools: string[] = [];
+  const steps: string[] = [];
+  let section: 'ingredient' | 'tool' | 'step' | null = null;
+
+  lines.forEach((line, idx) => {
+    const bare = line.replace(/[:：\-\s]+$/, '').trim();
+    if (INGREDIENT_HEADINGS.test(bare) && bare.length <= 12) { section = 'ingredient'; return; }
+    if (STEP_HEADINGS.test(bare) && bare.length <= 12) { section = 'step'; return; }
+    if (TOOL_HEADINGS.test(bare) && bare.length <= 12) { section = 'tool'; return; }
+    // 첫 줄 — 짧고 분량이 없으면 제목
+    if (idx === 0 && !section && line.length <= 24 && !AMOUNT_TAIL.test(line) && !/^\d+[.)]/.test(line)) {
+      title = line;
+      return;
+    }
+    const kind = section ?? (splitTableRow(line).some(e => AMOUNT_TAIL.test(e)) ? 'ingredient' : 'step');
+    if (kind === 'ingredient') {
+      for (const it of parseIngredientLines([line])) ingredients.push([it.name, it.amount].filter(Boolean).join(' '));
+    } else if (kind === 'tool') {
+      tools.push(...line.split(/[,、·]/).map(s => s.trim()).filter(Boolean));
+    } else {
+      steps.push(line.replace(/^\s*(?:\d+[.)]|[①-⑳]|[-*•])\s*/, '').trim());
+    }
+  });
+
+  const out: string[] = [];
+  if (title) out.push(`# ${title}`);
+  if (ingredients.length) out.push('', '## 재료', ...ingredients.map(x => `- ${x}`));
+  if (tools.length) out.push('', '## 도구', ...tools.map(x => `- ${x}`));
+  if (steps.length) out.push('', '## 과정', ...steps.filter(Boolean).map((x, i) => `${i + 1}. ${x}`));
+  return out.join('\n').trim();
+}

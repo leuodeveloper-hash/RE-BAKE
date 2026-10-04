@@ -691,7 +691,7 @@
   "recipeEdit.importNoData": "이 페이지에서 레시피 정보를 찾지 못했어요",
   "recipeEdit.importSuccess": "레시피를 가져왔어요",
   "recipeEdit.ingredientNamePlaceholder": "예: 감자",
-  "recipeEdit.ingredientsBulkPlaceholder": "예: 밀가루 200g, 설탕 50g, 버터 약간",
+  "recipeEdit.ingredientsBulkPlaceholder": "예: 밀가루 200g, 설탕 50g\n## 토핑\n버터 약간",
   "recipeEdit.ingredientsLabel": "재료",
   "recipeEdit.linkLabel": "표시 텍스트",
   "recipeEdit.linkLabelPlaceholder": "링크로 보일 문구",
@@ -721,7 +721,7 @@
   "recipeEdit.session": "회차",
   "recipeEdit.splitGroupHere": "여기서 묶음 나누기",
   "recipeEdit.stepDescriptionPlaceholder": "예: 물과 반죽을 넣어 거품기로 친다.",
-  "recipeEdit.stepsBulkPlaceholder": "한 줄에 한 과정씩 적어주세요\n예: 물과 반죽을 거품기로 친다.\n팬에 붓고 180도 25분 굽는다.",
+  "recipeEdit.stepsBulkPlaceholder": "한 줄에 한 과정씩, ## 로 묶음을 나눠요\n1. 물과 반죽을 거품기로 친다\n> 팁: 덩어리 없이\n## 굽기\n1. 180도 25분 굽는다",
   "recipeEdit.stepsLabel": "과정",
   "recipeEdit.takePhoto": "촬영",
   "recipeEdit.time": "시간",
@@ -982,5 +982,6 @@
   "recipeInputFloatingBar.scanFromRecipe": "레시피 사진",
   "recipeImagePicker.read": "이 사진 읽기",
   "recipeImagePicker.readMany": "{{count}}장 읽기",
-  "recipeEdit.pasteRule.subgroup": "하위 묶음"
+  "recipeEdit.pasteRule.subgroup": "하위 묶음",
+  "recipeEdit.pasteRule.tool": "도구"
 }

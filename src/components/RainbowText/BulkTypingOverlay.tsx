@@ -28,12 +28,21 @@ interface BulkTypingOverlayProps {
 export function BulkTypingOverlay({text, textStyle, containerStyle, onDone}: BulkTypingOverlayProps) {
   return (
     <View pointerEvents="none" style={[styles.overlay, containerStyle]}>
-      <RainbowText style={textStyle} animated onDone={onDone}>{text}</RainbowText>
+      {/* 입력 스타일엔 flex:1(가로 행용)이 들어 있다 — 높이가 안 정해진 이 층에선 아이폰에서
+          글자 높이가 0으로 접혀, 입력은 투명인데 오버레이도 안 보여 "글씨가 사라졌다".
+          크기는 내용만큼으로 고정한다(어떤 입력 스타일을 넘겨도). */}
+      <RainbowText style={[textStyle, styles.textFit]} animated onDone={onDone}>{text}</RainbowText>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  textFit: {
+    flex: 0,
+    flexGrow: 0,
+    flexShrink: 0,
+    alignSelf: 'stretch',
+  },
   overlay: {
     position: 'absolute',
     top: 0,

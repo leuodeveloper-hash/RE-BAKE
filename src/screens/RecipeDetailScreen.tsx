@@ -907,7 +907,7 @@ export function RecipeDetailScreen({
               />
               {/* 장식용 어둡기 레이어 — Pressable 위에 덮이므로 터치를 통과시킨다.
                   (웹은 DOM 이벤트라 이게 없으면 롱프레스가 이 레이어에 먹혀 뷰어가 안 열린다) */}
-              <View style={styles.heroTextOverlay} pointerEvents="none" />
+              <View style={[styles.heroTextOverlay, heroFrame]} pointerEvents="none" />
               {/* 여러 장이면 장수 배지 — 롱프레스 뷰어에서 스와이프로 넘길 수 있음을 알린다
                   (배지가 없으면 추가 이미지가 있는지 알 방법이 없다) */}
               {heroPhotos.length > 1 && (
@@ -1810,13 +1810,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   heroTextOverlay: {
     position: 'absolute',
     top: 0,
-    left: 0,
-    right: 0,
     bottom: -56,
     backgroundColor: colors['overlay/subtle'],
-    // 이미지와 동일 폭(1000)·중앙정렬 → 이미지 밖 좌우가 어둡게 덮이지 않게
-    maxWidth: HERO_MAX_WIDTH,
-    marginHorizontal: 'auto',
+    // 가로 위치·폭은 heroFrame(이미지와 같은 틀) — margin auto는 아이패드(네이티브)에서 안 먹어
+    // 왼쪽으로 밀리며 이미지 밖 좌우가 검게 비쳤다
   },
   heroContentWrapper: {
     position: 'absolute',

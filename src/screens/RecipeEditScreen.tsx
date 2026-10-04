@@ -15,6 +15,8 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {takePendingRecipeText} from '@utils/pendingRecipeText';
+import {useImageTextReader} from '@hooks/useImageTextReader';
+import {parseRecognizedText} from '@utils/recipeOcr';
 import * as Haptics from 'expo-haptics';
 import {getPersistentUri, MAX_HERO_PHOTOS} from '@utils/imageUpload';
 import {photoSourceMenuItems} from '@utils/photoSourceMenu';
@@ -49,6 +51,7 @@ import {applyLink, expandToLink, stripRichText} from '@utils/richText';
 import {LinkTargetProvider, useLinkTarget} from '@contexts/LinkTargetContext';
 import {UrlField, isUrlLike} from '@components/UrlField/UrlField';
 import {LinkInputDialog} from '@components/Dialog';
+import {WritingRules} from '@components/WritingRules';
 import {Tooltip} from '@components/Tooltip';
 import {getCookbookColorKey} from '@components/ColorPicker';
 import type {AvatarColor} from '@components/Avatar/Avatar';
@@ -57,7 +60,7 @@ import {SkeletonLine} from '@components/SkeletonLine';
 import {useYouTubePlayer} from '@contexts/YouTubePlayerContext';
 import {parseYouTubeVideoId} from '@utils/youtube';
 import {triggerHaptic} from '@utils/haptics';
-import {parseRecipeMarkdown} from '@utils/recipeMarkdown';
+import {parseRecipeMarkdown, parseBulkIngredientGroups, parseBulkStepGroups, ingredientGroupsToBulk, stepGroupsToBulk, recipeToMarkdown} from '@utils/recipeMarkdown';
 import {
   bulkTextToIngredients,
   bulkTextToToolNames,
@@ -88,6 +91,7 @@ import {normalizeStepPhotos} from '@utils/stepPhotos';
 import {
   IconClose,
   IconTick,
+  IconScanText,
   IconSparkleFilled,
   IconEllipsisVertical,
   IconPhoto,
@@ -371,6 +375,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     }
     return [{id: genId(), title: '도구', tools: [{id: genId(), name: ''}], bulkMode: true, bulkText: ''}];
   });
+  // 과정 한번에 쓰기 동안 사진을 맡아 둔다(칸엔 글만 쓰므로) — 설명 → 사진
+  const bulkStepPhotosRef = useRef<Map<string, StepPhoto[]>>(new Map());
   const [stepGroups, setStepGroups] = useState<StepGroup[]>(() => {
     if (recipe?.stepGroups) {
       return recipe.stepGroups.map(g => ({
@@ -446,7 +452,6 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   // 과정 헤더 + 버튼 아래 붙는 메뉴 (과정 추가 / 묶음 추가)
   const [stepAddMenu, setStepAddMenu] = useState<string | null>(null);
   // 한번에 쓰기 작성법 안내 툴팁 (열린 묶음 id)
-  const [bulkHelpFor, setBulkHelpFor] = useState<string | null>(null);
   const [imageUri, setImageUri] = useState<string | null>(recipe?.imageUri ?? null);
   // 추가 상단 이미지(대표 imageUri 뒤로 최대 2장 — 합쳐서 3장)
   const [imageUris, setImageUris] = useState<string[]>(recipe?.imageUris ?? []);
@@ -518,21 +523,42 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   /** 과정 묶음 → 저장용 설명 배열. bulkMode면 bulkText 파싱, 아니면 개별 폼. */
   const resolveGroupSteps = (g: StepGroup) =>
     g.bulkMode
-      ? bulkTextToStepDescriptions(g.bulkText).map((description, idx) => ({step: idx + 1, description}))
+      // 칸 안 `## 묶음`·`> 팁:` 줄은 과정이 아니다 — 같은 쓰기 규칙으로 읽은 과정만
+      ? parseBulkStepGroups(g.bulkText, g.title).flatMap(x => x.steps).map((st, idx) => ({step: idx + 1, description: st.description}))
       : g.steps.filter(x => x.description.trim())
           .map((x, idx) => ({step: idx + 1, description: x.description, tip: x.tip, caution: x.caution, photos: x.photos}));
 
   const resolveGroupIngredients = (g: IngredientGroup): {name: string; amount: string}[] => {
     if (g.bulkMode) {
-      return bulkTextToIngredients(g.bulkText).map(i => ({
-        name: i.name,
-        amount: i.amount ? `${i.amount}${i.unit}` : i.unit || '',
-      }));
+      return parseBulkIngredientGroups(g.bulkText, g.title).flatMap(x => x.ingredients)
+        .map(i => ({name: i.name, amount: i.amount ?? ''}));
     }
     return g.ingredients
       .filter(i => i.name.trim())
       .map(i => ({name: i.name, amount: i.amount ? `${i.amount}${i.unit}` : i.unit}));
   };
+
+  /**
+   * 저장용 묶음 — 한번에 쓰기 칸은 같은 쓰기 규칙으로 읽어 묶음별로 펼친다(칸 하나에 묶음이 여럿일 수 있다).
+   */
+  const resolveIngredientGroups = () => ingredientGroups.flatMap(g => g.bulkMode
+    ? parseBulkIngredientGroups(g.bulkText, g.title).map(x => ({
+        title: x.title,
+        ingredients: x.ingredients.map(i => ({name: i.name, amount: i.amount ?? ''})),
+      }))
+    : [{title: g.title, ingredients: resolveGroupIngredients(g)}]);
+  const resolveStepGroups = () => stepGroups.flatMap(g => g.bulkMode
+    ? parseBulkStepGroups(g.bulkText, g.title).map(x => ({
+        title: x.title,
+        steps: x.steps.map((st, idx) => ({
+          step: idx + 1,
+          description: st.description,
+          tip: st.tip,
+          caution: st.caution,
+          photos: bulkStepPhotosRef.current.get(st.description.trim()),
+        })),
+      }))
+    : [{title: g.title, steps: resolveGroupSteps(g)}]);
 
   // 변경 감지: 현재 폼 상태를 저장 데이터 형태로 스냅샷
   const currentSnapshot = useMemo(() => JSON.stringify({
@@ -543,15 +569,12 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     time: time || undefined,
     servings: servings || undefined,
     session: session || undefined,
-    ingredientGroups: ingredientGroups.map(g => ({
-      title: g.title,
-      ingredients: resolveGroupIngredients(g),
-    })),
+    ingredientGroups: resolveIngredientGroups(),
     toolGroups: toolGroups.map(g => ({
       title: g.title,
       tools: resolveGroupTools(g),
     })),
-    stepGroups: stepGroups.map(g => ({title: g.title, steps: resolveGroupSteps(g)})),
+    stepGroups: resolveStepGroups(),
     activeFieldIds,
     reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
     advice: advice || undefined,
@@ -659,15 +682,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         time: time || undefined,
         servings: servings || undefined,
         session: session || undefined,
-        ingredientGroups: ingredientGroups.map(g => ({
-          title: g.title,
-          ingredients: resolveGroupIngredients(g),
-        })),
+        ingredientGroups: resolveIngredientGroups(),
         toolGroups: toolGroups.map(g => ({title: g.title, tools: resolveGroupTools(g)})),
-        stepGroups: stepGroups.map(g => ({
-              title: g.title,
-              steps: resolveGroupSteps(g),
-            })),
+        stepGroups: resolveStepGroups(),
         activeFieldIds,
         reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
         advice: advice || undefined,
@@ -819,6 +836,10 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     }
   }, [importing, imageUri, isLoggedIn, openAuthSheet, showSnackbar, t]);
 
+  // 적용 때 기존 과정 사진을 찾으려고 최신 과정 묶음을 들고 있다(applyMarkdown은 의존성 없이 고정)
+  const stepGroupsRef = useRef(stepGroups);
+  stepGroupsRef.current = stepGroups;
+
   /**
    * 마크다운 한 덩어리를 레시피 전체에 적용한다.
    *
@@ -848,6 +869,12 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     }
 
     if (parsed.stepGroups.length > 0) {
+      const photosByDesc = new Map(
+        stepGroupsRef.current.flatMap(g => g.steps)
+          .filter(st => st.photos?.length && st.description.trim())
+          .map(st => [st.description.trim(), st.photos!] as const),
+      );
+      bulkStepPhotosRef.current.forEach((v, k) => { if (!photosByDesc.has(k)) photosByDesc.set(k, v); });
       setStepGroups(parsed.stepGroups.map(g => ({
         id: genId(),
         title: g.title,
@@ -856,7 +883,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
           description: st.description,
           tip: st.tip,
           caution: st.caution,
-          photos: [],
+          // 글에는 사진을 못 쓴다 — 설명이 같은 기존 과정의 사진을 그대로 붙여 유지한다
+          photos: photosByDesc.get(st.description.trim()) ?? [],
         })),
         bulkMode: false,
         bulkText: '',
@@ -865,6 +893,166 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
 
     showSnackbar(t('recipeEdit.pasteApplied'), {tone: 'positive'});
   }, [showSnackbar, t]);
+
+  /** 재료 한번에 쓰기 켜기/끄기 — 재료 묶음 전체 단위(첫 묶음 머리 스위치 하나) */
+  const toggleIngredientBulk = (group: IngredientGroup, v: boolean) => {
+                          if (!v) {
+                            // 한번에 쓰기 끄기 — 칸 하나를 같은 쓰기 규칙(텍스트 채우기와 공통)으로 읽어 묶음별로 다시 나눈다
+                            const parsed = parseBulkIngredientGroups(group.bulkText, group.title);
+                            setIngredientGroups(parsed.length > 0
+                              ? parsed.map((pg, gi) => ({
+                                  id: gi === 0 ? group.id : genId(),
+                                  title: pg.title,
+                                  ingredients: pg.ingredients.map(i => ({id: genId(), name: i.name, ...splitAmountUnit(i.amount ?? '')})),
+                                  bulkMode: false,
+                                  bulkText: '',
+                                }))
+                              : [{...group, bulkMode: false, ingredients: [emptyIngredient()]}]);
+                          } else {
+                            // 한번에 쓰기 켜기 — 재료 묶음 전부를 칸 하나로 합친다(묶음이 여럿이면 `## 이름` 줄로)
+                            const merged = ingredientGroupsToBulk(ingredientGroups.map(g => ({
+                              title: g.title,
+                              ingredients: g.bulkMode
+                                ? parseBulkIngredientGroups(g.bulkText, g.title).flatMap(x => x.ingredients)
+                                : g.ingredients,
+                            })));
+                            setIngredientGroups([{...ingredientGroups[0], bulkMode: true, bulkText: merged}]);
+                          }
+                        };
+
+  /** 과정 한번에 쓰기 켜기/끄기 — 과정 묶음 전체 단위(첫 묶음 머리 스위치 하나) */
+  const toggleStepBulk = (group: StepGroup, v: boolean) => {
+                          if (!v) {
+                            // 한번에 쓰기 끄기 — 같은 쓰기 규칙으로 읽어 묶음별로 나눈다(팁·주의 포함).
+                            // 사진은 칸에 못 쓰므로 켜기 전 설명이 같은 과정의 사진을 되찾아 붙인다.
+                            const parsed = parseBulkStepGroups(group.bulkText, group.title);
+                            setStepGroups(parsed.length > 0
+                              ? parsed.map((pg, gi) => ({
+                                  id: gi === 0 ? group.id : genId(),
+                                  title: pg.title,
+                                  steps: pg.steps.map(st => ({
+                                    id: genId(),
+                                    description: st.description,
+                                    tip: st.tip,
+                                    caution: st.caution,
+                                    photos: bulkStepPhotosRef.current.get(st.description.trim()),
+                                  })),
+                                  bulkMode: false,
+                                  bulkText: '',
+                                }))
+                              : [{...group, bulkMode: false, steps: [{id: genId(), description: ''}]}]);
+                          } else {
+                            // 한번에 쓰기 켜기 — 과정 묶음 전부를 칸 하나로(묶음은 `## 이름`, 팁·주의는 `> 팁:`/`> 주의:`)
+                            bulkStepPhotosRef.current = new Map(
+                              stepGroups.flatMap(g => g.steps).filter(st => st.photos?.length && st.description.trim())
+                                .map(st => [st.description.trim(), st.photos!] as const),
+                            );
+                            const merged = stepGroupsToBulk(stepGroups.map(g => ({
+                              title: g.title,
+                              steps: g.bulkMode ? parseBulkStepGroups(g.bulkText, g.title).flatMap(x => x.steps) : g.steps,
+                            })));
+                            setStepGroups([{...stepGroups[0], bulkMode: true, bulkText: merged}]);
+                          }
+                        };
+
+  // 사진에서 글 읽기(촬영·갤러리·레시피 사진 → 영역 선택 → 인식) — 화면에 하나.
+  // 툴바 [레시피 사진]과 한번에 쓰기 인식 버튼이 같이 쓴다. 읽은 글은 대상 칸(ocrTargetRef)에 넣는다.
+  const ocrTargetRef = useRef<{field: RecipeOcrField; bulkGroupId?: string}>({field: 'title'});
+  // 한번에 쓰기 머리의 인식 메뉴가 열린 묶음
+  const [bulkScanMenu, setBulkScanMenu] = useState<string | null>(null);
+  const ocrReader = useImageTextReader({
+    recipePhotos: {title, imageUri: imageUri ?? undefined, imageUris},
+    onBusyChange: setOcrLoading,
+    onText: text => {
+      const {field, bulkGroupId} = ocrTargetRef.current;
+      if (bulkGroupId) setOcrBulkGroupId(bulkGroupId);
+      try {
+        handleOcrRecognized(parseRecognizedText(text, field), field);
+      } catch {
+        showSnackbar(t('recipeEdit.ocrEmpty'), {tone: 'error'});
+      }
+    },
+  });
+
+  /** OCR로 읽은 값을 칸에 넣는다(무지개 타이핑) — 입력 툴바 스캔·한번에 쓰기 인식 버튼 공용 */
+  const handleOcrRecognized = (value: string | string[], field: RecipeOcrField) => {
+            if (field === 'title' && typeof value === 'string' && value.trim()) {
+              typewriteString(value.trim().replace(/\s+/g, ' '), setTitle, 'title');
+            } else if (field === 'ingredients' && Array.isArray(value)) {
+              const cleaned = value.map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
+              if (cleaned.length === 0) return;
+              // OCR 대상 그룹: 마지막 포커스한 그룹, 없으면 첫 그룹.
+              const targetId = ocrBulkGroupId ?? ingredientGroups[0]?.id;
+              if (!targetId) return;
+              const target = ingredientGroups.find(g => g.id === targetId);
+              if (!target) return;
+              setOcrBulkGroupId(targetId);
+
+              if (!target.bulkMode) {
+                // 폼 모드는 그대로 둔다 — OCR 한 번에 "한번에 쓰기"로 바뀌면
+                // 사용자가 쓰던 방식이 예고 없이 뒤집힌다. 개별 행으로 채운다.
+                const parsed = bulkTextToIngredients(cleaned.join(', '));
+                setIngredientGroups(p => p.map(g => g.id !== targetId ? g : {
+                  ...g,
+                  ingredients: [
+                    // 빈 행은 걷어내고 이어붙인다
+                    ...g.ingredients.filter(i => i.name.trim()),
+                    ...parsed.map(i => ({id: genId(), name: i.name, amount: i.amount, unit: i.unit})),
+                  ],
+                }));
+                return;
+              }
+
+              const existing = target.bulkText.trim();
+              const prefix = existing ? existing + ', ' : '';
+              // 그룹 bulkText setter
+              const setGroupBulk = (v: string) => setIngredientGroups(p => p.map(g => g.id === targetId ? {...g, bulkText: v} : g));
+              typewriteAppendItems(cleaned, prefix, setGroupBulk, 'ingredients');
+            } else if (field === 'tools' && Array.isArray(value)) {
+              const cleaned = value.map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
+              if (cleaned.length === 0) return;
+              // 재료와 동일 — 포커스된 묶음(없으면 첫 묶음)에 넣는다. 모드는 유지한다.
+              const targetId = ocrBulkGroupId ?? toolGroups[0]?.id;
+              const target = toolGroups.find(g => g.id === targetId);
+              if (!target) return;
+              setOcrBulkGroupId(targetId);
+
+              if (!target.bulkMode) {
+                // 폼 모드 유지 — 개별 행으로 채운다
+                setToolGroups(p => p.map(g => g.id !== targetId ? g : {
+                  ...g,
+                  tools: [
+                    ...g.tools.filter(x => x.name.trim()),
+                    ...cleaned.map(name => ({id: genId(), name})),
+                  ],
+                }));
+                return;
+              }
+
+              const existing = target.bulkText.trim();
+              const prefix = existing ? existing + ', ' : '';
+              const setGroupBulk = (v: string) => setToolGroups(p => p.map(g => g.id === targetId ? {...g, bulkText: v} : g));
+              typewriteAppendItems(cleaned, prefix, setGroupBulk, 'tools');
+            } else if (field === 'steps' && Array.isArray(value)) {
+              const cleaned = value.map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
+              if (cleaned.length === 0) return;
+              // 한번에 쓰기 묶음이면 줄바꿈으로 이어붙이고, 아니면 기존 청크 애니메이션
+              const targetId = ocrBulkGroupId ?? stepGroups[0]?.id;
+              const target = stepGroups.find(g => g.id === targetId);
+              if (target?.bulkMode) {
+                setOcrBulkGroupId(targetId);
+                const existing = target.bulkText.trim();
+                const prefix = existing ? existing + '\n' : '';
+                // 쓰기 규칙대로 번호(1. 2. …)를 붙여 넣는다 — 칸에 이미 있는 과정 수 다음 번호부터
+                const startNo = parseBulkStepGroups(existing, target.title).reduce((n, g) => n + g.steps.length, 0);
+                const numbered = cleaned.map((line, i) => `${startNo + i + 1}. ${line.replace(/^\s*(?:\d+[.)]|[①-⑳])\s*/, '')}`);
+                const setGroupBulk = (v: string) => setStepGroups(p => p.map(g => g.id === targetId ? {...g, bulkText: v} : g));
+                typewriteAppendItems(numbered, prefix, setGroupBulk, 'steps', '\n');
+              } else {
+                typewriteSteps(cleaned);
+              }
+            }
+          };
 
   // 하단 탭 [+]에서 시작 — 시트에서 확인한 글(텍스트·사진 글자)은 바로 적용,
   // URL은 원본 링크 칸을 열어 붙여넣으면 가져온다(만개의레시피 등).
@@ -885,6 +1073,13 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     if (id === 'field-manage') {
       setFieldManageVisible(true);
     } else if (id === 'paste-markdown') {
+      // 지금 레시피 전체를 쓰기 규칙 글로 채워 연다 — 비어 있으면 처음부터 다시 써야 했다
+      setPasteInitial(recipeToMarkdown({
+        title,
+        ingredientGroups: resolveIngredientGroups(),
+        tools: toolGroups.flatMap(g => resolveGroupTools(g)),
+        stepGroups: resolveStepGroups(),
+      }) || undefined);
       setPasteOpen(true);
     } else if (id === 'import-url') {
       // 원본 링크 필드가 꺼져 있으면 켜고, 그 위치로 스크롤 + 입력 포커스 (두 번째 엔트리)
@@ -1900,12 +2095,20 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
               || ingRowMenu?.groupId === group.id
               ? {overflow: 'visible'} : undefined}>
               {/* Group Header — 메뉴가 헤더 바로 아래에 붙도록 relative 래퍼로 감싼다 */}
-              <View style={{position: 'relative', zIndex: (ingGroupMenu === group.id || ingAddMenu === group.id) ? 9999 : undefined}}>
+              <View style={{position: 'relative', zIndex: (ingGroupMenu === group.id || ingAddMenu === group.id || bulkScanMenu === group.id) ? 9999 : undefined}}>
               {ingredientGroups.length >= 2 ? (
                 <ListItem
                   leading={{type: 'iconButton', icon: IconLeafFilled,
                     onPress: () => setIngGroupMenu(group.id), variant: 'ghost-secondary'}}
-                  trailing={{type: 'iconButton', icon: IconPlusCircleFilled, onPress: () => addIngredient(group.id), variant: 'ghost-secondary'}}>
+                  // 한번에 쓰기는 재료 전체 단위 — 묶음이 여럿이면 첫 묶음 머리에만 스위치
+                  trailing={groupIndex === 0 ? {type: 'custom', element: (
+                    <View style={styles.toolHeaderTrailing}>
+                      <Switch label={t('recipeEdit.bulkWrite')} value={false} onValueChange={(v) => toggleIngredientBulk(group, v)} />
+                      <View style={styles.headerAddSlot}>
+                        <IconButton icon={IconPlusCircleFilled} onPress={() => addIngredient(group.id)} variant="ghost-secondary" size="medium" />
+                      </View>
+                    </View>
+                  )} : {type: 'iconButton', icon: IconPlusCircleFilled, onPress: () => addIngredient(group.id), variant: 'ghost-secondary'}}>
                   <View style={styles.breadcrumbRow}>
                     <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.ingredientsLabel')}</Text>
                     <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
@@ -1922,46 +2125,28 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   leading={{type: 'iconButton', icon: IconLeafFilled, onPress: () => setIngAddMenu(group.id), variant: 'ghost-secondary'}}
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
-                      {/* 한번에 쓰기가 켜졌을 때만 작성법 안내 */}
-                      {group.bulkMode && (
-                        <Tooltip
-                          message={t('recipeEdit.bulkHelpIngredients')}
-                          visible={bulkHelpFor === group.id}
-                          onClose={() => setBulkHelpFor(null)}>
-                          <IconButton
-                            icon={IconCircleAlert}
-                            size="small"
-                            variant="ghost-secondary"
-                            onPress={() => setBulkHelpFor(bulkHelpFor === group.id ? null : group.id)}
-                          />
-                        </Tooltip>
-                      )}
                       {/* 묶음마다 개별 "한번에 쓰기" 토글 */}
                       <Switch
                         label={t('recipeEdit.bulkWrite')}
                         value={group.bulkMode}
-                        onValueChange={(v) => {
-                          if (!v) {
-                            // bulk → 폼: 이 그룹 bulkText를 파싱해 개별 재료로. 기존 값(양·단위) 최대 보존.
-                            const parsed = bulkTextToIngredients(group.bulkText);
-                            const existingByName = new Map(group.ingredients.map(i => [i.name, i]));
-                            // 파싱 결과가 비어도 최소 1행은 남긴다 — 0행이면 재료가 안 보이고 카드 높이가 무너진다
-                            const nextIngredients = parsed.length > 0 ? parsed.map(item => {
-                              const existing = existingByName.get(item.name);
-                              if (existing && !item.amount && existing.unit === item.unit) {
-                                return {...existing, id: genId(), name: item.name};
-                              }
-                              return {id: genId(), name: item.name, amount: item.amount, unit: item.unit};
-                            }) : [emptyIngredient()];
-                            setIngredientGroups(p => p.map(g => g.id === group.id ? {...g, bulkMode: false, ingredients: nextIngredients} : g));
-                          } else {
-                            // 폼 → bulk: 이 그룹 재료를 bulkText로.
-                            setIngredientGroups(p => p.map(g => g.id === group.id ? {...g, bulkMode: true, bulkText: ingredientsToBulkText(group.ingredients)} : g));
-                          }
-                        }}
+                        onValueChange={(v) => toggleIngredientBulk(group, v)}
                       />
+                      {/* 한번에 쓰기 중엔 + 대신 사진 인식 — 촬영·갤러리·레시피 사진 → 영역 선택 → 이 칸에 */}
                       <View style={styles.headerAddSlot}>
-                        <IconButton icon={IconPlusCircleFilled} onPress={() => addIngredient(group.id)} variant="ghost-secondary" size="medium" />
+                        {group.bulkMode ? (
+                          <IconButton icon={IconScanText} onPress={() => setBulkScanMenu(bulkScanMenu === group.id ? null : group.id)} variant="ghost-secondary" size="medium" forcePressed={bulkScanMenu === group.id} />
+                        ) : (
+                          <IconButton icon={IconPlusCircleFilled} onPress={() => addIngredient(group.id)} variant="ghost-secondary" size="medium" />
+                        )}
+                        {group.bulkMode && (
+                          <Menu
+                            items={ocrReader.menuItems}
+                            visible={bulkScanMenu === group.id}
+                            onSelect={id => { setBulkScanMenu(null); ocrTargetRef.current = {field: 'ingredients', bulkGroupId: group.id}; ocrReader.start(id); }}
+                            onClose={() => setBulkScanMenu(null)}
+                            style={styles.bulkScanMenu}
+                          />
+                        )}
                       </View>
                     </View>
                   )}}>
@@ -2005,7 +2190,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
               </View>
 
               {/* Ingredients */}
-              {group.bulkMode ? (
+              {group.bulkMode ? (<>
                 <View style={styles.bulkToolInput}>
                   <AutoGrowInput
                     ref={(node: any) => { sectionInputRefs.current[`ingredients:${group.id}`] = node; }}
@@ -2030,7 +2215,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                     />
                   )}
                 </View>
-              ) : (
+                  {/* 쓰기 규칙 — 공통(텍스트 시트와 같은 규칙·정렬) */}
+                  <WritingRules kind="ingredients" asRow />
+              </>) : (
               <>
               <View style={styles.dragArea}>
                 {group.ingredients.map((ingredient, index) => {
@@ -2206,7 +2393,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
               || toolRowMenu?.groupId === group.id
               ? {overflow: 'visible'} : undefined}>
               {/* Group Header — 메뉴가 헤더 바로 아래에 붙도록 relative 래퍼로 감싼다 */}
-              <View style={{position: 'relative', zIndex: (toolGroupMenu === group.id || toolAddMenu === group.id) ? 9999 : undefined}}>
+              <View style={{position: 'relative', zIndex: (toolGroupMenu === group.id || toolAddMenu === group.id || bulkScanMenu === group.id) ? 9999 : undefined}}>
               {toolGroups.length >= 2 ? (
                 <ListItem
                   leading={{type: 'iconButton', icon: IconToolCaseFilled,
@@ -2228,19 +2415,6 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   leading={{type: 'iconButton', icon: IconToolCaseFilled, onPress: () => setToolAddMenu(group.id), variant: 'ghost-secondary'}}
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
-                      {group.bulkMode && (
-                        <Tooltip
-                          message={t('recipeEdit.bulkHelpTools')}
-                          visible={bulkHelpFor === group.id}
-                          onClose={() => setBulkHelpFor(null)}>
-                          <IconButton
-                            icon={IconCircleAlert}
-                            size="small"
-                            variant="ghost-secondary"
-                            onPress={() => setBulkHelpFor(bulkHelpFor === group.id ? null : group.id)}
-                          />
-                        </Tooltip>
-                      )}
                       {/* 묶음마다 개별 "한번에 쓰기" 토글 (재료와 동일) */}
                       <Switch
                         label={t('recipeEdit.bulkWrite')}
@@ -2260,8 +2434,22 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                           }
                         }}
                       />
+                      {/* 한번에 쓰기 중엔 + 대신 사진 인식 — 촬영·갤러리·레시피 사진 → 영역 선택 → 이 칸에 */}
                       <View style={styles.headerAddSlot}>
-                        <IconButton icon={IconPlusCircleFilled} onPress={() => addTool(group.id)} variant="ghost-secondary" size="medium" />
+                        {group.bulkMode ? (
+                          <IconButton icon={IconScanText} onPress={() => setBulkScanMenu(bulkScanMenu === group.id ? null : group.id)} variant="ghost-secondary" size="medium" forcePressed={bulkScanMenu === group.id} />
+                        ) : (
+                          <IconButton icon={IconPlusCircleFilled} onPress={() => addTool(group.id)} variant="ghost-secondary" size="medium" />
+                        )}
+                        {group.bulkMode && (
+                          <Menu
+                            items={ocrReader.menuItems}
+                            visible={bulkScanMenu === group.id}
+                            onSelect={id => { setBulkScanMenu(null); ocrTargetRef.current = {field: 'tools', bulkGroupId: group.id}; ocrReader.start(id); }}
+                            onClose={() => setBulkScanMenu(null)}
+                            style={styles.bulkScanMenu}
+                          />
+                        )}
                       </View>
                     </View>
                   )}}>
@@ -2305,7 +2493,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
               </View>
 
               {/* Tools */}
-              {group.bulkMode ? (
+              {group.bulkMode ? (<>
                 <View style={styles.bulkToolInput}>
                   <AutoGrowInput
                     ref={(node: any) => { sectionInputRefs.current['tools'] = node; }}
@@ -2330,7 +2518,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                     />
                   )}
                 </View>
-              ) : (
+                  {/* 쓰기 규칙 — 공통(텍스트 시트와 같은 규칙·정렬) */}
+                  <WritingRules kind="tools" asRow />
+              </>) : (
               <>
               <View style={styles.dragArea}>
                 {group.tools.map((tool, index) => {
@@ -2479,7 +2669,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
               ? {overflow: 'visible'} : undefined}>
               {/* Group Header — editable when 2+ groups, non-first gets minus button */}
               {/* 묶음 헤더 박스 롱프레스 → 위/아래 이동 메뉴 (묶음 2개 이상일 때만 의미) */}
-              <View style={{position: 'relative', zIndex: (stepGroupMenu === group.id || stepAddMenu === group.id) ? 9999 : undefined}}>
+              <View style={{position: 'relative', zIndex: (stepGroupMenu === group.id || stepAddMenu === group.id || bulkScanMenu === group.id) ? 9999 : undefined}}>
               <Pressable
                 onLongPress={stepGroups.length >= 2 ? () => { triggerHaptic('light'); setStepGroupMenu(group.id); } : undefined}
                 delayLongPress={300}>
@@ -2490,7 +2680,15 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   leading={{type: 'iconButton', icon: IconProcess,
                     onPress: () => setStepGroupMenu(group.id), variant: 'ghost-secondary'}}
                   // 재료·도구 헤더와 같은 + 버튼. 누르면 아래에 "과정 추가 / 묶음 추가" 메뉴.
-                  trailing={{type: 'iconButton', icon: IconPlusCircleFilled,
+                  // 한번에 쓰기는 과정 전체 단위 — 묶음이 여럿이면 첫 묶음 머리에만 스위치
+                  trailing={groupIndex === 0 ? {type: 'custom', element: (
+                    <View style={styles.toolHeaderTrailing}>
+                      <Switch label={t('recipeEdit.bulkWrite')} value={false} onValueChange={(v) => toggleStepBulk(group, v)} />
+                      <View style={styles.headerAddSlot}>
+                        <IconButton icon={IconPlusCircleFilled} onPress={() => setStepAddMenu(group.id)} variant="ghost-secondary" size="medium" />
+                      </View>
+                    </View>
+                  )} : {type: 'iconButton', icon: IconPlusCircleFilled,
                     onPress: () => setStepAddMenu(group.id), variant: 'ghost-secondary'}}>
                   <View style={styles.breadcrumbRow}>
                     <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.stepsLabel')}</Text>
@@ -2510,42 +2708,27 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                     onPress: () => setStepAddMenu(group.id), variant: 'ghost-secondary'}}
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
-                      {group.bulkMode && (
-                        <Tooltip
-                          message={t('recipeEdit.bulkHelpSteps')}
-                          visible={bulkHelpFor === group.id}
-                          onClose={() => setBulkHelpFor(null)}>
-                          <IconButton
-                            icon={IconCircleAlert}
-                            size="small"
-                            variant="ghost-secondary"
-                            onPress={() => setBulkHelpFor(bulkHelpFor === group.id ? null : group.id)}
-                          />
-                        </Tooltip>
-                      )}
                       {/* 묶음마다 개별 "한번에 쓰기" 토글 (재료·도구와 동일) */}
                       <Switch
                         label={t('recipeEdit.bulkWrite')}
                         value={group.bulkMode}
-                        onValueChange={(v) => {
-                          if (!v) {
-                            // 한번에 쓰기 해제: 줄 단위로 파싱해 개별 과정으로 변환
-                            const descs = bulkTextToStepDescriptions(group.bulkText);
-                            setStepGroups(p => p.map(g => g.id === group.id
-                              ? {...g, bulkMode: false, steps: descs.length > 0
-                                  ? descs.map(description => ({id: genId(), description}))
-                                  : [{id: genId(), description: ''}]}
-                              : g));
-                          } else {
-                            // 한번에 쓰기 진입: 기존 과정 설명을 줄바꿈 텍스트로 직렬화
-                            setStepGroups(p => p.map(g => g.id === group.id
-                              ? {...g, bulkMode: true, bulkText: stepsToBulkText(group.steps)}
-                              : g));
-                          }
-                        }}
+                        onValueChange={(v) => toggleStepBulk(group, v)}
                       />
                       {/* 맨 위 추가 버튼 제거 — 행 드래그 핸들 롱프레스 메뉴의
                           "위에 추가 / 아래에 추가"로 대체됐다 */}
+                      {/* 한번에 쓰기 중엔 사진 인식 — 촬영·갤러리·레시피 사진 → 영역 선택 → 이 칸에(재료·도구와 같은 자리) */}
+                      {group.bulkMode && (
+                        <View style={styles.headerAddSlot}>
+                          <IconButton icon={IconScanText} onPress={() => setBulkScanMenu(bulkScanMenu === group.id ? null : group.id)} variant="ghost-secondary" size="medium" forcePressed={bulkScanMenu === group.id} />
+                          <Menu
+                            items={ocrReader.menuItems}
+                            visible={bulkScanMenu === group.id}
+                            onSelect={id => { setBulkScanMenu(null); ocrTargetRef.current = {field: 'steps', bulkGroupId: group.id}; ocrReader.start(id); }}
+                            onClose={() => setBulkScanMenu(null)}
+                            style={styles.bulkScanMenu}
+                          />
+                        </View>
+                      )}
                     </View>
                   )}}>
                   <View style={styles.breadcrumbRow}>
@@ -2593,7 +2776,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
               </View>
 
               {/* Steps — 한번에 쓰기 모드면 줄바꿈 구분 일괄 입력 */}
-              {group.bulkMode ? (
+              {group.bulkMode ? (<>
                 <View style={styles.bulkToolInput}>
                   <AutoGrowInput
                     ref={(node: any) => { sectionInputRefs.current['steps'] = node; }}
@@ -2618,7 +2801,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                     />
                   )}
                 </View>
-              ) : (
+                  {/* 쓰기 규칙 — 공통(텍스트 시트와 같은 규칙·정렬) */}
+                  <WritingRules kind="steps" asRow />
+              </>) : (
               <>
               {/* Steps */}
               <View style={styles.dragArea}>
@@ -3050,6 +3235,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
       </Popover>
 
       {/* 필드관리 다이얼로그 */}
+      {/* 사진에서 글 읽기 창들(레시피 사진 고르기·영역 선택) — 화면에 붙어 툴바가 사라져도 유지 */}
+      {ocrReader.element}
+
       <PasteRecipeSheet
         visible={pasteOpen}
         onClose={() => { setPasteOpen(false); setPasteInitial(undefined); }}
@@ -3256,8 +3444,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         })() : null;
         return (
         <RecipeInputFloatingBar
-          // 스캔 메뉴의 [이 레시피 사진] — 지금 편집 중인 상단 사진에서 읽는다
-          currentRecipePhotos={{title, imageUri: imageUri ?? undefined, imageUris}}
+          // 스캔 메뉴의 [레시피 사진] — 사진 고르기·영역 선택은 화면이 맡는다(툴바가 사라져도 유지)
+          onScanFromRecipe={heroUris.length > 0 ? (f) => { ocrTargetRef.current = {field: f}; ocrReader.start('recipe'); } : undefined}
           field={focusedOcrField ?? ocrFieldRef.current ?? 'title'}
           ocrDisabled={!isOcrField}
           onAddChip={() => {
@@ -3282,81 +3470,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
           onOcrEnd={() => setOcrLoading(false)}
           externalBusy={typing || ocrLoading}
           onStop={stopTyping}
-          onRecognized={(value, field) => {
-            if (field === 'title' && typeof value === 'string' && value.trim()) {
-              typewriteString(value.trim().replace(/\s+/g, ' '), setTitle, 'title');
-            } else if (field === 'ingredients' && Array.isArray(value)) {
-              const cleaned = value.map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
-              if (cleaned.length === 0) return;
-              // OCR 대상 그룹: 마지막 포커스한 그룹, 없으면 첫 그룹.
-              const targetId = ocrBulkGroupId ?? ingredientGroups[0]?.id;
-              if (!targetId) return;
-              const target = ingredientGroups.find(g => g.id === targetId);
-              if (!target) return;
-              setOcrBulkGroupId(targetId);
-
-              if (!target.bulkMode) {
-                // 폼 모드는 그대로 둔다 — OCR 한 번에 "한번에 쓰기"로 바뀌면
-                // 사용자가 쓰던 방식이 예고 없이 뒤집힌다. 개별 행으로 채운다.
-                const parsed = bulkTextToIngredients(cleaned.join(', '));
-                setIngredientGroups(p => p.map(g => g.id !== targetId ? g : {
-                  ...g,
-                  ingredients: [
-                    // 빈 행은 걷어내고 이어붙인다
-                    ...g.ingredients.filter(i => i.name.trim()),
-                    ...parsed.map(i => ({id: genId(), name: i.name, amount: i.amount, unit: i.unit})),
-                  ],
-                }));
-                return;
-              }
-
-              const existing = target.bulkText.trim();
-              const prefix = existing ? existing + ', ' : '';
-              // 그룹 bulkText setter
-              const setGroupBulk = (v: string) => setIngredientGroups(p => p.map(g => g.id === targetId ? {...g, bulkText: v} : g));
-              typewriteAppendItems(cleaned, prefix, setGroupBulk, 'ingredients');
-            } else if (field === 'tools' && Array.isArray(value)) {
-              const cleaned = value.map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
-              if (cleaned.length === 0) return;
-              // 재료와 동일 — 포커스된 묶음(없으면 첫 묶음)에 넣는다. 모드는 유지한다.
-              const targetId = ocrBulkGroupId ?? toolGroups[0]?.id;
-              const target = toolGroups.find(g => g.id === targetId);
-              if (!target) return;
-              setOcrBulkGroupId(targetId);
-
-              if (!target.bulkMode) {
-                // 폼 모드 유지 — 개별 행으로 채운다
-                setToolGroups(p => p.map(g => g.id !== targetId ? g : {
-                  ...g,
-                  tools: [
-                    ...g.tools.filter(x => x.name.trim()),
-                    ...cleaned.map(name => ({id: genId(), name})),
-                  ],
-                }));
-                return;
-              }
-
-              const existing = target.bulkText.trim();
-              const prefix = existing ? existing + ', ' : '';
-              const setGroupBulk = (v: string) => setToolGroups(p => p.map(g => g.id === targetId ? {...g, bulkText: v} : g));
-              typewriteAppendItems(cleaned, prefix, setGroupBulk, 'tools');
-            } else if (field === 'steps' && Array.isArray(value)) {
-              const cleaned = value.map(s => s.replace(/\s+/g, ' ').trim()).filter(Boolean);
-              if (cleaned.length === 0) return;
-              // 한번에 쓰기 묶음이면 줄바꿈으로 이어붙이고, 아니면 기존 청크 애니메이션
-              const targetId = ocrBulkGroupId ?? stepGroups[0]?.id;
-              const target = stepGroups.find(g => g.id === targetId);
-              if (target?.bulkMode) {
-                setOcrBulkGroupId(targetId);
-                const existing = target.bulkText.trim();
-                const prefix = existing ? existing + '\n' : '';
-                const setGroupBulk = (v: string) => setStepGroups(p => p.map(g => g.id === targetId ? {...g, bulkText: v} : g));
-                typewriteAppendItems(cleaned, prefix, setGroupBulk, 'steps', '\n');
-              } else {
-                typewriteSteps(cleaned);
-              }
-            }
-          }}
+          onRecognized={handleOcrRecognized}
         />
         );
       })()}
