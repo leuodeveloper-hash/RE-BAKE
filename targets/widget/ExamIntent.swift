@@ -25,12 +25,66 @@ struct ExamWidgetIntent: WidgetConfigurationIntent {
   static var title: LocalizedStringResource = "시험 종목"
   static var description = IntentDescription("위젯에 표시할 시험 종목을 고릅니다.")
 
-  @Parameter(title: "종목", default: .pastry)
-  var discipline: ExamDiscipline
 
   /// 오늘의 레시피를 어느 북에서 고를지 — 비우면 전체에서 돈다
   @Parameter(title: "레시피북")
   var cookbook: CookbookOption?
+
+  /// 띄울 D-day — 제과·제빵 시험 일정, 또는 앱에서 만든 내 D-day 중 하나(한 목록)
+  @Parameter(title: "D-day")
+  var dday: DdayOption?
+}
+
+/// 앱에서 만든 내 D-day(최대 5개) — 앱이 `widgetDdays`에 [{id,title,date}]로 넣어 둔다
+struct WidgetDday: Codable {
+  let id: String
+  let title: String
+  let date: String
+}
+
+func readWidgetDdays() -> [WidgetDday] {
+  guard let defaults = UserDefaults(suiteName: appGroup),
+        let raw = defaults.string(forKey: "widgetDdays"),
+        let data = raw.data(using: .utf8),
+        let list = try? JSONDecoder().decode([WidgetDday].self, from: data)
+  else { return [] }
+  return list
+}
+
+/// 위젯 편집의 D-day 고르기 — 제과·제빵 시험 일정(exam:종목)과 내가 만든 D-day를 한 목록으로
+struct DdayOption: AppEntity {
+  let id: String
+  let title: String
+
+  static var typeDisplayRepresentation: TypeDisplayRepresentation = "D-day"
+  static var defaultQuery = DdayQuery()
+
+  var displayRepresentation: DisplayRepresentation {
+    DisplayRepresentation(title: "\(title)")
+  }
+
+  /// 시험 일정이면 종목, 내 D-day면 nil
+  var discipline: ExamDiscipline? {
+    id.hasPrefix("exam:") ? ExamDiscipline(rawValue: String(id.dropFirst(5))) : nil
+  }
+
+  static let pastry = DdayOption(id: "exam:pastry", title: "제과기능사 시험")
+  static let baking = DdayOption(id: "exam:baking", title: "제빵기능사 시험")
+}
+
+struct DdayQuery: EntityQuery {
+  private func all() -> [DdayOption] {
+    [DdayOption.pastry, DdayOption.baking] + readWidgetDdays().map { DdayOption(id: $0.id, title: $0.title) }
+  }
+
+  func entities(for identifiers: [String]) async throws -> [DdayOption] {
+    let list = all()
+    return identifiers.compactMap { id in list.first { $0.id == id } }
+  }
+
+  func suggestedEntities() async throws -> [DdayOption] { all() }
+
+  func defaultResult() async -> DdayOption? { DdayOption.pastry }
 }
 
 /// 위젯에 띄울 레시피북 — 앱이 저장한 목록에서 고른다.

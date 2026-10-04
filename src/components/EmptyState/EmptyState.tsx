@@ -26,6 +26,8 @@ export interface EmptyStateProps {
   /** 액션 링크 */
   actionLabel?: string;
   onAction?: () => void;
+  /** 버튼 모양 — 기본은 글자 버튼(ghost), 화면의 주된 할 일이면 토널(soft) */
+  actionVariant?: 'ghost' | 'soft';
   /** fullscreen(기본): 페이지 전체 빈 상태. inline: 카드/섹션 안의 빈 상태 (텍스트만). */
   variant?: EmptyStateVariant;
 }
@@ -39,7 +41,7 @@ function categoryImage(category: EmptyStateCategory): ImageSourcePropType | null
   }
 }
 
-export function EmptyState({category, image, icon, title, subtitle, actionLabel, onAction, variant = 'fullscreen'}: EmptyStateProps) {
+export function EmptyState({category, image, icon, title, subtitle, actionLabel, onAction, actionVariant = 'ghost', variant = 'fullscreen'}: EmptyStateProps) {
   const styles = useThemedStyles(createStyles);
 
   if (variant === 'simple') {
@@ -68,7 +70,7 @@ export function EmptyState({category, image, icon, title, subtitle, actionLabel,
         {subtitle && <Text style={styles.subtitle}>{subtitle}</Text>}
       </View>
       {actionLabel && onAction && (
-        <Button label={actionLabel} variant="ghost" accent size="small" onPress={onAction} />
+        <Button label={actionLabel} variant={actionVariant} accent={actionVariant === 'ghost'} size="small" onPress={onAction} />
       )}
     </View>
   );

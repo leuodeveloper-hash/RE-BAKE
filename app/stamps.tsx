@@ -1,3 +1,4 @@
+import {shortDate} from '@utils/dateLabel';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, Easing, InteractionManager, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {triggerHaptic} from '@utils/haptics';
@@ -150,9 +151,8 @@ function SlotStamp({slot, size, styles, colors, highlight, onLanded}: {
 }
 
 function formatMadeDate(iso: string, t: (k: string, p?: Record<string, unknown>) => string) {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  return t('stamps.shortDate', {month: d.getMonth() + 1, day: d.getDate()});
+  const text = shortDate(iso);
+  return text === '-' ? '' : text;
 }
 
 /** 레시피북이 없는 레시피를 모으는 섹션 키 — 실제 북 이름과 겹치지 않게 */

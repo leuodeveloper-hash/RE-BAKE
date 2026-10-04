@@ -1,3 +1,4 @@
+import {shortDate} from '@utils/dateLabel';
 import React, {useMemo} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {BottomSheet} from './BottomSheet';
@@ -54,13 +55,8 @@ export function StampDetailSheet({
 
   const dateLabel = useMemo(() => {
     if (!madeAt) return null;
-    const d = new Date(madeAt);
-    if (Number.isNaN(d.getTime())) return null;
-    return t('stampDetail.madeOn', {
-      year: d.getFullYear(),
-      month: d.getMonth() + 1,
-      day: d.getDate(),
-    });
+    const date = shortDate(madeAt, {withYear: true});
+    return date === '-' ? null : t('stampDetail.madeOn', {date});
   }, [madeAt, t]);
 
   // 회차별 기록 — 회고가 있는 회차만(빈 줄을 늘어놓을 이유가 없다)

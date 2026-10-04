@@ -4,7 +4,7 @@ import {SvgProps} from 'react-native-svg';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
-import {IconClose} from '@components/Icon/IconIndex';
+import {IconClose, IconArrowLeft} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
 import {Avatar, AvatarColor} from '@components/Avatar/Avatar';
 import {useThemedStyles} from '@hooks/useThemedStyles';
@@ -24,9 +24,11 @@ export interface SheetHeaderProps {
   headerType?: 'default' | 'center';
   /** 타이틀 우측 슬롯(예: 레이아웃 전환 버튼). center 모드의 빈 자리를 채운다 */
   headerRight?: React.ReactNode;
+  /** 다음 단계 화면일 때 — 타이틀 왼쪽에 뒤로가기 */
+  onBack?: () => void;
 }
 
-export function SheetHeader({title, description, onClose, icon, avatarColor, headerGraphic, headerType = 'default', headerRight}: SheetHeaderProps) {
+export function SheetHeader({title, description, onClose, icon, avatarColor, headerGraphic, headerType = 'default', headerRight, onBack}: SheetHeaderProps) {
   const styles = useThemedStyles(createStyles);
 
   const hasGraphic = headerGraphic || icon;
@@ -66,9 +68,11 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
         </>
       ) : headerType === 'center' ? (
         <>
-          {/* 중앙 정렬: 닫기 좌측, 타이틀 가운데 */}
+          {/* 중앙 정렬: 닫기 좌측, 타이틀 가운데. 다음 단계(onBack)면 좌측 뒤로가기만(닫기 없음) */}
           <View style={styles.centerRow}>
-            {onClose ? (
+            {onBack ? (
+              <IconButton icon={IconArrowLeft} variant="tonal" size="medium" onPress={onBack} />
+            ) : onClose ? (
               <IconButton
                 icon={IconClose}
                 variant="tonal"
@@ -89,9 +93,11 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
         <>
           {/* 그래픽 없음: 타이틀 + 닫기 같은 라인 */}
           <View style={styles.titleRow}>
+            {onBack && <IconButton icon={IconArrowLeft} variant="tonal" size="medium" onPress={onBack} />}
             <View style={styles.titleContainer}>
               <Text style={styles.title}>{title}</Text>
             </View>
+            {headerRight}
             {onClose && (
               <IconButton
                 icon={IconClose}
@@ -167,11 +173,13 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.smd,
   },
+  // 빈 쪽 자리 — 반대편 버튼(IconButton medium 40)과 같은 폭이라야 제목이 정확히 가운데
   centerPlaceholder: {
-    width: 28,
-    height: 28,
+    width: 40,
+    height: 40,
   },
   titleCenter: {
+    flex: 1,
     ...Typography.title.medium,
     fontWeight: Typography.title.medium.fontWeight as '700',
     color: colors['foreground/on-surface'],

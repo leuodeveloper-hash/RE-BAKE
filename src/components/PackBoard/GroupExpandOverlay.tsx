@@ -143,7 +143,7 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
   const items: PackBoardItem[] = recipes.map(r => {
     const total = parseSession(r.session).total;
     const multi = total > 1;
-    const subtitle = [r.cookbook || '', multi ? t('groupExpandOverlay.sessionCount', {count: total}) : ''].filter(Boolean).join(' · ');
+    const subtitle = [r.cookbook || '', multi ? t('groupExpandOverlay.sessionCount', {count: total}) : ''].filter(Boolean);
     const key = r.remakeGroupId ?? r.id;
     const lineage = multi
       ? allRecipes

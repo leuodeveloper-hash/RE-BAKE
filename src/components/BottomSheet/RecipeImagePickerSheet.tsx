@@ -6,7 +6,7 @@ import {ListItem} from '@components/ListItem';
 import {SectionHeader} from '@components/SectionHeader';
 import {IconThumbnail} from '@components/Thumbnail';
 import {IconButton} from '@components/IconButton';
-import {IconArrowLeft, IconNoteFilled} from '@components/Icon/IconIndex';
+import {IconNoteFilled} from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
 import type {SemanticColors} from '@constants/tokens';
@@ -68,9 +68,10 @@ export function RecipeImagePickerSheet({visible, onClose, myRecipes, exploreReci
       onClose={onClose}
       onDismissed={onDismissed}
       title={recipe ? recipe.title || t('recipeImagePicker.title') : t('recipeImagePicker.title')}
-      headerRight={recipe && !fixedRecipe ? (
-        <IconButton icon={IconArrowLeft} variant="tonal" size="medium" onPress={() => setPicked(null)} />
-      ) : undefined}>
+      // 라벨 가운데 헤더 — 첫 단계는 좌측 닫기, 다음 단계는 좌측 뒤로가기만
+      headerType="center"
+      // 사진 고르기 단계 — 공통 시트 헤더의 뒤로가기(레시피 목록으로)
+      onBack={recipe && !fixedRecipe ? () => setPicked(null) : undefined}>
       {recipe ? (
         <View style={styles.grid}>
           {images.map(uri => (

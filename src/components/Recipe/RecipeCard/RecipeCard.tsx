@@ -1,3 +1,4 @@
+import {MetaLine} from '@components/MetaLine';
 import {IconThumbnail} from '@components/Thumbnail';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
@@ -446,7 +447,8 @@ export interface RecipeCardProps {
   /** 오버라인 앞 아이콘 */
   overlineIcon?: React.FC<SvgProps>;
   /** list 레이아웃 커스텀 서브타이틀 (제공 시 cookbook·method 대신 표시) */
-  customSubtitle?: string;
+  /** 배열이면 항목 사이를 점·8 간격으로(공통 MetaLine) */
+  customSubtitle?: string | string[];
   /**
    * customSubtitle 크기 — 'large'면 한 단계 크게(12→14, 회고 노트의 개선점),
    * 'body'면 본문 레귤러(안내 문구처럼 굵지 않게).
@@ -665,6 +667,17 @@ export function RecipeCard({
                 {SubtitleIcon && (
                   <SubtitleIcon width={subtitleSize === 'large' ? 14 : 12} height={subtitleSize === 'large' ? 14 : 12} color={colors['foreground/on-surface-muted']} />
                 )}
+                {Array.isArray(customSubtitle) ? (
+                  <MetaLine
+                    items={customSubtitle}
+                    style={{flexShrink: 1}}
+                    textStyle={[
+                      styles.listSubtitle,
+                      subtitleSize === 'large' && styles.listSubtitleLarge,
+                      subtitleSize === 'body' && styles.listSubtitleBody,
+                    ]}
+                  />
+                ) : (
                 <Text
                   style={[
                     styles.listSubtitle,
@@ -674,6 +687,7 @@ export function RecipeCard({
                   numberOfLines={subtitleNumberOfLines}>
                   {customSubtitle}
                 </Text>
+                )}
               </View>
             ) : (hasMeta || reviewCount > 0 || hasReference) && (
               <View style={styles.listSubtitleRow}>

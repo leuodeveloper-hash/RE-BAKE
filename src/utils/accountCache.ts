@@ -25,6 +25,7 @@ const ACCOUNT_CACHE_KEYS = [
   '@bakle_photo_cloud_backup',
   '@bakle_exam_notif_prefs',
   '@bakle_exam_chosen_dates', // 내가 고른 시험일
+  '@bakle_custom_ddays', // 내 D-day
 ];
 
 /**

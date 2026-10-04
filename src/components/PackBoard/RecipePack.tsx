@@ -69,7 +69,7 @@ export interface RecipePackProps {
   /** 공법명 */
   title: string;
   /** 서브타이틀 (예: "제과기능사 · 3개") */
-  subtitle: string;
+  subtitle: string | string[];
   /** 대표 레시피 카드 (최대 3장: 이미지+레시피 종이) */
   cards: PackCardData[];
   /** 탭 시 호출 (확대 애니메이션 원점으로 카드 화면 좌표 전달) */

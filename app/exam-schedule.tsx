@@ -5,7 +5,7 @@ import {useRouter} from 'expo-router';
 import {FloatingNavBar, NavPillButton} from '@components/Navigation';
 import {ContentContainer} from '@components/Container';
 import {Selector} from '@components/Selector';
-import {Menu} from '@components/Menu';
+import {Menu, MenuItem} from '@components/Menu';
 import {Avatar} from '@components/Avatar';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
@@ -15,10 +15,12 @@ import {fetchAllSchedules, type ExamSchedule} from '@utils/examSchedules';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {IconClose, IconArrowTopRight, IconDotFilled, IconCircleCheckFilled, IconCircleDot, IconTick, IconChevronDown} from '@components/Icon/IconIndex';
+import {IconClose, IconArrowTopRight, IconDotFilled, IconCircleCheckFilled, IconCircleDot, IconChevronDown, IconCursor, IconCursorFilled} from '@components/Icon/IconIndex';
+import {shortDate} from '@utils/dateLabel';
 import {goBackOr} from '@utils/navigation';
 import {BottomSheet} from '@components/BottomSheet';
-import {ListItem} from '@components/ListItem';
+import {TimelineItem} from '@components/Timeline';
+import {IconButton} from '@components/IconButton';
 import {syncExamWidget} from '@utils/examWidgetSync';
 import {
   canChooseExamDate, chosenDateKey, effectiveExamDate, examPeriodDays,
@@ -39,24 +41,12 @@ function examPeriod(s: ExamSchedule): string {
   return shortDate(s.examDate);
 }
 
-/** 'YYYY-MM-DD' → 'M월 D일 (요일)' */
-function dayLabel(iso: string, t: TranslateFn): string {
-  const [y, m, d] = iso.split('-').map(Number);
-  const wd = new Date(y, m - 1, d).getDay();
-  return t('examschedule.dayLabel', {month: m, day: d, weekday: t(`examschedule.weekday${wd}`)});
-}
-
 /** 회차 라벨에서 연도 접두사 제거 ('2026년 3회' → '3회') */
 function cleanRound(round: string): string {
   return round.replace(/^\d{4}\s*년?\s*/, '').trim();
 }
 
-/** ISO date → 'M월 D일' */
-function shortDate(iso: string): string {
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '-';
-  return `${d.getMonth() + 1}월 ${d.getDate()}일`;
-}
+
 
 /** ISO date → 오늘 자정 기준 남은 일수 (시각 무시, 로컬). 파싱 실패 시 null */
 function daysUntil(iso: string): number | null {
@@ -144,6 +134,7 @@ export default function ExamScheduleRoute() {
   const [chosen, setChosen] = useState<ExamChosenDates>({});
   useEffect(() => { pullChosenDatesFromAccount().then(setChosen); }, []);
   const [pickTarget, setPickTarget] = useState<ExamSchedule | null>(null);
+
   const handlePickDate = useCallback(async (iso: string | null) => {
     const target = pickTarget;
     setPickTarget(null);
@@ -305,27 +296,21 @@ export default function ExamScheduleRoute() {
       <BottomSheet
         visible={!!pickTarget}
         onClose={() => setPickTarget(null)}
-        title={t('examschedule.pickDateTitle')}
-        description={pickTarget ? `${cleanRound(pickTarget.round)} ${kindLabel(pickTarget.examType, t)} · ${examPeriod(pickTarget)}` : undefined}>
+        // 공통 시트 헤더 — 라벨 가운데
+        headerType="center"
+        // 제목은 어떤 시험인지(30회 필기)
+        title={pickTarget ? `${cleanRound(pickTarget.round)} ${kindLabel(pickTarget.examType, t)}` : t('examschedule.pickDateTitle')}
+        >
         {pickTarget && (() => {
           const current = chosen[chosenDateKey(pickTarget)];
           return (
-            <>
-              <ListItem
-                title={t('examschedule.pickDateNone')}
-                trailing={!current ? {type: 'icon', icon: IconTick} : undefined}
-                onPress={() => handlePickDate(null)}
-              />
-              {examPeriodDays(pickTarget).map((iso, i, arr) => (
-                <ListItem
-                  key={iso}
-                  title={dayLabel(iso, t)}
-                  trailing={current === iso ? {type: 'icon', icon: IconTick} : undefined}
-                  onPress={() => handlePickDate(iso)}
-                  showDivider={i < arr.length - 1}
-                />
+            // 고르기 목록은 공통 MenuItem(선택 표시 포함). 좌우·상하 8은 D-day 시트 본문과 같게
+            <View style={styles.pickList}>
+              <MenuItem id="none" label={t('examschedule.pickDateNone')} selected={!current} onPress={() => handlePickDate(null)} />
+              {examPeriodDays(pickTarget).map(iso => (
+                <MenuItem key={iso} id={iso} label={shortDate(iso)} selected={current === iso} onPress={() => handlePickDate(iso)} />
               ))}
-            </>
+            </View>
           );
         })()}
       </BottomSheet>
@@ -359,62 +344,28 @@ interface PeriodItemProps {
 function PeriodItem({schedule: s, gradientIndex, isFirst, isLast, variant, styles, colors, chosen, onPickDate}: PeriodItemProps) {
   const picked = chosen[chosenDateKey(s)];
   const {t} = useTranslation();
-  const isPast = variant === 'past';
   const title = `${cleanRound(s.round)} ${kindLabel(s.examType, t)}`.trim();
 
   return (
-    <View style={[styles.item, variant === 'current' && styles.itemCurrent]}>
-      {/* 레일: 위/아래 라인 + 노드 아이콘 */}
-      <View style={styles.rail}>
-        {/* 상단 라인 (첫 항목이면 투명 스페이서로 노드 중앙 유지) */}
-        <View style={[styles.railSeg, !isFirst && styles.railSegLine]} />
-        {/* 노드(20 슬롯) — 지난 항목은 다른 콘텐츠(아바타)처럼 opacity로 흐리게 */}
-        <View style={[styles.railNode, isPast && styles.railNodePast]}>
-          {variant === 'current' ? (
-            <IconCircleDot width={16} height={16} color={colors['foreground/on-surface']} />
-          ) : isPast ? (
-            <IconCircleCheckFilled width={16} height={16} color={colors['foreground/on-surface-muted']} />
-          ) : (
-            <IconDotFilled width={12} height={12} color={colors['foreground/on-surface']} />
-          )}
-        </View>
-        {/* 하단 라인 (마지막 항목이면 투명 스페이서) */}
-        <View style={[styles.railSeg, !isLast && styles.railSegLine]} />
-      </View>
-
-      {/* D-day 아바타 */}
-      <Avatar
-        size="large"
-        shape="rounded"
-        type="gradient"
-        gradientIndex={gradientIndex}
-        monogram={ddayLabel(s, chosen)}
-        style={isPast ? styles.avatarPast : undefined}
-      />
-
-      {/* 내용 */}
-      <View style={styles.content}>
-        <Text style={[styles.periodName, isPast && styles.periodNamePast]} numberOfLines={1}>
-          {title}
-        </Text>
-        <Text style={[styles.dates, isPast && styles.datesPast]} numberOfLines={1}>
-          {t('examschedule.labelRegistration')}: {shortDate(s.registrationStart)}
-          {'  ·  '}{t('examschedule.labelExam')}: {examPeriod(s)}
-          {/* 필기는 시험종료 즉시 발표라 발표 항목 생략, 실기만 발표일 표시 */}
-          {!s.examType.endsWith('written') && (
-            <>{'  ·  '}{t('examschedule.labelResult')}: {shortDate(s.resultDate)}</>
-          )}
-        </Text>
-        {onPickDate && (
-          <Pressable onPress={onPickDate} hitSlop={6} style={styles.pickDate}>
-            <Text style={styles.pickDateText}>
-              {picked ? t('examschedule.myExamDate', {date: shortDate(picked)}) : t('examschedule.pickDate')}
-            </Text>
-            <IconChevronDown width={14} height={14} color={colors['foreground/on-surface-muted']} />
-          </Pressable>
-        )}
-      </View>
-    </View>
+    <TimelineItem
+      isFirst={isFirst}
+      isLast={isLast}
+      variant={variant}
+      monogram={ddayLabel(s, chosen)}
+      gradientIndex={gradientIndex}
+      title={title}
+      subtitle={[
+        `${t('examschedule.labelRegistration')}: ${shortDate(s.registrationStart)}`,
+        `${t('examschedule.labelExam')}: ${examPeriod(s)}`,
+        // 필기는 시험종료 즉시 발표라 발표 항목 생략, 실기만 발표일 표시
+        !s.examType.endsWith('written') && `${t('examschedule.labelResult')}: ${shortDate(s.resultDate)}`,
+        picked && t('examschedule.myExamDate', {date: shortDate(picked)}),
+      ]}
+      // 내 시험일 고르기는 줄 오른쪽 아이콘 버튼으로 — 글 링크는 지저분했다. 고른 날은 부제목 끝에 붙는다
+      trailing={onPickDate ? (
+        <IconButton icon={picked ? IconCursorFilled : IconCursor} variant={picked ? 'tonal' : 'ghost-secondary'} size="medium" onPress={onPickDate} />
+      ) : undefined}
+    />
   );
 }
 
@@ -429,6 +380,7 @@ const createStyles = (colors: SemanticColors) =>
     safeArea: {flex: 1},
     scrollView: {flex: 1},
     scrollContent: {paddingBottom: 100},
+    pickList: {paddingHorizontal: Spacing.sm, paddingVertical: Spacing.sm},
 
     // 앱바 가운데 타이틀
     barTitle: {

@@ -87,8 +87,11 @@ export default function ProfileRoute() {
         onLabsPress={() => router.push('/labs' as any)}
         onWidgetPreviewPress={() => router.push('/widget-preview' as any)}
         onSubmissionsPress={() => router.push('/admin/submissions' as any)}
+        // 웹에서도 들어간다 — 시험 일정·내 D-day는 웹에서도 쓰고, 알림 설정 화면이 앱 전용임을 안내한다
         onExamNotifPress={() => router.push('/exam-notifications' as any)}
+        // 위젯 추가 방법은 웹(PC)에서도 미리 볼 수 있게 — 실제 추가는 아이폰에서
         onWidgetGuidePress={() => router.push('/widget-guide' as any)}
+        onDdaysPress={() => router.push('/ddays' as any)}
         isPro={isPro}
         isAdmin={isAdmin}
         avatarSeed={avatarSeed}

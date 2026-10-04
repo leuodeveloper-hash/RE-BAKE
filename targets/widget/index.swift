@@ -187,6 +187,16 @@ func entryFor(date: Date, sets: [DailySet], exam: UpcomingExam?) -> RecipeEntry 
   return RecipeEntry(date: date, recipe: nil, imagePath: nil, exam: exam)
 }
 
+/// 위젯 편집에서 고른 D-day — 시험 일정(제과·제빵)이면 그 종목 일정, 내 D-day면 그 날짜를 같은 배너로 그린다
+func readExamOrDday(_ configuration: ExamWidgetIntent) -> UpcomingExam? {
+  let option = configuration.dday ?? DdayOption.pastry
+  if let discipline = option.discipline {
+    return readUpcomingExam(key: discipline.storageKey)
+  }
+  guard let d = readWidgetDdays().first(where: { $0.id == option.id }) else { return nil }
+  return UpcomingExam(examDate: d.date, label: d.title, round: "", registrationStart: "")
+}
+
 struct Provider: AppIntentTimelineProvider {
   func placeholder(in context: Context) -> RecipeEntry {
     RecipeEntry(date: Date(), recipe: DailyRecipe(id: "", title: "오늘의 레시피", cookbook: nil), imagePath: nil, exam: nil)
@@ -196,27 +206,26 @@ struct Provider: AppIntentTimelineProvider {
     entryFor(
       date: Date(),
       sets: readDailySets(cookbook: configuration.cookbook?.id ?? ""),
-      exam: readUpcomingExam(key: configuration.discipline.storageKey),
+      exam: readExamOrDday(configuration),
     )
   }
 
   func timeline(for configuration: ExamWidgetIntent, in context: Context) async -> Timeline<RecipeEntry> {
     await withCheckedContinuation { continuation in
       buildTimeline(
-        key: configuration.discipline.storageKey,
+        exam: readExamOrDday(configuration),
         cookbook: configuration.cookbook?.id ?? "",
       ) { continuation.resume(returning: $0) }
     }
   }
 
-  private func buildTimeline(key: String, cookbook: String, completion: @escaping (Timeline<RecipeEntry>) -> Void) {
+  private func buildTimeline(exam: UpcomingExam?, cookbook: String, completion: @escaping (Timeline<RecipeEntry>) -> Void) {
     // 날짜별 세트(제목+이미지 일치)를 각 날짜 00:00 엔트리로. 매일 자정에 다음 세트로 전환.
     let cal = Calendar.current
     let startOfToday = cal.startOfDay(for: Date())
     let sets = readDailySets(cookbook: cookbook)
     // 시험 정보는 하루 단위로 D-day가 바뀐다. 엔트리마다 같은 값을 넣되,
     // 각 엔트리의 date를 기준으로 뷰가 남은 일수를 다시 계산한다.
-    let exam = readUpcomingExam(key: key)
     var entries: [RecipeEntry] = []
     for dayOffset in 0..<14 {
       guard let day = cal.date(byAdding: .day, value: dayOffset, to: startOfToday) else { continue }
@@ -389,7 +398,7 @@ struct BakleWidgetEntryView: View {
           .resizable()
           .aspectRatio(contentMode: .fill)
       } else {
-        Color("$widgetBackground")
+        Color("widgetFallback")
       }
       LinearGradient(
         gradient: Gradient(colors: [.clear, .black.opacity(0.15), .black.opacity(0.75)]),

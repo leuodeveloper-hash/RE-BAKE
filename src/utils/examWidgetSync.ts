@@ -1,5 +1,6 @@
 import {Platform} from 'react-native';
 import {canChooseExamDate, chosenDateKey, effectiveExamDate, loadChosenDates} from '@utils/examChosenDate';
+import {loadCustomDdays, nextDdayDate} from '@utils/customDdays';
 import {fetchExamSchedules} from '@utils/examSchedules';
 import {getExamTypes, toExamType, scheduleExamLabel} from '@constants/examTypes';
 import {translate, deviceLanguage} from '../i18n';
@@ -67,19 +68,6 @@ export async function syncExamWidget(): Promise<void> {
       const labelByType = Object.fromEntries(getExamTypes(t).map(e => [e.id, e.label]));
       const now = Date.now();
 
-      /**
-       * 가장 먼저 알려야 할 시험 하나.
-       *
-       * 시험일만 보고 고르면 안 된다 — 접수가 코앞인 시험이, 시험일이 더 이른
-       * 다른 시험에 밀려 접수 D-day가 아예 안 뜬다(접수를 놓치면 시험을 못 본다).
-       * 아직 오지 않은 일정(접수 시작일 또는 시험일) 중 가장 가까운 것을 기준으로 정렬한다.
-       */
-      const nextMoment = (s: {examDate: string; registrationStart?: string}): number => {
-        const times = [s.registrationStart, s.examDate]
-          .map(v => (v ? new Date(v).getTime() : NaN))
-          .filter(v => !Number.isNaN(v) && v > now);
-        return times.length > 0 ? Math.min(...times) : Infinity;
-      };
 
       // 오늘 자정 — 내가 고른 시험일은 '그날 하루'가 끝날 때까지 남은 것으로 본다(당일 D-day)
       const today = new Date(); today.setHours(0, 0, 0, 0);
@@ -91,12 +79,17 @@ export async function syncExamWidget(): Promise<void> {
         const picked = mine
           .filter(s => s.picked && dayOf(s.examDate) >= today.getTime())
           .sort((a, b) => dayOf(a.examDate) - dayOf(b.examDate))[0];
-        const upcoming = picked ?? mine
-          .filter(s => nextMoment(s) !== Infinity)
-          .sort((a, b) => nextMoment(a) - nextMoment(b))[0];
+        // 고른 날이 없으면 시험일은 세지 않는다 — 다음 접수 시작일만 센다(아직 안 온 접수 중 가장 가까운 것)
+        const regTime = (s: {registrationStart?: string}) => (s.registrationStart ? new Date(s.registrationStart).getTime() : NaN);
+        const nextReg = mine
+          .filter(s => !Number.isNaN(regTime(s)) && regTime(s) > now)
+          .sort((a, b) => regTime(a) - regTime(b))[0];
+        const upcoming = picked ?? nextReg;
         if (!upcoming) continue;
         byDiscipline[discipline] = {
-          examDate: upcoming.examDate,
+          // 시험일 D-day는 내가 고른 날이 있을 때만 — 아니면 비워 위젯이 접수만 센다
+          // (비우지 않으면 접수가 시작된 뒤 위젯이 그 회차 시험일로 넘어간다)
+          examDate: upcoming === picked ? upcoming.examDate : '',
           // 종목까지 밝힌다 — "기능사 실기"만으로는 제과인지 제빵인지 알 수 없다
           label: scheduleExamLabel(upcoming.examType, t)
             || labelByType[toExamType(upcoming.examType)]
@@ -120,6 +113,9 @@ export async function syncExamWidget(): Promise<void> {
       .filter(Boolean)
       .sort((a, b) => nextMomentOf(a!) - nextMomentOf(b!))[0] ?? null;
     WidgetStorage.setString('upcomingExam', legacy ? JSON.stringify(legacy) : '', APP_GROUP);
+    // 내 D-day 목록도 함께 — 위젯 편집에서 고를 수 있게(다른 기기에서 바꾼 것도 앱을 열면 반영)
+    const ddays = await loadCustomDdays();
+    WidgetStorage.setString('widgetDdays', JSON.stringify(ddays.map(d => ({id: d.id, title: d.title, date: nextDdayDate(d)}))), APP_GROUP);
 
     WidgetStorage.reloadWidget(WIDGET_NAME);
   } catch (e) {
@@ -224,5 +220,20 @@ export async function getInstalledWidgetCount(): Promise<number | null> {
     // 네이티브 모듈 없음(구버전 앱·웹) 또는 조회 실패 — 0으로 단정하지 않는다
     console.warn('[examWidgetSync] 위젯 개수 확인 실패:', e);
     return null;
+  }
+}
+
+/**
+ * 내 D-day를 위젯 편집 목록에 넣는다(`widgetDdays`) — 위젯 편집에서 시험 일정 대신 고를 수 있다.
+ * 고른 D-day의 날짜·이름이 바뀌어도 위젯이 따라가게 바꿀 때마다 다시 넣고 새로 그린다.
+ */
+export function syncDdayWidget(list: {id: string; title: string; date: string}[]): void {
+  if (Platform.OS !== 'ios') return;
+  try {
+    const WidgetStorage = require('../../modules/widget-storage').default;
+    WidgetStorage.setString('widgetDdays', JSON.stringify(list.map(d => ({id: d.id, title: d.title, date: nextDdayDate(d)}))), APP_GROUP);
+    WidgetStorage.reloadWidget(WIDGET_NAME);
+  } catch (e) {
+    console.warn('[syncDdayWidget] 실패:', e);
   }
 }

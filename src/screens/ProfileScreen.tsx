@@ -1,6 +1,8 @@
+import {dateTime} from '@utils/dateLabel';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {useFocusEffect} from 'expo-router';
+import {loadCustomDdays} from '@utils/customDdays';
 import {LinearGradient} from 'expo-linear-gradient';
 import {BlurView} from 'expo-blur';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -40,7 +42,6 @@ import {
   IconPaletteFilled,
   IconLogout,
   IconBellFilled,
-  IconHomeFilled,
   IconSunDimFilled,
   IconCircleHalf,
   IconMoonFilled,
@@ -48,8 +49,7 @@ import {
   IconTicketFilled,
   IconGlobeFilled,
   IconClockFilled,
-  IconCameraFilled,
-} from '@components/Icon/IconIndex';
+  IconCameraFilled, IconWidgetFilled, IconMailFilled, IconCursorFilled} from '@components/Icon/IconIndex';
 
 import Constants from 'expo-constants';
 import LogoText from '../../assets/images/logo_text.svg';
@@ -89,6 +89,8 @@ export interface ProfileScreenProps {
   onExamNotifPress?: () => void;
   /** 홈 화면 위젯 안내 화면 진입 */
   onWidgetGuidePress?: () => void;
+  /** 내 D-day 화면 */
+  onDdaysPress?: () => void;
   /** Pro 구독 여부 */
   isPro?: boolean;
   /** 구독하기 — 없으면 시트만 닫힌다 */
@@ -151,11 +153,7 @@ function formatSyncTime(date: Date, t: (key: string, params?: Record<string, unk
   if (diffMin < 60) return t('profile.syncMinutesAgo', {count: diffMin});
   const diffHour = Math.floor(diffMin / 60);
   if (diffHour < 24) return t('profile.syncHoursAgo', {count: diffHour});
-  const month = date.getMonth() + 1;
-  const day = date.getDate();
-  const hours = date.getHours().toString().padStart(2, '0');
-  const minutes = date.getMinutes().toString().padStart(2, '0');
-  return `${month}/${day} ${hours}:${minutes}`;
+  return dateTime(date);
 }
 
 export function ProfileScreen({
@@ -182,6 +180,7 @@ export function ProfileScreen({
   onSubmissionsPress,
   onExamNotifPress,
   onWidgetGuidePress,
+  onDdaysPress,
   isPro = false,
   onSubscribePress,
   isAdmin = false,
@@ -203,6 +202,9 @@ export function ProfileScreen({
   // 알림 설정 화면에서 돌아오면 요약 표시 갱신
   // 위젯 개수. null = 알 수 없음(조회 실패·구버전) — 0과 구분해 아무것도 표시하지 않는다.
   const [widgetCount, setWidgetCount] = useState<number | null>(null);
+  // 내 D-day 개수 — 세팅 줄 오른쪽 값. 화면에 다시 들어올 때마다 읽는다
+  const [ddayCount, setDdayCount] = useState(0);
+  useFocusEffect(useCallback(() => { loadCustomDdays().then(l => setDdayCount(l.length)); }, []));
 
   useFocusEffect(
     useCallback(() => {
@@ -567,50 +569,31 @@ export function ProfileScreen({
               <ListItem
                 title={t('profile.examScheduleNotif')}
                 leading={{type: 'icon', icon: IconBellFilled}}
-                trailing={{
-                  type: 'custom',
-                  element: (
-                    <View style={styles.examNotifTrailing}>
-                      <Text style={styles.examNotifStatus}>
-                        {examPrefs.enabled && examPrefs.targets.length > 0
-                          ? t('profile.examNotifOnCount', {count: examPrefs.targets.length})
-                          : t('profile.examNotifOff')}
-                      </Text>
-                      <IconChevronRight
-                        width={20}
-                        height={20}
-                        color={colors['foreground/on-surface-muted']}
-                      />
-                    </View>
-                  ),
-                }}
+                // 상태는 공통 오른쪽 값(trailingValue) — 다른 설정 줄과 같은 글자·정렬
+                trailingValue={examPrefs.enabled && examPrefs.targets.length > 0
+                  ? t('profile.examNotifOnCount', {count: examPrefs.targets.length})
+                  : t('profile.examNotifOff')}
+                trailing={{type: 'icon', icon: IconChevronRight}}
                 showDivider
                 onPress={() => onExamNotifPress?.()}
               />
+              {/* 내 D-day — 시험 알림 안에 있으면 너무 깊어 따로 둔다 */}
+              <ListItem
+                title={t('dday.screenTitle')}
+                leading={{type: 'icon', icon: IconCursorFilled}}
+                trailingValue={ddayCount > 0 ? t('dday.countShort', {count: ddayCount}) : undefined}
+                trailing={{type: 'icon', icon: IconChevronRight}}
+                showDivider
+                onPress={() => onDdaysPress?.()}
+              />
               <ListItem
                 title={t('profile.widgetGuide')}
-                leading={{type: 'icon', icon: IconHomeFilled}}
-                trailing={{
-                  type: 'custom',
-                  element: (
-                    <View style={styles.examNotifTrailing}>
-                      {/* 알 수 없을 때(null)는 비워 둔다 — 이미 쓰는 사람에게
-                          "추가 안 함"으로 잘못 보이는 편이 더 나쁘다 */}
-                      {widgetCount !== null && (
-                        <Text style={styles.examNotifStatus}>
-                          {widgetCount > 0
-                            ? t('profile.widgetAddedCount', {count: widgetCount})
-                            : t('profile.widgetNotAdded')}
-                        </Text>
-                      )}
-                      <IconChevronRight
-                        width={20}
-                        height={20}
-                        color={colors['foreground/on-surface-muted']}
-                      />
-                    </View>
-                  ),
-                }}
+                leading={{type: 'icon', icon: IconWidgetFilled}}
+                // 알 수 없을 때(null)·로그인 전엔 비워 둔다 — "추가 안 함"으로 잘못 보이는 편이 더 나쁘다
+                trailingValue={widgetCount === null || !userEmail ? undefined : widgetCount > 0
+                  ? t('profile.widgetAddedCount', {count: widgetCount})
+                  : t('profile.widgetNotAdded')}
+                trailing={{type: 'icon', icon: IconChevronRight}}
                 showDivider={false}
                 onPress={() => onWidgetGuidePress?.()}
               />
@@ -654,6 +637,19 @@ export function ProfileScreen({
             </ContentContainer>
           )}
 
+          {/* 문의 — 메일 앱을 열지 않고 앱 안에서 쓴다(푸터 글자 링크는 잘 안 보여 설정 줄로) */}
+          <ContentContainer style={styles.section}>
+            <Card>
+              <ListItem
+                title={t('profile.inquiry')}
+                leading={{type: 'icon', icon: IconMailFilled}}
+                trailing={{type: 'icon', icon: IconChevronRight}}
+                showDivider={false}
+                onPress={() => setInquiryOpen(true)}
+              />
+            </Card>
+          </ContentContainer>
+
           {/* 로그아웃 (로그인 시만) */}
           {userEmail && (
             <ContentContainer style={styles.section}>
@@ -675,11 +671,7 @@ export function ProfileScreen({
               <Text style={styles.footerText}>{t('profile.version', {version: APP_VERSION})}</Text>
               <View style={styles.footerLinks}>
                 <Text style={styles.footerLink} onPress={onTermsPress}>{t('profile.termsOfService')}</Text>
-                <Text style={styles.footerDot}>·</Text>
                 <Text style={styles.footerLink} onPress={onPrivacyPress}>{t('profile.privacyPolicy')}</Text>
-                <Text style={styles.footerDot}>·</Text>
-                {/* 문의는 여기 한 곳 — 메일 앱을 열지 않고 앱 안에서 쓴다 */}
-                <Text style={styles.footerLink} onPress={() => setInquiryOpen(true)}>{t('profile.inquiry')}</Text>
               </View>
             </View>
           </View>
@@ -822,17 +814,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   section: {
     paddingTop: Spacing.md,
   },
-  examNotifTrailing: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-  },
-  examNotifStatus: {
-    fontFamily: Typography.body.medium.fontFamily,
-    fontSize: Typography.body.medium.fontSize,
-    lineHeight: Typography.body.medium.lineHeight,
-    color: colors['foreground/on-surface-muted'],
-  },
   authForm: {
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.md,
@@ -858,7 +839,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   footerLinks: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: Spacing.xs,
+    // 점 없이 간격만으로 나눈다
+    gap: Spacing.md,
   },
   footerLink: {
     fontFamily: Typography.label.medium.fontFamily,
@@ -866,11 +848,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontWeight: Typography.label.medium.fontWeight as '500',
     lineHeight: Typography.label.medium.lineHeight,
     letterSpacing: Typography.label.medium.letterSpacing,
-    color: colors['foreground/on-surface-disabled'],
-  },
-  footerDot: {
-    fontFamily: Typography.label.medium.fontFamily,
-    fontSize: Typography.label.medium.fontSize,
     color: colors['foreground/on-surface-disabled'],
   },
   planSheetContent: {

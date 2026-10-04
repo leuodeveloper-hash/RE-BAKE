@@ -3,6 +3,7 @@ import {StyleSheet, View, ViewStyle} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Spacing} from '@constants/spacing';
+import {ContentContainer} from '@components/Container';
 import {withOpacity} from '@constants/tokens';
 
 export interface BottomActionBarProps {
@@ -32,14 +33,14 @@ export function BottomActionBar({children, background, showTopMask = true, style
           pointerEvents="none"
         />
       ) : null}
-      <View style={styles.row}>{children}</View>
+      {/* 앱바와 같은 공통 틀(폭 800 + 안쪽 여백 16) — 넓은 화면에서도 버튼 끝선이 앱바와 맞는다 */}
+      <ContentContainer style={styles.row}>{children}</ContentContainer>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
   wrap: {
-    paddingHorizontal: Spacing.md,
     paddingTop: Spacing.smd,
   },
   topMask: {

@@ -6,8 +6,7 @@ import {BottomSheet} from '@components/BottomSheet';
 import {Button} from '@components/Button';
 import {TextInput} from '@components/TextInput';
 import {InputGroup} from '@components/InputGroup';
-import {AppBar} from '@components/Navigation';
-import {IconGoogle, IconMailFilled, IconArrowLeft, IconClose} from '@components/Icon/IconIndex';
+import {IconGoogle, IconMailFilled} from '@components/Icon/IconIndex';
 import {useAuth} from '@contexts/AuthContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
@@ -86,20 +85,15 @@ export function AuthSheet({visible, onClose, onSuccess}: AuthSheetProps) {
     <BottomSheet
       visible={visible}
       onClose={handleClose}
-      title={showEmailForm ? undefined : t('auth.loginTitle')}
+      // 이메일 폼 — 공통 시트 헤더(라벨 가운데, 좌 뒤로가기). 앱바는 떠 있는 오버레이라 필드를 덮었다
+      title={showEmailForm ? (isLoginMode ? t('auth.emailLoginTitle') : t('auth.emailSignupTitle')) : t('auth.loginTitle')}
+      headerType={showEmailForm ? 'center' : 'default'}
+      onBack={showEmailForm ? () => setShowEmailForm(false) : undefined}
       description={showEmailForm ? undefined : t('auth.loginDescription')}
       headerGraphic={showEmailForm ? undefined : <Image source={APP_LOGO} style={styles.appLogo} contentFit="cover" />}
       maxWidth={380}>
       {showEmailForm ? (
         <View>
-          <AppBar
-            centered
-            title={isLoginMode ? t('auth.emailLoginTitle') : t('auth.emailSignupTitle')}
-            leftIcon={IconArrowLeft}
-            onLeftPress={() => setShowEmailForm(false)}
-            rightIcon={IconClose}
-            onRightPress={handleClose}
-          />
           <View style={styles.authForm}>
           <InputGroup>
             <TextInput

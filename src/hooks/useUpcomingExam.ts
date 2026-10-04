@@ -3,6 +3,7 @@ import {AppState} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {fetchExamSchedules} from '@utils/examSchedules';
 import {effectiveExamDate, loadChosenDates} from '@utils/examChosenDate';
+import {ddayDays, loadCustomDdays, nextDdayDate} from '@utils/customDdays';
 import {getExamTypes, toExamType, type ExamType} from '@constants/examTypes';
 import {useTranslation} from '@contexts/LanguageContext';
 
@@ -48,7 +49,15 @@ export function useUpcomingExam() {
       const raw = await AsyncStorage.getItem(PREFS_KEY);
       const prefs = raw ? JSON.parse(raw) : null;
       const targets: ExamType[] = prefs?.enabled ? (prefs.targets ?? []) : [];
-      if (targets.length === 0) { setExam(null); return; }
+      // 내 D-day(아무 일정) — 알림 설정과 상관없이 배너에 섞는다(가장 가까운 것)
+      const custom = (await loadCustomDdays())
+        .map(d => ({label: d.title, round: '', days: ddayDays(nextDdayDate(d))}))
+        .filter(d => d.days >= 0)
+        .sort((a, b) => a.days - b.days)[0];
+      if (targets.length === 0) {
+        setExam(custom && custom.days <= SHOW_WITHIN_DAYS ? custom : null);
+        return;
+      }
 
       const schedules = await fetchExamSchedules(targets);
       // 필기처럼 기간이 있는 시험은 내가 고른 날 기준
@@ -61,6 +70,11 @@ export function useUpcomingExam() {
         .filter((x): x is {s: typeof schedules[number]; days: number} => x.days !== null)
         .sort((a, b) => a.days - b.days)[0];
 
+      // 내 D-day가 더 가까우면 그걸 보여준다
+      if (custom && (!upcoming || custom.days < upcoming.days)) {
+        setExam(custom.days <= SHOW_WITHIN_DAYS ? custom : null);
+        return;
+      }
       if (!upcoming || upcoming.days > SHOW_WITHIN_DAYS) { setExam(null); return; }
 
       setExam({

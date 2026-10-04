@@ -1,3 +1,4 @@
+import {MetaLine} from '@components/MetaLine';
 import React, {useRef, useState} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {Image} from 'expo-image';
@@ -92,7 +93,6 @@ export function RetrospectiveNote({
   if (photoCard && !isEmpty && current) {
     const [mainText, ...restLines] = current.paperPreview ?? [];
     // 레시피북·공법·회차는 썸네일 위(품목명 위), 종이엔 날짜만
-    const tagLine = (current.tags ?? []).join(' · ');
     const meta = current.dateText ?? '';
     return (
       <Pressable
@@ -123,8 +123,8 @@ export function RetrospectiveNote({
             />
             <View style={styles.thumbText}>
               {/* 한 줄: 레시피북 · 공법 · 회차("1/1회차") → 그 아래 품목명 */}
-              {(tagLine || metaText) ? (
-                <Text style={styles.thumbMeta} numberOfLines={1}>{[tagLine, metaText].filter(Boolean).join(' · ')}</Text>
+              {((current.tags ?? []).length || metaText) ? (
+                <MetaLine items={[...(current.tags ?? []), metaText]} textStyle={styles.thumbMeta} />
               ) : null}
               <Text style={styles.thumbTitle} numberOfLines={1}>{current.title}</Text>
             </View>

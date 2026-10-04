@@ -1,3 +1,4 @@
+import {shortDate} from '@utils/dateLabel';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {Dimensions, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
@@ -284,7 +285,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
       const cookbookLabel = cookbookSet.size === 1 ? [...cookbookSet][0] : t('group.allCookbooks');
       // 대표 카드 최대 3장 (공통 헬퍼: 이미지 우선 + 종이 미리보기)
       const cards = recipeCoverCards(items);
-      return {method, items, subtitle: `${cookbookLabel} · ${t('group.itemCount', {count: items.length})}`, cards};
+      return {method, items, subtitle: [cookbookLabel, t('group.itemCount', {count: items.length})], cards};
     });
   }, [recipes, exploreRecipes, isAdmin, t]);
 
@@ -427,10 +428,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
           // 날짜 줄 — 만든 날(스탬프)
           dateText: (() => {
             const at = madeAtOf(r);
-            const d = at ? new Date(at) : null;
-            return d && !Number.isNaN(d.getTime())
-              ? `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
-              : undefined;
+            const text = at ? shortDate(at) : '-';
+            return text === '-' ? undefined : text;
           })(),
           paperPreview: reviewsOf(r).flatMap(rv => [
             rv.evaluation?.trim(),

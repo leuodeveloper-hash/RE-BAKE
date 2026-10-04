@@ -3047,7 +3047,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 )}}
                 trailing={{type: 'custom', element: (
                   <Tabs
-                    variant="text"
+                    // 프로필 '테마' 줄과 같은 탭(기본 filled)
                     tabs={[{id: 'recipe', label: t('recipeEdit.kindRecipe')}, {id: 'tip', label: t('recipeEdit.kindTip')}]}
                     selectedId={kind}
                     onSelect={id => setKind(id as 'recipe' | 'tip')}

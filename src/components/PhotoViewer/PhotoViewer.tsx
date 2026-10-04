@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {Image, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
+import {Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {FloatingNavBar, navPillStyle, NavPillButton} from '@components/Navigation';
 import {GlassContainer} from '@components/Container';
@@ -63,9 +63,16 @@ export function PhotoViewer({
   onDownload,
   onCaptionChange,
 }: PhotoViewerProps) {
-  const {width: containerWidth} = useWindowDimensions();
+  const {width: containerWidth, height: windowHeight} = useWindowDimensions();
+  // 사진 영역 높이 — 화면의 74%(예전 imageFrame과 같은 비율). 스크롤 안이라 퍼센트 대신 숫자로 준다
+  const pageHeight = Math.round(windowHeight * 0.74);
   const {t} = useTranslation();
-  const swipeXRef = useRef(0);
+  // 가로 스크롤 — 밖에서 index가 바뀌면(추가·삭제·교체) 그 쪽으로 옮긴다
+  const pagerRef = useRef<ScrollView>(null);
+  useEffect(() => {
+    if (index === null) return;
+    pagerRef.current?.scrollTo({x: index * containerWidth, animated: false});
+  }, [index, containerWidth]);
 
   // 설명 입력 임시값 — 사진이 바뀌면 그 사진 값으로 다시 채운다
   const currentCaption = index !== null ? photos[index]?.caption ?? '' : '';
@@ -97,17 +104,6 @@ export function PhotoViewer({
   const canEdit = !!onReplace || !!onDelete || !!onAdd;
   const hasRightActions = canEdit || !!onDownload;
 
-  const goNext = useCallback(() => {
-    if (index === null || total <= 1) return;
-    commitCaption();
-    onIndexChange((index + 1) % total);
-  }, [index, total, onIndexChange, commitCaption]);
-
-  const goPrev = useCallback(() => {
-    if (index === null || total <= 1) return;
-    commitCaption();
-    onIndexChange((index - 1 + total) % total);
-  }, [index, total, onIndexChange, commitCaption]);
 
   const close = useCallback(() => {
     commitCaption();
@@ -127,27 +123,31 @@ export function PhotoViewer({
             behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
             {/* 배경 탭 = 닫기 */}
             <Pressable style={StyleSheet.absoluteFill} onPress={close} />
-            {/* Pressable에 높이를 줘야 안쪽 Image의 height:'100%'가 기준을 갖는다
-                (auto 높이면 퍼센트가 0으로 계산돼 이미지가 안 보인다) */}
-            {/* Pressable이 아니라 View — Pressable은 자기 터치 처리기가 우리 응답자(onResponder*)를
-                덮어써서 앱에서 좌우 스와이프가 먹지 않았다(웹만 됐다). */}
-            <View
-              style={styles.imageFrame}
-              onStartShouldSetResponder={() => true}
-              onResponderGrant={e => { swipeXRef.current = e.nativeEvent.pageX; }}
-              onResponderRelease={e => {
-                const dx = e.nativeEvent.pageX - swipeXRef.current;
-                // 한 장뿐이면 "다음"이 없다 → 배경과 같이 탭하면 닫힌다
-                if (total <= 1) { if (Math.abs(dx) < 40) close(); return; }
-                if (Math.abs(dx) < 40) { goNext(); return; } // 탭
-                if (dx < 0) goNext(); else goPrev();
+            {/* 손가락을 따라 넘어가는 가로 스크롤(한 장씩 딱 멈춤) — 놓은 뒤에야 바뀌던 방식은 뚝뚝 끊겼다.
+                쪽마다 화면 폭, 사진은 그 안 가운데. 쪽 빈 곳을 탭하면 닫힌다. */}
+            <ScrollView
+              ref={pagerRef}
+              horizontal
+              pagingEnabled
+              showsHorizontalScrollIndicator={false}
+              style={styles.pager}
+              contentOffset={{x: index * containerWidth, y: 0}}
+              onMomentumScrollEnd={e => {
+                const next = Math.round(e.nativeEvent.contentOffset.x / containerWidth);
+                if (next !== index && next >= 0 && next < total) { commitCaption(); onIndexChange(next); }
               }}>
-              <Image
-                source={{uri}}
-                style={[styles.image, {width: Math.min(Math.max(containerWidth * 0.92, 280), MAX_CONTENT_WIDTH)}]}
-                resizeMode="contain"
-              />
-            </View>
+              {photos.map((p, i) => (
+                <Pressable key={`${p.uri}-${i}`} style={[styles.page, {width: containerWidth, height: pageHeight}]} onPress={close}>
+                  <View style={[styles.imageFrame, {height: pageHeight}]}>
+                    <Image
+                      source={{uri: p.uri}}
+                      style={[styles.image, {width: Math.min(Math.max(containerWidth * 0.92, 280), MAX_CONTENT_WIDTH)}]}
+                      resizeMode="contain"
+                    />
+                  </View>
+                </Pressable>
+              ))}
+            </ScrollView>
             {/* 설명 — 편집 가능하면 입력칸, 아니면 있을 때만 글자 */}
             {onCaptionChange ? (
               <TextInput
@@ -210,6 +210,14 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.92)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pager: {
+    flexGrow: 0,
+    alignSelf: 'stretch',
+  },
+  page: {
     alignItems: 'center',
     justifyContent: 'center',
   },
