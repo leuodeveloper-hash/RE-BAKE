@@ -1020,5 +1020,6 @@
   "dday.repeatMonthly": "Monthly",
   "dday.repeatYearly": "Yearly",
   "dday.edit": "Edit",
-  "dday.emptyAction": "Set first D-day"
+  "dday.emptyAction": "Set first D-day",
+  "group.emptyCookbooks": "No cookbooks yet."
 }

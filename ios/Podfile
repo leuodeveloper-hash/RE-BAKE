@@ -2,6 +2,8 @@ require File.join(File.dirname(`node --print "require.resolve('expo/package.json
 require File.join(File.dirname(`node --print "require.resolve('react-native/package.json')"`), "scripts/react_native_pods")
 
 require 'json'
+# Firebase(react-native-firebase)는 SPM 대신 CocoaPods로 — static 프레임워크와 SPM을 같이 쓰면 중복 심볼로 링크가 깨진다
+$RNFirebaseDisableSPM = true
 podfile_properties = JSON.parse(File.read(File.join(__dir__, 'Podfile.properties.json'))) rescue {}
 
 def ccache_enabled?(podfile_properties)

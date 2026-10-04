@@ -1,4 +1,5 @@
 import React, {createContext, useCallback, useContext, useEffect, useMemo, useState} from 'react';
+import {identify} from '@utils/analytics';
 import {clearAccountCache, parkAccountRecipes, restoreAccountRecipes} from '@utils/accountCache';
 import {Platform} from 'react-native';
 import {
@@ -135,6 +136,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
           console.warn('[Auth] 보관한 레시피 복원 실패:', e));
       }
       setUser(firebaseUser);
+      identify(firebaseUser?.uid ?? null);
       if (firebaseUser) {
         // 어드민 확인 — admin/{uid} 문서가 있으면 어드민
         try {

@@ -1,4 +1,5 @@
 import '../global.css';
+import {trackScreen} from '@utils/analytics';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, StyleSheet, View, Easing, Pressable, Platform, AppState} from 'react-native';
 import {Stack, usePathname, useRouter} from 'expo-router';
@@ -238,6 +239,8 @@ const splashStyles = StyleSheet.create({
 function NavigationContent() {
   const router = useRouter();
   const pathname = usePathname();
+  // 화면 진입 기록 — 경로가 바뀔 때마다 한 번
+  useEffect(() => { trackScreen(pathname); }, [pathname]);
   const {t} = useTranslation();
   // 앱 시작 시 시험 알림 동기화 (저장된 prefs → Firestore 일정 fetch → 로컬 알림 재등록)
   useExamNotificationPrefs();

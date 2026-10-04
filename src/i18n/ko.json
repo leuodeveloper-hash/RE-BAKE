@@ -1005,5 +1005,6 @@
   "dday.repeatMonthly": "매월",
   "dday.repeatYearly": "매년",
   "dday.edit": "편집",
-  "dday.emptyAction": "첫 D-day 설정하기"
+  "dday.emptyAction": "첫 D-day 설정하기",
+  "group.emptyCookbooks": "아직 레시피 북이 없습니다."
 }

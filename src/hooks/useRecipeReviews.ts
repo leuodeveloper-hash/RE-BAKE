@@ -1,4 +1,5 @@
 import React, {createContext, useCallback, useContext, useEffect, useRef, useState} from 'react';
+import {track} from '@utils/analytics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {doc, getDoc, setDoc} from 'firebase/firestore';
 import {db} from '@config/firebase';
@@ -100,6 +101,7 @@ function useRecipeReviewsState() {
       if (empty) delete next[recipeId];
       else next[recipeId] = review;
       saved = empty ? undefined : review;
+      if (!empty) track('review_written', {has_photo: photos.length > 0});
       persist(next);
       return next;
     });

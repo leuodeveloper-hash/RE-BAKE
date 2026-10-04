@@ -1,0 +1,22 @@
+diff --git a/node_modules/@bacons/apple-targets/build/with-xcode-changes.js b/node_modules/@bacons/apple-targets/build/with-xcode-changes.js
+index 96ded68..5107fd9 100644
+--- a/node_modules/@bacons/apple-targets/build/with-xcode-changes.js
++++ b/node_modules/@bacons/apple-targets/build/with-xcode-changes.js
+@@ -226,12 +226,14 @@ async function applyXcodeChanges(config, project, props) {
+             config.removeFromProject();
+         });
+         // Remove existing build configuration list
+-        targetToUpdate.props.buildConfigurationList
++        // (참조를 먼저 지우면 타깃의 buildConfigurationList가 비워져 removeFromProject에서 터진다 — 미리 잡아 둔다)
++        const oldConfigList = targetToUpdate.props.buildConfigurationList;
++        oldConfigList
+             .getReferrers()
+             .forEach((ref) => {
+-            ref.removeReference(targetToUpdate.props.buildConfigurationList.uuid);
++            ref.removeReference(oldConfigList.uuid);
+         });
+-        targetToUpdate.props.buildConfigurationList.removeFromProject();
++        oldConfigList.removeFromProject();
+         // Create new build phases
+         targetToUpdate.props.buildConfigurationList =
+             (0, configuration_list_1.createConfigurationListForType)(project, props);

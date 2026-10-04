@@ -8,6 +8,7 @@ import {AppBar} from '@components/Navigation';
 import {Breadcrumb} from '@components/Navigation/Breadcrumb';
 import {ContentContainer, GlassContainer} from '@components/Container';
 import {SectionHeader} from '@components/SectionHeader';
+import {EmptyState} from '@components/EmptyState';
 import {RecipeCard} from '@components/Recipe/RecipeCard';
 import {PackCanvas, CookbookCarousel, GroupExpandOverlay, SessionFlow, type SessionFlowItem, type PackBoardItem, type PackOriginRect} from '@components/PackBoard';
 import {Menu, type MenuItemData} from '@components/Menu';
@@ -758,7 +759,13 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
           <PullIndicator progress={pullProgress} isRefreshing={isRefreshing} refreshStripProgress={refreshStripProgress} refreshOpacity={refreshOpacity} />
 
           {viewMode === 'pack' ? (
-            (bookCarousel && axis === 'cookbook') || axis === 'retrospective' ? (
+            activePacks.length === 0 ? (
+              /* 팩이 하나도 없으면 빈 캔버스 대신 공통 빈 상태 */
+              <EmptyState
+                category="no-recipe"
+                title={axis === 'retrospective' ? t('group.emptyRetro') : axis === 'method' ? t('group.emptyMethods') : t('group.emptyCookbooks')}
+              />
+            ) : (bookCarousel && axis === 'cookbook') || axis === 'retrospective' ? (
               /* 레시피 북·회고 노트 팩뷰: 센터 카드 캐러셀 (하나씩 스와이프, 탭 시 펼침) */
               <CookbookCarousel items={activePacks} />
             ) : (

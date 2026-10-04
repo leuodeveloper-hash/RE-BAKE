@@ -53,6 +53,7 @@
     "scheme": "bakle",
     "plugins": [
       "expo-dev-client",
+      "@react-native-firebase/app",
       "expo-web-browser",
       [
         "expo-notifications",
@@ -109,7 +110,12 @@
         "expo-build-properties",
         {
           "ios": {
-            "deploymentTarget": "15.5"
+            "deploymentTarget": "15.5",
+            "useFrameworks": "static",
+            "forceStaticLinking": [
+              "RNFBApp",
+              "RNFBAnalytics"
+            ]
           }
         }
       ],

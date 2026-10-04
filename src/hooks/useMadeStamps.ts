@@ -1,4 +1,5 @@
 import React, {createContext, useCallback, useContext, useEffect, useMemo, useRef, useState} from 'react';
+import {track} from '@utils/analytics';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {doc, getDoc, setDoc} from 'firebase/firestore';
 import {db} from '@config/firebase';
@@ -71,7 +72,7 @@ function useMadeStampsState() {
   const setMade = useCallback((recipeId: string, made: boolean) => {
     setStamps(prev => {
       const next = {...prev};
-      if (made) next[recipeId] = new Date().toISOString();
+      if (made) { next[recipeId] = new Date().toISOString(); track('bake_logged', {}); }
       else delete next[recipeId];
 
       AsyncStorage.setItem(CACHE_KEY, JSON.stringify(next)).catch(() => {});
