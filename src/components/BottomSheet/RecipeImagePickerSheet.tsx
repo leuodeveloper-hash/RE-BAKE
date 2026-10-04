@@ -1,3 +1,4 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, {useEffect, useMemo, useState} from 'react';
 import {Pressable, StyleSheet, View, useWindowDimensions} from 'react-native';
 import {Image as ExpoImage} from 'expo-image';
@@ -6,7 +7,11 @@ import {ListItem} from '@components/ListItem';
 import {SectionHeader} from '@components/SectionHeader';
 import {IconThumbnail} from '@components/Thumbnail';
 import {IconButton} from '@components/IconButton';
-import {IconNoteFilled} from '@components/Icon/IconIndex';
+import {IconNoteFilled, IconSearch} from '@components/Icon/IconIndex';
+import {TextInput} from '@components/TextInput';
+import {AppIcon} from '@components/Icon/AppIcon';
+import {EmptyState} from '@components/EmptyState';
+import {useColors} from '@contexts/ThemeContext';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
 import type {SemanticColors} from '@constants/tokens';
@@ -40,6 +45,9 @@ function recipeImages(r: Pick<Recipe, 'imageUri' | 'imageUris'>, allowLocal = fa
   return [r.imageUri, ...(r.imageUris ?? [])].filter((u): u is string => !!u && (allowLocal || !u.startsWith('file://')));
 }
 
+/** 사진을 가져온 레시피 — 최근 순 */
+const RECENT_IMAGE_RECIPES_KEY = '@bakle_recent_image_recipes';
+
 /**
  * 기존 레시피 사진에서 글자 읽기 — 요리를 고르면 그 레시피 사진들이 펼쳐지고, 그중 한 장을 고른다.
  * [+] → 이미지 → 기존 레시피, 편집 화면 입력 툴바(이 레시피 사진, fixedRecipe)에서 쓴다.
@@ -47,16 +55,46 @@ function recipeImages(r: Pick<Recipe, 'imageUri' | 'imageUris'>, allowLocal = fa
 export function RecipeImagePickerSheet({visible, onClose, myRecipes, exploreRecipes, onPick, onDismissed, fixedRecipe}: RecipeImagePickerSheetProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
+  const colors = useColors();
   const [picked, setPicked] = useState<Recipe | null>(null);
-  useEffect(() => { if (!visible) setPicked(null); }, [visible]);
+  // 검색어가 없으면 최근 가져온 레시피 3개, 있으면 전체에서 이름·레시피북으로 찾는다(링크 넣기와 같은 방식)
+  const [query, setQuery] = useState('');
+  const [recentIds, setRecentIds] = useState<string[]>([]);
+  useEffect(() => {
+    if (!visible) { setPicked(null); setQuery(''); return; }
+    AsyncStorage.getItem(RECENT_IMAGE_RECIPES_KEY)
+      .then(raw => setRecentIds(raw ? JSON.parse(raw) : []))
+      .catch(() => setRecentIds([]));
+  }, [visible]);
+  const pickRecipe = (r: Recipe) => {
+    const next = [r.id, ...recentIds.filter(x => x !== r.id)].slice(0, 10);
+    setRecentIds(next);
+    AsyncStorage.setItem(RECENT_IMAGE_RECIPES_KEY, JSON.stringify(next)).catch(() => {});
+    setPicked(r);
+  };
   const recipe = fixedRecipe ?? picked;
   const images = recipe ? recipeImages(recipe, !!fixedRecipe) : [];
 
   // 사진이 있는 레시피만 — 내 레시피 먼저, 둘러보기(팁 제외) 다음
-  const sections = useMemo(() => [
-    {key: 'mine', title: t('recipeImagePicker.mine'), items: (myRecipes ?? []).filter(r => recipeImages(r).length > 0)},
-    {key: 'explore', title: t('recipeImagePicker.explore'), items: (exploreRecipes ?? []).filter(r => r.kind !== 'tip' && recipeImages(r).length > 0)},
-  ].filter(s => s.items.length > 0), [myRecipes, exploreRecipes, t]);
+  const sections = useMemo(() => {
+    const mine = (myRecipes ?? []).filter(r => recipeImages(r).length > 0);
+    const explore = (exploreRecipes ?? []).filter(r => r.kind !== 'tip' && recipeImages(r).length > 0);
+    const q = query.trim().toLowerCase();
+    if (q) {
+      const match = (r: Recipe) => r.title.toLowerCase().includes(q) || (r.cookbook ?? '').toLowerCase().includes(q);
+      return [
+        {key: 'mine', title: t('recipeImagePicker.mine'), items: mine.filter(match)},
+        {key: 'explore', title: t('recipeImagePicker.explore'), items: explore.filter(match)},
+      ].filter(s => s.items.length > 0);
+    }
+    // 최근 가져온 레시피 3개 — 모자라면 최근 만든 내 레시피로 채운다(처음엔 비어 보이지 않게)
+    const byId = new Map([...mine, ...explore].map(r => [r.id, r]));
+    const recent = recentIds.map(id => byId.get(id)).filter((r): r is Recipe => !!r);
+    const time = (r: Recipe) => (r.createdAt ? new Date(r.createdAt).getTime() : 0);
+    const rest = [...mine].filter(r => !recent.includes(r)).sort((a, b) => time(b) - time(a));
+    const items = [...recent, ...rest].slice(0, 3);
+    return items.length ? [{key: 'recent', title: t('recipeImagePicker.recent'), items}] : [];
+  }, [myRecipes, exploreRecipes, query, recentIds, t]);
 
   // 사진 칸 3열 — 다른 시트 칸과 같은 방식(숫자 폭)
   const {width: windowWidth} = useWindowDimensions();
@@ -81,7 +119,21 @@ export function RecipeImagePickerSheet({visible, onClose, myRecipes, exploreReci
           ))}
         </View>
       ) : (
-        sections.map(sec => (
+        <>
+        <View style={styles.search}>
+          <TextInput
+            value={query}
+            onChangeText={setQuery}
+            placeholder={t('recipeImagePicker.search')}
+            leadingIcon={<AppIcon icon={IconSearch} size="xs" color={colors['foreground/on-surface-muted']} />}
+            clearable
+          />
+        </View>
+        {sections.length === 0 && query.trim() ? (
+          // 통합 검색과 같은 빈 결과 — 그림 없이 검색어를 넣은 문구
+          <EmptyState variant="simple" title={t('searchCommandBar.emptyRecipes', {query: query.trim()})} />
+        ) : null}
+        {sections.map(sec => (
           <View key={sec.key}>
             <SectionHeader title={sec.title} />
             {sec.items.map((r, i) => (
@@ -97,12 +149,13 @@ export function RecipeImagePickerSheet({visible, onClose, myRecipes, exploreReci
                   </View>
                 )}}
                 trailingValue={recipeImages(r).length > 1 ? String(recipeImages(r).length) : undefined}
-                onPress={() => setPicked(r)}
+                onPress={() => pickRecipe(r)}
                 showDivider={i < sec.items.length - 1}
               />
             ))}
           </View>
-        ))
+        ))}
+        </>
       )}
     </BottomSheet>
   );
@@ -129,6 +182,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   image: {
     width: '100%',
     height: '100%',
+  },
+  search: {
+    paddingHorizontal: Spacing.sm,
+    paddingBottom: Spacing.sm,
   },
   thumbSlot: {
     marginRight: Spacing.xs,

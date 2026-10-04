@@ -1021,5 +1021,7 @@
   "dday.repeatYearly": "Yearly",
   "dday.edit": "Edit",
   "dday.emptyAction": "Set first D-day",
-  "group.emptyCookbooks": "No cookbooks yet."
+  "group.emptyCookbooks": "No cookbooks yet.",
+  "recipeImagePicker.recent": "Recent",
+  "recipeImagePicker.search": "Search recipes"
 }
