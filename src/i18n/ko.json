@@ -1026,5 +1026,6 @@
   "recipeEdit.pasteRule.ingredientComma": "재료 여러 개",
   "recipeEdit.writingRules": "단축키",
   "recipeEdit.pasteRule.tip": "팁",
-  "recipeEdit.pasteRule.caution": "주의"
+  "recipeEdit.pasteRule.caution": "주의",
+  "auth.appleLoginFailed": "Apple 로그인에 실패했어요"
 }

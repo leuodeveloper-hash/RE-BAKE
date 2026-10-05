@@ -1041,5 +1041,6 @@
   "recipeEdit.pasteRule.ingredientComma": "Several ingredients",
   "recipeEdit.writingRules": "Shortcuts",
   "recipeEdit.pasteRule.tip": "Tip",
-  "recipeEdit.pasteRule.caution": "Caution"
+  "recipeEdit.pasteRule.caution": "Caution",
+  "auth.appleLoginFailed": "Apple sign-in failed"
 }

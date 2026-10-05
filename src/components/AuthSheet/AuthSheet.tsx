@@ -1,5 +1,6 @@
-import React, {useCallback, useState} from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import React, {useCallback, useEffect, useState} from 'react';
+import {Platform, StyleSheet, Text, View} from 'react-native';
+import * as AppleAuthentication from 'expo-apple-authentication';
 import {Image} from 'expo-image';
 import {useRouter} from 'expo-router';
 import {BottomSheet} from '@components/BottomSheet';
@@ -8,6 +9,7 @@ import {TextInput} from '@components/TextInput';
 import {InputGroup} from '@components/InputGroup';
 import {IconGoogle, IconMailFilled} from '@components/Icon/IconIndex';
 import {useAuth} from '@contexts/AuthContext';
+import {useTheme} from '@contexts/ThemeContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useThemedStyles} from '@hooks/useThemedStyles';
@@ -28,7 +30,14 @@ export function AuthSheet({visible, onClose, onSuccess}: AuthSheetProps) {
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const {t} = useTranslation();
-  const {signIn, signUp, signInWithGoogle} = useAuth();
+  const {signIn, signUp, signInWithGoogle, signInWithApple} = useAuth();
+  const {isDark} = useTheme();
+  // Apple로 로그인 — 이 기기에서 쓸 수 있을 때만(iOS). 웹·안드로이드는 숨긴다
+  const [appleAvailable, setAppleAvailable] = useState(false);
+  useEffect(() => {
+    if (Platform.OS !== 'ios') return;
+    AppleAuthentication.isAvailableAsync().then(setAppleAvailable).catch(() => setAppleAvailable(false));
+  }, []);
   const {showSnackbar} = useSnackbar();
 
   const [showEmailForm, setShowEmailForm] = useState(false);
@@ -128,6 +137,28 @@ export function AuthSheet({visible, onClose, onSuccess}: AuthSheetProps) {
       ) : (
         <View style={[styles.authForm, styles.authFormNoTopPad]}>
           <View style={styles.authLoginButtons}>
+            {appleAvailable && (
+              // Apple 로그인은 Apple 공식 버튼으로(심사 가이드) — 다른 버튼과 같은 높이·알약 모양
+              <AppleAuthentication.AppleAuthenticationButton
+                buttonType={AppleAuthentication.AppleAuthenticationButtonType.CONTINUE}
+                buttonStyle={isDark
+                  ? AppleAuthentication.AppleAuthenticationButtonStyle.WHITE
+                  : AppleAuthentication.AppleAuthenticationButtonStyle.BLACK}
+                cornerRadius={24}
+                style={styles.appleButton}
+                onPress={async () => {
+                  try {
+                    await signInWithApple();
+                    showSnackbar(t('auth.loginSuccess'), {tone: 'positive'});
+                    handleSuccess();
+                  } catch (err: any) {
+                    if (err?.code !== 'ERR_REQUEST_CANCELED') {
+                      showSnackbar(t('auth.appleLoginFailed'), {tone: 'error'});
+                    }
+                  }
+                }}
+              />
+            )}
             <Button
               label={t('auth.continueWithGoogle')}
               variant="soft"
@@ -181,6 +212,10 @@ const createStyles = (colors: SemanticColors) =>
     },
     authButtons: {
       gap: Spacing.sm,
+    },
+    appleButton: {
+      width: '100%',
+      height: 48,
     },
     authLoginButtons: {
       gap: Spacing.sm,

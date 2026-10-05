@@ -8,6 +8,8 @@ import {
   createUserWithEmailAndPassword,
   signOut as firebaseSignOut,
   GoogleAuthProvider,
+  OAuthProvider,
+  updateProfile,
   signInWithPopup,
   signInWithCredential,
   getAdditionalUserInfo,
@@ -21,6 +23,8 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {RANDOM_AVATARS} from '@components/Avatar/avatars';
 import app, {auth, db} from '@config/firebase';
+import * as AppleAuthentication from 'expo-apple-authentication';
+import * as Crypto from 'expo-crypto';
 import {getFunctions, httpsCallable} from 'firebase/functions';
 
 const GUEST_AVATAR_SEED_KEY = '@bakle_avatar_seed';
@@ -74,6 +78,8 @@ interface AuthContextValue {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
+  /** Apple로 로그인 — iOS 전용(앱스토어 심사 4.8). 취소하면 code 'ERR_REQUEST_CANCELED'로 throw */
+  signInWithApple: () => Promise<void>;
   signOut: () => Promise<void>;
   /** 계정 삭제 — 서버에서 계정 데이터·사진·인증 계정을 지우고 이 기기 캐시도 비운다 */
   deleteAccount: () => Promise<void>;
@@ -187,6 +193,35 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
     await incrementSignupCount();
   }, []);
 
+  const signInWithAppleFn = useCallback(async () => {
+    // nonce — Apple 토큰이 이 요청 것인지 Firebase가 확인한다(원문은 Firebase에, 해시는 Apple에)
+    const rawNonce = Crypto.randomUUID();
+    const hashedNonce = await Crypto.digestStringAsync(Crypto.CryptoDigestAlgorithm.SHA256, rawNonce);
+    const apple = await AppleAuthentication.signInAsync({
+      requestedScopes: [
+        AppleAuthentication.AppleAuthenticationScope.FULL_NAME,
+        AppleAuthentication.AppleAuthenticationScope.EMAIL,
+      ],
+      nonce: hashedNonce,
+    });
+    if (!apple.identityToken) throw new Error('APPLE_NO_TOKEN');
+    const credential = new OAuthProvider('apple.com').credential({idToken: apple.identityToken, rawNonce});
+    const result = await signInWithCredential(auth, credential);
+    const info = getAdditionalUserInfo(result);
+    if (info?.isNewUser) {
+      try {
+        await checkSignupLimit();
+        await incrementSignupCount();
+      } catch (e) {
+        await firebaseSignOut(auth);
+        throw e;
+      }
+      // Apple은 이름을 처음 한 번만 준다 — 그때 계정 이름으로 저장
+      const name = [apple.fullName?.givenName, apple.fullName?.familyName].filter(Boolean).join(' ').trim();
+      if (name && result.user) await updateProfile(result.user, {displayName: name}).catch(() => {});
+    }
+  }, []);
+
   const signInWithGoogleFn = useCallback(async () => {
     let result: UserCredential | undefined;
     if (Platform.OS === 'web') {
@@ -262,11 +297,12 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
     signIn,
     signUp,
     signInWithGoogle: signInWithGoogleFn,
+    signInWithApple: signInWithAppleFn,
     signOut,
     deleteAccount,
     updateHandle,
     updateDisplayName,
-  }), [user, handle, displayName, isAdmin, isLoading, avatarSeed, signIn, signUp, signInWithGoogleFn, signOut, deleteAccount, updateHandle, updateDisplayName]);
+  }), [user, handle, displayName, isAdmin, isLoading, avatarSeed, signIn, signUp, signInWithGoogleFn, signInWithAppleFn, signOut, deleteAccount, updateHandle, updateDisplayName]);
 
   return (
     <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
