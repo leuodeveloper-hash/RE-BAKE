@@ -17,6 +17,7 @@ import {Selector} from '@components/Selector';
 import {MenuItem} from '@components/Menu';
 import {TextInput} from '@components/TextInput';
 import {Button} from '@components/Button';
+import {Dialog} from '@components/Dialog';
 import {PlanSheet} from '@components/PlanSheet';
 import {getInstalledWidgetCount} from '@utils/examWidgetSync';
 import {useSnackbar} from '@contexts/SnackbarContext';
@@ -41,6 +42,7 @@ import {
   IconExprolerBookFilled,
   IconPaletteFilled,
   IconLogout,
+  IconTrash,
   IconBellFilled,
   IconSunDimFilled,
   IconCircleHalf,
@@ -68,6 +70,8 @@ export interface ProfileScreenProps {
   onExport: () => Promise<void>;
   onImport: (onConfirmOverwrite?: (count: number) => Promise<boolean>) => Promise<boolean>;
   onLogout: () => void;
+  /** 계정 삭제(확인 후) — 성공하면 true */
+  onDeleteAccount?: () => Promise<boolean>;
   onUpdateHandle: (newHandle: string) => Promise<void>;
   /** 표시 이름 (없으면 handle 표시) */
   displayName?: string | null;
@@ -167,6 +171,7 @@ export function ProfileScreen({
   onExport,
   onImport,
   onLogout,
+  onDeleteAccount,
   onUpdateHandle,
   displayName,
   onUpdateDisplayName,
@@ -233,6 +238,8 @@ export function ProfileScreen({
   const {user} = useAuth();
   // 문의는 메일 앱을 열지 않고 앱 안에서 받는다(주소 비노출)
   const [inquiryOpen, setInquiryOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
   const [showHandleSheet, setShowHandleSheet] = useState(false);
   const [handleInput, setHandleInput] = useState('');
   const [showDisplayNameSheet, setShowDisplayNameSheet] = useState(false);
@@ -657,8 +664,15 @@ export function ProfileScreen({
                 <ListItem
                   title={t('profile.logout')}
                   leading={{type: 'icon', icon: IconLogout}}
-                  showDivider={false}
+                  showDivider
                   onPress={onLogout}
+                />
+                {/* 계정 삭제 — 앱 안에서 바로(앱스토어 요구). 되돌릴 수 없어 확인 창을 거친다 */}
+                <ListItem
+                  title={t('profile.deleteAccount')}
+                  leading={{type: 'icon', icon: IconTrash}}
+                  showDivider={false}
+                  onPress={() => setDeleteOpen(true)}
                 />
               </Card>
             </ContentContainer>
@@ -677,6 +691,29 @@ export function ProfileScreen({
           </View>
         </ScrollView>
       </SafeAreaView>
+
+      <Dialog
+        visible={deleteOpen}
+        onClose={() => { if (!deleting) setDeleteOpen(false); }}
+        icon={IconTrash}
+        title={t('profile.deleteAccountTitle')}
+        description={t('profile.deleteAccountMessage')}
+        actions={<>
+          <Button label={t('common.cancel')} variant="soft" onPress={() => setDeleteOpen(false)} disabled={deleting} />
+          <Button
+            label={deleting ? t('profile.deleting') : t('profile.deleteAccountConfirm')}
+            variant="filled"
+            destructive
+            disabled={deleting}
+            onPress={async () => {
+              setDeleting(true);
+              const ok = await (onDeleteAccount?.() ?? Promise.resolve(false));
+              setDeleting(false);
+              if (ok) setDeleteOpen(false);
+            }}
+          />
+        </>}
+      />
 
       <InquirySheet
         visible={inquiryOpen}

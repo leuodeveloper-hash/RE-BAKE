@@ -41,31 +41,35 @@ export function AddRecipeSheet({visible, onClose, onStartRecipe, onCreateCookboo
   // 3칸 — 재료 준비 칸과 같은 방식(숫자 폭 바깥 View + 안쪽은 꽉 채움)
   const {width: windowWidth} = useWindowDimensions();
   const tileWidth = sheetTileWidth(windowWidth, 3, ROW_PADDING, TILE_GAP);
-  const cell = (key: string, tile: React.ReactNode, extra?: React.ReactNode) => (
-    // 메뉴가 열린 칸은 형제(옆 칸·아래 줄)보다 위로 — 메뉴가 그 뒤에 가리지 않게
-    <View key={key} style={[styles.cell, {width: tileWidth}, extra ? styles.cellRaised : null]}>{tile}{extra}</View>
+  const cell = (key: string, tile: React.ReactNode) => (
+    <View key={key} style={[styles.cell, {width: tileWidth}]}>{tile}</View>
   );
+
   useEffect(() => { if (!visible) setPhotoMenuOpen(false); }, [visible]);
 
   const start = (input: AddRecipeInput) => { onClose(); onStartRecipe(input); };
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} onDismissed={onDismissed}>
+    <BottomSheet
+      visible={visible}
+      onClose={onClose}
+      onDismissed={onDismissed}
+      // 이미지 메뉴는 시트 위로 펼친다 — 아래로 펼치면 화면 끝에 걸려 가려졌다
+      aboveSheet={photoMenuOpen ? (
+        <Menu
+          items={[...photoSourceMenuItems(t), {id: 'recipe', label: t('recipeImagePicker.menu'), icon: IconNoteFilled}]}
+          visible
+          onSelect={id => { setPhotoMenuOpen(false); start(id as AddRecipeInput); }}
+          onClose={() => setPhotoMenuOpen(false)}
+          style={styles.photoMenu}
+        />
+      ) : undefined}>
       <View style={styles.body}>
         {/* 메뉴가 아래 줄(레시피북 만들기) 위로 뜨게 줄 자체도 올린다 */}
-        <View style={[styles.tiles, photoMenuOpen && styles.cellRaised]}>
+        <View style={styles.tiles}>
           {[
                 cell('image', <OptionTile icon={IconScanText} iconColor={colors['custom/orange-var']} label={t('layout.addImage')} size="large" surface="faint" gap={ICON_LABEL_GAP} labelStyle={LIST_ITEM_TITLE_TEXT}
-                  style={styles.tileFill} onPress={() => setPhotoMenuOpen(v => !v)} />,
-                  photoMenuOpen ? (
-                    <Menu
-                      items={[...photoSourceMenuItems(t), {id: 'recipe', label: t('recipeImagePicker.menu'), icon: IconNoteFilled}]}
-                      visible
-                      onSelect={id => { setPhotoMenuOpen(false); start(id as AddRecipeInput); }}
-                      onClose={() => setPhotoMenuOpen(false)}
-                      style={styles.photoMenu}
-                    />
-                  ) : null),
+                  style={styles.tileFill} onPress={() => setPhotoMenuOpen(v => !v)} />),
                 cell('url', <OptionTile icon={IconUrl} iconColor={colors['custom/lime-var']} label={t('layout.addUrl')} size="large" surface="faint" gap={ICON_LABEL_GAP} labelStyle={LIST_ITEM_TITLE_TEXT}
                   style={styles.tileFill} onPress={() => start('url')} />),
                 cell('text', <OptionTile icon={IconText} iconColor={colors['custom/yellow-var']} label={t('layout.addText')} size="large" surface="faint" gap={ICON_LABEL_GAP} labelStyle={LIST_ITEM_TITLE_TEXT}
@@ -119,17 +123,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flexGrow: 0,
     flexShrink: 0,
   },
-  cellRaised: {
-    zIndex: 20,
-    elevation: 20,
-  },
   // 편집 화면 사진 칸 메뉴와 같은 자리 — 칸 바로 아래 왼쪽 정렬
+  // 시트 위 — 이미지 칸(첫 칸) 왼쪽 선에 맞춘다(시트 본문 여백 4 + 줄 여백)
   photoMenu: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    marginTop: 4,
-    zIndex: 20,
+    alignSelf: 'flex-start',
+    marginLeft: Spacing.xs + ROW_PADDING,
   },
   tileFill: {
     width: '100%',

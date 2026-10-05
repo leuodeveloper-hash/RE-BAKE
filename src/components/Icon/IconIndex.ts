@@ -212,3 +212,4 @@ export {default as IconBlockPlus} from '../../../assets/icons/block-plus.svg';
 export {default as IconPlusCircleFilled} from '../../../assets/icons/plus-circle-filled.svg';
 export {default as IconMinusCircleFilled} from '../../../assets/icons/indeterminate-circle-filled.svg';
 export {default as IconLogoSymbol} from '../../../assets/images/logo_symbol.svg';
+export {default as IconKeyboard} from '../../../assets/icons/keyboard.svg';

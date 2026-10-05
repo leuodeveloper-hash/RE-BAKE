@@ -1,10 +1,11 @@
-import {onRequest} from 'firebase-functions/v2/https';
+import {onRequest, onCall, HttpsError} from 'firebase-functions/v2/https';
 import {onDocumentCreated} from 'firebase-functions/v2/firestore';
 import {onSchedule} from 'firebase-functions/v2/scheduler';
 import {defineSecret} from 'firebase-functions/params';
 import {initializeApp} from 'firebase-admin/app';
 import {getFirestore, Timestamp} from 'firebase-admin/firestore';
 import {getStorage} from 'firebase-admin/storage';
+import {getAuth} from 'firebase-admin/auth';
 import nodemailer from 'nodemailer';
 
 initializeApp();
@@ -289,5 +290,37 @@ export const purgeOldOcrLogs = onSchedule(
       }
     }
     console.log(`[purgeOldOcrLogs] 기록 ${old.size}건, 사진 ${removed}개 삭제`);
+  },
+);
+
+/**
+ * 계정 삭제(앱 안에서) — 앱스토어 심사 5.1.1(v).
+ * 로그인한 본인만. 계정 데이터·레시피·사진을 지우고 마지막에 인증 계정을 지운다.
+ * 둘러보기(공식) 레시피와 작성자(authors)는 운영 데이터라 건드리지 않는다.
+ * 앱스토어 구독은 Apple이 관리하므로 여기서 해지되지 않는다(앱에서 안내).
+ */
+export const deleteAccount = onCall(
+  {region: 'asia-northeast3', memory: '512MiB', timeoutSeconds: 120},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) throw new HttpsError('unauthenticated', 'LOGIN_REQUIRED');
+    const db = getFirestore();
+    const bucket = getStorage().bucket();
+
+    // 레시피 사진(recipe_images/{recipeId}…) — 레시피 id로 지운다
+    const recipes = await db.collection('user_recipes').doc(uid).collection('recipes').get();
+    await Promise.all(recipes.docs.map(d =>
+      bucket.deleteFiles({prefix: `recipe_images/${d.id}`}).catch(() => {})));
+    // 회고 사진
+    await bucket.deleteFiles({prefix: `review_photos/${uid}/`}).catch(() => {});
+
+    // 계정 데이터 — 하위 컬렉션까지
+    await db.recursiveDelete(db.collection('user_recipes').doc(uid));
+    await db.recursiveDelete(db.collection('public_cookbooks').doc(uid));
+    await db.recursiveDelete(db.collection('users').doc(uid));
+    await db.collection('cloud_retention').doc(uid).delete().catch(() => {});
+
+    await getAuth().deleteUser(uid);
+    return {ok: true};
   },
 );

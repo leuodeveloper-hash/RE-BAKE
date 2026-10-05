@@ -26,7 +26,7 @@ export default function ProfileRoute() {
     [recipes, exploreRecipes, madeAtOf],
   );
   const {showSnackbar} = useSnackbar();
-  const {user, handle, displayName, signOut, updateHandle, updateDisplayName, avatarSeed, isAdmin} = useAuth();
+  const {user, handle, displayName, signOut, deleteAccount, updateHandle, updateDisplayName, avatarSeed, isAdmin} = useAuth();
   const {isPro} = useSubscription();
   const {t} = useTranslation();
 
@@ -63,6 +63,18 @@ export default function ProfileRoute() {
     }
   }, [signOut, showSnackbar, t]);
 
+  const handleDeleteAccount = useCallback(async () => {
+    try {
+      await deleteAccount();
+      showSnackbar(t('profile.accountDeleted'));
+      return true;
+    } catch (e) {
+      console.error('[profile] deleteAccount failed', e);
+      showSnackbar(t('profile.deleteAccountFailed'), {tone: 'error'});
+      return false;
+    }
+  }, [deleteAccount, showSnackbar, t]);
+
   return (
     <View style={[styles.container, {backgroundColor: colors['surface/dim']}]}>
       <ProfileScreen
@@ -76,6 +88,7 @@ export default function ProfileRoute() {
         onExport={exportRecipes}
         onImport={importRecipes}
         onLogout={handleLogout}
+        onDeleteAccount={handleDeleteAccount}
         onUpdateHandle={updateHandle}
         displayName={displayName}
         onUpdateDisplayName={updateDisplayName}

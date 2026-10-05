@@ -34,7 +34,8 @@ export function useRewardedAd() {
 
     setIsLoading(true);
     const adUnitId = __DEV__ ? ads.TestIds.REWARDED : 'ca-app-pub-9641282889322635/8941768864';
-    const rewarded = ads.RewardedAd.createForAdRequest(adUnitId);
+    // 비맞춤 광고만 — 기기 추적(IDFA)을 쓰지 않아 추적 동의 창(ATT) 없이도 앱스토어 정책에 맞는다
+    const rewarded = ads.RewardedAd.createForAdRequest(adUnitId, {requestNonPersonalizedAdsOnly: true});
 
     const unsubLoaded = rewarded.addAdEventListener(
       ads.RewardedAdEventType.LOADED,

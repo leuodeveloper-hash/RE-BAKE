@@ -84,8 +84,9 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
             {headerRight ?? <View style={styles.centerPlaceholder} />}
           </View>
           {description && (
+            // 라벨이 가운데면 설명도 가운데 — 왼쪽 정렬이면 제목과 선이 어긋나 보인다
             <View style={styles.descriptionRow}>
-              <Text style={styles.description}>{description}</Text>
+              <Text style={[styles.description, styles.descriptionCenter]}>{description}</Text>
             </View>
           )}
         </>
@@ -185,6 +186,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     color: colors['foreground/on-surface'],
     marginTop: FONT_BASELINE_OFFSET,
     textAlign: 'center' as const,
+  },
+  descriptionCenter: {
+    textAlign: 'center',
   },
   description: {
     ...Typography.body.medium,

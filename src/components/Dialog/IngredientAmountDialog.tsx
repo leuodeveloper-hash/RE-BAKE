@@ -77,6 +77,8 @@ export function IngredientAmountDialog({visible, onClose, amount, unit, onConfir
 
   return (
     <Dialog
+      // 입력 팝업 — 통합 검색처럼 위쪽에(키보드에 안 가리게)
+      position="top"
       visible={visible}
       onClose={onClose}
       icon={IconScaleTwotone}

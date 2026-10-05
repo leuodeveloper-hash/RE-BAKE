@@ -205,6 +205,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const SLASH_MENU_ITEMS = useMemo(() => makeSlashMenuItems(t), [t]);
   const {setShowCookbookDialog, setCookbookEditTarget, onCookbookCreatedRef} = useAddSheet();
   const {user, isAdmin} = useAuth();
+  // 텍스트 채우기(applyMarkdown)는 의존성 없이 고정이라 최신 어드민 여부를 ref로 본다
+  const isAdminRef = useRef(isAdmin);
+  isAdminRef.current = isAdmin;
   const {open: openAuthSheet} = useAuthSheet();
   const isLoggedIn = !!user && !user.isAnonymous;
   const insets = useSafeAreaInsets();
@@ -882,6 +885,20 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         bulkText: '',
       })));
     }
+
+    // 정보 줄(레시피북·공법·시간·분량·비중·회차·참고) — 적은 칸만 채우고 그 칸을 켠다
+    const m = parsed.meta;
+    const turnOn: string[] = [];
+    if (m.cookbook) { setCookbook(m.cookbook); turnOn.push('cookbook'); }
+    if (m.method) { setMethod(m.method); turnOn.push('method'); }
+    if (m.time) { setTime(m.time); turnOn.push('time'); }
+    if (m.servings) { setServings(m.servings); turnOn.push('servings'); }
+    if (m.specificGravity) { setRatio(m.specificGravity); turnOn.push('ratio'); }
+    if (m.session) setSession(m.session);
+    if (m.referenceUrl) { setReferenceUrl(m.referenceUrl); turnOn.push('source'); }
+    // 조언은 어드민 칸 — 어드민일 때만
+    if (parsed.advice && isAdminRef.current) { setAdvice(parsed.advice); turnOn.push('advice'); }
+    if (turnOn.length) setActiveFieldIds(ids => [...ids, ...turnOn.filter(id => !ids.includes(id))]);
 
     showSnackbar(t('recipeEdit.pasteApplied'), {tone: 'positive'});
   }, [showSnackbar, t]);

@@ -58,8 +58,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     // Bold·SemiBold는 큰 크기에서 두꺼워 보였다 — Medium
     fontFamily: 'Pretendard-Medium',
     fontWeight: '500',
-    fontSize: 38,
-    lineHeight: 46,
+    // 한 단계 크게(38 → 44)
+    fontSize: 44,
+    lineHeight: 52,
     letterSpacing: -1,
     color: colors['foreground/on-surface'],
     textAlign: 'center',

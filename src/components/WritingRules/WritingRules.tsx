@@ -10,21 +10,25 @@ import {Typography} from '@constants/typography';
 
 /** 쓰기 규칙 한 줄 — 기호(회색 뱃지)와 뜻. 기호가 'recipeEdit.'로 시작하면 번역 키 */
 const RULES = {
+  title: {marks: ['#'], label: 'recipeEdit.pasteRule.title'},
+  meta: {marks: ['recipeEdit.pasteMark.meta'], label: 'recipeEdit.pasteRule.meta'},
   section: {marks: ['##'], label: 'recipeEdit.pasteRule.group'},
   subgroup: {marks: ['###'], label: 'recipeEdit.pasteRule.subgroup'},
   group: {marks: ['##'], label: 'recipeEdit.pasteRule.subgroup'},
   ingredient: {marks: ['-'], label: 'recipeEdit.pasteRule.ingredient'},
-  ingredientComma: {marks: [','], label: 'recipeEdit.pasteRule.ingredient'},
+  ingredientComma: {marks: [','], label: 'recipeEdit.pasteRule.ingredientComma'},
   toolComma: {marks: [','], label: 'recipeEdit.pasteRule.tool'},
   step: {marks: ['1.'], label: 'recipeEdit.pasteRule.step'},
   note: {marks: ['recipeEdit.pasteMark.tip', 'recipeEdit.pasteMark.caution'], label: 'recipeEdit.pasteRule.note'},
+  tip: {marks: ['recipeEdit.pasteMark.tip'], label: 'recipeEdit.pasteRule.tip'},
+  caution: {marks: ['recipeEdit.pasteMark.caution'], label: 'recipeEdit.pasteRule.caution'},
 } as const;
 
 export type WritingRuleKey = keyof typeof RULES;
 
 /** 쓰는 곳별 규칙 묶음 — 텍스트 시트(레시피 전체) / 한번에 쓰기(재료 칸·과정 칸) */
 export const WRITING_RULES: Record<'recipe' | 'ingredients' | 'tools' | 'steps', WritingRuleKey[]> = {
-  recipe: ['section', 'subgroup', 'ingredient', 'step', 'note'],
+  recipe: ['title', 'meta', 'section', 'subgroup', 'ingredient', 'step', 'note'],
   ingredients: ['group', 'ingredientComma'],
   tools: ['toolComma'],
   steps: ['group', 'step', 'note'],
@@ -41,6 +45,14 @@ export interface WritingRulesProps {
    */
   asRow?: boolean;
   style?: StyleProp<ViewStyle>;
+}
+
+/** 규칙들을 "뜻 · 기호" 줄로 — 규칙 모음 패널(Cheatsheet)용 */
+export function writingRuleRows(keys: WritingRuleKey[], t: (k: string) => string): {label: string; keys: string[]}[] {
+  return keys.map(key => {
+    const r = RULES[key];
+    return {label: t(r.label), keys: r.marks.map(m => (m.startsWith('recipeEdit.') ? t(m) : m))};
+  });
 }
 
 /**

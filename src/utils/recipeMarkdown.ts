@@ -9,6 +9,9 @@ import type {IngredientGroup, StepGroup, Step} from '../types/recipe';
  *
  * 인식하는 형태:
  *   # 제목
+ *   레시피북: 쿠키 / 공법: 크림법 / 시간: 40분 / 분량: 20개 / 비중: 0.85 / 회차: 2 / 참고: https://…
+ *                           → 정보 줄 — 첫 ## 섹션 전에만 읽는다(재료·과정 줄과 헷갈리지 않게)
+ *   ## 조언                  → 베이키의 조언(어드민만 반영)
  *   ## 재료 / 가루 / 반죽   → 재료 묶음(제목이 그대로 묶음 이름)
  *   ## 도구
  *   ## 과정 / 만들기        → 과정 묶음
@@ -23,16 +26,35 @@ export interface ParsedMarkdownRecipe {
   ingredientGroups: IngredientGroup[];
   tools: {name: string}[];
   stepGroups: StepGroup[];
+  /** 정보 줄 — 첫 ## 섹션 전의 '이름: 값' */
+  meta: Partial<Record<RecipeMetaKey, string>>;
+  /** ## 조언 섹션 본문 */
+  advice?: string;
 }
 
+export type RecipeMetaKey = 'cookbook' | 'method' | 'time' | 'servings' | 'specificGravity' | 'session' | 'referenceUrl';
+
+/** 정보 줄 이름 → 칸. 정해진 이름만 받는다(모르는 이름은 무시) */
+const META_NAMES: Record<string, RecipeMetaKey> = {
+  '레시피북': 'cookbook', '레시피 북': 'cookbook', 'cookbook': 'cookbook',
+  '공법': 'method', 'method': 'method',
+  '시간': 'time', 'time': 'time',
+  '분량': 'servings', '인분': 'servings', 'servings': 'servings', 'yield': 'servings',
+  '비중': 'specificGravity', 'specific gravity': 'specificGravity',
+  '회차': 'session', 'session': 'session',
+  '참고': 'referenceUrl', '참고 링크': 'referenceUrl', 'reference': 'referenceUrl', 'link': 'referenceUrl',
+};
+const ADVICE_WORDS = ['조언', 'advice'];
+
 /** 섹션 제목으로 무엇을 담는 묶음인지 가른다 */
-type SectionKind = 'ingredient' | 'tool' | 'step';
+type SectionKind = 'ingredient' | 'tool' | 'step' | 'advice';
 
 const TOOL_WORDS = ['도구', '기구', '장비', 'tool', 'equipment'];
 const STEP_WORDS = ['과정', '만들기', '조리', '순서', '방법', 'step', 'method', 'instruction'];
 
 function sectionKind(title: string): SectionKind {
   const t = title.toLowerCase();
+  if (ADVICE_WORDS.some(w => t.includes(w))) return 'advice';
   if (TOOL_WORDS.some(w => t.includes(w))) return 'tool';
   if (STEP_WORDS.some(w => t.includes(w))) return 'step';
   // 나머지는 재료로 본다 — "가루", "반죽재료"처럼 이름이 제각각이라
@@ -46,7 +68,9 @@ function stripBullet(line: string): string {
 }
 
 export function parseRecipeMarkdown(text: string): ParsedMarkdownRecipe {
-  const out: ParsedMarkdownRecipe = {ingredientGroups: [], tools: [], stepGroups: []};
+  const out: ParsedMarkdownRecipe = {ingredientGroups: [], tools: [], stepGroups: [], meta: {}};
+  const adviceLines: string[] = [];
+  let seenSection = false;
   if (!text?.trim()) return out;
 
   // 섹션이 하나도 없는 글도 받는다 — 그때는 전부 과정으로 본다
@@ -83,11 +107,22 @@ export function parseRecipeMarkdown(text: string): ParsedMarkdownRecipe {
         else if (kind === 'step') pushStepGroup(title);
         continue;
       }
+      seenSection = true;
       kind = sectionKind(title);
       if (kind === 'ingredient') pushIngGroup(title);
       else if (kind === 'step') pushStepGroup(title);
       continue;
     }
+
+    // 정보 줄 — 첫 섹션 전의 '이름: 값'
+    if (!seenSection) {
+      const m = line.match(/^([^:：]{1,20})[:：]\s*(.+)$/);
+      const key = m ? META_NAMES[m[1].trim().toLowerCase()] : undefined;
+      if (key) { out.meta[key] = m![2].trim(); continue; }
+    }
+
+    // 조언 섹션 — 줄을 그대로 모은다(목록·인용 기호도 글의 일부)
+    if (kind === 'advice') { adviceLines.push(line); continue; }
 
     // 인용 — 바로 앞 과정의 팁/주의
     const quote = line.match(/^>\s*(.*)$/);
@@ -119,6 +154,8 @@ export function parseRecipeMarkdown(text: string): ParsedMarkdownRecipe {
       stepGroup!.steps.push(step);
     }
   }
+
+  if (adviceLines.length) out.advice = adviceLines.join('\n');
 
   // 빈 묶음은 버린다 — 제목만 있고 내용이 없는 섹션
   out.ingredientGroups = out.ingredientGroups.filter(g => g.ingredients.length > 0);

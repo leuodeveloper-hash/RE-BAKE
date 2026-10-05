@@ -20,7 +20,8 @@ import {
 } from '@react-native-google-signin/google-signin';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {RANDOM_AVATARS} from '@components/Avatar/avatars';
-import {auth, db} from '@config/firebase';
+import app, {auth, db} from '@config/firebase';
+import {getFunctions, httpsCallable} from 'firebase/functions';
 
 const GUEST_AVATAR_SEED_KEY = '@bakle_avatar_seed';
 // 가입 한도 — 하루 100명, 전체 1,000명(베타 운영 규모). 숫자를 바꾸면 안내 문구도 같이 바뀐다
@@ -74,6 +75,8 @@ interface AuthContextValue {
   signUp: (email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
   signOut: () => Promise<void>;
+  /** 계정 삭제 — 서버에서 계정 데이터·사진·인증 계정을 지우고 이 기기 캐시도 비운다 */
+  deleteAccount: () => Promise<void>;
   updateHandle: (newHandle: string) => Promise<void>;
   updateDisplayName: (newDisplayName: string) => Promise<void>;
 }
@@ -229,6 +232,14 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
     await firebaseSignOut(auth);
   }, []);
 
+  const deleteAccount = useCallback(async () => {
+    // 서버가 다 지운 뒤에만 기기를 비운다 — 실패하면 아무것도 안 지운 채 에러를 올린다
+    await httpsCallable(getFunctions(app, 'asia-northeast3'), 'deleteAccount')();
+    // 삭제한 계정이라 레시피를 보관(park)하지 않는다
+    await clearAccountCache();
+    await firebaseSignOut(auth).catch(() => {});
+  }, []);
+
   const updateHandle = useCallback(async (newHandle: string) => {
     if (!user) return;
     await setDoc(doc(db, 'users', user.uid), {handle: newHandle}, {merge: true});
@@ -252,9 +263,10 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
     signUp,
     signInWithGoogle: signInWithGoogleFn,
     signOut,
+    deleteAccount,
     updateHandle,
     updateDisplayName,
-  }), [user, handle, displayName, isAdmin, isLoading, avatarSeed, signIn, signUp, signInWithGoogleFn, signOut, updateHandle, updateDisplayName]);
+  }), [user, handle, displayName, isAdmin, isLoading, avatarSeed, signIn, signUp, signInWithGoogleFn, signOut, deleteAccount, updateHandle, updateDisplayName]);
 
   return (
     <AuthContext.Provider value={value}>{children}</AuthContext.Provider>

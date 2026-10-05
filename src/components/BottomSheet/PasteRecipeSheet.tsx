@@ -1,11 +1,14 @@
-import React, {useEffect, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {BottomSheet} from './BottomSheet';
 import {Button} from '@components/Button';
 import {AutoGrowInput} from '@components/AutoGrowInput';
 import {BulkTypingOverlay} from '@components/RainbowText';
 import {SkeletonLine} from '@components/SkeletonLine';
-import {WritingRules} from '@components/WritingRules';
+import {writingRuleRows} from '@components/WritingRules';
+import {Cheatsheet} from '@components/Cheatsheet';
+import {IconKeyboard} from '@components/Icon/IconIndex';
+import {IconButton} from '@components/IconButton';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
 import {Spacing} from '@constants/spacing';
@@ -36,9 +39,27 @@ export function PasteRecipeSheet({visible, onClose, onApply, initialText, loadin
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const [text, setText] = useState('');
+  const [rulesOpen, setRulesOpen] = useState(false);
 
   // 열 때마다 비운다 — 이전 내용이 남아 있으면 잘못 덮어쓴다
   useEffect(() => { if (visible) setText(initialText ?? ''); }, [visible, initialText]);
+  // 단축키 패널 — 처음 자리는 헤더 키보드 버튼 바로 아래(메뉴처럼). 열 때마다 버튼 위치를 잰다
+  const rulesBtnRef = useRef<View>(null);
+  const [rulesAnchor, setRulesAnchor] = useState<{x: number; y: number; width: number; height: number} | null>(null);
+  const openRules = useCallback(() => {
+    const node = rulesBtnRef.current;
+    if (!node) { setRulesOpen(true); return; }
+    node.measureInWindow((x, y, width, height) => {
+      setRulesAnchor(width ? {x, y, width, height} : null);
+      setRulesOpen(true);
+    });
+  }, []);
+  // 시트를 열면 단축키 패널도 기본으로 열린다 — 시트가 자리 잡은 뒤(페이드인 후) 버튼 위치를 재서
+  useEffect(() => {
+    if (!visible) { setRulesOpen(false); return; }
+    const timer = setTimeout(openRules, 260);
+    return () => clearTimeout(timer);
+  }, [visible, openRules]);
   // 읽은 글이 들어오면 타이핑이 끝날 때까지 입력 글자를 숨기고 무지개 오버레이만 보인다
   const [typing, setTyping] = useState(false);
   useEffect(() => { setTyping(!!(visible && animateInitial && initialText)); }, [visible, animateInitial, initialText]);
@@ -47,8 +68,26 @@ export function PasteRecipeSheet({visible, onClose, onApply, initialText, loadin
     <BottomSheet
       visible={visible}
       onClose={onClose}
+      // 공통 시트 헤더 — 라벨 가운데(다른 시트와 같게)
+      headerType="center"
+      // 단축키 패널 열고 닫기 — 시트 헤더 오른쪽 아이콘 자리
+      headerRight={
+        <View ref={rulesBtnRef} collapsable={false}>
+          <IconButton icon={IconKeyboard} variant={rulesOpen ? 'tonal' : 'ghost-secondary'} size="medium" onPress={() => (rulesOpen ? setRulesOpen(false) : openRules())} />
+        </View>
+      }
+      floating={
+        <Cheatsheet
+          visible={rulesOpen}
+          anchor={rulesAnchor}
+          sections={[
+            {rows: writingRuleRows(['title', 'meta'], t)},
+            {rows: writingRuleRows(['section', 'subgroup'], t)},
+            {rows: writingRuleRows(['ingredient', 'step', 'tip', 'caution'], t)},
+          ]}
+        />
+      }
       title={t('recipeEdit.pasteMarkdown')}
-      description={t('recipeEdit.pasteDescription')}
       bottomAction={
         <Button
           label={t('recipeEdit.pasteApply')}
@@ -76,17 +115,18 @@ export function PasteRecipeSheet({visible, onClose, onApply, initialText, loadin
             <BulkTypingOverlay text={text} textStyle={styles.input} containerStyle={styles.inputPad} onDone={() => setTyping(false)} />
           )}
         </View>
-        {/* 쓰는 규칙 — 기호는 회색 뱃지로, 뜻은 옆 글자로 */}
-        <WritingRules kind="recipe" />
       </View>
     </BottomSheet>
   );
 }
 
+const INPUT_MAX_HEIGHT = 400;
+
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  // 다른 시트 본문과 같게 — 좌우·상하 8
   body: {
     paddingHorizontal: Spacing.sm,
-    paddingBottom: Spacing.sm,
+    paddingVertical: Spacing.sm,
     gap: Spacing.sm,
   },
   inputWrap: {
@@ -95,9 +135,12 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingHorizontal: Spacing.smd,
     paddingVertical: Spacing.sm,
     minHeight: 200,
+    // 칸은 최대 400까지만 — 넘치면 칸 안에서 스크롤(키보드가 올라와도 커서가 보이게)
+    maxHeight: INPUT_MAX_HEIGHT,
   },
   input: {
     ...Typography.body.medium,
+    maxHeight: INPUT_MAX_HEIGHT - Spacing.sm * 2,
     color: colors['foreground/on-surface'],
   },
   // 오버레이를 입력 글자 자리에 겹친다 — inputWrap 안쪽 여백과 같게

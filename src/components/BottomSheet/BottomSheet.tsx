@@ -1,4 +1,4 @@
-import React, {useCallback, useEffect, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   Animated,
   GestureResponderEvent,
@@ -56,6 +56,13 @@ export interface BottomSheetProps {
   headerType?: 'default' | 'center';
   /** 타이틀 우측 슬롯 — SheetHeader로 그대로 넘긴다 */
   headerRight?: React.ReactNode;
+  /**
+   * 시트 바로 위(시트 밖)에 띄우는 요소 — 시트는 모서리 때문에 안을 잘라내서, 위로 펼치는 메뉴는 여기 둔다.
+   * 시트와 같이 움직이고 같이 사라진다.
+   */
+  aboveSheet?: React.ReactNode;
+  /** 시트 화면 전체에 떠 있는 층(끌어 옮기는 패널 등) — 시트에 잘리지 않는다 */
+  floating?: React.ReactNode;
   /** 시트 안 다음 단계 — 헤더 왼쪽 뒤로가기(SheetHeader로 넘긴다) */
   onBack?: () => void;
   height?: number | 'auto';
@@ -68,7 +75,7 @@ export interface BottomSheetProps {
   backgroundElement?: React.ReactNode;
   /** 배경 오버레이에 블러 적용 (다이얼로그처럼) */
   blurBackdrop?: boolean;
-  /** 등장/퇴장 애니메이션. 'slide'(기본, 아래→위) | 'fade'(같은 자리에서 페이드) */
+  /** 등장/퇴장 애니메이션. 'fade'(기본, 같은 자리에서 페이드) | 'slide'(아래→위) */
   animationType?: 'slide' | 'fade';
   /** 상단 드래그 핸들 바 숨김 (드래그 비활성 + 전체 팝업 느낌) */
   hideHandle?: boolean;
@@ -97,6 +104,8 @@ export function BottomSheet({
   headerGraphic,
   headerType,
   headerRight,
+  aboveSheet,
+  floating,
   onBack,
   height = 'auto',
   enableDragToDismiss = true,
@@ -106,7 +115,7 @@ export function BottomSheet({
   maxWidth,
   backgroundElement,
   blurBackdrop = false,
-  animationType = 'slide',
+  animationType = 'fade', // 기본 페이드 — 아래에서 미끄러져 오르는 등장은 쓰지 않는다
   hideHandle = false,
   bottomAction,
   fullScreenRounded = true,
@@ -128,14 +137,32 @@ export function BottomSheet({
   // 키보드 높이 — 시트 안 입력칸(검색·회고 등)이 키보드에 가려지지 않게 시트를 그만큼 올린다.
   // Modal 안이라 화면 자동 리사이즈가 안 먹어 직접 잰다.
   const [keyboardHeight, setKeyboardHeight] = useState(0);
+  // 키보드가 오르내리는 동안 시트가 튀어 보이지 않게 — 잠깐 감췄다가 자리를 잡은 뒤 그 자리에서 나타난다
+  const kbOpacity = useRef(new Animated.Value(1)).current;
   useEffect(() => {
     if (Platform.OS === 'web') return;
-    const showEvt = Platform.OS === 'ios' ? 'keyboardWillShow' : 'keyboardDidShow';
-    const hideEvt = Platform.OS === 'ios' ? 'keyboardWillHide' : 'keyboardDidHide';
-    const show = Keyboard.addListener(showEvt, e => setKeyboardHeight(e.endCoordinates.height));
-    const hide = Keyboard.addListener(hideEvt, () => setKeyboardHeight(0));
-    return () => { show.remove(); hide.remove(); };
-  }, []);
+    const fadeOut = () => Animated.timing(kbOpacity, {toValue: 0, duration: 90, useNativeDriver: true}).start();
+    const settle = (h: number) => {
+      kbOpacity.setValue(0);
+      setKeyboardHeight(h);
+      // 새 높이로 그려진 다음 프레임에 나타나게
+      requestAnimationFrame(() => Animated.timing(kbOpacity, {toValue: 1, duration: 160, useNativeDriver: true}).start());
+    };
+    const subs = Platform.OS === 'ios'
+      ? [
+          Keyboard.addListener('keyboardWillShow', fadeOut),
+          Keyboard.addListener('keyboardDidShow', e => settle(e.endCoordinates.height)),
+          Keyboard.addListener('keyboardWillHide', fadeOut),
+          Keyboard.addListener('keyboardDidHide', () => settle(0)),
+        ]
+      : [
+          Keyboard.addListener('keyboardDidShow', e => settle(e.endCoordinates.height)),
+          Keyboard.addListener('keyboardDidHide', () => settle(0)),
+        ];
+    return () => subs.forEach(sub => sub.remove());
+  }, [kbOpacity]);
+  // 열기·닫기 페이드 × 키보드 페이드 — 매 렌더 새 노드를 만들지 않게 한 번만
+  const visibleOpacity = useMemo(() => Animated.multiply(sheetOpacity, kbOpacity), [sheetOpacity, kbOpacity]);
   const closingRef = useRef(false);
 
   const onCloseRef = useRef(onClose);
@@ -276,8 +303,10 @@ export function BottomSheet({
     }
   }, [enableBackdropDismiss, animateClose]);
 
+  const [sheetH, setSheetH] = useState(0);
   const handleLayout = (event: {nativeEvent: {layout: {height: number}}}) => {
     contentHeight.current = event.nativeEvent.layout.height;
+    setSheetH(event.nativeEvent.layout.height);
   };
 
   if (!mounted) {
@@ -313,7 +342,7 @@ export function BottomSheet({
             height !== 'auto' && !fullScreen && {height},
             !fullScreen && {maxHeight: windowHeight - safeTop - (keyboardHeight > 0 ? keyboardHeight : safeBottom) - Spacing.sm * 2},
             maxWidth != null && {maxWidth},
-            {transform: [{translateY}], opacity: sheetOpacity},
+            {transform: [{translateY}], opacity: visibleOpacity},
           ]}
           onLayout={handleLayout}>
           {backgroundElement}
@@ -387,6 +416,21 @@ export function BottomSheet({
             </View>
           </View>
         </Animated.View>
+
+        {/* 시트 위에 띄우는 요소(위로 펼치는 메뉴 등) — 시트 윗변 바로 위, 시트와 같은 폭·움직임 */}
+        {aboveSheet && !fullScreen ? (
+          <Animated.View
+            pointerEvents="box-none"
+            style={[
+              styles.aboveSheet,
+              {bottom: (keyboardHeight > 0 ? keyboardHeight + Spacing.sm : Math.max(Spacing.sm, safeBottom)) + sheetH + Spacing.xs},
+              {transform: [{translateY}], opacity: visibleOpacity},
+            ]}>
+            <View pointerEvents="box-none" style={[styles.aboveSheetInner, maxWidth != null && {maxWidth}]}>{aboveSheet}</View>
+          </Animated.View>
+        ) : null}
+
+        {floating ? <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>{floating}</View> : null}
       </View>
   );
 
@@ -439,6 +483,16 @@ const createStyles = (colors: SemanticColors) =>
       flex: 1,
       justifyContent: 'flex-end',
       padding: Spacing.sm,
+    },
+    aboveSheet: {
+      position: 'absolute',
+      left: Spacing.sm,
+      right: Spacing.sm,
+      alignItems: 'center',
+    },
+    aboveSheetInner: {
+      width: '100%',
+      maxWidth: SHEET_MAX_WIDTH,
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,

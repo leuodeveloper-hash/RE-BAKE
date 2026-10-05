@@ -132,7 +132,7 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
     // 카드 둘레 여백 구역에 걸치는 팩은 카드 중심에서 바깥 방향으로 밀어낸다.
     const hero = placed.find(p => p.item.custom);
     if (hero) {
-      const CLEAR = 44; // 카드 둘레 여백 — 64면 카드 주변이 너무 비었다
+      const CLEAR = 24; // 카드 둘레 여백 — 44도 모바일 앱에서 카드 주변이 비어 보였다
       const heroW = hero.item.customSize?.w ?? PACK_WIDTH;
       const heroH = hero.item.customSize?.h ?? PACK_HEIGHT;
       // 카드를 자기 칸 가운데로 — 팩보다 크면 오른쪽·아래로 삐져나온다
@@ -155,7 +155,7 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
         // 중심에서 바깥 방향(대각선 포함)으로, 팩마다 조금씩 다른 거리만큼 민다.
         const d = Math.hypot(dx / halfW, dy / halfH);
         if (d >= 1) continue;
-        const extra = 1 + seeded(hashStr(p.item.id) + 11) * 0.25; // 1~1.25배 — 너무 멀리 밀리지 않게
+        const extra = 1 + seeded(hashStr(p.item.id) + 11) * 0.1; // 1~1.1배 — 경계 바로 밖까지만(멀리 밀면 안쪽이 빈다)
         const k = extra / Math.max(d, 0.05);
         p.left += dx * k - dx;
         p.top += dy * k - dy;
@@ -254,7 +254,11 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
             {/* 활성(원본)은 오버레이가 맨 위에 그리므로 보드에선 숨김 */}
             <View style={{opacity: isActive ? 0 : dimmed ? 0.5 : 1}}>
               {item.custom ? (
-                item.custom
+                // 자리(customSize) 안 세로 가운데 — 위에 붙이면 실제 내용이 자리보다 작을 때
+                // 화면 가운데(자리 중심)보다 위로 올라가 보였다
+                <View style={item.customSize ? {width: item.customSize.w, height: item.customSize.h, justifyContent: 'center', alignItems: 'center'} : undefined}>
+                  {item.custom}
+                </View>
               ) : item.variant === 'note' ? (
                 <RetrospectiveNote {...item} rotate={rotate} />
               ) : (

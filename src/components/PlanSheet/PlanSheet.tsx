@@ -1,6 +1,7 @@
 import React, {useEffect, useMemo, useState} from 'react';
 import {Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
+import {useRouter} from 'expo-router';
 import {BlurView} from 'expo-blur';
 import {BottomSheet} from '@components/BottomSheet';
 import {Button} from '@components/Button';
@@ -61,14 +62,29 @@ function PlanFeature({text, styles, dotColor}: {
   );
 }
 
-function PlanContent({styles, colors, isPro, onSubscribePress}: {
+function PlanContent({styles, colors, isPro, onSubscribePress, onClose}: {
   styles: ReturnType<typeof createStyles>;
   colors: ReturnType<typeof useColors>;
   isPro: boolean;
   onSubscribePress: (pkg?: any) => void;
+  onClose: () => void;
 }) {
   const {t} = useTranslation();
-  const {offerings, purchaseStore, canManageSubscription} = useSubscription();
+  const router = useRouter();
+  const {showSnackbar} = useSnackbar();
+  const {offerings, purchaseStore, canManageSubscription, restorePurchases} = useSubscription();
+  const [restoring, setRestoring] = useState(false);
+  // 구매 복원 — 앱스토어 심사 필수. 다른 기기·재설치 후 구독을 되찾는다
+  const handleRestore = async () => {
+    if (restoring) return;
+    setRestoring(true);
+    const ok = await restorePurchases().catch(() => false);
+    setRestoring(false);
+    showSnackbar(ok ? t('plan.restored') : t('plan.restoreNone'));
+    if (ok) onClose();
+  };
+  // 약관·개인정보 — 시트를 닫고 그 화면으로
+  const openDoc = (path: '/terms' | '/privacy') => { onClose(); setTimeout(() => router.push(path), 300); };
   const plans = useMemo(() => toPlanPackages(offerings), [offerings]);
   // 기본 선택은 첫 상품(가장 긴 기간 = 가장 저렴) — 절약을 먼저 보여준다
   const [selectedType, setSelectedType] = useState<string>('');
@@ -170,6 +186,18 @@ function PlanContent({styles, colors, isPro, onSubscribePress}: {
 
       {/* 해지 후 데이터 처리 고지 — 서버가 만료 60일 뒤 클라우드 레시피를 지운다(functions purgeExpiredCloudRecipes) */}
       <Text style={[styles.planStoreNote, styles.planRetentionNote]}>{t('plan.cloudRetentionNote')}</Text>
+
+      {/* 자동 갱신 고지 + 구매 복원·약관·개인정보 — 앱스토어 구독 심사 필수 항목 */}
+      {Platform.OS !== 'web' && (
+        <Text style={[styles.planStoreNote, styles.planRetentionNote]}>{t('plan.autoRenewNote')}</Text>
+      )}
+      <View style={styles.planLinks}>
+        {Platform.OS !== 'web' && (
+          <Text style={styles.planLink} onPress={handleRestore}>{restoring ? t('plan.restoring') : t('plan.restore')}</Text>
+        )}
+        <Text style={styles.planLink} onPress={() => openDoc('/terms')}>{t('profile.termsOfService')}</Text>
+        <Text style={styles.planLink} onPress={() => openDoc('/privacy')}>{t('profile.privacyPolicy')}</Text>
+      </View>
     </View>
   );
 }
@@ -186,7 +214,7 @@ export function PlanSheet({visible, onClose, isPro = false, onSubscribePress}: P
       onClose={onClose}
       maxWidth={380}
       backgroundElement={<PlanGradientBg />}>
-      <PlanContent styles={styles} colors={colors} isPro={isPro} onSubscribePress={subscribeHandler} />
+      <PlanContent styles={styles} colors={colors} isPro={isPro} onSubscribePress={subscribeHandler} onClose={onClose} />
     </BottomSheet>
   );
 }
@@ -240,6 +268,18 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   planRetentionNote: {
     marginHorizontal: Spacing.lg,
+  },
+  // 하단 링크 줄 — 점 없이 간격만(설정 푸터와 같게)
+  planLinks: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.md,
+    marginTop: Spacing.xs,
+  },
+  planLink: {
+    ...Typography.label.small,
+    color: colors['foreground/on-surface-var'],
+    textDecorationLine: 'underline',
   },
   planSavingsText: {
     ...Typography.label.small,

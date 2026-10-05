@@ -21,6 +21,8 @@ import {IconClose} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
 import {SheetHeader} from '@components/BottomSheet/SheetHeader';
 import {BlurView} from 'expo-blur';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {APPBAR_TOP_PADDING} from '@components/Navigation';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 
@@ -54,6 +56,11 @@ export interface DialogProps {
   /** 배경 블러 (기본: false) */
   blurBackdrop?: boolean;
   /** 헤더 레이아웃 (기본: 'default') */
+  /**
+   * 화면 위치 — 'center'(기본) | 'top'(통합 검색처럼 앱바 높이에 붙임).
+   * 입력칸이 있는 팝업은 'top' — 가운데면 키보드가 올라올 때 칸이 가려지거나 팝업이 튄다.
+   */
+  position?: 'center' | 'top';
   headerType?: 'default' | 'center';
 }
 
@@ -76,7 +83,9 @@ export function Dialog({
   width,
   blurBackdrop = false,
   headerType,
+  position = 'center',
 }: DialogProps) {
+  const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const {height: windowHeight} = useWindowDimensions();
@@ -141,7 +150,7 @@ export function Dialog({
 
   return (
     <Modal visible={visible || rendered} transparent animationType="none" statusBarTranslucent>
-    <View style={styles.overlay}>
+    <View style={[styles.overlay, position === 'top' && [styles.overlayTop, {paddingTop: insets.top + APPBAR_TOP_PADDING}]]}>
       {/* Backdrop */}
       <Animated.View
         style={[
@@ -230,6 +239,9 @@ const createStyles = (colors: SemanticColors) =>
       ...StyleSheet.absoluteFillObject,
       justifyContent: 'center',
       alignItems: 'center',
+    },
+    overlayTop: {
+      justifyContent: 'flex-start',
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
