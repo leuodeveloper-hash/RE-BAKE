@@ -21,16 +21,29 @@ export type ListItemElementType =
   | {type: 'iconButton'; icon: React.FC<SvgProps>; onPress?: () => void; variant?: 'filled' | 'tonal' | 'soft' | 'ghost-secondary' | 'ghost-yellow'; disabled?: boolean; size?: 'small' | 'medium' | 'large'}
   | {type: 'custom'; element: React.ReactNode};
 
+/**
+ * 가운데 슬롯 — 일반(text: 제목 + 설명 한 줄) / 커스텀(custom: 입력창·강조 글 등 무엇이든).
+ * 줄은 늘 [왼쪽 슬롯] [가운데 슬롯] [오른쪽 값 + 오른쪽 슬롯] 세 칸이고, 가운데만 갈아 끼운다.
+ *  - 설정: text(제목 + 서브카피)
+ *  - 편집: custom(입력창)
+ *  - 상세 재료: custom(재료 이름)
+ */
+export type ListItemContentType =
+  | {type: 'text'; title: string; description?: string}
+  | {type: 'custom'; element: React.ReactNode};
+
 // ---- ListItem Props ----
 
 export type ListItemVariant = 'default' | 'yellow';
 
 export interface ListItemProps {
-  /** 기본 텍스트 타이틀 (children이 없을 때 사용) */
+  /** 가운데 슬롯 — 일반(text) / 커스텀(custom). 아래 title·description·children은 이것의 줄임 표기 */
+  content?: ListItemContentType;
+  /** 줄임: content {type:'text'}의 제목 */
   title?: string;
-  /** 제목 아래 설명 한 줄 (muted) */
+  /** 줄임: content {type:'text'}의 설명 한 줄 (muted) */
   description?: string;
-  /** 커스텀 콘텐츠 (title 대신 사용) */
+  /** 줄임: content {type:'custom'} — 태그 사이에 넣은 내용 */
   children?: React.ReactNode;
   /** 왼쪽 슬롯 (아이콘, 숫자, 아이콘 버튼) */
   leading?: ListItemElementType;
@@ -127,6 +140,7 @@ export const LIST_ITEM_TITLE_TEXT = {
 };
 
 export function ListItem({
+  content,
   title,
   description,
   children,
@@ -151,6 +165,9 @@ export function ListItem({
   const isClickable = (onPress || onLongPress) && !disabled;
   const Wrapper = isClickable ? Pressable : View;
   const isYellow = resolvedVariant === 'yellow';
+  // 가운데 슬롯 — content가 정식, title·description·children은 줄임 표기
+  const centerSlot: ListItemContentType = content
+    ?? (children != null ? {type: 'custom', element: children} : {type: 'text', title: title ?? '', description});
   const wrapperProps = isClickable
     ? {
         onPress: onPress ? () => { triggerHaptic('light'); onPress(); } : undefined,
@@ -174,12 +191,12 @@ export function ListItem({
       <Wrapper {...(wrapperProps as any)}>
         {leading && renderSlotElement(leading, colors, styles, resolvedVariant)}
         <View style={styles.content}>
-          {children ?? (
+          {centerSlot.type === 'custom' ? centerSlot.element : (
             <>
               <Text style={[styles.title, isYellow && styles.titleYellow]} numberOfLines={titleNumberOfLines || undefined}>
-                {title}
+                {centerSlot.title}
               </Text>
-              {description ? <Text style={styles.description} numberOfLines={1}>{description}</Text> : null}
+              {centerSlot.description ? <Text style={styles.description} numberOfLines={1}>{centerSlot.description}</Text> : null}
             </>
           )}
         </View>

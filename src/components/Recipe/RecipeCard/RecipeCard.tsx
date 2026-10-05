@@ -1023,7 +1023,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontSize: Typography.label.medium.fontSize,
     fontWeight: Typography.label.medium.fontWeight as '600',
     lineHeight: Typography.label.medium.lineHeight,
-    letterSpacing: 0.2,
+    letterSpacing: 0,
     color: colors['foreground/on-surface-muted'],
   },
   gridSubtitleRow: {

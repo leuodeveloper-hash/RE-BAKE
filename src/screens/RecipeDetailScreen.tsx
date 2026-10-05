@@ -520,8 +520,7 @@ export function RecipeDetailScreen({
       Linking.openURL(referenceUrl);
     }
   }, [referenceUrl, referenceYouTubeId, openYouTube]);
-  // 스텝 사진 전체보기 — 어떤 스텝의 사진 묶음인지와 그 안의 인덱스
-  const [viewerPhotos, setViewerPhotos] = useState<{uri: string}[]>([]);
+  // 사진 전체보기 — 이 레시피의 사진을 한 뷰어에서(대표·과정·조언·회고 구획). 어디서 열든 그 사진 자리부터
   const [viewerIndex, setViewerIndex] = useState<number | null>(null);
   // 상단은 대표 1장만 보여주고, 뷰어에선 추가 이미지까지 스와이프로 넘긴다
   const heroPhotos = useMemo(
@@ -529,14 +528,27 @@ export function RecipeDetailScreen({
     [imageUri, imageUris],
   );
 
-  // 상단 사진 뷰어인지 — 맞으면 뷰어가 늘 최신 heroPhotos를 보여주고, 편집 가능하면 추가·교체·삭제를 단다
-  const [viewerIsHero, setViewerIsHero] = useState(false);
   const [showHeroAddMenu, setShowHeroAddMenu] = useState(false);
-  const openPhotoViewer = useCallback((photos: {uri: string}[], index: number, hero = false) => {
-    setViewerPhotos(photos);
-    setViewerIsHero(hero);
-    setViewerIndex(index);
-  }, []);
+  /** 뷰어 사진 전체 — src는 어느 묶음에서 왔는지(그 묶음의 몇 번째 사진을 눌렀는지 찾을 때) */
+  const allPhotos = useMemo(() => {
+    const out: {uri: string; caption?: string; section: string; src: unknown}[] = [];
+    heroPhotos.forEach(p => out.push({...p, section: t('recipeDetail.photoSectionHero'), src: 'hero'}));
+    const groups = stepGroups ?? (steps ? [{title: '', steps}] : []);
+    groups.forEach(g => g.steps.forEach(st => {
+      normalizeStepPhotos(st.photos).forEach(p => out.push({...p, section: g.title || t('recipeDetail.tabSteps'), src: st.photos}));
+    }));
+    (advicePhotos ?? []).forEach(uri => out.push({uri, section: t('recipeDetail.bakeyAdvice'), src: 'advice'}));
+    const lastReview = reviews?.[reviews.length - 1];
+    normalizeStepPhotos(lastReview?.photos).forEach(p => out.push({...p, section: t('recipeDetail.photoSectionReview'), src: lastReview?.photos}));
+    return out;
+  }, [heroPhotos, stepGroups, steps, advicePhotos, reviews, t]);
+  /** 그 묶음(src)의 i번째 사진으로 연다 */
+  const openPhotoViewer = useCallback((src: unknown, i: number) => {
+    const start = allPhotos.findIndex(p => p.src === src);
+    if (start >= 0) setViewerIndex(start + i);
+  }, [allPhotos]);
+  // 지금 보는 사진이 대표 사진이면 뷰어에서 바로 더 올릴 수 있다
+  const viewerIsHero = viewerIndex !== null && allPhotos[viewerIndex]?.src === 'hero';
 
   /** 상단 사진 고르기 — 편집 화면과 같은 옵션(원본 비율). 촬영/갤러리 */
   const pickHeroPhoto = useCallback(async (source: PhotoSource): Promise<string | null> => {
@@ -903,7 +915,7 @@ export function RecipeDetailScreen({
                   기준이 바뀌어 레이아웃이 깨진다. 같은 자리에 투명 영역만 겹친다. */}
               <Pressable
                 style={[styles.heroImage, heroFrame]}
-                onLongPress={() => { triggerHaptic('medium'); openPhotoViewer(heroPhotos, 0, true); }}
+                onLongPress={() => { triggerHaptic('medium'); openPhotoViewer('hero', 0); }}
               />
               {/* 장식용 어둡기 레이어 — Pressable 위에 덮이므로 터치를 통과시킨다.
                   (웹은 DOM 이벤트라 이게 없으면 롱프레스가 이 레이어에 먹혀 뷰어가 안 열린다) */}
@@ -1084,20 +1096,16 @@ export function RecipeDetailScreen({
                           .slice(0, groupIndex)
                           .reduce((n, g) => n + g.ingredients.length, 0) + index;
                         return (
-                        <Pressable
+                        // 재료 줄도 공통 ListItem — 왼쪽 비율(%) · 가운데 재료(커스텀: 강조 포함)
+                        <ListItem
                           key={index}
-                          // 롱프레스 = 그 재료 줄로 편집 진입
-                          onLongPress={onEdit ? () => { triggerHaptic('medium'); onEdit(`ingredients:${flatIndex}`); } : undefined}
-                          delayLongPress={400}
-                          style={[
-                            styles.ingredientRow,
-                            index === group.ingredients.length - 1 && styles.ingredientRowLast,
-                          ]}>
-                          {hasFlourBase && (
-                            <Text style={styles.ingredientPercentage}>
-                              {ingredient.percentage}
-                            </Text>
-                          )}
+                          // 롱프레스 = 그 재료 줄로 편집 진입(햅틱은 ListItem이 낸다)
+                          onLongPress={onEdit ? () => onEdit(`ingredients:${flatIndex}`) : undefined}
+                          showDivider={index < group.ingredients.length - 1}
+                          leading={hasFlourBase ? {type: 'custom', element: (
+                            <Text style={styles.ingredientPercentage}>{ingredient.percentage}</Text>
+                          )} : undefined}
+                          content={{type: 'custom', element: (
                           <Text style={styles.ingredientName}>
                             <Text
                               style={[
@@ -1110,7 +1118,8 @@ export function RecipeDetailScreen({
                               <Text style={styles.prevAmount}> {d.prevAmount}</Text>
                             ) : null}
                           </Text>
-                        </Pressable>
+                          )}}
+                        />
                         );
                       })}
                     </Card>
@@ -1136,16 +1145,15 @@ export function RecipeDetailScreen({
               <Text style={styles.diffCaption}>{t('recipeDetail.removedIngredients')}</Text>
               <Card>
                 {diff!.removed.map((ing, i) => (
-                  <View
+                  <ListItem
                     key={i}
-                    style={[
-                      styles.ingredientRow,
-                      i === diff!.removed.length - 1 && styles.ingredientRowLast,
-                    ]}>
-                    <Text style={[styles.ingredientName, styles.removedText]}>
-                      <RichText inline>{ing.name}</RichText>{/\d/.test(ing.amount) ? ` ${ing.amount}` : ''}
-                    </Text>
-                  </View>
+                    showDivider={i < diff!.removed.length - 1}
+                    content={{type: 'custom', element: (
+                      <Text style={[styles.ingredientName, styles.removedText]}>
+                        <RichText inline>{ing.name}</RichText>{/\d/.test(ing.amount) ? ` ${ing.amount}` : ''}
+                      </Text>
+                    )}}
+                  />
                 ))}
               </Card>
             </ContentContainer>
@@ -1243,7 +1251,7 @@ export function RecipeDetailScreen({
                           <StepPhotos
                             photos={normalizeStepPhotos(step.photos)}
                             mode="view"
-                            onPhotoPress={i => openPhotoViewer(normalizeStepPhotos(step.photos!), i)}
+                            onPhotoPress={i => openPhotoViewer(step.photos, i)}
                           />
                         )}
                       </ListItem>
@@ -1293,7 +1301,7 @@ export function RecipeDetailScreen({
                       <StepPhotos
                         photos={normalizeStepPhotos(step.photos)}
                         mode="view"
-                        onPhotoPress={i => openPhotoViewer(normalizeStepPhotos(step.photos!), i)}
+                        onPhotoPress={i => openPhotoViewer(step.photos, i)}
                       />
                     )}
                   </ListItem>
@@ -1382,7 +1390,7 @@ export function RecipeDetailScreen({
                       photos={normalizeStepPhotos(reviews[reviews.length - 1].photos!)}
                       mode="view"
                       paddingTop={false}
-                      onPhotoPress={i => openPhotoViewer(normalizeStepPhotos(reviews[reviews.length - 1].photos!), i)}
+                      onPhotoPress={i => openPhotoViewer(reviews[reviews.length - 1].photos, i)}
                     />
                   </ListItem>
                 ) : null}
@@ -1587,9 +1595,9 @@ export function RecipeDetailScreen({
         onConfirm={v => onUpdate?.({servings: v})}
       />
 
-      {/* 스텝 사진 전체보기 (읽기 전용 — 편집은 편집화면/요리모드에서) */}
+      {/* 사진 전체보기 — 레시피 사진 전부(구획). 읽기 전용, 대표 사진만 여기서 더 올린다 */}
       <PhotoViewer
-        photos={viewerIsHero ? heroPhotos : viewerPhotos}
+        photos={allPhotos}
         index={viewerIndex}
         // 상단 사진은 상세에서 바로 올린다(최대 3장, 업로드만) — 편집 권한이 있을 때만.
         // 3장이 차도 버튼은 남긴다 — 숨기면 기능이 없는 줄 안다. 누르면 최대 장수를 알린다.
@@ -1597,7 +1605,7 @@ export function RecipeDetailScreen({
         onIndexChange={setViewerIndex}
         onClose={() => setViewerIndex(null)}
         onDownload={onDownloadPhoto && viewerIndex !== null
-          ? () => onDownloadPhoto((viewerIsHero ? heroPhotos : viewerPhotos)[viewerIndex]?.uri ?? '')
+          ? () => onDownloadPhoto(allPhotos[viewerIndex]?.uri ?? '')
           : undefined}
       />
 
@@ -1910,17 +1918,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
 
   // Ingredients
-  ingredientRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingVertical: Spacing.smd,
-    paddingHorizontal: Spacing.md,
-    borderBottomWidth: 1,
-    borderBottomColor: colors['border/muted'],
-  },
-  ingredientRowLast: {
-    borderBottomWidth: 0,
-  },
   ingredientPercentage: {
     width: 60,
     fontFamily: Typography.label.medium.fontFamily,

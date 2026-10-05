@@ -384,7 +384,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontFamily: Typography.label['large - semibold'].fontFamily,
     fontSize: 12,
     lineHeight: 16,
-    letterSpacing: 0.2,
+    letterSpacing: 0,
     color: colors['foreground/on-surface'],
     flexShrink: 1,
   },
@@ -392,7 +392,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontFamily: Typography.label['large - semibold'].fontFamily,
     fontSize: 12,
     lineHeight: 16,
-    letterSpacing: 0.2,
+    letterSpacing: 0,
     color: colors['foreground/on-surface-muted'],
   },
 });

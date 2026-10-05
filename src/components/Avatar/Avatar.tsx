@@ -291,7 +291,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Pretendard-SemiBold',
     fontWeight: '600',
     textAlign: 'center',
-    letterSpacing: 0.2,
+    letterSpacing: 0,
     color: GRADIENT_TEXT_COLOR,
   },
 });

@@ -1,7 +1,9 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
-import {FloatingNavBar, navPillStyle, NavPillButton} from '@components/Navigation';
+import {FloatingNavBar, navPillStyle, NavPillButton, RulerSlider} from '@components/Navigation';
+import {Selector} from '@components/Selector';
+import {BottomActionBar} from '@components/BottomActionBar';
 import {GlassContainer} from '@components/Container';
 import {IconButton} from '@components/IconButton';
 import {IconClose, IconPhoto, IconTrash, IconArrowDownToLine, IconAdd} from '@components/Icon/IconIndex';
@@ -16,8 +18,11 @@ import {Radius} from '@constants/tokens';
 const MAX_CONTENT_WIDTH = 800;
 
 export interface PhotoViewerProps {
-  /** 표시할 사진 목록. caption이 있으면 사진 아래에 보여준다 */
-  photos: {uri: string; caption?: string}[];
+  /**
+   * 표시할 사진 목록. caption이 있으면 사진 아래에 보여준다.
+   * section(대표 사진·과정·회고 등)을 주면 위 가운데에 구획 고르기가 생겨 그 구획 첫 장으로 건너뛴다.
+   */
+  photos: {uri: string; caption?: string; section?: string}[];
   /** 현재 보고 있는 인덱스. null이면 닫힘 */
   index: number | null;
   onIndexChange: (index: number) => void;
@@ -101,6 +106,10 @@ export function PhotoViewer({
   }, [index, draft, currentCaption, onCaptionChange]);
 
   const total = photos.length;
+  // 구획 — 사진 순서대로 처음 나온 이름들(대표 사진 → 과정 → 조언 → 회고)
+  const sections = photos.reduce<string[]>((acc, p) => (p.section && !acc.includes(p.section) ? [...acc, p.section] : acc), []);
+  const [showSectionMenu, setShowSectionMenu] = useState(false);
+  const jumpTo = (i: number) => { commitCaption(); onIndexChange(i); };
   const canEdit = !!onReplace || !!onDelete || !!onAdd;
   const hasRightActions = canEdit || !!onDownload;
 
@@ -166,14 +175,41 @@ export function PhotoViewer({
             ) : currentCaption.trim() ? (
               <Text style={styles.captionText}>{currentCaption}</Text>
             ) : null}
+            {/* 아래 눈금 — 전체 장수, 지금 장 강조. 탭·끌기로 이동(요리모드와 같은 눈금) */}
+            {total > 1 && (
+              <View style={styles.bottomNav}>
+                <BottomActionBar background="#000000" showTopMask={false}>
+                  <RulerSlider
+                    items={photos.map((_, i) => ({id: String(i), label: `${i + 1} / ${total}`}))}
+                    selectedId={String(index)}
+                    onSelect={id => jumpTo(Number(id))}
+                  />
+                </BottomActionBar>
+              </View>
+            )}
             <FloatingNavBar
               tintColor="#000000"
               left={<NavPillButton icon={IconClose} onPress={close} />}
-              // 한 장이어도 표시한다 — 몇 번째를 보고 있는지 늘 같은 자리에 있어야
-              // 여러 장일 때와 상단바 구성이 흔들리지 않는다.
-              // 직접 Text를 꽂지 않고 title을 쓴다 — 다른 화면 상단바와 같은 크기여야 한다.
-              // (ForceDarkTheme 안이라 색도 알아서 밝게 잡힌다)
-              title={`${index + 1} / ${total}`}
+              // 가운데 — 구획이 둘 이상이면 요리모드처럼 구획 고르기(지금 사진의 구획). 몇 번째인지는 아래 눈금이 보여준다
+              center={sections.length > 1 ? (
+                <GlassContainer contentStyle={styles.sectionPill}>
+                  <Selector
+                    label={photos[index]?.section ?? sections[0]}
+                    variant="ghost"
+                    showDropdown
+                    onPress={() => setShowSectionMenu(v => !v)}
+                  />
+                </GlassContainer>
+              ) : undefined}
+              leftMenu={sections.length > 1 ? (
+                <Menu
+                  items={sections.map(sec => ({id: sec, label: sec}))}
+                  selectedId={photos[index]?.section}
+                  visible={showSectionMenu}
+                  onSelect={sec => { setShowSectionMenu(false); jumpTo(photos.findIndex(p => p.section === sec)); }}
+                  onClose={() => setShowSectionMenu(false)}
+                />
+              ) : undefined}
               right={hasRightActions ? (
                 <GlassContainer contentStyle={navPillStyle}>
                   {onAdd && (
@@ -212,6 +248,18 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  sectionPill: {
+    height: 44,
+    flexDirection: 'row',
+    alignItems: 'center',
+    padding: 2,
+  },
+  bottomNav: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   pager: {
     flexGrow: 0,

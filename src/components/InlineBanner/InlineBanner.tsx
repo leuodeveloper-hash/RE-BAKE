@@ -187,7 +187,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.body.medium.fontSize,
     fontWeight: '600',
     lineHeight: Typography.body.medium.lineHeight,
-    letterSpacing: 0.2,
+    letterSpacing: 0,
     marginTop: FONT_BASELINE_OFFSET,
   },
   textSmall: {
@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.label.medium.fontSize,
     fontWeight: '500',
     lineHeight: Typography.label.medium.lineHeight,
-    letterSpacing: 0.2,
+    letterSpacing: 0,
     marginTop: FONT_BASELINE_OFFSET,
   },
   actions: {
@@ -231,7 +231,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.body.medium.fontSize,
     fontWeight: '600',
     lineHeight: Typography.body.medium.lineHeight,
-    letterSpacing: 0.2,
+    letterSpacing: 0,
     marginTop: FONT_BASELINE_OFFSET,
   },
   actionTextSmall: {
@@ -239,7 +239,7 @@ const styles = StyleSheet.create({
     fontSize: Typography.label.medium.fontSize,
     fontWeight: '600',
     lineHeight: Typography.label.medium.lineHeight,
-    letterSpacing: 0.2,
+    letterSpacing: 0,
     marginTop: FONT_BASELINE_OFFSET,
   },
   closeBtn: {

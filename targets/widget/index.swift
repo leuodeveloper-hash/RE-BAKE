@@ -197,25 +197,87 @@ func readExamOrDday(_ configuration: ExamWidgetIntent) -> UpcomingExam? {
   return UpcomingExam(examDate: d.date, label: d.title, round: "", registrationStart: "")
 }
 
+// ---- 앱을 한 번도 안 열었을 때 ----
+// 앱이 넣어 둔 세트가 없으면 위젯이 직접 둘러보기(공개) 레시피를 받아 그날 것을 고른다.
+// 그것도 안 되면(오프라인 등) 위젯에 넣어 둔 샘플 레시피(고정)를 보여준다.
+
+/// 위젯에 넣어 둔 고정 샘플 — 이미지는 Assets의 SampleRecipe
+let sampleImageMarker = "asset:SampleRecipe"
+func sampleEntry(date: Date, exam: UpcomingExam?) -> RecipeEntry {
+  RecipeEntry(date: date, recipe: DailyRecipe(id: "sample", title: "버터쿠키", cookbook: "제과기능사"), imagePath: sampleImageMarker, exam: exam)
+}
+
+private let firestoreQueryURL = URL(string: "https://firestore.googleapis.com/v1/projects/bakecycle-b82b5/databases/(default)/documents:runQuery")!
+
+/// 둘러보기 공개 레시피 중 그날(seed) 것 — 이미지는 App Group에 받아 둔다(위젯은 원격 이미지를 바로 못 그린다)
+func fetchRemoteEntry(date: Date, exam: UpcomingExam?) async -> RecipeEntry? {
+  let body: [String: Any] = ["structuredQuery": [
+    "from": [["collectionId": "explore_recipes"]],
+    // 공개(숨김 아님)만 — 보안 규칙이 이 조건 없이는 읽기를 막는다
+    "where": ["fieldFilter": ["field": ["fieldPath": "hidden"], "op": "EQUAL", "value": ["booleanValue": false]]],
+    "select": ["fields": [["fieldPath": "title"], ["fieldPath": "imageUri"], ["fieldPath": "cookbook"], ["fieldPath": "kind"]]],
+    "limit": 300,
+  ]]
+  var req = URLRequest(url: firestoreQueryURL, timeoutInterval: 10)
+  req.httpMethod = "POST"
+  req.setValue("application/json", forHTTPHeaderField: "Content-Type")
+  req.httpBody = try? JSONSerialization.data(withJSONObject: body)
+  guard let (data, _) = try? await URLSession.shared.data(for: req),
+        let rows = try? JSONSerialization.jsonObject(with: data) as? [[String: Any]] else { return nil }
+
+  struct Remote { let id: String; let title: String; let cookbook: String?; let imageUri: String }
+  func str(_ f: [String: Any], _ k: String) -> String? { (f[k] as? [String: Any])?["stringValue"] as? String }
+  let recipes: [Remote] = rows.compactMap { row in
+    guard let doc = row["document"] as? [String: Any],
+          let name = doc["name"] as? String,
+          let f = doc["fields"] as? [String: Any],
+          let title = str(f, "title"), let img = str(f, "imageUri"), img.hasPrefix("http"),
+          str(f, "kind") != "tip" else { return nil }
+    return Remote(id: String(name.split(separator: "/").last ?? ""), title: title, cookbook: str(f, "cookbook"), imageUri: img)
+  }.sorted { $0.id < $1.id }
+  guard !recipes.isEmpty else { return nil }
+  let seed = seedFor(date)
+  let r = recipes[seed % recipes.count]
+
+  // 이미지를 App Group widget 폴더에 — 파일이 있으면 다시 받지 않는다
+  guard let container = FileManager.default.containerURL(forSecurityApplicationGroupIdentifier: appGroup) else { return nil }
+  let dir = container.appendingPathComponent("widget")
+  try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+  let safeId = r.id.filter { $0.isLetter || $0.isNumber || $0 == "_" || $0 == "-" }
+  let file = dir.appendingPathComponent("remote-\(seed)-\(safeId).jpg")
+  if !FileManager.default.fileExists(atPath: file.path) {
+    guard let url = URL(string: r.imageUri),
+          let (img, _) = try? await URLSession.shared.data(from: url) else { return nil }
+    try? img.write(to: file)
+  }
+  return RecipeEntry(date: date, recipe: DailyRecipe(id: r.id, title: r.title, cookbook: r.cookbook), imagePath: file.path, exam: exam)
+}
+
 struct Provider: AppIntentTimelineProvider {
   func placeholder(in context: Context) -> RecipeEntry {
-    RecipeEntry(date: Date(), recipe: DailyRecipe(id: "", title: "오늘의 레시피", cookbook: nil), imagePath: nil, exam: nil)
+    sampleEntry(date: Date(), exam: nil)
   }
 
   func snapshot(for configuration: ExamWidgetIntent, in context: Context) async -> RecipeEntry {
-    entryFor(
-      date: Date(),
-      sets: readDailySets(cookbook: configuration.cookbook?.id ?? ""),
-      exam: readExamOrDday(configuration),
-    )
+    let sets = readDailySets(cookbook: configuration.cookbook?.id ?? "")
+    let exam = readExamOrDday(configuration)
+    // 위젯 고르기 화면(미리보기)은 빨라야 한다 — 앱 데이터가 없으면 샘플
+    if sets.isEmpty { return sampleEntry(date: Date(), exam: exam) }
+    return entryFor(date: Date(), sets: sets, exam: exam)
   }
 
   func timeline(for configuration: ExamWidgetIntent, in context: Context) async -> Timeline<RecipeEntry> {
-    await withCheckedContinuation { continuation in
-      buildTimeline(
-        exam: readExamOrDday(configuration),
-        cookbook: configuration.cookbook?.id ?? "",
-      ) { continuation.resume(returning: $0) }
+    let exam = readExamOrDday(configuration)
+    let cookbook = configuration.cookbook?.id ?? ""
+    // 앱을 아직 안 열었으면(세트 없음) 위젯이 직접 받아온다 — 하루 한 번, 자정에 다시
+    if readDailySets(cookbook: cookbook).isEmpty {
+      let entry = await fetchRemoteEntry(date: Date(), exam: exam) ?? sampleEntry(date: Date(), exam: exam)
+      let cal = Calendar.current
+      let nextMidnight = cal.date(byAdding: .day, value: 1, to: cal.startOfDay(for: Date())) ?? Date().addingTimeInterval(86400)
+      return Timeline(entries: [entry], policy: .after(nextMidnight))
+    }
+    return await withCheckedContinuation { continuation in
+      buildTimeline(exam: exam, cookbook: cookbook) { continuation.resume(returning: $0) }
     }
   }
 
@@ -376,7 +438,7 @@ struct BakleWidgetEntryView: View {
         VStack(spacing: 6) {
           Text("🥐").font(.system(size: 36))
           Text("앱을 열어 오늘의 레시피를 받아보세요")
-            .font(.caption)
+            .font(WidgetFont.pretendard("Pretendard-Regular", size: 12, relativeTo: .caption))
             .foregroundColor(.secondary)
             .multilineTextAlignment(.center)
             .lineLimit(3)
@@ -393,7 +455,12 @@ struct BakleWidgetEntryView: View {
   @ViewBuilder
   static func backgroundLayer(imagePath: String?) -> some View {
     ZStack {
-      if let path = imagePath, let uiImage = loadDownsampledImage(path: path) {
+      if imagePath == sampleImageMarker {
+        // 위젯에 넣어 둔 샘플 레시피 사진
+        Image("SampleRecipe")
+          .resizable()
+          .aspectRatio(contentMode: .fill)
+      } else if let path = imagePath, let uiImage = loadDownsampledImage(path: path) {
         Image(uiImage: uiImage)
           .resizable()
           .aspectRatio(contentMode: .fill)

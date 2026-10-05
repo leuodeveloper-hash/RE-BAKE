@@ -154,10 +154,11 @@ function buildProcessHtml(data: RecipePdfData): string {
 // 공용 PDF 스타일 — 배경/카드 박스 없이 구분선·타이포 기반의 깔끔한 문서형.
 // (PDF는 흰 배경에 저장되므로 흰 카드 박스는 안 보이고 구조만 붕 떠 보였음 → 제거)
 const PDF_CSS = `
-  @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap');
+  /* 앱과 같은 서체(Pretendard) — 웹폰트로 불러온다 */
+  @import url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css');
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    font-family: 'IBM Plex Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    font-family: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
     color: #1a1a1a;
     line-height: 1.5;
     -webkit-font-smoothing: antialiased;

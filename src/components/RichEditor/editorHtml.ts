@@ -64,13 +64,21 @@ export function buildEditorHtml(theme: EditorTheme, placeholder: string, initial
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
 <style>
+  /* 앱 서체를 웹뷰에도 확실히 — 앱에 등록된 폰트(iOS UIAppFonts) → 안드로이드 앱 폰트 파일 → 웹폰트 순.
+     하나라도 잡히면 Pretendard로 그린다(시스템 서체로 빠지지 않게). */
+  @font-face {
+    font-family: 'BakleText';
+    src: local('${theme.fontFamily}'),
+         url('file:///android_asset/fonts/${theme.fontFamily}.otf') format('opentype'),
+         url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/${theme.fontFamily}.woff2') format('woff2');
+  }
   * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { background: ${theme.surface}; }
   #editor {
     /* RN 폰트명(Pretendard-Regular 등)은 웹뷰에 등록돼 있지 않다. iOS WKWebView는
        없는 폰트를 만나면 글자를 못 그리고 높이도 어긋난다(칸이 빈 채 늘어남).
        반드시 시스템 폰트 폴백을 함께 준다. */
-    font-family: '${theme.fontFamily}', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', Roboto, sans-serif;
+    font-family: 'BakleText', '${theme.fontFamily}', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', Roboto, sans-serif;
     font-size: ${theme.fontSize}px;
     line-height: ${theme.lineHeight}px;
     letter-spacing: -0.25px;

@@ -1042,5 +1042,7 @@
   "recipeEdit.writingRules": "Shortcuts",
   "recipeEdit.pasteRule.tip": "Tip",
   "recipeEdit.pasteRule.caution": "Caution",
-  "auth.appleLoginFailed": "Apple sign-in failed"
+  "auth.appleLoginFailed": "Apple sign-in failed",
+  "recipeDetail.photoSectionHero": "Cover",
+  "recipeDetail.photoSectionReview": "Notes"
 }

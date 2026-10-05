@@ -1,5 +1,6 @@
 import {useCallback, useEffect, useState} from 'react';
 import {AppState} from 'react-native';
+import {useFocusEffect} from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {fetchExamSchedules} from '@utils/examSchedules';
 import {effectiveExamDate, loadChosenDates} from '@utils/examChosenDate';
@@ -88,7 +89,8 @@ export function useUpcomingExam() {
     }
   }, [t]);
 
-  useEffect(() => { load(); }, [load]);
+  // 홈으로 돌아올 때마다 다시 — 시험 일정에서 내 시험일을 고르고 돌아오면 바로 그 날 기준으로
+  useFocusEffect(useCallback(() => { load(); }, [load]));
 
   // 날짜가 바뀌거나 설정을 고치고 돌아오면 다시 계산한다
   useEffect(() => {
