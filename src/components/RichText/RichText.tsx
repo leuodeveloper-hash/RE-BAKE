@@ -3,7 +3,8 @@ import {StyleProp, Text, TextStyle, View} from 'react-native';
 import {useRecipeLink, internalRecipeId} from '@contexts/RecipeLinkContext';
 import {IconArrowTopRight} from '@components/Icon/IconIndex';
 import {useColors} from '@contexts/ThemeContext';
-import {parseRichText} from '@utils/richText';
+import {parseRichText, isSecretUrl} from '@utils/richText';
+import {SpoilerText} from '@components/SpoilerText';
 
 export interface RichTextProps {
   /** 마크다운 링크가 섞일 수 있는 원문 */
@@ -26,7 +27,7 @@ export function RichText({children, style, numberOfLines, inline}: RichTextProps
   const colors = useColors();
   const segments = parseRichText(children ?? '');
   // 링크 종류별로 연다 — 팁은 바텀시트, 레시피는 앱 안 상세, 그 밖은 브라우저(RecipeLinkContext)
-  const {openLink, isTipLink} = useRecipeLink();
+  const {openLink, linkKind} = useRecipeLink();
   const open = useCallback((url: string) => openLink(url), [openLink]);
 
   // 링크가 없으면 굳이 조각내지 않는다 (인라인이면 문자열 그대로)
@@ -36,7 +37,13 @@ export function RichText({children, style, numberOfLines, inline}: RichTextProps
       : <Text style={style} numberOfLines={numberOfLines}>{children}</Text>;
   }
 
-  const parts = segments.map((seg, i) => seg.url && isTipLink(seg.url) ? (
+  const parts = segments.map((seg, i) => seg.url && isSecretUrl(seg.url) ? (
+    // 비밀재료 — 글자 자리에 반짝이는 먼지 점(스포일러). 누르면 링크(팁 등)를 연다. 비공개·없는 링크면 가리기만
+    <SpoilerText key={i} textStyle={style} onPress={linkKind(seg.url) === 'dead' ? undefined : () => open(seg.url!)}>{seg.text}</SpoilerText>
+  ) : seg.url && linkKind(seg.url) === 'dead' ? (
+    // 가리키는 레시피가 없거나 비공개 — 링크가 없는 것처럼 글자만
+    <Text key={i}>{seg.text}</Text>
+  ) : seg.url && linkKind(seg.url) === 'tip' ? (
     // 팁 링크 — 본문 글자 그대로에 밑줄만(화살표·색 없이). 누르면 팁 바텀시트
     <Text
       key={i}

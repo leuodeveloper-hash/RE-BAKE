@@ -2294,7 +2294,8 @@ const createStyles = (colors: SemanticColors) =>
     topLeft: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: Spacing.sm,
+      // 2뎁스(닫기 + 구획 고르기) 사이 4
+      gap: Spacing.xs,
       flex: 1,
     },
     breadcrumbPill: {

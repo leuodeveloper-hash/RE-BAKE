@@ -1,5 +1,7 @@
 import React, {useCallback} from 'react';
-import {Platform, StyleSheet, View} from 'react-native';
+import {Platform, StyleSheet, View, useWindowDimensions} from 'react-native';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {Spacing} from '@constants/spacing';
 import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
 import {RecipeHtmlPreview} from '@components/Recipe/RecipeHtmlPreview';
@@ -25,9 +27,19 @@ export interface PdfPreviewDialogProps {
   onExported?: () => void;
 }
 
-// Dialog content area = 312 - 16*2 = 280px
-const CONTENT_WIDTH = 280;
-const PREVIEW_HEIGHT = 380;
+// 팝업 내용 폭 = 카드 312 − 내용 좌우 여백(lg)×2 — 16으로 잡아 280이면 실제 내용 폭보다 넓어 오른쪽으로 삐져나갔다
+const CONTENT_WIDTH = 312 - Spacing.lg * 2;
+// 미리보기 높이 — 화면이 허락하는 만큼(380은 한 화면에 몇 줄 안 보여 잘려 보였다)
+// 팝업 머리(헤더)·버튼·위아래 여백을 뺀 높이 — 안전영역(노치·홈 막대)까지 빼야 화면 밖으로 안 넘친다
+const DIALOG_CHROME = 200;
+// 미리보기 칸 = 종이(A4) 한 장 높이 — 미리보기 둘레 여백(원본 16px)이 축소 배율만큼 줄어든 값을 더한다.
+// 화면이 작으면 안전영역 안으로 줄인다(넘치는 건 스크롤)
+const ONE_PAGE_HEIGHT = (() => {
+  const pad = (16 * CONTENT_WIDTH) / 600;
+  return Math.round((CONTENT_WIDTH - pad * 2) * (297 / 210) + pad * 2);
+})();
+const previewHeight = (windowHeight: number, safeTop = 0, safeBottom = 0) =>
+  Math.max(240, Math.min(ONE_PAGE_HEIGHT, windowHeight - safeTop - safeBottom - DIALOG_CHROME));
 
 export function PdfPreviewDialog({
   visible,
@@ -38,6 +50,9 @@ export function PdfPreviewDialog({
   onExported,
 }: PdfPreviewDialogProps) {
   const styles = useThemedStyles(createStyles);
+  const {height: windowHeight} = useWindowDimensions();
+  const insets = useSafeAreaInsets();
+  const pvH = previewHeight(windowHeight, insets.top, insets.bottom);
   const {t} = useTranslation();
   const html = htmlProp ?? (data ? generateRecipeHtml(data) : '');
   const pdfFilename = filenameProp ?? data?.title ?? 'recipes';
@@ -111,13 +126,13 @@ export function PdfPreviewDialog({
           <Button label={t('pdfPreview.download')} variant="filled" onPress={handleDownload} />
         </>
       }>
-      <View style={styles.previewContainer}>
+      <View style={[styles.previewContainer, {height: pvH}]}>
         {visible && (data || htmlProp) ? (
           <RecipeHtmlPreview
             data={data}
             html={htmlProp}
             width={CONTENT_WIDTH}
-            height={PREVIEW_HEIGHT}
+            height={pvH}
             scrollEnabled
           />
         ) : null}
@@ -130,7 +145,6 @@ const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
     previewContainer: {
       width: CONTENT_WIDTH,
-      height: PREVIEW_HEIGHT,
       borderRadius: Radius['radius-md'],
       overflow: 'hidden',
       backgroundColor: colors['surface/dim'],

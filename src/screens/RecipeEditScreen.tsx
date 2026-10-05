@@ -15,6 +15,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {takePendingRecipeText} from '@utils/pendingRecipeText';
+import {ocrTextToMarkdown} from '@utils/ocrText';
 import {useImageTextReader} from '@hooks/useImageTextReader';
 import {parseRecognizedText} from '@utils/recipeOcr';
 import * as Haptics from 'expo-haptics';
@@ -37,7 +38,7 @@ import {Switch} from '@components/Switch';
 import {Tabs} from '@components/Tabs';
 import {OptionTile} from '@components/OptionTile';
 import {StepPhotos} from '@components/StepPhotos';
-import {FieldManageDialog, TimeDialog, ServingsDialog, IngredientAmountDialog} from '@components/Dialog';
+import {FieldManageDialog, TimeDialog, ServingsDialog, NumberValueDialog, IngredientAmountDialog} from '@components/Dialog';
 import type {ReviewData} from '@components/Dialog';
 import {TextInput} from '@components/TextInput';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
@@ -96,7 +97,7 @@ import {
   IconEllipsisVertical,
   IconPhoto,
   IconClockFilled,
-  IconUsersRoundFilled,
+  IconUsersRoundFilled, IconFireFilled, IconScaleFilled,
   IconMinus,
   IconAdd,
   IconPlusCircleFilled,
@@ -115,8 +116,8 @@ import {
   IconLeafFilled,
   IconFilesFilled,
   IconToolCaseFilled,
-  IconProcess,
-  IconChartNoAxesGantt,
+  IconFlow,
+  IconPenTipFilled,
   IconCornerDownRight,
   IconEdit,
   IconTrash,
@@ -325,6 +326,10 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const [ratio, setRatio] = useState(() => recipe?.specificGravity ?? '');
   const [time, setTime] = useState(() => recipe?.time ?? '');
   const [servings, setServings] = useState(() => recipe?.servings ?? '');
+  const [doughTemp, setDoughTemp] = useState(() => recipe?.doughTemp ?? '');
+  const [divideWeight, setDivideWeight] = useState(() => recipe?.divideWeight ?? '');
+  // 반죽 온도·분할 용량 입력 창 — 어느 쪽인지
+  const [numberDialog, setNumberDialog] = useState<'doughTemp' | 'divideWeight' | null>(null);
   const [session, setSession] = useState(() => recipe?.session ?? '');
   const [showTimeDialog, setShowTimeDialog] = useState(false);
   const [showServingsDialog, setShowServingsDialog] = useState(false);
@@ -571,6 +576,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     specificGravity: ratio || undefined,
     time: time || undefined,
     servings: servings || undefined,
+    doughTemp: doughTemp || undefined,
+    divideWeight: divideWeight || undefined,
     session: session || undefined,
     ingredientGroups: resolveIngredientGroups(),
     toolGroups: toolGroups.map(g => ({
@@ -589,17 +596,17 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     sourceUrl: sourceUrl || undefined,
     // 비공개 토글도 변경 감지 대상 — 이게 빠지면 비공개만 바꿨을 때 isDirty가 안 잡혀 저장 불가.
     hidden: isExplore ? hidden : undefined,
-  }), [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, advicePhotos, kind, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden]);
+  }), [title, cookbook, method, ratio, time, servings, doughTemp, divideWeight, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, advicePhotos, kind, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden]);
   const initialSnapshotRef = useRef(currentSnapshot);
 
   // ── 되돌리기/다시하기 ──────────────────────────────────────
   // currentSnapshot은 "저장용 정규화 데이터"라(빈 항목이 필터링됨) 복원에 쓸 수 없다.
   // 편집 상태 원본을 그대로 담는 별도 스냅샷을 쓴다.
   const historySnapshot = useMemo(() => ({
-    title, cookbook, method, ratio, time, servings,
+    title, cookbook, method, ratio, time, servings, doughTemp, divideWeight,
     ingredientGroups, toolGroups, stepGroups,
     activeFieldIds, reviews, advice, advicePhotos, imageUri, imageUris, referenceUrl, sourceUrl, hidden,
-  }), [title, cookbook, method, ratio, time, servings, ingredientGroups, toolGroups, stepGroups,
+  }), [title, cookbook, method, ratio, time, servings, doughTemp, divideWeight, ingredientGroups, toolGroups, stepGroups,
     activeFieldIds, reviews, advice, advicePhotos, imageUri, imageUris, referenceUrl, sourceUrl, hidden]);
 
   const applyHistory = useCallback((s: typeof historySnapshot) => {
@@ -609,6 +616,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     setRatio(s.ratio);
     setTime(s.time);
     setServings(s.servings);
+    setDoughTemp(s.doughTemp);
+    setDivideWeight(s.divideWeight);
     setIngredientGroups(s.ingredientGroups);
     setToolGroups(s.toolGroups);
     setStepGroups(s.stepGroups);
@@ -635,7 +644,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     : stepGroups.some(g => g.steps.some(s => s.description.trim()));
   // 재료는 필수가 아니다(재료 없이 과정만 있는 레시피도 있다). 팁은 제목만 있으면 된다.
   const isTip = kind === 'tip';
-  const canSave = isDirty && hasTitle && (isTip || hasStep);
+  // 필수는 제목뿐 — 재료·과정 없이도 저장된다
+  const canSave = isDirty && hasTitle;
   const [saving, setSaving] = useState(false);
   // 닫기 확인: 변경사항이 있고 실제 입력한 내용이 있을 때만(빈 폼은 그냥 닫음)
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
@@ -657,16 +667,6 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
       titleInputRef.current?.focus();
       return;
     }
-    // 재료는 필수가 아니다 — 비어 있어도 저장한다(과정만 있는 레시피도 있다)
-    const hasStp = stepGroups.some(g => g.bulkMode)
-      ? stepGroups.some(g => resolveGroupSteps(g).length > 0)
-      : stepGroups.some(g => g.steps.some(s => s.description.trim()));
-    if (!hasStp && kind !== 'tip') {
-      const y = sectionPositions.current['steps'];
-      if (y != null) scrollViewRef.current?.scrollTo({y: y - 80, animated: true});
-      setTimeout(() => sectionInputRefs.current['steps']?.focus(), 300);
-      return;
-    }
     setSaving(true);
     try {
       await onSave?.({
@@ -676,6 +676,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         specificGravity: ratio || undefined,
         time: time || undefined,
         servings: servings || undefined,
+        doughTemp: doughTemp || undefined,
+        divideWeight: divideWeight || undefined,
         session: session || undefined,
         ingredientGroups: resolveIngredientGroups(),
         toolGroups: toolGroups.map(g => ({title: g.title, tools: resolveGroupTools(g)})),
@@ -694,7 +696,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     } finally {
       setSaving(false);
     }
-  }, [title, cookbook, method, ratio, time, servings, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, advicePhotos, kind, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden, onSave]);
+  }, [title, cookbook, method, ratio, time, servings, doughTemp, divideWeight, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, advicePhotos, kind, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden, onSave]);
 
   const pickImage = async (source: 'camera' | 'gallery', slot: 'main' | 'extra' = 'main') => {
     if (source === 'camera') {
@@ -895,6 +897,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     if (m.servings) { setServings(m.servings); turnOn.push('servings'); }
     if (m.specificGravity) { setRatio(m.specificGravity); turnOn.push('ratio'); }
     if (m.session) setSession(m.session);
+    if (m.doughTemp) { setDoughTemp(m.doughTemp); turnOn.push('doughTemp'); }
+    if (m.divideWeight) { setDivideWeight(m.divideWeight); turnOn.push('divideWeight'); }
     if (m.referenceUrl) { setReferenceUrl(m.referenceUrl); turnOn.push('source'); }
     // 조언은 어드민 칸 — 어드민일 때만
     if (parsed.advice && isAdminRef.current) { setAdvice(parsed.advice); turnOn.push('advice'); }
@@ -966,13 +970,21 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
 
   // 사진에서 글 읽기(촬영·갤러리·레시피 사진 → 영역 선택 → 인식) — 화면에 하나.
   // 툴바 [레시피 사진]과 한번에 쓰기 인식 버튼이 같이 쓴다. 읽은 글은 대상 칸(ocrTargetRef)에 넣는다.
-  const ocrTargetRef = useRef<{field: RecipeOcrField; bulkGroupId?: string}>({field: 'title'});
+  const ocrTargetRef = useRef<{field: RecipeOcrField; bulkGroupId?: string; paste?: boolean}>({field: 'title'});
   // 한번에 쓰기 머리의 인식 메뉴가 열린 묶음
   const [bulkScanMenu, setBulkScanMenu] = useState<string | null>(null);
   const ocrReader = useImageTextReader({
     recipePhotos: {title, imageUri: imageUri ?? undefined, imageUris},
     onBusyChange: setOcrLoading,
     onText: text => {
+      // 텍스트로 채우기 시트에서 '이미지로 읽기' — 읽은 글을 쓰기 규칙 글로 바꿔 시트를 다시 연다(무지개 타이핑)
+      if (ocrTargetRef.current.paste) {
+        ocrTargetRef.current = {field: 'title'};
+        setPasteInitial(ocrTextToMarkdown(text) || text);
+        setPasteAnimate(true);
+        setPasteOpen(true);
+        return;
+      }
       const {field, bulkGroupId} = ocrTargetRef.current;
       if (bulkGroupId) setOcrBulkGroupId(bulkGroupId);
       try {
@@ -1066,6 +1078,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   // 하단 탭 [+]에서 시작 — 시트에서 확인한 글(텍스트·사진 글자)은 바로 적용,
   // URL은 원본 링크 칸을 열어 붙여넣으면 가져온다(만개의레시피 등).
   const [pasteInitial, setPasteInitial] = useState<string | undefined>(undefined);
+  const [pasteAnimate, setPasteAnimate] = useState(false);
   const startedInputRef = useRef(false);
   useEffect(() => {
     if (!initialInput || recipe || startedInputRef.current) return;
@@ -1969,8 +1982,10 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         </View>
 
         {/* Option Tiles */}
+        {(isFieldActive('photo') || isFieldActive('time') || isFieldActive('servings') || isFieldActive('doughTemp') || isFieldActive('divideWeight')) && (
         <ContentContainer style={styles.optionTilesSection}>
           <View style={styles.optionTilesRow}>
+            {isFieldActive('photo') && (
             <View style={styles.photoTileWrap}>
               <Pressable style={{flex: 1}} onPress={() => setShowPhotoMenu(prev => !prev)}>
                 {imageUri ? (
@@ -2017,12 +2032,16 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 style={styles.photoMenu}
               />
             </View>
-            <OptionTile icon={IconClockFilled} label={time || t('recipeEdit.time')} onPress={() => setShowTimeDialog(true)} />
-            <OptionTile icon={IconUsersRoundFilled} label={servings || t('recipeEdit.servings')} onPress={() => setShowServingsDialog(true)} />
+            )}
+            {isFieldActive('time') && <OptionTile icon={IconClockFilled} label={time || t('recipeEdit.time')} onPress={() => setShowTimeDialog(true)} />}
+            {isFieldActive('servings') && <OptionTile icon={IconUsersRoundFilled} label={servings || t('recipeEdit.servings')} onPress={() => setShowServingsDialog(true)} />}
+            {isFieldActive('doughTemp') && <OptionTile icon={IconFireFilled} label={doughTemp || t('recipeEdit.doughTemp')} onPress={() => setNumberDialog('doughTemp')} />}
+            {isFieldActive('divideWeight') && <OptionTile icon={IconScaleFilled} label={divideWeight || t('recipeEdit.divideWeight')} onPress={() => setNumberDialog('divideWeight')} />}
             {/* 회차 타일 제거 — '다시 만들기' 자동값이라 편집화면에 표시할 필요 없음 (session 데이터는 저장 유지) */}
           </View>
           {/* 공법/비중 칩은 제목 영역으로 이동됨 */}
         </ContentContainer>
+        )}
         <ContentContainer style={styles.navItemGap}>
           <Card>
             <ListItem
@@ -2668,6 +2687,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         </View>
 
         {/* 과정 Groups */}
+        {/* 과정도 필드 관리에서 끌 수 있다(필수는 제목뿐) */}
+        {isFieldActive('steps') && (
         <View onLayout={e => { sectionPositions.current['steps'] = e.nativeEvent.layout.y; }}>
         {stepGroups.map((group, groupIndex) => {
           const groupHasDragging = drag.draggingId !== null && group.steps.some(s => s.id === drag.draggingId);
@@ -2686,7 +2707,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 <ListItem
                   // 모든 묶음이 같은 아이콘 버튼 — 탭하면 이동/삭제 메뉴.
                   // 예전엔 두 번째 묶음부터 '-' 버튼이라 조작이 갈렸다.
-                  leading={{type: 'iconButton', icon: IconProcess,
+                  leading={{type: 'iconButton', icon: IconFlow,
                     onPress: () => setStepGroupMenu(group.id), variant: 'ghost-secondary'}}
                   // 재료·도구 헤더와 같은 + 버튼. 누르면 아래에 "과정 추가 / 묶음 추가" 메뉴.
                   // 한번에 쓰기는 과정 전체 단위 — 묶음이 여럿이면 첫 묶음 머리에만 스위치
@@ -2713,7 +2734,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
               ) : (
                 <ListItem
                   // 묶음이 하나면 이동할 곳이 없으므로, 아이콘 버튼엔 추가 메뉴를 붙인다
-                  leading={{type: 'iconButton', icon: IconProcess,
+                  leading={{type: 'iconButton', icon: IconFlow,
                     onPress: () => setStepAddMenu(group.id), variant: 'ghost-secondary'}}
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
@@ -3019,6 +3040,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         );})}
 
         </View>
+        )}
 
         {/* Navigation Items */}
         {isFieldActive('cookbook') && (
@@ -3249,7 +3271,15 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
 
       <PasteRecipeSheet
         visible={pasteOpen}
-        onClose={() => { setPasteOpen(false); setPasteInitial(undefined); }}
+        onClose={() => { setPasteOpen(false); setPasteInitial(undefined); setPasteAnimate(false); }}
+        animateInitial={pasteAnimate}
+        // 헤더 맨 오른쪽 '이미지로 읽기' — 시트를 닫고(iOS는 시트 위에 사진 창을 못 띄운다) 읽은 뒤 다시 연다
+        readImageItems={ocrReader.menuItems}
+        onReadImage={id => {
+          setPasteOpen(false);
+          ocrTargetRef.current = {field: 'title', paste: true};
+          setTimeout(() => ocrReader.start(id), 400);
+        }}
         onApply={applyMarkdown}
         initialText={pasteInitial}
       />
@@ -3277,6 +3307,18 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         onClose={() => setLinkDialog(null)}
         initialLabel={linkDialog?.label ?? ''}
         onConfirm={(url, label) => { setLinkDialog(null); applyLinkRef.current?.(url, label); }}
+      />
+
+      {/* 반죽 온도·분할 용량 — 숫자 + 단위 공통 창 */}
+      <NumberValueDialog
+        visible={numberDialog !== null}
+        onClose={() => setNumberDialog(null)}
+        title={numberDialog === 'divideWeight' ? t('recipeEdit.divideWeight') : t('recipeEdit.doughTemp')}
+        icon={numberDialog === 'divideWeight' ? IconScaleFilled : IconFireFilled}
+        value={numberDialog === 'divideWeight' ? divideWeight : doughTemp}
+        suffix={numberDialog === 'divideWeight' ? 'g' : '°C'}
+        onConfirm={v => (numberDialog === 'divideWeight' ? setDivideWeight(v) : setDoughTemp(v))}
+        onDelete={() => (numberDialog === 'divideWeight' ? setDivideWeight('') : setDoughTemp(''))}
       />
 
       {/* 분량 다이얼로그 */}

@@ -13,20 +13,19 @@ import {
   IconBookFilled,
   IconBookTwotone,
   IconExprolerBookFilled,
-  IconChartNoAxesGantt,
+  IconPenTipFilled,
   IconDescription,
   IconClockFilled,
   IconLeafFilled,
   IconOpenbookFilled,
   IconPhoto,
-  IconProcess,
+  IconFlow,
   IconToolCaseFilled,
   IconUserFilled,
   IconWind,
   IconLogoSymbol,
   IconLink,
-  IconImport,
-} from '@components/Icon/IconIndex';
+  IconImport, IconFireFilled, IconScaleFilled} from '@components/Icon/IconIndex';
 
 // 필드 정의
 interface FieldDef {
@@ -37,20 +36,23 @@ interface FieldDef {
 }
 
 const makeAllFields = (t: (key: string) => string): FieldDef[] => [
+  // 고정은 레시피 정보(제목)뿐 — 나머지는 다 끌 수 있다
   {id: 'info', label: t('fieldManage.recipeInfo'), icon: IconDescription, fixed: true},
-  {id: 'photo', label: t('fieldManage.photo'), icon: IconPhoto, fixed: true},
-  {id: 'time', label: t('fieldManage.time'), icon: IconClockFilled, fixed: true},
+  {id: 'photo', label: t('fieldManage.photo'), icon: IconPhoto, fixed: false},
+  {id: 'time', label: t('fieldManage.time'), icon: IconClockFilled, fixed: false},
   {id: 'ingredients', label: t('fieldManage.ingredients'), icon: IconLeafFilled, fixed: false},
   {id: 'tools', label: t('fieldManage.tools'), icon: IconToolCaseFilled, fixed: false},
-  {id: 'steps', label: t('fieldManage.steps'), icon: IconProcess, fixed: true},
-  {id: 'servings', label: t('fieldManage.servings'), icon: IconUserFilled, fixed: true},
+  {id: 'steps', label: t('fieldManage.steps'), icon: IconFlow, fixed: false},
+  {id: 'servings', label: t('fieldManage.servings'), icon: IconUserFilled, fixed: false},
+  {id: 'doughTemp', label: t('fieldManage.doughTemp'), icon: IconFireFilled, fixed: false},
+  {id: 'divideWeight', label: t('fieldManage.divideWeight'), icon: IconScaleFilled, fixed: false},
   {id: 'method', label: t('fieldManage.method'), icon: IconOpenbookFilled, fixed: false},
   {id: 'ratio', label: t('fieldManage.ratio'), icon: IconWind, fixed: false},
   {id: 'cookbook', label: t('fieldManage.cookbook'), icon: IconBookFilled, fixed: false},
   {id: 'advice', label: t('fieldManage.advice'), icon: IconLogoSymbol, fixed: false},
-  {id: 'review', label: t('fieldManage.review'), icon: IconChartNoAxesGantt, fixed: false},
-  {id: 'source', label: t('fieldManage.source'), icon: IconLink, fixed: true},
-  {id: 'origin', label: t('fieldManage.origin'), icon: IconImport, fixed: true},
+  {id: 'review', label: t('fieldManage.review'), icon: IconPenTipFilled, fixed: false},
+  {id: 'source', label: t('fieldManage.source'), icon: IconLink, fixed: false},
+  {id: 'origin', label: t('fieldManage.origin'), icon: IconImport, fixed: false},
 ];
 
 export interface FieldManageDialogProps {

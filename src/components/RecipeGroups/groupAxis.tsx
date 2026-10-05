@@ -1,7 +1,7 @@
 import {useMemo} from 'react';
 import {useColors} from '@contexts/ThemeContext';
 import {useTranslation, type TranslateFn} from '@contexts/LanguageContext';
-import {IconBookFilled, IconChartNoAxesGantt, IconNoteFilled, IconProcess} from '@components/Icon/IconIndex';
+import {IconBookFilled, IconPenTipFilled, IconNoteFilled, IconProcess} from '@components/Icon/IconIndex';
 
 /**
  * 레시피 그룹화 축 — 홈/둘러보기 공통 기준.
@@ -52,7 +52,7 @@ export function useAxisMenuItems(availableAxes: GroupAxis[] = DEFAULT_AXES, over
       all: {id: 'all', label: t(AXIS_LABEL_KEYS.all), icon: IconNoteFilled, iconColor: colors['custom/orange-var']},
       cookbook: {id: 'cookbook', label: t(AXIS_LABEL_KEYS.cookbook), icon: IconBookFilled, iconColor: colors['custom/burgundy-var']},
       method: {id: 'method', label: t(AXIS_LABEL_KEYS.method), icon: IconProcess, iconColor: colors['custom/lime-var']},
-      retrospective: {id: 'retrospective', label: t(AXIS_LABEL_KEYS.retrospective), icon: IconChartNoAxesGantt, iconColor: colors['custom/light-blue-var']},
+      retrospective: {id: 'retrospective', label: t(AXIS_LABEL_KEYS.retrospective), icon: IconPenTipFilled, iconColor: colors['custom/light-blue-var']},
     };
     return availableAxes.map(a => {
       const o = overrides?.[a];

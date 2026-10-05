@@ -59,6 +59,10 @@ export interface Recipe {
   madeAt?: string;
   time?: string;
   servings?: string;
+  /** 반죽 온도 — '27°C' */
+  doughTemp?: string;
+  /** 분할 용량(한 개 무게) — '50g' */
+  divideWeight?: string;
   session?: string;
   ingredientGroups?: IngredientGroup[];
   tools?: {name: string}[];

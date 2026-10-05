@@ -31,3 +31,11 @@ export function NavPillButton({icon, onPress, variant = 'ghost-primary', size = 
     </GlassContainer>
   );
 }
+
+/**
+ * 여러 아이콘 버튼을 유리 알약 하나에 묶는다 — 앱바 오른쪽처럼(추가·교체·삭제 등).
+ * 안에는 ghost 계열 IconButton을 넣는다.
+ */
+export function NavPillGroup({children}: {children: React.ReactNode}) {
+  return <GlassContainer contentStyle={navPillStyle}>{children}</GlassContainer>;
+}

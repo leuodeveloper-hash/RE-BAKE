@@ -49,6 +49,7 @@ import {ensureImagePermission} from '@utils/imagePermission';
 import {getPersistentUri} from '@utils/imageUpload';
 import {recognizeImageText, normalizeOcrWhitespace} from '@utils/recipeOcr';
 import {ocrTextToMarkdown} from '@utils/ocrText';
+import {photoSourceMenuItems} from '@utils/photoSourceMenu';
 import {setPendingRecipeText} from '@utils/pendingRecipeText';
 import {OcrCropModal} from '@components/RecipeOcrButton';
 import {prepareRecipeImageForCrop, type OcrCropTarget} from '@utils/ocrImageSource';
@@ -680,6 +681,15 @@ function NavigationContent() {
             initialText={paste.text}
             loading={paste.loading}
             animateInitial={paste.animate}
+            // 헤더 맨 오른쪽 '이미지로 읽기' — [+] 이미지와 같은 흐름(시트를 닫고 고른 뒤 읽어 다시 연다)
+            readImageItems={[...photoSourceMenuItems(t), {id: 'recipe', label: t('recipeImagePicker.menu'), icon: IconNoteFilled}]}
+            onReadImage={id => {
+              setPaste({visible: false});
+              setTimeout(() => {
+                if (id === 'recipe') setRecipeImagePicker(true);
+                else runPhotoToText(id as 'camera' | 'gallery');
+              }, 400);
+            }}
           />
         </>
       )}

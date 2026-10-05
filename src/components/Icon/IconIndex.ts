@@ -213,3 +213,6 @@ export {default as IconPlusCircleFilled} from '../../../assets/icons/plus-circle
 export {default as IconMinusCircleFilled} from '../../../assets/icons/indeterminate-circle-filled.svg';
 export {default as IconLogoSymbol} from '../../../assets/images/logo_symbol.svg';
 export {default as IconKeyboard} from '../../../assets/icons/keyboard.svg';
+export {default as IconFlow} from '../../../assets/icons/flow.svg';
+export {default as IconPenTip} from '../../../assets/icons/pen-tip.svg';
+export {default as IconPenTipFilled} from '../../../assets/icons/pen-tip-filled.svg';

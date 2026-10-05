@@ -1,3 +1,4 @@
+import {LinearGradient} from 'expo-linear-gradient';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   Animated,
@@ -304,6 +305,10 @@ export function BottomSheet({
   }, [enableBackdropDismiss, animateClose]);
 
   const [sheetH, setSheetH] = useState(0);
+  // 떠 있는 헤더 — 라벨 가운데(center) 헤더는 앱바처럼 내용 위에 뜬다(일반 시트만, 전체화면 제외)
+  const floatingHeader = !!title && headerType === 'center' && !fullScreen && !headerGraphic;
+  const [floatingHeaderH, setFloatingHeaderH] = useState(0);
+  const sheetBg = (backgroundColor ?? colors['surface/bright']) as string;
   const handleLayout = (event: {nativeEvent: {layout: {height: number}}}) => {
     contentHeight.current = event.nativeEvent.layout.height;
     setSheetH(event.nativeEvent.layout.height);
@@ -386,7 +391,7 @@ export function BottomSheet({
               onResponderRelease={onDragRelease}
               onResponderTerminate={onDragTerminate}
             >
-              {title && <SheetHeader title={title} description={description} onClose={() => animateClose()} headerGraphic={headerGraphic} headerType={headerType} headerRight={headerRight} onBack={onBack} />}
+              {title && !floatingHeader && <SheetHeader title={title} description={description} onClose={() => animateClose()} headerGraphic={headerGraphic} headerType={headerType} headerRight={headerRight} onBack={onBack} />}
               {header}
 
               {fullScreen ? (
@@ -398,13 +403,26 @@ export function BottomSheet({
                   style={bottomAction ? {flexShrink: 1} : undefined}
                   onLayout={e => setScrollViewH(e.nativeEvent.layout.height)}
                   onContentSizeChange={(_, h) => setScrollContentH(h)}
-                  contentContainerStyle={[styles.content, bottomAction ? styles.contentWithAction : null]}
+                  // 떠 있는 헤더면 그 높이만큼 내용을 내려 시작한다(스크롤하면 헤더 아래로 지나간다)
+                  contentContainerStyle={[styles.content, bottomAction ? styles.contentWithAction : null, floatingHeader ? {paddingTop: floatingHeaderH} : null]}
                   onScroll={(e) => { scrollOffsetY.current = e.nativeEvent.contentOffset.y; }}
                   scrollEventThrottle={16}
                 >
                   {children}
                 </ScrollView>
               )}
+              {/* 떠 있는 헤더 — 앱바처럼 내용 위에. 아래로 갈수록 투명해지는 배경으로 지나가는 내용을 흐린다 */}
+              {floatingHeader ? (
+                <View style={styles.floatingHeader} onLayout={e => setFloatingHeaderH(e.nativeEvent.layout.height)}>
+                  <LinearGradient
+                    pointerEvents="none"
+                    colors={[sheetBg, sheetBg, `${sheetBg}00`]}
+                    locations={[0, 0.7, 1]}
+                    style={StyleSheet.absoluteFill}
+                  />
+                  <SheetHeader title={title!} description={description} onClose={() => animateClose()} headerType="center" headerRight={headerRight} onBack={onBack} />
+                </View>
+              ) : null}
               {bottomAction ? (
                 <BottomActionBar
                   background={backgroundColor ?? colors['surface/bright']}
@@ -483,6 +501,13 @@ const createStyles = (colors: SemanticColors) =>
       flex: 1,
       justifyContent: 'flex-end',
       padding: Spacing.sm,
+    },
+    floatingHeader: {
+      position: 'absolute',
+      top: 0,
+      left: 0,
+      right: 0,
+      zIndex: 5,
     },
     aboveSheet: {
       position: 'absolute',

@@ -47,7 +47,7 @@ export interface WritingRulesProps {
   style?: StyleProp<ViewStyle>;
 }
 
-/** 규칙들을 "뜻 · 기호" 줄로 — 규칙 모음 패널(Cheatsheet)용 */
+/** 규칙들을 "뜻 · 기호" 줄로 — 단축키 목록(ShortcutList)용 */
 export function writingRuleRows(keys: WritingRuleKey[], t: (k: string) => string): {label: string; keys: string[]}[] {
   return keys.map(key => {
     const r = RULES[key];

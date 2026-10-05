@@ -4,7 +4,7 @@ import {useColors} from '@contexts/ThemeContext';
 import {Card} from '@components/Container';
 import {ListItem} from '@components/ListItem';
 import {TextInput} from '@components/TextInput';
-import {IconChartNoAxesGantt, IconCornerDownRight} from '@components/Icon/IconIndex';
+import {IconPenTipFilled, IconCornerDownRight} from '@components/Icon/IconIndex';
 import {useTranslation} from '@contexts/LanguageContext';
 import {InputGroup} from '@components/InputGroup';
 
@@ -61,7 +61,7 @@ export function ReviewFields({evaluation, improvement, onChangeEvaluation, onCha
     <Card>
       <ListItem
         title={t('recipeEdit.review')}
-        leading={{type: 'icon', icon: IconChartNoAxesGantt}}
+        leading={{type: 'icon', icon: IconPenTipFilled}}
       />
       <ListItem showDivider>
         <TextInput

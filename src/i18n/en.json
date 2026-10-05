@@ -986,7 +986,7 @@
   "recipeEdit.pasteRule.note": "Tip · Caution",
   "recipeEdit.pasteMark.tip": "> Tip:",
   "recipeEdit.pasteMark.caution": "> Caution:",
-  "recipeImagePicker.menu": "From a recipe",
+  "recipeImagePicker.menu": "From a recipe photo",
   "recipeImagePicker.title": "Read from a recipe photo",
   "recipeImagePicker.mine": "My recipes",
   "recipeImagePicker.explore": "Explore",
@@ -1044,5 +1044,11 @@
   "recipeEdit.pasteRule.caution": "Caution",
   "auth.appleLoginFailed": "Apple sign-in failed",
   "recipeDetail.photoSectionHero": "Cover",
-  "recipeDetail.photoSectionReview": "Notes"
+  "recipeDetail.photoSectionReview": "Notes",
+  "fieldManage.doughTemp": "Dough temp",
+  "fieldManage.divideWeight": "Divide weight",
+  "recipeEdit.doughTemp": "Dough temp",
+  "recipeEdit.divideWeight": "Divide weight",
+  "common.delete": "Delete",
+  "recipeEdit.linkSecret": "Mark as secret ingredient"
 }

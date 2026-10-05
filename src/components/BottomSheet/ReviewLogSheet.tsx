@@ -19,7 +19,7 @@ import type {Recipe} from '../../types/recipe';
 import type {ReviewData} from '@components/Dialog/ReviewDialog';
 import {parseSession} from '@utils/session';
 import {
-  IconChartNoAxesGantt,
+  IconPenTipFilled,
   IconCornerDownRight,
   IconSearch,
 } from '@components/Icon/IconIndex';
@@ -204,7 +204,7 @@ export function ReviewLogSheet({
       ) : (
         <>
           <View style={styles.titleRow}>
-            <AppIcon icon={IconChartNoAxesGantt} size="xs" color={colors['foreground/on-surface-muted']} />
+            <AppIcon icon={IconPenTipFilled} size="xs" color={colors['foreground/on-surface-muted']} />
             {mode === 'detail' ? (
               <>
                 {canGoBack ? (
@@ -255,7 +255,7 @@ export function ReviewLogSheet({
                     imageUrl={rv.photos?.[0] ?? r.imageUri ?? recipe.imageUri}
                     layout="list"
                     size="small"
-                    placeholderIcon={IconChartNoAxesGantt}
+                    placeholderIcon={IconPenTipFilled}
                     placeholderIconColor={colors['custom/light-blue-var']}
                     onPress={() => handleRetroPress(recipe)}
                   />
@@ -281,7 +281,7 @@ export function ReviewLogSheet({
                       imageUrl={r.imageUri}
                       layout="list"
                       size="small"
-                      placeholderIcon={IconChartNoAxesGantt}
+                      placeholderIcon={IconPenTipFilled}
                       placeholderIconColor={colors['custom/light-blue-var']}
                       onPress={() => onWriteReview?.(r)}
                     />
@@ -298,7 +298,7 @@ export function ReviewLogSheet({
                       subtitleIcon={IconCornerDownRight}
                       layout="list"
                       size="small"
-                      placeholderIcon={IconChartNoAxesGantt}
+                      placeholderIcon={IconPenTipFilled}
                       placeholderIconColor={colors['custom/light-blue-var']}
                     />
                   </View>
@@ -322,7 +322,7 @@ export function ReviewLogSheet({
                   layout="list"
                   size="small"
                   leadingNumber={j + 1}
-                  placeholderIcon={IconChartNoAxesGantt}
+                  placeholderIcon={IconPenTipFilled}
                   placeholderIconColor={colors['custom/light-blue-var']}
                 />
               ))
@@ -351,7 +351,7 @@ export function ReviewLogSheet({
                         layout="list"
                         size="small"
                         leadingNumber={isMulti ? sessionNum : j + 1}
-                        placeholderIcon={IconChartNoAxesGantt}
+                        placeholderIcon={IconPenTipFilled}
                         placeholderIconColor={colors['custom/light-blue-var']}
                         // 회고 줄을 누르면 그 회차 회고 수정(없으면 예전처럼 여러 회차일 때 그 레시피로)
                         onPress={onEditReview
@@ -374,7 +374,7 @@ export function ReviewLogSheet({
                       layout="list"
                       size="small"
                       leadingNumber={sessionNum}
-                      placeholderIcon={IconChartNoAxesGantt}
+                      placeholderIcon={IconPenTipFilled}
                       placeholderIconColor={colors['custom/light-blue-var']}
                       onPress={() => { onClose(); onRecipePress?.(session.id); }}
                     />

@@ -1,3 +1,4 @@
+import {hasFlour, flourTotal, bakersPercentOf} from './bakersPercentage';
 import {stripRichText} from './richText';
 /**
  * 레시피 데이터를 PDF용 HTML 문서로 변환
@@ -47,17 +48,6 @@ function escapeHtml(str: string): string {
     .replace(/"/g, '&quot;');
 }
 
-function parseAmountGrams(amount: string): number {
-  const match = amount.match(/[\d.]+/);
-  return match ? parseFloat(match[0]) : 0;
-}
-
-function formatPercentage(value: number): string {
-  if (value === 0) return '-';
-  const rounded = Math.round(value * 10) / 10;
-  return `${rounded}%`;
-}
-
 function buildSubtitle(data: RecipePdfData): string {
   const parts: string[] = [];
   if (data.cookbook) parts.push(data.cookbook);
@@ -77,32 +67,34 @@ function buildMetaHtml(data: RecipePdfData): string {
 }
 
 function buildIngredientsHtml(data: RecipePdfData): string {
-  const baseAmount = parseAmountGrams(
-    data.ingredientGroups[0]?.ingredients[0]?.amount ?? '0',
-  );
+  // 베이커스 퍼센티지는 상세와 같은 규칙 — 밀가루가 있을 때만, 밀가루 총량이 100%
+  const showPct = hasFlour(data.ingredientGroups);
+  const baseAmount = flourTotal(data.ingredientGroups);
   const multiGroup = data.ingredientGroups.length > 1;
 
-  return data.ingredientGroups
+  // 재료는 한 섹션 — 묶음(가루·유지 등)은 그 안에서 작은 이름 + 묶음 사이 선으로 나눈다
+  const groupsHtml = data.ingredientGroups
     .map(group => {
+      // 라벨은 '재료 › 가루'처럼 유지(선 없이)
       const titleHtml = multiGroup
-        ? `<div class="section-title"><span>재료</span><span class="chevron">›</span><span>${escapeHtml(group.title)}</span></div>`
-        : '<div class="section-title">재료</div>';
+        ? `<div class="section-title group-label"><span>재료</span><span class="chevron">›</span><span>${escapeHtml(group.title)}</span></div>`
+        : '';
 
       const rows = group.ingredients
         .map(ing => {
-          const amount = parseAmountGrams(ing.amount);
-          const pct = baseAmount > 0 ? (amount / baseAmount) * 100 : 0;
           return `
           <div class="ingredient-row">
-            <span class="ingredient-name">${escapeHtml(stripRichText(ing.name))} ${escapeHtml(ing.amount)}</span>
-            <span class="ingredient-pct">${formatPercentage(pct)}</span>
+            <span class="ingredient-name">${escapeHtml(stripRichText(ing.name, {maskSecret: true}))} ${escapeHtml(ing.amount)}</span>
+            ${showPct ? `<span class="ingredient-pct">${bakersPercentOf(ing.amount, baseAmount)}</span>` : ''}
           </div>`;
         })
         .join('');
 
-      return `${titleHtml}<div class="card">${rows}</div>`;
+      return `<div class="group">${titleHtml}<div class="card">${rows}</div></div>`;
     })
     .join('');
+  // 묶음이 여럿이면 각 묶음 라벨이 섹션 제목 역할, 하나면 '재료' 하나
+  return groupsHtml ? `<div class="section">${multiGroup ? '' : '<div class="section-title">재료</div>'}${groupsHtml}</div>` : '';
 }
 
 function buildToolsHtml(data: RecipePdfData): string {
@@ -120,9 +112,9 @@ function buildStepsHtml(steps: PdfStep[]): string {
     .map(
       step => `
       <div class="step-row">
-        <div class="step-number">${step.step}</div>
+        <div class="step-number">${step.step}.</div>
         <div class="step-content">
-          <div class="step-desc">${escapeHtml(stripRichText(step.description))}</div>
+          <div class="step-desc">${escapeHtml(stripRichText(step.description, {maskSecret: true}))}</div>
           ${step.tip ? `<div class="step-tip">${escapeHtml(step.tip)}</div>` : ''}
           ${step.caution ? `<div class="step-caution">${escapeHtml(step.caution)}</div>` : ''}
         </div>
@@ -133,13 +125,17 @@ function buildStepsHtml(steps: PdfStep[]): string {
 
 function buildProcessHtml(data: RecipePdfData): string {
   if (data.stepGroups && data.stepGroups.length > 0) {
-    return data.stepGroups
+    // 과정도 한 섹션 — 묶음은 그 안에서 작은 이름 + 묶음 사이 선
+    const multi = data.stepGroups.length > 1;
+    return `<div class="section">${multi ? '' : '<div class="section-title">과정</div>'}` + data.stepGroups
       .map(
         group => `
-        <div class="section-title"><span>과정</span><span class="chevron">›</span><span>${escapeHtml(group.title)}</span></div>
-        <div class="card">${buildStepsHtml(group.steps)}</div>`,
+        <div class="group">
+          ${multi ? `<div class="section-title group-label"><span>과정</span><span class="chevron">›</span><span>${escapeHtml(group.title)}</span></div>` : ''}
+          <div class="card">${buildStepsHtml(group.steps)}</div>
+        </div>`,
       )
-      .join('');
+      .join('') + '</div>';
   }
 
   if (data.steps && data.steps.length > 0) {
@@ -195,10 +191,12 @@ const PDF_CSS = `
   .meta-sep { color: #cfd2d6; margin: 0 6px; }
   .section-title {
     font-size: 13px; font-weight: 700; color: #1a1a1a;
-    margin: 28px 0 4px; padding-bottom: 7px;
-    border-bottom: 1.5px solid #1a1a1a;
+    margin: 28px 0 4px;
     display: flex; align-items: center; gap: 5px;
   }
+  /* 한 섹션 안의 묶음 — 라벨('재료 › 가루')은 그대로, 묶음 사이는 섹션 간격 대신 선으로 */
+  .group + .group { border-top: 1px solid #d5d8dc; margin-top: 8px; }
+  .group + .group .group-label { margin-top: 12px; }
   .chevron { color: #a9adb3; font-weight: 400; }
   .card { display: block; }
   .ingredient-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid #eef0f2; }
@@ -206,9 +204,10 @@ const PDF_CSS = `
   .ingredient-pct { font-size: 12px; font-weight: 500; color: #9aa0a6; text-align: right; flex-shrink: 0; }
   .ingredient-name { font-size: 14px; color: #1a1a1a; }
   .tools-text { padding: 8px 0; font-size: 14px; color: #1a1a1a; line-height: 1.6; }
-  .step-row { display: flex; gap: 12px; padding: 11px 0; border-bottom: 1px solid #eef0f2; }
-  .step-row:last-child { border-bottom: none; }
-  .step-number { width: 22px; height: 22px; border-radius: 50%; border: 1.5px solid #1a1a1a; font-size: 11px; font-weight: 600; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: #1a1a1a; }
+  /* 과정은 번호 붙은 글줄 — 문단처럼 붙여 쓴다(줄 사이 선·큰 간격 없이) */
+  .step-row { display: flex; gap: 6px; padding: 3px 0; }
+  /* 번호는 원 없이 글줄 그대로 '1.' */
+  .step-number { min-width: 18px; font-size: 14px; font-weight: 600; line-height: 1.6; flex-shrink: 0; color: #1a1a1a; }
   .step-content { flex: 1; min-width: 0; }
   .step-desc { font-size: 14px; line-height: 1.6; color: #1a1a1a; }
   .step-tip { margin-top: 6px; font-size: 12px; line-height: 1.5; color: #6b6f76; padding-left: 10px; border-left: 2px solid #e3e5e8; }

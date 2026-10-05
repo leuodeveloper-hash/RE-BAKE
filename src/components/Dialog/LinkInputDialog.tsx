@@ -10,6 +10,8 @@ import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
 import {IconLink} from '@components/Icon/IconIndex';
 import {TextInput} from '@components/TextInput';
+import {Switch} from '@components/Switch';
+import {SECRET_SUFFIX, isSecretUrl, withoutSecret} from '@utils/richText';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
@@ -39,7 +41,9 @@ export function LinkInputDialog({
 }: LinkInputDialogProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
-  const [url, setUrl] = useState(initialUrl);
+  const [url, setUrl] = useState(withoutSecret(initialUrl));
+  // 비밀재료로 표시 — 켜면 보기 화면에서 이 글이 먼지 점으로 가려진다(눌러야 열린다)
+  const [secret, setSecret] = useState(isSecretUrl(initialUrl));
   const [label, setLabel] = useState(initialLabel);
   // 주소 칸 뒤 [+] — 다른 레시피를 골라 링크로 건다(앱 안에서 그 레시피로 이동)
   const [picking, setPicking] = useState(false);
@@ -57,7 +61,7 @@ export function LinkInputDialog({
 
   // 열릴 때마다 현재 값으로 초기화
   useEffect(() => {
-    if (visible) { setUrl(initialUrl); setLabel(initialLabel); setPicking(false); setQuery(''); }
+    if (visible) { setUrl(withoutSecret(initialUrl)); setSecret(isSecretUrl(initialUrl)); setLabel(initialLabel); setPicking(false); setQuery(''); }
   }, [visible, initialUrl, initialLabel]);
 
   // 내 레시피 + 둘러보기(공식) — 이름으로 찾는다
@@ -100,7 +104,7 @@ export function LinkInputDialog({
       description={t('recipeEdit.linkMessage')}
       actions={<>
         <Button label={t('common.cancel')} variant="soft" onPress={onClose} />
-        <Button label={t('common.confirm')} variant="filled" onPress={() => onConfirm(url, label)} />
+        <Button label={t('common.confirm')} variant="filled" onPress={() => onConfirm(url.trim() && secret ? `${url.trim()}${SECRET_SUFFIX}` : url, label)} />
       </>}
     >
       <View style={styles.body}>
@@ -133,6 +137,8 @@ export function LinkInputDialog({
             onPress={() => setPicking(p => !p)}
           />
         </View>
+        {/* 비밀재료로 표시 — 링크 걸린 글을 보기 화면에서 먼지 점으로 가린다(인스타·스레드 스포일러처럼) */}
+        <Switch label={t('recipeEdit.linkSecret')} value={secret} onValueChange={setSecret} />
         {/* 레시피 고르기 — 고르면 주소가 recipe/id로 채워진다 */}
         {picking && (
           <View style={styles.picker}>

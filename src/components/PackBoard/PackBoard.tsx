@@ -59,9 +59,12 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
     // 화면 높이에 맞춰 행 수를 제한하면 팩이 가로로만 길어져 뭉쳐 보이고
     // 세로로 움직일 데가 없다. 폭에 맞춰 열 수를 정하고 아래로 쌓아
     // 위아래·좌우로 자유롭게 움직이게 한다.
-    const slackV = Math.max(0, ROW_HEIGHT - PACK_HEIGHT);
-    // 칸 사이 여백 — 56이면 좁은 화면에서 팩 사이가 휑했다
-    const cellW = PACK_WIDTH + 32;
+    // 넓은 화면(웹 큰 화면·아이패드)은 팩 사이도 넉넉히 — 모바일 간격 그대로면 다닥다닥 붙어 보였다
+    const wide = (boardWidth ?? 0) >= 768;
+    const rowHeight = ROW_HEIGHT + (wide ? 32 : 0);
+    const slackV = Math.max(0, rowHeight - PACK_HEIGHT);
+    // 칸 사이 여백 — 56이면 좁은 화면에서 팩 사이가 휑했다(넓은 화면은 56)
+    const cellW = PACK_WIDTH + (wide ? 56 : 32);
     // 화면 폭에 딱 맞춰 열을 채우면 가로로 넘칠 일이 없어 좌우로 움직일 데가 없다.
     // 화면보다 한 열 넓게 잡아 사방으로 펼친다 — 보드를 돌아다니는 느낌.
     const innerW = Math.max(cellW, (boardWidth ?? cellW * 3) - PAD_H * 2);
@@ -71,7 +74,7 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
     // 팩이 많으면 아래로만 길어지지 않게 — 보드를 가로로 조금 넓게(가로 ≈ 세로의 1.4배) 펼친다.
     // 정사각으로 맞추면 흔들림·여백 탓에 세로가 더 길어져 위아래 스크롤만 많았다.
     const BOARD_ASPECT = 1.4; // 1이면 세로만, 2면 가로만 스크롤돼 그 사이
-    const squareCols = Math.ceil(Math.sqrt(items.length * (ROW_HEIGHT / cellW) * BOARD_ASPECT));
+    const squareCols = Math.ceil(Math.sqrt(items.length * (rowHeight / cellW) * BOARD_ASPECT));
     const columns = Math.max(1, Math.min(Math.max(fitCols + 2, squareCols), items.length));
     const rows = Math.ceil(items.length / columns);
     const vOffset = PAD_V;
@@ -107,7 +110,7 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
       // 사진+종이 덩어리를 툭 던져 둔 듯 기울인다(뱃지는 RecipePack에서 제외)
       const rotate = (seeded(h + 5) - 0.5) * 14; // ±7deg
 
-      let top = vOffset + colOffset + row * ROW_HEIGHT + slackV / 2 + jitterY;
+      let top = vOffset + colOffset + row * rowHeight + slackV / 2 + jitterY;
       // 화면 높이로 가두지 않는다 — 아래로 쌓여야 세로로 움직일 수 있다
       top = Math.max(PAD_V, top);
       // 홀수 줄은 반 칸 옆으로 — 바둑판처럼 줄이 맞아 보이지 않게
@@ -132,7 +135,9 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
     // 카드 둘레 여백 구역에 걸치는 팩은 카드 중심에서 바깥 방향으로 밀어낸다.
     const hero = placed.find(p => p.item.custom);
     if (hero) {
-      const CLEAR = 24; // 카드 둘레 여백 — 44도 모바일 앱에서 카드 주변이 비어 보였다
+      // 카드 둘레 여백 — 화면 폭에 따라. 좁은 모바일은 촘촘히(44도 비어 보였다),
+      // 넓은 웹 화면은 넉넉히(24면 팩이 랜딩 카드에 붙어 보였다)
+      const CLEAR = wide ? 64 : 24;
       const heroW = hero.item.customSize?.w ?? PACK_WIDTH;
       const heroH = hero.item.customSize?.h ?? PACK_HEIGHT;
       // 카드를 자기 칸 가운데로 — 팩보다 크면 오른쪽·아래로 삐져나온다

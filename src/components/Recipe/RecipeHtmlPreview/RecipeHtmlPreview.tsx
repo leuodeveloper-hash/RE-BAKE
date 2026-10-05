@@ -36,11 +36,15 @@ export function RecipeHtmlPreview({data, html: htmlProp, width, height, scrollEn
     const scale = width / HTML_SOURCE_WIDTH;
     const html = htmlProp ?? (data ? generateRecipeHtml(data) : '');
     if (!html) return '';
+    // 크게 보는 미리보기(스크롤)는 종이 한 장처럼 — 흰 종이, 둘레 여백. 작게 줄이면 글이 종이 끝에 붙어 잘려 보였다
+    const paper = scrollEnabled
+      ? 'body { background: #e9eaec !important; padding: 16px !important; } .recipe-page { background: #fff !important; padding: 28px 24px !important; margin: 0 auto 16px !important; border-radius: 8px; min-height: 0 !important; aspect-ratio: auto 210 / 297; }'
+      : '';
     return html.replace(
       '</style>',
-      `body { zoom: ${scale}; }</style>`,
+      `body { zoom: ${scale}; } ${paper}</style>`,
     );
-  }, [data, htmlProp, width]);
+  }, [data, htmlProp, width, scrollEnabled]);
 
   if (!previewHtml) return null;
 

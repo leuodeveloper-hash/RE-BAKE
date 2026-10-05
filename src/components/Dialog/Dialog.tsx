@@ -213,7 +213,8 @@ export function Dialog({
         )}
 
         {/* Content */}
-        {children && <View style={styles.content}>{children}</View>}
+        {/* 라벨 가운데 헤더(앱바형)면 헤더 아래·버튼 위 여백을 8로 — 기본 20은 미리보기처럼 큰 내용에서 휑했다 */}
+        {children && <View style={[styles.content, headerType === 'center' && styles.contentCompact]}>{children}</View>}
 
         {/* Actions */}
         {actions && (
@@ -262,6 +263,13 @@ const createStyles = (colors: SemanticColors) =>
       paddingHorizontal: Spacing.lg,
       paddingVertical: Spacing.lg,
       marginBottom: Spacing.sm,
+    },
+    // 헤더 줄 아래 여백(12) 위로 4 더해 헤더와 16, 버튼과도 16
+    contentCompact: {
+      paddingTop: 0,
+      paddingBottom: 0,
+      marginTop: Spacing.xs,
+      marginBottom: Spacing.md,
     },
     actions: {
       flexDirection: 'row',

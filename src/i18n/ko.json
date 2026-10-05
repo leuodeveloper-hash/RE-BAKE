@@ -971,7 +971,7 @@
   "recipeEdit.pasteRule.note": "팁·주의",
   "recipeEdit.pasteMark.tip": "> 팁:",
   "recipeEdit.pasteMark.caution": "> 주의:",
-  "recipeImagePicker.menu": "기존 레시피",
+  "recipeImagePicker.menu": "기존 레시피 이미지",
   "recipeImagePicker.title": "레시피 사진에서 읽기",
   "recipeImagePicker.mine": "내 레시피",
   "recipeImagePicker.explore": "둘러보기",
@@ -1029,5 +1029,11 @@
   "recipeEdit.pasteRule.caution": "주의",
   "auth.appleLoginFailed": "Apple 로그인에 실패했어요",
   "recipeDetail.photoSectionHero": "대표 사진",
-  "recipeDetail.photoSectionReview": "회고"
+  "recipeDetail.photoSectionReview": "회고",
+  "fieldManage.doughTemp": "반죽 온도",
+  "fieldManage.divideWeight": "분할 용량",
+  "recipeEdit.doughTemp": "반죽 온도",
+  "recipeEdit.divideWeight": "분할 용량",
+  "common.delete": "삭제",
+  "recipeEdit.linkSecret": "비밀재료로 표시"
 }

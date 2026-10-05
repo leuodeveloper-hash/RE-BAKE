@@ -612,6 +612,8 @@ const handleDelete = useCallback(async () => {
         imageUris={recipe.imageUris}
         time={recipe.time}
         servings={recipe.servings}
+        doughTemp={recipe.doughTemp}
+        divideWeight={recipe.divideWeight}
         session={recipe.session}
         ingredientGroups={recipe.ingredientGroups}
         tools={recipe.tools}

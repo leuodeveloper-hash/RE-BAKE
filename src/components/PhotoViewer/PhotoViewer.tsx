@@ -189,18 +189,22 @@ export function PhotoViewer({
             )}
             <FloatingNavBar
               tintColor="#000000"
-              left={<NavPillButton icon={IconClose} onPress={close} />}
-              // 가운데 — 구획이 둘 이상이면 요리모드처럼 구획 고르기(지금 사진의 구획). 몇 번째인지는 아래 눈금이 보여준다
-              center={sections.length > 1 ? (
-                <GlassContainer contentStyle={styles.sectionPill}>
-                  <Selector
-                    label={photos[index]?.section ?? sections[0]}
-                    variant="ghost"
-                    showDropdown
-                    onPress={() => setShowSectionMenu(v => !v)}
-                  />
-                </GlassContainer>
-              ) : undefined}
+              // 왼쪽 — 닫기, 구획이 둘 이상이면 그 옆에 구획 고르기(요리모드와 같은 2뎁스, 사이 4)
+              left={
+                <View style={styles.topLeft}>
+                  <NavPillButton icon={IconClose} onPress={close} />
+                  {sections.length > 1 && (
+                    <GlassContainer contentStyle={styles.sectionPill}>
+                      <Selector
+                        label={photos[index]?.section ?? sections[0]}
+                        variant="ghost"
+                        showDropdown
+                        onPress={() => setShowSectionMenu(v => !v)}
+                      />
+                    </GlassContainer>
+                  )}
+                </View>
+              }
               leftMenu={sections.length > 1 ? (
                 <Menu
                   items={sections.map(sec => ({id: sec, label: sec}))}
@@ -248,6 +252,11 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.92)',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  topLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
   },
   sectionPill: {
     height: 44,

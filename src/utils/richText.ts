@@ -31,10 +31,15 @@ export function parseRichText(input: string): TextSegment[] {
   return out.length > 0 ? out : [{text: input}];
 }
 
-/** 마크다운 링크를 표시 텍스트만 남기고 제거 (검색·미리보기·공유용) */
-export function stripRichText(input: string): string {
+/** 비밀(가린) 링크 표시 — URL 끝에 붙인다. 보기 화면에서 먼지 점으로 가린다(스포일러) */
+export const SECRET_SUFFIX = '#secret';
+export const isSecretUrl = (url?: string) => !!url && url.endsWith(SECRET_SUFFIX);
+export const withoutSecret = (url: string) => (isSecretUrl(url) ? url.slice(0, -SECRET_SUFFIX.length) : url);
+
+/** 마크다운 링크를 표시 텍스트만 남기고 제거 (검색·미리보기·공유용). maskSecret이면 가린 글은 '•••'(PDF 등 밖으로 나가는 글) */
+export function stripRichText(input: string, opts?: {maskSecret?: boolean}): string {
   if (!input) return '';
-  return input.replace(LINK_RE, '$1');
+  return input.replace(LINK_RE, (_, text: string, url: string) => (opts?.maskSecret && isSecretUrl(url) ? '•••' : text));
 }
 
 /** 링크 문법이 들어있는지 */
@@ -47,6 +52,8 @@ export function hasLink(input: string): boolean {
 export function normalizeUrl(url: string): string {
   const u = url.trim();
   if (!u) return u;
+  // 앱 안 레시피 링크(recipe/id)는 그대로 — https://를 붙이면 바깥 주소로 읽혀 팁 시트 대신 브라우저가 열렸다
+  if (/^(?:bakle:\/\/)?\/?recipe\//.test(u)) return u;
   const withScheme = /^[a-z][a-z0-9+.-]*:/i.test(u) ? u : `https://${u}`;
   return shortenUrl(withScheme);
 }

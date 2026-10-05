@@ -72,6 +72,8 @@ export interface RecipeEditScreenProps {
     specificGravity?: string;
     time?: string;
     servings?: string;
+    doughTemp?: string;
+    divideWeight?: string;
     session?: string;
     ingredientGroups: {title: string; ingredients: {name: string; amount: string}[]}[];
     toolGroups: {title: string; tools: {name: string}[]}[];
@@ -112,6 +114,8 @@ export interface RecipeEditScreenProps {
     kind?: 'recipe' | 'tip';
     time?: string;
     servings?: string;
+    doughTemp?: string;
+    divideWeight?: string;
     session?: string;
     referenceUrl?: string;
     sourceUrl?: string;

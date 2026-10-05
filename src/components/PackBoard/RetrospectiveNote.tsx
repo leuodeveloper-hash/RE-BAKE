@@ -9,7 +9,7 @@ import {useTranslation} from '@contexts/LanguageContext';
 import {IconButton} from '@components/IconButton';
 import {EmptyState} from '@components/EmptyState';
 import {emptyRetrospectiveMessage} from '@components/RecipeGroups/groupAxis';
-import {IconArrowRight, IconChartNoAxesGantt, IconChevronLeft, IconChevronRight} from '@components/Icon/IconIndex';
+import {IconArrowRight, IconPenTipFilled, IconChevronLeft, IconChevronRight} from '@components/Icon/IconIndex';
 import {Typography} from '@constants/typography';
 import {type SemanticColors, PrimitiveColors} from '@constants/tokens';
 import {getElevation} from '@constants/elevation';
@@ -112,7 +112,7 @@ export function RetrospectiveNote({
               />
             ) : (
               <View style={[StyleSheet.absoluteFill, styles.photoPlaceholder]}>
-                <IconChartNoAxesGantt width={28} height={28} color={colors['custom/light-blue-var']} />
+                <IconPenTipFilled width={28} height={28} color={colors['custom/light-blue-var']} />
               </View>
             )}
             {/* 품목명만 썸네일 위에 — 나머지(메타·회고)는 아래 종이에 */}

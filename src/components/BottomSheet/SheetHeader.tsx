@@ -6,6 +6,7 @@ import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {IconClose, IconArrowLeft} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
+import {NavPillButton} from '@components/Navigation/NavPillButton';
 import {Avatar, AvatarColor} from '@components/Avatar/Avatar';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 
@@ -68,20 +69,23 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
         </>
       ) : headerType === 'center' ? (
         <>
-          {/* 중앙 정렬: 닫기 좌측, 타이틀 가운데. 다음 단계(onBack)면 좌측 뒤로가기만(닫기 없음) */}
+          {/* 중앙 정렬 — 앱바와 같은 떠 있는 헤더: 왼쪽 유리 알약(닫기/뒤로), 가운데 제목, 오른쪽 슬롯(NavPillGroup으로 묶음).
+              다음 단계(onBack)면 왼쪽은 뒤로가기만(닫기 없음) */}
           <View style={styles.centerRow}>
-            {onBack ? (
-              <IconButton icon={IconArrowLeft} variant="tonal" size="medium" onPress={onBack} />
-            ) : onClose ? (
-              <IconButton
-                icon={IconClose}
-                variant="tonal"
-                size="medium"
-                onPress={onClose}
-              />
-            ) : <View style={styles.centerPlaceholder} />}
-            <Text style={styles.titleCenter}>{title}</Text>
-            {headerRight ?? <View style={styles.centerPlaceholder} />}
+            {/* 제목은 줄 전체 기준 정가운데에 따로 둔다(앱바와 같은 방식) — 양옆 버튼 개수·폭과 상관없이 늘 가운데 */}
+            <View pointerEvents="none" style={styles.centerTitleLayer}>
+              <Text style={styles.titleCenter} numberOfLines={1}>{title}</Text>
+            </View>
+            <View style={styles.centerSide}>
+              {onBack ? (
+                <NavPillButton icon={IconArrowLeft} onPress={onBack} />
+              ) : onClose ? (
+                <NavPillButton icon={IconClose} onPress={onClose} />
+              ) : null}
+            </View>
+            <View style={[styles.centerSide, styles.centerSideRight]}>
+              {headerRight}
+            </View>
           </View>
           {description && (
             // 라벨이 가운데면 설명도 가운데 — 왼쪽 정렬이면 제목과 선이 어긋나 보인다
@@ -174,13 +178,21 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingHorizontal: Spacing.md,
     paddingVertical: Spacing.smd,
   },
-  // 빈 쪽 자리 — 반대편 버튼(IconButton medium 40)과 같은 폭이라야 제목이 정확히 가운데
-  centerPlaceholder: {
-    width: 40,
-    height: 40,
+  centerTitleLayer: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+    // 양옆 버튼 자리와 겹치지 않을 만큼만 — 길면 말줄임
+    paddingHorizontal: 96,
+  },
+  centerSide: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  centerSideRight: {
+    justifyContent: 'flex-end',
   },
   titleCenter: {
-    flex: 1,
     ...Typography.title.medium,
     fontWeight: Typography.title.medium.fontWeight as '700',
     color: colors['foreground/on-surface'],

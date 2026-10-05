@@ -32,7 +32,7 @@ export interface ParsedMarkdownRecipe {
   advice?: string;
 }
 
-export type RecipeMetaKey = 'cookbook' | 'method' | 'time' | 'servings' | 'specificGravity' | 'session' | 'referenceUrl';
+export type RecipeMetaKey = 'cookbook' | 'method' | 'time' | 'servings' | 'specificGravity' | 'session' | 'referenceUrl' | 'doughTemp' | 'divideWeight';
 
 /** 정보 줄 이름 → 칸. 정해진 이름만 받는다(모르는 이름은 무시) */
 const META_NAMES: Record<string, RecipeMetaKey> = {
@@ -42,6 +42,8 @@ const META_NAMES: Record<string, RecipeMetaKey> = {
   '분량': 'servings', '인분': 'servings', 'servings': 'servings', 'yield': 'servings',
   '비중': 'specificGravity', 'specific gravity': 'specificGravity',
   '회차': 'session', 'session': 'session',
+  '반죽온도': 'doughTemp', '반죽 온도': 'doughTemp', 'dough temp': 'doughTemp',
+  '분할': 'divideWeight', '분할 용량': 'divideWeight', '분할용량': 'divideWeight', 'divide weight': 'divideWeight',
   '참고': 'referenceUrl', '참고 링크': 'referenceUrl', 'reference': 'referenceUrl', 'link': 'referenceUrl',
 };
 const ADVICE_WORDS = ['조언', 'advice'];

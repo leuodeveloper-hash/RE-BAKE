@@ -32,7 +32,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import type {Recipe} from '../types/recipe';
-import {IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconChartNoAxesGantt, IconChevronRight, IconCornerDownRight, IconGlobeFilled, IconSparkle, IconProcess, IconCards, IconCardsFilled, IconArrowDownToLine, IconList, IconClose} from '@components/Icon/IconIndex';
+import {IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconPenTipFilled, IconChevronRight, IconCornerDownRight, IconGlobeFilled, IconSparkle, IconProcess, IconCards, IconCardsFilled, IconArrowDownToLine, IconList, IconClose} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import {buildPaperPreview} from '@utils/recipePaperPreview';
 import {coverCards, recipeCoverCards, emptyCoverCard} from '@utils/cookbookCards';
@@ -963,7 +963,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                       subtitleIcon={IconCornerDownRight}
                       imageUrl={exampleRecipe?.imageUri}
                       layout="list"
-                      placeholderIcon={IconChartNoAxesGantt}
+                      placeholderIcon={IconPenTipFilled}
                       placeholderIconColor={colors['custom/light-blue-var']}
                       onPress={() => onAxisChange('all')}
                       hideDivider

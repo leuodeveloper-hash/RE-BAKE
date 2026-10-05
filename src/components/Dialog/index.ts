@@ -9,3 +9,4 @@ export * from './ReviewDialog';
 export * from './IngredientAmountDialog';
 export * from './UnlockDialog';
 export * from './UpdateDialog';
+export * from './NumberValueDialog';

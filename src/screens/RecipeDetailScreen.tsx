@@ -30,7 +30,7 @@ import {Tabs} from '@components/Tabs';
 import {RichText} from '@components/RichText/RichText';
 import {EditableChip} from '@components/EditableChip';
 import {OptionTile} from '@components/OptionTile';
-import {Dialog, PdfPreviewDialog, TimeDialog, ServingsDialog, UnlockDialog} from '@components/Dialog';
+import {Dialog, PdfPreviewDialog, TimeDialog, ServingsDialog, UnlockDialog, NumberValueDialog} from '@components/Dialog';
 import {Button} from '@components/Button';
 import type {ReviewData} from '@components/Dialog';
 import {CookingMode} from '@components/CookingMode';
@@ -46,6 +46,7 @@ import {photoSourceMenuItems, type PhotoSource} from '@utils/photoSourceMenu';
 import {MadeConfirmSheet, RecipeFeedbackSheet} from '@components/BottomSheet';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {normalizeStepPhotos} from '@utils/stepPhotos';
+import {hasFlour, flourTotal, bakersPercentOf} from '@utils/bakersPercentage';
 import type {StepPhoto} from '../types/recipe';
 import {EmptyState} from '@components/EmptyState';
 import {SearchCommandBar} from '@components/SearchCommandBar';
@@ -68,13 +69,15 @@ import {
   IconEllipsisVertical,
   IconClockFilled,
   IconUsersRoundFilled,
+  IconFireFilled,
+  IconScaleFilled,
   IconArrowDownToLine,
   IconChevronLeft,
   IconChevronRight,
   IconCornerDownRight,
   IconTrashTwotone,
   IconLogoSymbol,
-  IconChartNoAxesGantt,
+  IconPenTipFilled,
   IconEditFilled,
   IconNoteFilled,
   IconArrowTopRight,
@@ -145,6 +148,8 @@ export interface RecipeDetailScreenProps {
   imageUris?: string[];
   time?: string;
   servings?: string;
+  doughTemp?: string;
+  divideWeight?: string;
   session?: string;
   ingredientGroups?: IngredientGroupInput[];
   tools?: Tool[];
@@ -245,42 +250,7 @@ export interface RecipeDetailScreenProps {
   onAuthorPress?: () => void;
 }
 
-// 베이커스 퍼센티지 자동계산
-function parseAmountGrams(amount: string): number {
-  const match = amount.match(/[\d.]+/);
-  return match ? parseFloat(match[0]) : 0;
-}
-
-function formatPercentage(value: number): string {
-  if (value === 0) return '-';
-  const rounded = Math.round(value * 10) / 10;
-  return rounded === Math.floor(rounded) ? `${rounded}%` : `${rounded}%`;
-}
-
-const FLOUR_KEYWORDS = ['강력분', '중력분', '박력분', '밀가루', '통밀', '쌀가루'];
-const isFlour = (name: string) => FLOUR_KEYWORDS.some(k => name.includes(k));
-
-function hasFlour(groups: IngredientGroupInput[]): boolean {
-  return groups.some(g => g.ingredients.some(i => isFlour(i.name)));
-}
-
-/**
- * 기준이 되는 밀가루 총량 — 베이커스 퍼센티지는 "밀가루 전체가 100%"다.
- *
- * 박력분 400g + 강력분 600g이면 합쳐서 1000g이 100%이고, 각 밀가루도 그 합을
- * 기준으로 40%·60%가 된다. 첫 재료 하나만 기준으로 삼으면 밀가루를 섞어 쓰는
- * 배합에서 모든 비율이 어긋난다.
- */
-function flourTotal(groups: IngredientGroupInput[]): number {
-  return groups.reduce(
-    (sum, g) => sum + g.ingredients.reduce(
-      (s, i) => s + (isFlour(i.name) ? parseAmountGrams(i.amount) : 0),
-      0,
-    ),
-    0,
-  );
-}
-
+// 베이커스 퍼센티지 — 계산은 공통(@utils/bakersPercentage), PDF와 같은 규칙
 function computeBakersPercentages(
   groups: IngredientGroupInput[],
 ): {title: string; ingredients: {percentage: string; name: string; amount: string}[]}[] {
@@ -291,10 +261,8 @@ function computeBakersPercentages(
   return groups.map(group => ({
     title: group.title,
     ingredients: group.ingredients.map(ing => {
-      const amount = parseAmountGrams(ing.amount);
-      const pct = baseAmount > 0 ? (amount / baseAmount) * 100 : 0;
       return {
-        percentage: formatPercentage(pct),
+        percentage: bakersPercentOf(ing.amount, baseAmount),
         name: ing.name,
         amount: ing.amount,
       };
@@ -375,6 +343,8 @@ export function RecipeDetailScreen({
   imageUris,
   time,
   servings,
+  doughTemp,
+  divideWeight,
   session,
   ingredientGroups = DEFAULT_INGREDIENT_GROUPS,
   tools = DEFAULT_TOOLS,
@@ -479,6 +449,7 @@ export function RecipeDetailScreen({
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [showTimeDialog, setShowTimeDialog] = useState(false);
   const [showServingsDialog, setShowServingsDialog] = useState(false);
+  const [numberDialog, setNumberDialog] = useState<'doughTemp' | 'divideWeight' | null>(null);
   // 메뉴에서 "만들었어요"를 누르면 뜨는 확인 시트(목록과 같은 흐름)
   const [showMadeSheet, setShowMadeSheet] = useState(false);
   const [showFeedbackSheet, setShowFeedbackSheet] = useState(false);
@@ -859,8 +830,11 @@ export function RecipeDetailScreen({
 
   // 메타 정보
   const metaInfo: MetaInfo[] = [
-    ...(time ? [{icon: IconClockFilled, label: time, onPress: canEdit ? () => setShowTimeDialog(true) : undefined}] : []),
-    ...(servings ? [{icon: IconUsersRoundFilled, label: servings, onPress: canEdit ? () => setShowServingsDialog(true) : undefined}] : []),
+    // 필드 관리에서 끈 칸은 값이 있어도 숨긴다
+    ...(time && isFieldActive('time') ? [{icon: IconClockFilled, label: time, onPress: canEdit ? () => setShowTimeDialog(true) : undefined}] : []),
+    ...(servings && isFieldActive('servings') ? [{icon: IconUsersRoundFilled, label: servings, onPress: canEdit ? () => setShowServingsDialog(true) : undefined}] : []),
+    ...(doughTemp && isFieldActive('doughTemp') ? [{icon: IconFireFilled, label: doughTemp, onPress: canEdit ? () => setNumberDialog('doughTemp') : undefined}] : []),
+    ...(divideWeight && isFieldActive('divideWeight') ? [{icon: IconScaleFilled, label: divideWeight, onPress: canEdit ? () => setNumberDialog('divideWeight') : undefined}] : []),
   ];
 
   // ---- 섹션 헤더 렌더 (sticky용: ScrollView 직속 자식) ----
@@ -1011,7 +985,7 @@ export function RecipeDetailScreen({
                 {totalReviewCount > 0 && (
                   <>
                     <Pressable style={styles.reviewBadge} onPress={sessionReviews ? handleOpenReviewSheet : undefined}>
-                      <IconChartNoAxesGantt width={12} height={12} color={colors['foreground/on-surface-inverse']} />
+                      <IconPenTipFilled width={12} height={12} color={colors['foreground/on-surface-inverse']} />
                       <Text style={styles.heroDescription}>{reviewLabel}</Text>
                     </Pressable>
                   </>
@@ -1354,11 +1328,11 @@ export function RecipeDetailScreen({
               <Card>
                 <ListItem
                   title={t('recipeDetail.tabReview')}
-                  leading={{type: 'icon', icon: IconChartNoAxesGantt}}
+                  leading={{type: 'icon', icon: IconPenTipFilled}}
                   trailing={onEdit || sessionReviews ? {type: 'custom', element: (
                     <View style={styles.reviewTrailingRow}>
                       {sessionReviews ? (
-                        <IconButton icon={IconChartNoAxesGantt} size="small" variant="ghost-secondary" onPress={handleOpenReviewSheet} />
+                        <IconButton icon={IconPenTipFilled} size="small" variant="ghost-secondary" onPress={handleOpenReviewSheet} />
                       ) : null}
                       {onEdit ? (
                         <IconButton icon={IconEditFilled} size="small" variant="ghost-secondary" onPress={handleWriteReview} />
@@ -1399,11 +1373,11 @@ export function RecipeDetailScreen({
               <Card>
                 <ListItem
                   title={t('recipeDetail.tabReview')}
-                  leading={{type: 'icon', icon: IconChartNoAxesGantt}}
+                  leading={{type: 'icon', icon: IconPenTipFilled}}
                   trailing={onEdit || sessionReviews ? {type: 'custom', element: (
                     <View style={styles.reviewTrailingRow}>
                       {sessionReviews ? (
-                        <IconButton icon={IconChartNoAxesGantt} size="small" variant="ghost-secondary" onPress={handleOpenReviewSheet} />
+                        <IconButton icon={IconPenTipFilled} size="small" variant="ghost-secondary" onPress={handleOpenReviewSheet} />
                       ) : null}
                       {onEdit ? (
                         <IconButton icon={IconEditFilled} size="small" variant="ghost-secondary" onPress={handleWriteReview} />
@@ -1588,6 +1562,16 @@ export function RecipeDetailScreen({
       />
 
       {/* 분량 다이얼로그 */}
+      <NumberValueDialog
+        visible={numberDialog !== null}
+        onClose={() => setNumberDialog(null)}
+        title={numberDialog === 'divideWeight' ? t('recipeEdit.divideWeight') : t('recipeEdit.doughTemp')}
+        icon={numberDialog === 'divideWeight' ? IconScaleFilled : IconFireFilled}
+        value={numberDialog === 'divideWeight' ? divideWeight : doughTemp}
+        suffix={numberDialog === 'divideWeight' ? 'g' : '°C'}
+        onConfirm={v => onUpdate?.(numberDialog === 'divideWeight' ? {divideWeight: v} : {doughTemp: v})}
+        onDelete={() => onUpdate?.(numberDialog === 'divideWeight' ? {divideWeight: ''} : {doughTemp: ''})}
+      />
       <ServingsDialog
         visible={showServingsDialog}
         onClose={() => setShowServingsDialog(false)}
