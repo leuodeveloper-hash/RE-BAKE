@@ -1,15 +1,13 @@
 import React, {useEffect, useState} from 'react';
-import {StyleSheet, Text, View} from 'react-native';
+import {StyleSheet, View} from 'react-native';
 import {BottomSheet} from './BottomSheet';
 import {Button} from '@components/Button';
-import {OptionTile} from '@components/OptionTile';
-import {AutoGrowInput} from '@components/AutoGrowInput';
+import {Tabs} from '@components/Tabs';
+import {TextInput} from '@components/TextInput';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
 import type {SemanticColors} from '@constants/tokens';
-import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
-import {Typography} from '@constants/typography';
 import type {FeedbackKind} from '@utils/recipeFeedback';
 
 const KINDS: FeedbackKind[] = ['amount', 'step', 'typo', 'etc'];
@@ -53,8 +51,10 @@ export function RecipeFeedbackSheet({
     <BottomSheet
       visible={visible}
       onClose={onClose}
-      title={t('feedback.title')}
-      description={recipeTitle}
+      // 문의(Support) 시트와 같은 구성 — 공통 시트 헤더(라벨 가운데), 종류는 Tabs, 내용은 공통 TextInput
+      headerType="center"
+      // 제목은 어떤 레시피에 대한 의견인지(레시피 이름) — 없으면 기본 제목
+      title={recipeTitle || t('feedback.title')}
       bottomAction={
         <Button
           label={t('feedback.send')}
@@ -64,61 +64,29 @@ export function RecipeFeedbackSheet({
         />
       }>
       <View style={styles.body}>
-        <Text style={styles.sectionLabel}>{t('feedback.kindLabel')}</Text>
-        <View style={styles.kinds}>
-          {KINDS.map(k => (
-            <OptionTile
-              key={k}
-              label={t(`feedback.kind.${k}`)}
-              selected={kind === k}
-              onPress={() => setKind(k)}
-              style={styles.kindTile}
-            />
-          ))}
-        </View>
-
-        <Text style={styles.sectionLabel}>{t('feedback.messageLabel')}</Text>
-        <View style={styles.inputWrap}>
-          <AutoGrowInput
-            style={styles.input}
-            placeholder={t('feedback.placeholder')}
-            value={message}
-            onChangeText={setMessage}
-          />
-        </View>
+        <Tabs
+          tabs={KINDS.map(k => ({id: k, label: t(`feedback.kind.${k}`)}))}
+          selectedId={kind}
+          onSelect={id => setKind(id as FeedbackKind)}
+          fullWidth
+        />
+        <TextInput
+          label={t('feedback.messageLabel')}
+          placeholder={t('feedback.placeholder')}
+          value={message}
+          onChangeText={setMessage}
+          multiline
+        />
       </View>
     </BottomSheet>
   );
 }
 
-const createStyles = (colors: SemanticColors) => StyleSheet.create({
+const createStyles = (_colors: SemanticColors) => StyleSheet.create({
   body: {
     paddingHorizontal: Spacing.sm,
     paddingBottom: Spacing.sm,
-    gap: Spacing.sm,
-  },
-  sectionLabel: {
-    ...Typography.label.large,
-    color: colors['foreground/on-surface-muted'],
-  },
-  kinds: {
-    flexDirection: 'row',
-    gap: Spacing.sm,
-  },
-  kindTile: {
-    flex: 1,
-    height: 56,
-  },
-  inputWrap: {
-    borderRadius: Radius['radius-lg'],
-    backgroundColor: colors['fill/faint'],
-    paddingHorizontal: Spacing.smd,
-    paddingVertical: Spacing.sm,
-    minHeight: 120,
-  },
-  input: {
-    ...Typography.body.medium,
-    color: colors['foreground/on-surface'],
+    gap: Spacing.md,
   },
 });
 

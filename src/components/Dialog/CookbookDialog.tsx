@@ -1,4 +1,5 @@
-import React, {useEffect, useState} from 'react';
+import React, {useEffect, useRef, useState} from 'react';
+import type {TextInput as RNTextInput} from 'react-native';
 import {Animated, Pressable, Text, View, StyleSheet} from 'react-native';
 import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
@@ -50,6 +51,13 @@ export function CookbookDialog({visible, onClose, onConfirm, editTarget, isAdmin
   const colors = useColors();
   const {t} = useTranslation();
 
+  // 열면 바로 이름 칸에 커서 — 팝업이 다 뜬 뒤에(바로 부르면 iOS에서 키보드가 안 올라올 때가 있다)
+  const nameRef = useRef<RNTextInput>(null);
+  useEffect(() => {
+    if (!visible) return;
+    const timer = setTimeout(() => nameRef.current?.focus(), 300);
+    return () => clearTimeout(timer);
+  }, [visible]);
   useEffect(() => {
     if (visible) {
       setEditMode(!!editTarget);
@@ -120,6 +128,7 @@ export function CookbookDialog({visible, onClose, onConfirm, editTarget, isAdmin
           </Pressable>
         )}
         <TextInput
+          ref={nameRef}
           label={t('cookbook.nameLabel')}
           placeholder={t('cookbook.namePlaceholder')}
           value={name}

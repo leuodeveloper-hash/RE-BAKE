@@ -201,20 +201,18 @@ export function Dialog({
             </View>
           </>
         ) : (icon || title || showCloseButton) && (
+          // 팝업 머리도 공통 시트 헤더(라벨 가운데, 왼쪽 닫기) — 아이콘·그래픽은 쓰지 않는다
           <SheetHeader
             title={title ?? ''}
             description={description}
-            icon={icon}
-            avatarColor={avatarColor}
-            headerGraphic={headerGraphic}
-            headerType={headerType}
+            headerType="center"
             onClose={showCloseButton ? onClose : undefined}
           />
         )}
 
         {/* Content */}
         {/* 라벨 가운데 헤더(앱바형)면 헤더 아래·버튼 위 여백을 8로 — 기본 20은 미리보기처럼 큰 내용에서 휑했다 */}
-        {children && <View style={[styles.content, headerType === 'center' && styles.contentCompact]}>{children}</View>}
+        {children && <View style={[styles.content, styles.contentCompact]}>{children}</View>}
 
         {/* Actions */}
         {actions && (
