@@ -176,7 +176,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    ...Typography.label.medium,
+    ...Typography.caption.medium,
     color: colors['foreground/on-surface-muted'],
     paddingHorizontal: Spacing.sm,
     marginBottom: Spacing.xs,

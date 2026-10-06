@@ -1790,7 +1790,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     backgroundColor: colors['overlay/strong'],
   },
   heroCountText: {
-    ...Typography.label.small,
+    ...Typography.caption.small,
     color: colors['foreground/on-accent'],
   },
   heroSideGradient: {
@@ -1904,10 +1904,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // Ingredients
   ingredientPercentage: {
     width: 60,
-    fontFamily: Typography.label.medium.fontFamily,
-    fontSize: Typography.label.medium.fontSize,
-    fontWeight: Typography.label.medium.fontWeight as '600',
-    lineHeight: Typography.label.medium.lineHeight,
+    fontFamily: Typography.caption.medium.fontFamily,
+    fontSize: Typography.caption.medium.fontSize,
+    fontWeight: Typography.caption.medium.fontWeight as '600',
+    lineHeight: Typography.caption.medium.lineHeight,
     color: colors['foreground/on-surface-muted'],
   },
   ingredientName: {
@@ -1921,7 +1921,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
 
   // 회차 비교 하이라이트
   diffCaption: {
-    ...Typography.label.medium,
+    ...Typography.caption.medium,
     color: colors['foreground/on-surface-muted'],
     marginBottom: Spacing.sm,
   },
@@ -1984,10 +1984,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingTop: Spacing.md,
   },
   groupTitle: {
-    fontFamily: Typography.label.medium.fontFamily,
-    fontSize: Typography.label.medium.fontSize,
-    fontWeight: Typography.label.medium.fontWeight as '600',
-    lineHeight: Typography.label.medium.lineHeight,
+    fontFamily: Typography.caption.medium.fontFamily,
+    fontSize: Typography.caption.medium.fontSize,
+    fontWeight: Typography.caption.medium.fontWeight as '600',
+    lineHeight: Typography.caption.medium.lineHeight,
     color: colors['foreground/on-surface-muted'],
   },
 
@@ -2065,10 +2065,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     gap: 2,
   },
   recipeNavSub: {
-    fontFamily: Typography.label.medium.fontFamily,
-    fontSize: Typography.label.medium.fontSize,
-    fontWeight: Typography.label.medium.fontWeight as '600',
-    lineHeight: Typography.label.medium.lineHeight,
+    fontFamily: Typography.caption.medium.fontFamily,
+    fontSize: Typography.caption.medium.fontSize,
+    fontWeight: Typography.caption.medium.fontWeight as '600',
+    lineHeight: Typography.caption.medium.lineHeight,
     color: colors['foreground/on-surface-muted'],
   },
 
@@ -2106,10 +2106,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     gap: Spacing.sm,
   },
   reviewSheetCancelText: {
-    fontFamily: Typography.label.large.fontFamily,
-    fontSize: Typography.label.large.fontSize,
-    fontWeight: Typography.label.large.fontWeight as '500',
-    lineHeight: Typography.label.large.lineHeight,
+    fontFamily: Typography.caption.large.fontFamily,
+    fontSize: Typography.caption.large.fontSize,
+    fontWeight: Typography.caption.large.fontWeight as '500',
+    lineHeight: Typography.caption.large.lineHeight,
     color: colors['foreground/on-surface-muted'],
   },
   reviewSessionTabs: {
@@ -2127,10 +2127,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     backgroundColor: colors['surface/inverse'],
   },
   reviewSessionPillText: {
-    fontFamily: Typography.label.medium.fontFamily,
-    fontSize: Typography.label.medium.fontSize,
-    fontWeight: Typography.label.medium.fontWeight as '500',
-    lineHeight: Typography.label.medium.lineHeight,
+    fontFamily: Typography.caption.medium.fontFamily,
+    fontSize: Typography.caption.medium.fontSize,
+    fontWeight: Typography.caption.medium.fontWeight as '500',
+    lineHeight: Typography.caption.medium.lineHeight,
     color: colors['foreground/on-surface-muted'],
   },
   reviewSessionPillTextActive: {
@@ -2161,10 +2161,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     alignItems: 'center',
   },
   reviewSheetEmptyText: {
-    fontFamily: Typography.label.medium.fontFamily,
-    fontSize: Typography.label.medium.fontSize,
-    fontWeight: Typography.label.medium.fontWeight as '500',
-    lineHeight: Typography.label.medium.lineHeight,
+    fontFamily: Typography.caption.medium.fontFamily,
+    fontSize: Typography.caption.medium.fontSize,
+    fontWeight: Typography.caption.medium.fontWeight as '500',
+    lineHeight: Typography.caption.medium.lineHeight,
     color: colors['foreground/on-surface-muted'],
     textAlign: 'center',
   },

@@ -114,9 +114,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingVertical: Spacing.lg,
   },
   comingSoonText: {
-    fontFamily: Typography.label.large.fontFamily,
-    fontSize: Typography.label.large.fontSize,
-    lineHeight: Typography.label.large.lineHeight,
+    fontFamily: Typography.caption.large.fontFamily,
+    fontSize: Typography.caption.large.fontSize,
+    lineHeight: Typography.caption.large.lineHeight,
     color: colors['foreground/on-surface-muted'],
   },
   actionSection: {

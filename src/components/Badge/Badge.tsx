@@ -34,10 +34,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingVertical: 3,
   },
   textLarge: {
-    ...Typography.label.large,
+    ...Typography.caption.large,
   },
   text: {
-    ...Typography.label.medium,
+    ...Typography.caption.medium,
     color: colors['foreground/on-surface-var'],
   },
 });

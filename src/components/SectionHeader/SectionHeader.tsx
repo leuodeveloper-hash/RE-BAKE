@@ -119,10 +119,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingHorizontal: Spacing.smd,
   },
   title: {
-    fontFamily: Typography.label.large.fontFamily,
-    fontSize: Typography.label.large.fontSize,
-    fontWeight: Typography.label.large.fontWeight as '500',
-    lineHeight: Typography.label.large.lineHeight,
+    fontFamily: Typography.caption.large.fontFamily,
+    fontSize: Typography.caption.large.fontSize,
+    fontWeight: Typography.caption.large.fontWeight as '500',
+    lineHeight: Typography.caption.large.lineHeight,
     color: colors['foreground/on-surface-muted'],
   },
   titleStrong: {
@@ -152,10 +152,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     gap: 2,
   },
   action: {
-    fontFamily: Typography.label.large.fontFamily,
-    fontSize: Typography.label.large.fontSize,
-    fontWeight: Typography.label.large.fontWeight as '500',
-    lineHeight: Typography.label.large.lineHeight,
+    fontFamily: Typography.caption.large.fontFamily,
+    fontSize: Typography.caption.large.fontSize,
+    fontWeight: Typography.caption.large.fontWeight as '500',
+    lineHeight: Typography.caption.large.lineHeight,
     color: colors['foreground/on-surface-muted'],
   },
 });

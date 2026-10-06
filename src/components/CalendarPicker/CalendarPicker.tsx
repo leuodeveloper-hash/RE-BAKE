@@ -91,7 +91,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     marginBottom: Spacing.xs,
   },
   month: {
-    ...Typography.label['large - semibold'],
+    ...Typography.title.small,
     color: colors['foreground/on-surface'],
   },
   week: {
@@ -100,7 +100,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   weekday: {
     flex: 1,
     textAlign: 'center',
-    ...Typography.label.small,
+    ...Typography.caption.small,
     color: colors['foreground/on-surface-muted'],
     paddingVertical: Spacing.xs,
     // 영어 요일은 대문자(SUN MON …) — 한글엔 영향 없음

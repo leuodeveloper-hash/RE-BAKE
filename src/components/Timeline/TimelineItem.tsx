@@ -127,7 +127,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     marginTop: 4,
   },
   subtitle: {
-    ...Typography.label.medium,
+    ...Typography.caption.medium,
     color: colors['foreground/on-surface-muted'],
   },
   subtitlePast: {

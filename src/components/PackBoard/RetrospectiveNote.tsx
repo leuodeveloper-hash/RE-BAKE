@@ -302,7 +302,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     gap: 2,
   },
   thumbMeta: {
-    ...Typography.label.small,
+    ...Typography.caption.small,
     color: 'rgba(255,255,255,0.9)',
     textShadowColor: 'rgba(0, 0, 0, 0.25)',
     textShadowOffset: {width: 0, height: 1},
@@ -319,7 +319,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     textShadowRadius: 4,
   },
   blockMeta: {
-    ...Typography.label.small,
+    ...Typography.caption.small,
     color: colors['foreground/on-surface-muted'],
   },
   reviewMain: {

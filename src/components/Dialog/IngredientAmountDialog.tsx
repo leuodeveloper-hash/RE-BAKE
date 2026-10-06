@@ -171,7 +171,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     position: 'relative' as const,
   },
   unitLabel: {
-    ...Typography.label.medium,
+    ...Typography.caption.medium,
     color: colors['foreground/on-surface-muted'],
     paddingHorizontal: Spacing.sm,
     marginBottom: Spacing.xs,

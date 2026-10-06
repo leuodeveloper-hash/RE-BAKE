@@ -2385,7 +2385,7 @@ const createStyles = (colors: SemanticColors) =>
     photoCaptionText: {
       flex: 1, // 화살표 옆 남은 폭(≈126) 채움
       // Figma caption-3: 10px / 400 / lh12 / ls0.2
-      fontFamily: Typography.label.small.fontFamily,
+      fontFamily: Typography.caption.small.fontFamily,
       fontSize: 10,
       fontWeight: '400',
       lineHeight: 12,
@@ -2397,7 +2397,7 @@ const createStyles = (colors: SemanticColors) =>
       flex: 1,
       minWidth: 80,
       padding: 0,
-      fontFamily: Typography.label.small.fontFamily,
+      fontFamily: Typography.caption.small.fontFamily,
       fontSize: 10,
       fontWeight: '400',
       lineHeight: 12,
@@ -2638,7 +2638,7 @@ const createStyles = (colors: SemanticColors) =>
       borderColor: colors['border/normal'],
     },
     adviceAddPhotoText: {
-      ...Typography.label.medium,
+      ...Typography.caption.medium,
       color: colors['foreground/on-surface-muted'],
     },
   });

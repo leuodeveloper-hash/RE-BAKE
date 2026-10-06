@@ -122,9 +122,8 @@ function renderSlotElement(
         </View>
       );
     case 'custom':
-      // 슬롯으로 감싸지 않는다 — 28 고정 폭을 강제하면 안에 든 요소가 잘리고
-      // 옆 글씨가 밀린다. 크기는 호출부가 알아서 맞춘다.
-      return <>{element.element}</>;
+      // 폭은 내용대로(28로 묶으면 잘린다). 최소 28 칸 가운데, 더 크면(탭·스위치) 그만큼 — 줄 위아래 여백 8은 그대로 둔다
+      return <View style={styles.customSlot}>{element.element}</View>;
   }
 }
 
@@ -257,6 +256,10 @@ const createStyles = (colors: SemanticColors) =>
     stateLayerPressedYellow: {
       backgroundColor: colors['custom/yellow-subtle'],
     },
+    customSlot: {
+      minHeight: 28,
+      justifyContent: 'center',
+    },
     slotContainer: {
       width: 28,
       height: 28,
@@ -313,7 +316,7 @@ const createStyles = (colors: SemanticColors) =>
     // 설명 — 캡션 서체(Figma caption-medium, label.small)
     description: {
       // 제목 아래 설명 — label small은 작아 안 읽혔다, 한 단계 크게
-      ...Typography.label.medium,
+      ...Typography.caption.medium,
       color: colors['foreground/on-surface-muted'],
       marginTop: 2,
     },

@@ -1149,10 +1149,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingHorizontal: Spacing.smd,
   },
   retroHeaderTitle: {
-    fontFamily: Typography.label.large.fontFamily,
-    fontSize: Typography.label.large.fontSize,
-    fontWeight: Typography.label.large.fontWeight as '500',
-    lineHeight: Typography.label.large.lineHeight,
+    fontFamily: Typography.caption.large.fontFamily,
+    fontSize: Typography.caption.large.fontSize,
+    fontWeight: Typography.caption.large.fontWeight as '500',
+    lineHeight: Typography.caption.large.lineHeight,
     color: colors['foreground/on-surface-muted'],
   },
   overlay: {
@@ -1180,10 +1180,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     height: 68,
   },
   emptyText: {
-    fontFamily: Typography.label.medium.fontFamily,
-    fontSize: Typography.label.medium.fontSize,
-    fontWeight: Typography.label.medium.fontWeight as '600',
-    lineHeight: Typography.label.medium.lineHeight,
+    fontFamily: Typography.caption.medium.fontFamily,
+    fontSize: Typography.caption.medium.fontSize,
+    fontWeight: Typography.caption.medium.fontWeight as '600',
+    lineHeight: Typography.caption.medium.lineHeight,
     color: colors['foreground/on-surface-muted'],
   },
 

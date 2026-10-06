@@ -161,7 +161,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     alignItems: 'flex-start',
   },
   sessionLabel: {
-    ...Typography.label.medium,
+    ...Typography.caption.medium,
     color: colors['foreground/on-surface-muted'],
     minWidth: 48,
   },

@@ -90,11 +90,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     backgroundColor: colors['fill/normal'],
   },
   chipLabel: {
-    fontFamily: Typography.label.medium.fontFamily,
-    fontSize: Typography.label.medium.fontSize,
+    fontFamily: Typography.caption.medium.fontFamily,
+    fontSize: Typography.caption.medium.fontSize,
     fontWeight: '600',
-    lineHeight: Typography.label.medium.lineHeight,
-    letterSpacing: Typography.label.medium.letterSpacing,
+    lineHeight: Typography.caption.medium.lineHeight,
+    letterSpacing: Typography.caption.medium.letterSpacing,
     marginTop: FONT_BASELINE_OFFSET,
   },
   chipLabelActive: {

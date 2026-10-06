@@ -17,7 +17,7 @@ import {Typography} from '@constants/typography';
  * 홈(HomeScreen)과 동일한 구조. 차이는 (1) 이 작성자로 필터, (2) 닫기(X) 버튼.
  */
 export default function AuthorHomeRoute() {
-  const {handle: routeHandle} = useLocalSearchParams<{handle: string}>();
+  const {handle: routeHandle, axis: routeAxis} = useLocalSearchParams<{handle: string; axis?: string}>();
   const router = useRouter();
   const {recipes: exploreRecipes} = useExploreRecipeContext();
 
@@ -88,6 +88,8 @@ export default function AuthorHomeRoute() {
   return (
     <HomeScreen
       authorId={authorId}
+      // ?axis=cookbook — 설정의 레시피북 칸에서 오면 레시피북부터
+      initialAxis={routeAxis === 'cookbook' || routeAxis === 'method' ? routeAxis : undefined}
       onBack={handleClose}
       authorBadge={authorBadge}
       menuHeaderNode={menuHeaderNode}

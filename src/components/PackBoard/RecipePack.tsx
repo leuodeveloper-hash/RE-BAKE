@@ -381,7 +381,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     maxWidth: PACK_WIDTH - 16,
   },
   pillLabel: {
-    fontFamily: Typography.label['large - semibold'].fontFamily,
+    fontFamily: Typography.title.small.fontFamily,
     fontSize: 12,
     lineHeight: 16,
     letterSpacing: 0,
@@ -389,7 +389,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flexShrink: 1,
   },
   pillCount: {
-    fontFamily: Typography.label['large - semibold'].fontFamily,
+    fontFamily: Typography.title.small.fontFamily,
     fontSize: 12,
     lineHeight: 16,
     letterSpacing: 0,

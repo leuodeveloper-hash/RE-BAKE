@@ -157,8 +157,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     gap: Spacing.sm,
   },
   officialLabel: {
-    ...Typography.label.medium,
-    fontWeight: Typography.label.medium.fontWeight as '600',
+    ...Typography.caption.medium,
+    fontWeight: Typography.caption.medium.fontWeight as '600',
     color: colors['foreground/on-surface'],
     marginTop: FONT_BASELINE_OFFSET,
   },

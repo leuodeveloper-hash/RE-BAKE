@@ -14,7 +14,7 @@ interface RecipeContextValue {
   recipes: Recipe[];
   setRecipes: (updater: Recipe[] | ((prev: Recipe[]) => Recipe[])) => void;
   exportRecipes: () => Promise<void>;
-  importRecipes: () => Promise<boolean>;
+  importRecipes: (onConfirmOverwrite?: (count: number) => Promise<boolean>) => Promise<boolean>;
   isLoading: boolean;
   lastSyncedAt: Date | null;
   lastSyncedDevice: string | null;

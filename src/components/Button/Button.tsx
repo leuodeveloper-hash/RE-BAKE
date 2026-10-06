@@ -178,9 +178,9 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
   label: {
-    fontFamily: Typography.label['xlarge - semibold'].fontFamily,
-    fontSize: Typography.label['xlarge - semibold'].fontSize,
-    fontWeight: Typography.label['xlarge - semibold'].fontWeight as '600',
-    lineHeight: Typography.label['xlarge - semibold'].lineHeight,
+    fontFamily: Typography.body['medium - semibold'].fontFamily,
+    fontSize: Typography.body['medium - semibold'].fontSize,
+    fontWeight: Typography.body['medium - semibold'].fontWeight as '600',
+    lineHeight: Typography.body['medium - semibold'].lineHeight,
   },
 });

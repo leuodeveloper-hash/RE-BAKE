@@ -125,7 +125,7 @@ export function ColorPicker({selected, onSelect, label, colors: colorsProp, dotS
 
 const createThemedStyles = (colors: SemanticColors) => StyleSheet.create({
   label: {
-    ...Typography.label.medium,
+    ...Typography.caption.medium,
     color: colors['foreground/on-surface-muted'],
     paddingHorizontal: Spacing.sm,
     marginBottom: Spacing.xs,

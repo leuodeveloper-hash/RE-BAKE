@@ -44,7 +44,7 @@ const createStyles = (colors: SemanticColors) =>
       overflow: 'hidden',
     },
     text: {
-      ...Typography.label.small,
+      ...Typography.caption.small,
       // 질감 삼아 옅게 두면 작은 글씨가 iOS에서 사라진다 — 본문 색을 그대로 쓴다
       color: colors['foreground/on-surface-muted'],
       textAlign: 'justify',

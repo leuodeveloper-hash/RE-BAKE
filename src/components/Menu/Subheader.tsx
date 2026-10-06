@@ -26,10 +26,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     justifyContent: 'center',
   },
   headerText: {
-    fontFamily: Typography.label.large.fontFamily,
-    fontSize: Typography.label.large.fontSize,
-    fontWeight: Typography.label.large.fontWeight as '500',
-    lineHeight: Typography.label.large.lineHeight,
+    fontFamily: Typography.caption.large.fontFamily,
+    fontSize: Typography.caption.large.fontSize,
+    fontWeight: Typography.caption.large.fontWeight as '500',
+    lineHeight: Typography.caption.large.lineHeight,
     color: colors['foreground/on-surface-var'],
   },
 });

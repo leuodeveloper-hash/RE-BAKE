@@ -9,7 +9,7 @@
  *   body-large/medium/small × bold/regular
  *   caption-large/medium/small × bold/regular
  *
- * 코드의 V1 ramp (display/headline/title/label/body) 구조는 그대로 유지하면서,
+ * 코드의 V1 ramp (display/headline/title/caption/body) 구조는 그대로 유지하면서,
  * 값(size/lineHeight/letterSpacing)을 Figma 정의와 1:1 매칭.
  *
  * weight (Pretendard):
@@ -144,36 +144,9 @@ export const Typography = {
       ...BASE,
     },
   },
-  // V1 호환: label.* 은 컴팩트 라벨/액션 텍스트용. Figma body-medium/small + caption 와 매핑.
-  label: {
-    // Figma: body-medium/bold (SemiBold 15/20 0.2)
-    'xlarge - semibold': {
-      fontFamily: FONT[600],
-      fontSize: parseSize('15px'),
-      fontWeight: '600' as const,
-      letterSpacing: parseLetterSpacing('0px'),
-      lineHeight: parseSize('20px'),
-      ...BASE,
-    },
-    // Figma: body-medium/regular @ Medium weight (15/20 0.2)
-    xlarge: {
-      fontFamily: FONT[500],
-      fontSize: parseSize('15px'),
-      fontWeight: '500' as const,
-      letterSpacing: parseLetterSpacing('0px'),
-      lineHeight: parseSize('20px'),
-      ...BASE,
-    },
-    // Figma: body-small/bold (SemiBold 14/18 0.2)
-    'large - semibold': {
-      fontFamily: FONT[600],
-      fontSize: parseSize('14px'),
-      fontWeight: '600' as const,
-      letterSpacing: parseLetterSpacing('0px'),
-      lineHeight: parseSize('18px'),
-      ...BASE,
-    },
-    // Figma: body-small @ Medium (14/18 0.2)
+  // 캡션 — 짧은 보조 글자(설명·값·뱃지·칩). small 11 · medium 12 · large 14
+  caption: {
+    // 14/18 Medium
     large: {
       fontFamily: FONT[500],
       fontSize: parseSize('14px'),
@@ -182,16 +155,7 @@ export const Typography = {
       lineHeight: parseSize('18px'),
       ...BASE,
     },
-    // Figma: caption-large/bold (SemiBold 12/16 0.2)
-    'medium - semibold': {
-      fontFamily: FONT[600],
-      fontSize: parseSize('12px'),
-      fontWeight: '600' as const,
-      letterSpacing: parseLetterSpacing('0px'),
-      lineHeight: parseSize('16px'),
-      ...BASE,
-    },
-    // Figma: caption-large/bold (동일)
+    // 12/16 SemiBold
     medium: {
       fontFamily: FONT[600],
       fontSize: parseSize('12px'),
@@ -200,7 +164,7 @@ export const Typography = {
       lineHeight: parseSize('16px'),
       ...BASE,
     },
-    // Figma: caption-medium @ Medium (11/14 0.2)
+    // 11/14 Medium
     small: {
       fontFamily: FONT[500],
       fontSize: parseSize('11px'),
@@ -211,6 +175,15 @@ export const Typography = {
     },
   },
   body: {
+    // 15/20 SemiBold — 버튼 라벨 등(예전 label xlarge-semibold)
+    'medium - semibold': {
+      fontFamily: FONT[600],
+      fontSize: parseSize('15px'),
+      fontWeight: '600' as const,
+      letterSpacing: parseLetterSpacing('0px'),
+      lineHeight: parseSize('20px'),
+      ...BASE,
+    },
     // Figma: title-large/regular @ Medium (20/26 -0.2)
     xxlarge: {
       fontFamily: FONT[500],
@@ -262,6 +235,6 @@ export const Typography = {
 export type TypographyKey = keyof typeof Typography;
 export type DisplayKey = keyof typeof Typography.display;
 export type HeadlineKey = keyof typeof Typography.headline;
-export type LabelKey = keyof typeof Typography.label;
+export type CaptionKey = keyof typeof Typography.caption;
 export type TitleKey = keyof typeof Typography.title;
 export type BodyKey = keyof typeof Typography.body;

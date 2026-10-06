@@ -136,8 +136,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     justifyContent: 'center',
   },
   shareLabel: {
-    fontFamily: Typography.label.medium.fontFamily,
-    fontSize: Typography.label.medium.fontSize,
+    fontFamily: Typography.caption.medium.fontFamily,
+    fontSize: Typography.caption.medium.fontSize,
     color: colors['foreground/on-surface-muted'],
   },
 });

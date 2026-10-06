@@ -1,7 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {View, StyleSheet} from 'react-native';
 import {useMyAuthor} from '@hooks/useAuthor';
-import {resolveAuthorHandle, OFFICIAL_AUTHOR_HANDLE} from '../../src/types/author';
+import {resolveAuthorHandle, OFFICIAL_AUTHOR_HANDLE, OFFICIAL_AUTHOR_ID} from '../../src/types/author';
 import {useRouter, useLocalSearchParams} from 'expo-router';
 import {ProfileScreen} from '@screens/ProfileScreen';
 import {useRecipes} from '@contexts/RecipeContext';
@@ -31,6 +31,18 @@ export default function ProfileRoute() {
   const {user, handle, displayName, signOut, updateHandle, updateDisplayName, avatarSeed, isAdmin} = useAuth();
   // 내 작성자 프로필(공식 레시피를 올린 계정) — 프로필 보기에서 그 작성자 홈으로
   const {author: myAuthor} = useMyAuthor(user?.uid);
+  // 내가 둘러보기에 올린 레시피 — 어드민은 공식 작성자(베이키) 이름으로 저장된다
+  const myAuthorId = isAdmin ? OFFICIAL_AUTHOR_ID : myAuthor?.id;
+  const myOfficial = useMemo(() => {
+    const mine = myAuthorId ? exploreRecipes.filter(r => r.authorId === myAuthorId && !r.hidden) : [];
+    return {books: new Set(mine.map(r => r.cookbook).filter(Boolean)).size, recipes: mine.length};
+  }, [exploreRecipes, myAuthorId]);
+  // 프로필 보기·레시피북 칸 공통 — 내 작성자 홈(공식 레시피). 레시피북 칸은 레시피북 보기로 떨군다
+  const openMyAuthorHome = useCallback((axis?: 'cookbook') => {
+    const slug = isAdmin ? OFFICIAL_AUTHOR_HANDLE
+      : myAuthor ? resolveAuthorHandle(myAuthor.id, myAuthor.handle) : handle;
+    if (slug) router.push(`/u/${slug}${axis ? `?axis=${axis}` : ''}` as any);
+  }, [isAdmin, myAuthor, handle, router]);
   const {isPro} = useSubscription();
   const {t} = useTranslation();
 
@@ -72,6 +84,10 @@ export default function ProfileRoute() {
     <View style={[styles.container, {backgroundColor: colors['surface/dim']}]}>
       <ProfileScreen
         recipeCount={recipes.length}
+        // 레시피북 칸 — 내가 공식(둘러보기)으로 올린 레시피북·레시피 수, 누르면 그 작성자 홈(프로필 보기와 같은 곳)
+        cookbookCount={myOfficial.books}
+        officialRecipeCount={myOfficial.recipes}
+        onCookbooksPress={() => openMyAuthorHome('cookbook')}
         reviewCount={reviewCount}
         userEmail={user?.email ?? null}
         handle={handle}
@@ -82,13 +98,9 @@ export default function ProfileRoute() {
         onImport={importRecipes}
         onLogout={handleLogout}
         onAccountPress={() => router.push('/account' as any)}
+        onDataPress={() => router.push('/data' as any)}
         // 프로필 보기 = 내가 공식(둘러보기)으로 올린 레시피 — 작성자 홈. 내 작성자 프로필이 있으면 그 아이디로
-        onProfilePress={() => {
-          // 어드민이 올린 둘러보기 레시피는 공식 작성자(베이키) 이름으로 저장된다 — 어드민은 베이키 홈으로
-          const slug = isAdmin ? OFFICIAL_AUTHOR_HANDLE
-            : myAuthor ? resolveAuthorHandle(myAuthor.id, myAuthor.handle) : handle;
-          if (slug) router.push(`/u/${slug}` as any);
-        }}
+        onProfilePress={() => openMyAuthorHome()}
         onUpdateHandle={updateHandle}
         displayName={displayName}
         onUpdateDisplayName={updateDisplayName}

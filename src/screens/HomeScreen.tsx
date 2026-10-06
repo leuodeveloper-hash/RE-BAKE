@@ -69,6 +69,8 @@ const getDefaultCardMenuItems = (recipe: Recipe, t: (key: string, params?: Recor
 export interface HomeScreenProps {
   /** 작성자 홈 모드: 이 authorId로 필터된 둘러보기 레시피를 표시(내 레시피 대신) */
   authorId?: string;
+  /** 처음 보여줄 축 — 주면 마지막으로 본 축 대신 이걸로 시작(설정의 레시피북 칸 → 레시피북) */
+  initialAxis?: GroupAxis;
   /** 뒤로가기 (작성자 홈 등 하위 화면일 때) */
   onBack?: () => void;
   /** 앱바 타이틀 자리에 넣을 컴팩트 노드(작성자 아바타+닉네임 배지). 주어지면 그룹화 셀렉터 대신 표시 */
@@ -77,7 +79,7 @@ export interface HomeScreenProps {
   menuHeaderNode?: React.ReactNode;
 }
 
-export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: HomeScreenProps = {}) {
+export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHeaderNode}: HomeScreenProps = {}) {
   const {t} = useTranslation();
   const styles = useThemedStyles(createStyles);
   const isAuthorMode = !!authorId;
@@ -125,12 +127,14 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   }, [exploreCookbooks, cookbookColors, recipes, removeCookbookColor]);
 
   // 그룹화 축: 'all'이면 평면 리스트, 그 외엔 그룹 화면(GroupScreen) 호스팅
-  const [groupAxis, setGroupAxis] = useState<GroupAxis>('all');
+  const [groupAxis, setGroupAxis] = useState<GroupAxis>(initialAxis ?? 'all');
   // 레시피북/공법 목록에서 항목을 눌러 들어왔는지 — 들어왔으면 탭 대신 2뎁스 셀렉터 (crumbAxisOf 참고)
   const [drillFrom, setDrillFrom] = useState<GroupAxis | null>(null);
   // 마지막 본 축 복원 (앱 재시작해도 유지). 저장 덮어쓰기 방지용 로드 플래그.
   const axisLoaded = useRef(false);
   useEffect(() => {
+    // 처음 축을 정해 들어왔으면 복원하지 않는다
+    if (initialAxis) { axisLoaded.current = true; return; }
     AsyncStorage.getItem('bakle_home_axis_v1').then(v => {
       // 작성자 홈엔 회고 축이 없다 — 마지막으로 본 게 회고여도 전체로
       if (v) setGroupAxis(isAuthorMode && v === 'retrospective' ? 'all' : (v as GroupAxis));

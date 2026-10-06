@@ -177,7 +177,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   // TextInput의 label과 같은 기준 — 탭도 입력칸과 같은 위계로 보이게
   fieldLabel: {
-    ...Typography.label.medium,
+    ...Typography.caption.medium,
     color: colors['foreground/on-surface-muted'],
     paddingHorizontal: Spacing.sm,
     marginBottom: Spacing.xs,

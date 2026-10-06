@@ -41,7 +41,8 @@ export interface AvatarProps {
 
 // 크기별 설정
 const SIZE_CONFIG = {
-  xsmall: {container: 16, icon: 8, fontSize: 8, lineHeight: 16, ddayFontSize: 8, ddayLineHeight: 10},
+  // 24 — 설정 맨 위 프로필 칸 등 작은 자리(16은 너무 작아 아무도 안 썼다)
+  xsmall: {container: 24, icon: 12, fontSize: 12, lineHeight: 16, ddayFontSize: 8, ddayLineHeight: 10},
   small: {container: 32, icon: 16, fontSize: 16, lineHeight: 24, ddayFontSize: 10, ddayLineHeight: 14},
   medium: {container: 36, icon: 20, fontSize: 16, lineHeight: 24, ddayFontSize: 11, ddayLineHeight: 14},
   large: {container: 48, icon: 24, fontSize: 22, lineHeight: 28, ddayFontSize: 12, ddayLineHeight: 16},

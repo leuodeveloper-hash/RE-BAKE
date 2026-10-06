@@ -262,7 +262,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     gap: Spacing.md,
   },
   planStoreNote: {
-    ...Typography.label.small,
+    ...Typography.caption.small,
     color: colors['foreground/on-surface-muted'],
     textAlign: 'center',
   },
@@ -277,13 +277,13 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     marginTop: Spacing.xs,
   },
   planLink: {
-    ...Typography.label.small,
+    ...Typography.caption.small,
     color: colors['foreground/on-surface-var'],
     textDecorationLine: 'underline',
   },
   planSavingsText: {
-    ...Typography.label.small,
-    fontWeight: Typography.label.small.fontWeight as '500',
+    ...Typography.caption.small,
+    fontWeight: Typography.caption.small.fontWeight as '500',
     color: colors['foreground/accent'],
   },
   planHeader: {

@@ -457,7 +457,7 @@ const createStyles = (colors: SemanticColors) =>
       borderColor: colors['border/normal'],
     },
     toggleText: {
-      ...Typography.label['xlarge - semibold'],
+      ...Typography.body['medium - semibold'],
       color: colors['foreground/on-surface-var'],
       flex: 1,
     },
@@ -520,7 +520,7 @@ const createStyles = (colors: SemanticColors) =>
       color: colors['foreground/on-surface-muted'],
     },
     dates: {
-      ...Typography.label.medium,
+      ...Typography.caption.medium,
       color: colors['foreground/on-surface-muted'],
       marginTop: 4,
     },
@@ -532,7 +532,7 @@ const createStyles = (colors: SemanticColors) =>
       marginTop: Spacing.xs,
     },
     pickDateText: {
-      ...Typography.label.medium,
+      ...Typography.caption.medium,
       color: colors['foreground/on-surface'],
       textDecorationLine: 'underline',
     },

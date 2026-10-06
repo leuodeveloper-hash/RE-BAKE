@@ -1052,5 +1052,16 @@
   "common.delete": "Delete",
   "recipeEdit.linkSecret": "Mark as secret ingredient",
   "profile.accountSettings": "Account",
-  "profile.viewProfile": "View profile"
+  "profile.viewProfile": "View profile",
+  "profile.settingsTitle": "Settings",
+  "profile.recipeBooks": "Recipe books",
+  "profile.sectionGeneral": "General",
+  "profile.sectionUpgrade": "Upgrade",
+  "profile.sectionOther": "Other",
+  "profile.upgradeToPro": "Upgrade to Pro",
+  "profile.syncNeedsLogin": "Log in to sync",
+  "profile.syncNever": "Not yet",
+  "profile.officialRecipeBooks": "Official books",
+  "profile.bookCount": "{{count}} books",
+  "profile.recipeCountShort": "{{count}} recipes"
 }

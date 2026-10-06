@@ -173,9 +173,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   item: {padding: Spacing.md, gap: Spacing.sm},
   itemHeader: {flexDirection: 'row', alignItems: 'center', gap: Spacing.sm},
   itemInfo: {flex: 1, gap: 2},
-  itemTitle: {...Typography.label.large, color: colors['foreground/on-surface']},
-  itemMeta: {...Typography.label.small, color: colors['foreground/on-surface-muted']},
-  error: {...Typography.label.small, color: colors['custom/red']},
+  itemTitle: {...Typography.caption.large, color: colors['foreground/on-surface']},
+  itemMeta: {...Typography.caption.small, color: colors['foreground/on-surface-muted']},
+  error: {...Typography.caption.small, color: colors['custom/red']},
   thumb: {width: '100%', height: 160, borderRadius: Radius['radius-md'], backgroundColor: colors['fill/faint']},
-  noImage: {...Typography.label.small, color: colors['foreground/on-surface-muted']},
+  noImage: {...Typography.caption.small, color: colors['foreground/on-surface-muted']},
 });

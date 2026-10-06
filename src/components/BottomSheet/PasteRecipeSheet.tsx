@@ -179,7 +179,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     right: Spacing.sm,
   },
   hint: {
-    ...Typography.label.medium,
+    ...Typography.caption.medium,
     color: colors['foreground/on-surface-muted'],
   },
 });

@@ -54,7 +54,7 @@ const createStyles = (colors: SemanticColors) =>
       padding: 2,
     },
     label: {
-      ...Typography.label.medium,
+      ...Typography.caption.medium,
       color: colors['foreground/on-surface-muted'],
       marginTop: FONT_BASELINE_OFFSET,
     },

@@ -363,9 +363,9 @@ const createStyles = (colors: SemanticColors) =>
       backgroundColor: colors['surface/dim'],
     },
     tabLabel: {
-      fontFamily: Typography.label['large - semibold'].fontFamily,
-      fontSize: Typography.label['large - semibold'].fontSize,
-      fontWeight: Typography.label['large - semibold'].fontWeight as '600',
+      fontFamily: Typography.title.small.fontFamily,
+      fontSize: Typography.title.small.fontSize,
+      fontWeight: Typography.title.small.fontWeight as '600',
       color: colors['foreground/on-surface-muted'],
     },
     tabLabelActive: {
@@ -375,9 +375,9 @@ const createStyles = (colors: SemanticColors) =>
       paddingHorizontal: Spacing.sm,
       paddingTop: Spacing.xs,
       paddingBottom: Spacing.xs,
-      fontFamily: Typography.label.small.fontFamily,
-      fontSize: Typography.label.small.fontSize,
-      fontWeight: Typography.label.small.fontWeight as '500',
+      fontFamily: Typography.caption.small.fontFamily,
+      fontSize: Typography.caption.small.fontSize,
+      fontWeight: Typography.caption.small.fontWeight as '500',
       color: colors['foreground/on-surface-muted'],
     },
     searchBar: {

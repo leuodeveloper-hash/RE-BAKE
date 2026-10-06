@@ -80,10 +80,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   percentage: {
     width: 60,
-    fontFamily: Typography.label.medium.fontFamily,
-    fontSize: Typography.label.medium.fontSize,
-    fontWeight: Typography.label.medium.fontWeight as '600',
-    lineHeight: Typography.label.medium.lineHeight,
+    fontFamily: Typography.caption.medium.fontFamily,
+    fontSize: Typography.caption.medium.fontSize,
+    fontWeight: Typography.caption.medium.fontWeight as '600',
+    lineHeight: Typography.caption.medium.lineHeight,
     color: colors['foreground/on-surface-muted'],
   },
   name: {

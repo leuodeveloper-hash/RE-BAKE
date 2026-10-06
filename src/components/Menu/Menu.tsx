@@ -268,7 +268,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingHorizontal: Spacing.sm,
   },
   subHeaderTitle: {
-    ...Typography.label.large,
+    ...Typography.caption.large,
     color: colors['foreground/on-surface'],
     flex: 1,
   },

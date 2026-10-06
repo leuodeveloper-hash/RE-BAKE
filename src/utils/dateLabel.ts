@@ -27,3 +27,13 @@ function toDate(value: string | Date): Date | null {
   return Number.isNaN(d.getTime()) ? null : d;
 }
 
+
+/** 마지막 동기화 표시 — 방금 / N분 전 / N시간 전 / 그 전은 'M월 D일 HH:mm' */
+export function syncTimeLabel(date: Date, t: (key: string, params?: Record<string, unknown>) => string): string {
+  const diffMin = Math.floor((Date.now() - date.getTime()) / 60000);
+  if (diffMin < 1) return t('profile.syncJustNow');
+  if (diffMin < 60) return t('profile.syncMinutesAgo', {count: diffMin});
+  const diffHour = Math.floor(diffMin / 60);
+  if (diffHour < 24) return t('profile.syncHoursAgo', {count: diffHour});
+  return dateTime(date);
+}

@@ -1,4 +1,4 @@
-import {dateTime} from '@utils/dateLabel';
+import {syncTimeLabel} from '@utils/dateLabel';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {useFocusEffect} from 'expo-router';
@@ -6,7 +6,7 @@ import {loadCustomDdays} from '@utils/customDdays';
 import {LinearGradient} from 'expo-linear-gradient';
 import {BlurView} from 'expo-blur';
 import {SafeAreaView} from 'react-native-safe-area-context';
-import {FloatingNavBar, NavPillButton} from '@components/Navigation';
+import {FloatingNavBar, NavPillButton, APPBAR_CONTENT_BOTTOM} from '@components/Navigation';
 import {ContentContainer, Card} from '@components/Container';
 import {SectionHeader} from '@components/SectionHeader';
 import {ListItem} from '@components/ListItem';
@@ -15,6 +15,7 @@ import {Avatar} from '@components/Avatar/Avatar';
 import {Tabs} from '@components/Tabs';
 import {Selector} from '@components/Selector';
 import {MenuItem} from '@components/Menu';
+import {SummaryCard} from '@components/SummaryCard';
 import {TextInput} from '@components/TextInput';
 import {Button} from '@components/Button';
 import {Dialog} from '@components/Dialog';
@@ -43,6 +44,9 @@ import {
   IconPaletteFilled,
   IconLogout,
   IconSettingsFilled,
+  IconArrowLeft,
+  IconPhoto,
+  IconBookFilled,
   IconTrash,
   IconBellFilled,
   IconSunDimFilled,
@@ -73,6 +77,13 @@ export interface ProfileScreenProps {
   onLogout: () => void;
   /** 계정 설정 화면으로 */
   onAccountPress?: () => void;
+  /** 데이터 관리 화면으로 */
+  onDataPress?: () => void;
+  /** 레시피북 칸 — 내 레시피북 목록으로 */
+  onCookbooksPress?: () => void;
+  /** 레시피북 칸 숫자 — 내가 공식으로 올린 레시피북 수 · 레시피 수 */
+  cookbookCount?: number;
+  officialRecipeCount?: number;
   /** 내 프로필(작성자 홈) 보기 */
   onProfilePress?: () => void;
   onUpdateHandle: (newHandle: string) => Promise<void>;
@@ -152,17 +163,6 @@ function PlanFeature({text, styles, dotColor}: {
 
 // ---- ProfileScreen ----
 
-function formatSyncTime(date: Date, t: (key: string, params?: Record<string, unknown>) => string): string {
-  const now = new Date();
-  const diffMs = now.getTime() - date.getTime();
-  const diffMin = Math.floor(diffMs / 60000);
-  if (diffMin < 1) return t('profile.syncJustNow');
-  if (diffMin < 60) return t('profile.syncMinutesAgo', {count: diffMin});
-  const diffHour = Math.floor(diffMin / 60);
-  if (diffHour < 24) return t('profile.syncHoursAgo', {count: diffHour});
-  return dateTime(date);
-}
-
 export function ProfileScreen({
   recipeCount,
   reviewCount,
@@ -175,6 +175,10 @@ export function ProfileScreen({
   onImport,
   onLogout,
   onAccountPress,
+  onDataPress,
+  onCookbooksPress,
+  cookbookCount = 0,
+  officialRecipeCount = 0,
   onProfilePress,
   onUpdateHandle,
   displayName,
@@ -227,8 +231,8 @@ export function ProfileScreen({
 
   const syncLabel = lastSyncedAt
     ? (lastSyncedDevice
-        ? `${lastSyncedDevice}, ${formatSyncTime(lastSyncedAt, t)}`
-        : formatSyncTime(lastSyncedAt, t))
+        ? `${lastSyncedDevice}, ${syncTimeLabel(lastSyncedAt, t)}`
+        : syncTimeLabel(lastSyncedAt, t))
     : null;
 
   const APPEARANCE_TABS = useMemo(() => [
@@ -412,11 +416,10 @@ export function ProfileScreen({
 
   return (
     <View style={styles.container}>
-      {/* 상단 네비게이션 */}
+      {/* 상단 — 뒤로 · 설정 */}
       <FloatingNavBar
-        left={
-          <NavPillButton icon={IconClose} onPress={onBack} />
-        }
+        left={<NavPillButton icon={IconArrowLeft} onPress={onBack} />}
+        title={t('profile.settingsTitle')}
       />
 
       <SafeAreaView style={styles.safeArea} edges={['top']}>
@@ -424,98 +427,108 @@ export function ProfileScreen({
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
-          {/* 프로필 — 로그인 전후 같은 목록 카드: [아바타 + 이름 / 프로필 보기] ─ [계정 설정].
-              로그인 전엔 이름 대신 @guest, 누르면(두 줄 다) 로그인 */}
+          {/* 맨 위 두 칸 — [프로필] [레시피북] */}
           <ContentContainer style={styles.section}>
-            <Card>
-              <ListItem
-                leading={{type: 'custom', element: <Avatar type="random" size="medium" shape="circle" seed={avatarSeed ?? 0} />}}
-                content={{
-                  type: 'text',
-                  title: userEmail ? (displayName || handle || 'handle') : '@guest',
-                  description: userEmail ? t('profile.viewProfile') : t('profile.loginOrCreateAccount'),
-                }}
-                trailing={{type: 'icon', icon: IconChevronRight}}
-                showDivider
+            <View style={styles.summaryRow}>
+              <SummaryCard
+                leading={<Avatar type="random" size="xsmall" shape="circle" seed={avatarSeed ?? 0} />}
+                title={userEmail ? (displayName || handle || 'handle') : '@guest'}
+                subtitle={userEmail ? t('profile.viewProfile') : t('profile.loginOrCreateAccount')}
                 onPress={() => (userEmail ? onProfilePress?.() : openAuthSheet())}
               />
-              {/* 계정 설정 — 한 뎁스 안에 이름·아이디·계정 삭제 */}
+              {/* 공식(둘러보기) 레시피북 — 아이콘·이름도 공식 레시피북으로 */}
+              <SummaryCard
+                icon={IconExprolerBookFilled}
+                title={t('profile.officialRecipeBooks')}
+                subtitle={[t('profile.bookCount', {count: cookbookCount}), t('profile.recipeCountShort', {count: officialRecipeCount})]}
+                onPress={() => (userEmail ? onCookbooksPress?.() : openAuthSheet())}
+              />
+            </View>
+          </ContentContainer>
+
+          {/* 일반 */}
+          <ContentContainer style={styles.section}>
+            <SectionHeader title={t('profile.sectionGeneral')} />
+            <Card>
               <ListItem
                 title={t('profile.accountSettings')}
                 leading={{type: 'icon', icon: IconSettingsFilled}}
                 trailing={{type: 'icon', icon: IconChevronRight}}
-                showDivider={false}
+                showDivider
                 onPress={() => (userEmail ? onAccountPress?.() : openAuthSheet())}
               />
-            </Card>
-          </ContentContainer>
-
-          {/* 내 기록 섹션 — 만든 요리가 우표로 쌓인다 */}
-          {onStampsPress && (
-          <ContentContainer style={styles.section}>
-            <SectionHeader title={t('profile.myRecords')} />
-            <Card>
               <ListItem
-                title={t('stamps.title')}
-                leading={{type: 'icon', icon: IconStamps}}
-                // 몇 개나 모았는지 — 들어가 보지 않고도 알 수 있게
-                trailingValue={stampCount > 0 ? t('stamps.countValue', {count: stampCount}) : undefined}
+                title={t('profile.examScheduleNotif')}
+                leading={{type: 'icon', icon: IconBellFilled}}
+                trailingValue={examPrefs.enabled && examPrefs.targets.length > 0
+                  ? t('profile.examNotifOnCount', {count: examPrefs.targets.length})
+                  : t('profile.examNotifOff')}
+                trailing={{type: 'icon', icon: IconChevronRight}}
+                showDivider
+                onPress={() => onExamNotifPress?.()}
+              />
+              {onStampsPress ? (
+                <ListItem
+                  title={t('stamps.title')}
+                  leading={{type: 'icon', icon: IconStamps}}
+                  trailingValue={stampCount > 0 ? t('stamps.countValue', {count: stampCount}) : undefined}
+                  trailing={{type: 'icon', icon: IconChevronRight}}
+                  showDivider
+                  onPress={onStampsPress}
+                />
+              ) : null}
+              <ListItem
+                title={t('profile.widgetGuide')}
+                leading={{type: 'icon', icon: IconWidgetFilled}}
+                // 알 수 없을 때(null)·로그인 전엔 비워 둔다 — "추가 안 함"으로 잘못 보이는 편이 더 나쁘다
+                trailingValue={widgetCount === null || !userEmail ? undefined : widgetCount > 0
+                  ? t('profile.widgetAddedCount', {count: widgetCount})
+                  : t('profile.widgetNotAdded')}
+                trailing={{type: 'icon', icon: IconChevronRight}}
+                showDivider
+                onPress={() => onWidgetGuidePress?.()}
+              />
+              {/* D-day — 위젯 다음(위젯에 띄울 날을 여기서 정한다) */}
+              <ListItem
+                title={t('dday.screenTitle')}
+                leading={{type: 'icon', icon: IconCursorFilled}}
+                trailingValue={ddayCount > 0 ? t('dday.countShort', {count: ddayCount}) : undefined}
+                trailing={{type: 'icon', icon: IconChevronRight}}
+                showDivider
+                onPress={() => onDdaysPress?.()}
+              />
+              {/* 데이터 관리 — 내보내기·가져오기·사진 백업을 한곳에. 오른쪽은 마지막 동기화(기기, 시각) */}
+              <ListItem
+                title={t('profile.dataManagement')}
+                leading={{type: 'icon', icon: IconCloudFilled}}
+                trailingValue={userEmail && syncLabel ? syncLabel : undefined}
                 trailing={{type: 'icon', icon: IconChevronRight}}
                 showDivider={false}
-                onPress={onStampsPress}
+                onPress={() => onDataPress?.()}
               />
             </Card>
           </ContentContainer>
-          )}
 
-          {/* 데이터 관리 섹션 */}
+          {/* 업그레이드 — 로그인했을 때만(구독은 계정에 붙는다) */}
+          {userEmail && (
           <ContentContainer style={styles.section}>
-            <SectionHeader title={t('profile.dataManagement')} />
+            <SectionHeader title={t('profile.sectionUpgrade')} />
             <Card>
               <ListItem
-                title={t('profile.export')}
-                leading={{type: 'icon', icon: IconExport}}
+                title={isPro ? t('profile.proPlan') : t('profile.upgradeToPro')}
+                leading={{type: 'icon', icon: IconTicketFilled}}
+                trailingValue={isPro ? 'Pro' : 'Free'}
                 trailing={{type: 'icon', icon: IconChevronRight}}
-                disabled={recipeCount === 0}
-                onPress={handleExport}
+                showDivider={false}
+                onPress={() => setShowPlanSheet(true)}
               />
-              <ListItem
-                title={t('profile.import')}
-                leading={{type: 'icon', icon: IconImport}}
-                trailing={{type: 'icon', icon: IconChevronRight}}
-                showDivider={!!(userEmail && lastSyncedAt)}
-                onPress={handleImport}
-              />
-              {userEmail && lastSyncedAt && (
-                <ListItem
-                  title={t('profile.lastSync')}
-                  leading={{type: 'icon', icon: IconCloudFilled}}
-                  trailingValue={syncLabel ?? undefined}
-                  showDivider={false}
-                />
-              )}
             </Card>
           </ContentContainer>
-
-          {/* 플랜 섹션 (로그인 시만) */}
-          {userEmail && (
-            <ContentContainer style={styles.section}>
-              <SectionHeader title={t('profile.plan')} />
-              <Card>
-                <ListItem
-                  title={isPro ? t('profile.proPlan') : t('profile.freePlan')}
-                  leading={{type: 'icon', icon: IconTicketFilled}}
-                  trailing={{type: 'icon', icon: IconChevronRight}}
-                  showDivider={false}
-                  onPress={() => setShowPlanSheet(true)}
-                />
-              </Card>
-            </ContentContainer>
           )}
 
-          {/* 환경설정 섹션 */}
+          {/* 기타 */}
           <ContentContainer style={styles.section}>
-            <SectionHeader title={t('profile.preferences')} />
+            <SectionHeader title={t('profile.sectionOther')} />
             <Card>
               <ListItem
                 title={t('profile.appearance')}
@@ -535,76 +548,18 @@ export function ProfileScreen({
               <ListItem
                 title={t('settings.language')}
                 leading={{type: 'icon', icon: IconGlobeFilled}}
-                // 액션이 '언어 메뉴 열기' 하나뿐 → 행 전체를 클릭 영역으로.
+                trailingValue={LANGUAGE_OPTIONS.find(o => o.id === language)?.label ?? '한국어'}
+                trailing={{type: 'icon', icon: IconChevronRight}}
                 onPress={() => setShowLanguageMenu(true)}
-                trailing={{
-                  type: 'custom',
-                  element: (
-                    <Selector
-                      variant="ghost"
-                      size="small"
-                      muted
-                      label={LANGUAGE_OPTIONS.find(o => o.id === language)?.label ?? '한국어'}
-                      showDropdown
-                      onPress={() => setShowLanguageMenu(true)}
-                    />
-                  ),
-                }}
                 showDivider
               />
+              {/* Support — 메일 앱을 열지 않고 앱 안에서 문의 */}
               <ListItem
-                title={photoCloudBackup ? t('profile.photoCloudBackupOn') : t('profile.photoCloudBackupLocal')}
-                leading={{type: 'icon', icon: IconCloudFilled}}
-                // 행 전체 클릭 = 스위치 토글. 스위치와 동일 로직 재사용.
-                onPress={() => togglePhotoCloudBackup(!photoCloudBackup)}
-                trailing={{
-                  type: 'custom',
-                  element: (
-                    <Switch
-                      value={photoCloudBackup}
-                      onValueChange={togglePhotoCloudBackup}
-                    />
-                  ),
-                }}
-                showDivider={false}
-              />
-            </Card>
-          </ContentContainer>
-
-          {/* 시험 알림 섹션 */}
-          <ContentContainer style={styles.section}>
-            <SectionHeader title={t('profile.notifications')} />
-            <Card>
-              <ListItem
-                title={t('profile.examScheduleNotif')}
-                leading={{type: 'icon', icon: IconBellFilled}}
-                // 상태는 공통 오른쪽 값(trailingValue) — 다른 설정 줄과 같은 글자·정렬
-                trailingValue={examPrefs.enabled && examPrefs.targets.length > 0
-                  ? t('profile.examNotifOnCount', {count: examPrefs.targets.length})
-                  : t('profile.examNotifOff')}
-                trailing={{type: 'icon', icon: IconChevronRight}}
-                showDivider
-                onPress={() => onExamNotifPress?.()}
-              />
-              {/* 내 D-day — 시험 알림 안에 있으면 너무 깊어 따로 둔다 */}
-              <ListItem
-                title={t('dday.screenTitle')}
-                leading={{type: 'icon', icon: IconCursorFilled}}
-                trailingValue={ddayCount > 0 ? t('dday.countShort', {count: ddayCount}) : undefined}
-                trailing={{type: 'icon', icon: IconChevronRight}}
-                showDivider
-                onPress={() => onDdaysPress?.()}
-              />
-              <ListItem
-                title={t('profile.widgetGuide')}
-                leading={{type: 'icon', icon: IconWidgetFilled}}
-                // 알 수 없을 때(null)·로그인 전엔 비워 둔다 — "추가 안 함"으로 잘못 보이는 편이 더 나쁘다
-                trailingValue={widgetCount === null || !userEmail ? undefined : widgetCount > 0
-                  ? t('profile.widgetAddedCount', {count: widgetCount})
-                  : t('profile.widgetNotAdded')}
+                title={t('profile.inquiry')}
+                leading={{type: 'icon', icon: IconMailFilled}}
                 trailing={{type: 'icon', icon: IconChevronRight}}
                 showDivider={false}
-                onPress={() => onWidgetGuidePress?.()}
+                onPress={() => setInquiryOpen(true)}
               />
             </Card>
           </ContentContainer>
@@ -646,20 +601,7 @@ export function ProfileScreen({
             </ContentContainer>
           )}
 
-          {/* Support — 메일 앱을 열지 않고 앱 안에서 문의 */}
-          <ContentContainer style={styles.section}>
-            <Card>
-              <ListItem
-                title={t('profile.inquiry')}
-                leading={{type: 'icon', icon: IconMailFilled}}
-                trailing={{type: 'icon', icon: IconChevronRight}}
-                showDivider={false}
-                onPress={() => setInquiryOpen(true)}
-              />
-            </Card>
-          </ContentContainer>
-
-          {/* 로그아웃 — Support 아래 따로 떨어진 카드, 설정 맨 아래(로그인 시만) */}
+          {/* 로그아웃 — 맨 아래 따로 떨어진 카드(로그인 시만) */}
           {userEmail && (
             <ContentContainer style={styles.section}>
               <Card>
@@ -775,6 +717,11 @@ export function ProfileScreen({
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  // 맨 위 두 칸 — 같은 폭으로 나란히
+  summaryRow: {
+    flexDirection: 'row',
+    gap: Spacing.md,
+  },
   container: {
     flex: 1,
     backgroundColor: colors['surface/dim'],
@@ -786,9 +733,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    // 상단엔 닫기 버튼 하나뿐이라 앱바 높이만큼 비울 이유가 없다.
-    // 닫기 버튼 아래(APPBAR_CONTENT_BOTTOM 54)에서 아바타가 시작하는 정도만 비운다
-    paddingTop: 48,
+    // 앱바(뒤로·제목) 아래 기본 여백 8 — 48이면 맨 위 카드가 앱바에 붙어 보였다
+    paddingTop: APPBAR_CONTENT_BOTTOM + Spacing.sm,
     paddingBottom: 120,
   },
   profileSection: {
@@ -838,11 +784,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     gap: Spacing.xs,
   },
   footerText: {
-    fontFamily: Typography.label.medium.fontFamily,
-    fontSize: Typography.label.medium.fontSize,
-    fontWeight: Typography.label.medium.fontWeight as '500',
-    lineHeight: Typography.label.medium.lineHeight,
-    letterSpacing: Typography.label.medium.letterSpacing,
+    fontFamily: Typography.caption.medium.fontFamily,
+    fontSize: Typography.caption.medium.fontSize,
+    fontWeight: Typography.caption.medium.fontWeight as '500',
+    lineHeight: Typography.caption.medium.lineHeight,
+    letterSpacing: Typography.caption.medium.letterSpacing,
     color: colors['foreground/on-surface-disabled'],
   },
   footerLinks: {
@@ -852,11 +798,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     gap: Spacing.md,
   },
   footerLink: {
-    fontFamily: Typography.label.medium.fontFamily,
-    fontSize: Typography.label.medium.fontSize,
-    fontWeight: Typography.label.medium.fontWeight as '500',
-    lineHeight: Typography.label.medium.lineHeight,
-    letterSpacing: Typography.label.medium.letterSpacing,
+    fontFamily: Typography.caption.medium.fontFamily,
+    fontSize: Typography.caption.medium.fontSize,
+    fontWeight: Typography.caption.medium.fontWeight as '500',
+    lineHeight: Typography.caption.medium.lineHeight,
+    letterSpacing: Typography.caption.medium.letterSpacing,
     color: colors['foreground/on-surface-disabled'],
   },
   planSheetContent: {

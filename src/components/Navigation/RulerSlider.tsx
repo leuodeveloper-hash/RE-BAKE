@@ -281,7 +281,7 @@ const createStyles = (colors: SemanticColors) =>
       justifyContent: 'center',
     },
     label: {
-      ...Typography.label['xlarge - semibold'],
+      ...Typography.body['medium - semibold'],
       color: colors['foreground/on-surface'],
       textAlign: 'center',
     },

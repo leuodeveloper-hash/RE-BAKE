@@ -93,7 +93,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     gap: 4,
   },
   label: {
-    ...Typography.label.medium,
+    ...Typography.caption.medium,
     color: colors['foreground/on-surface-muted'],
   },
 });

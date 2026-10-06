@@ -149,7 +149,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   addPhotoText: {
-    ...Typography.label.small,
+    ...Typography.caption.small,
   },
   body: {
     paddingHorizontal: Spacing.smd,

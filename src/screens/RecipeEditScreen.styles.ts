@@ -24,9 +24,9 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingHorizontal: 8,
   },
   hiddenLabel: {
-    fontFamily: Typography.label.medium.fontFamily,
-    fontSize: Typography.label.medium.fontSize,
-    fontWeight: Typography.label.medium.fontWeight as '600',
+    fontFamily: Typography.caption.medium.fontFamily,
+    fontSize: Typography.caption.medium.fontSize,
+    fontWeight: Typography.caption.medium.fontWeight as '600',
     color: colors['foreground/on-surface'],
   },
   scrollView: {
@@ -231,7 +231,7 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
     alignItems: 'center',
   },
   photoTileCountText: {
-    ...Typography.label.small,
+    ...Typography.caption.small,
     color: '#fff',
   },
   chipRow: {
@@ -352,10 +352,10 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
     gap: Spacing.xs,
   },
   addGroupText: {
-    fontFamily: Typography.label['xlarge - semibold'].fontFamily,
-    fontSize: Typography.label['xlarge - semibold'].fontSize,
-    fontWeight: Typography.label['xlarge - semibold'].fontWeight as '600',
-    lineHeight: Typography.label['xlarge - semibold'].lineHeight,
+    fontFamily: Typography.body['medium - semibold'].fontFamily,
+    fontSize: Typography.body['medium - semibold'].fontSize,
+    fontWeight: Typography.body['medium - semibold'].fontWeight as '600',
+    lineHeight: Typography.body['medium - semibold'].lineHeight,
     color: colors['foreground/accent'],
   },
 
@@ -383,7 +383,7 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
     padding: 2,
   },
   toggleLabel: {
-    ...Typography.label.medium,
+    ...Typography.caption.medium,
     color: colors['foreground/on-surface-muted'],
     marginTop: FONT_BASELINE_OFFSET,
   },
