@@ -1044,9 +1044,9 @@
   "profile.sectionUpgrade": "업그레이드",
   "profile.sectionOther": "기타",
   "profile.upgradeToPro": "Pro로 업그레이드",
-  "profile.syncNeedsLogin": "로그인하면 동기화",
   "profile.syncNever": "아직 없음",
   "profile.officialRecipeBooks": "공식 레시피북",
   "profile.bookCount": "{{count}}권",
-  "profile.recipeCountShort": "{{count}}개"
+  "profile.recipeCountShort": "{{count}}개",
+  "profile.loginToSync": "로그인하면 동기화"
 }

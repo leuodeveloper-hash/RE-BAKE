@@ -1059,9 +1059,9 @@
   "profile.sectionUpgrade": "Upgrade",
   "profile.sectionOther": "Other",
   "profile.upgradeToPro": "Upgrade to Pro",
-  "profile.syncNeedsLogin": "Log in to sync",
   "profile.syncNever": "Not yet",
   "profile.officialRecipeBooks": "Official books",
   "profile.bookCount": "{{count}} books",
-  "profile.recipeCountShort": "{{count}} recipes"
+  "profile.recipeCountShort": "{{count}} recipes",
+  "profile.loginToSync": "Log in to sync"
 }

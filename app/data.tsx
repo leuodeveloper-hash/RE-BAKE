@@ -11,6 +11,7 @@ import {useAuth} from '@contexts/AuthContext';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSubscription} from '@contexts/SubscriptionContext';
 import {usePlanSheet} from '@contexts/PlanSheetContext';
+import {useAuthSheet} from '@contexts/AuthSheetContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import type {SemanticColors} from '@constants/tokens';
@@ -30,6 +31,7 @@ export default function DataRoute() {
   const {recipes, exportRecipes, importRecipes, lastSyncedAt, lastSyncedDevice} = useRecipes();
   const {isPro, photoCloudBackup, setPhotoCloudBackup} = useSubscription();
   const {open: openPlanSheet} = usePlanSheet();
+  const {open: openAuthSheet} = useAuthSheet();
 
   const syncLabel = lastSyncedAt
     ? (lastSyncedDevice ? `${lastSyncedDevice}, ${syncTimeLabel(lastSyncedAt, t)}` : syncTimeLabel(lastSyncedAt, t))
@@ -74,16 +76,23 @@ export default function DataRoute() {
             <ListItem
               title={t('profile.lastSync')}
               leading={{type: 'icon', icon: IconCloudFilled}}
-              trailingValue={!user ? t('profile.syncNeedsLogin') : syncLabel ?? t('profile.syncNever')}
+              // 로그인 전엔 다른 줄처럼 값 + 화살표, 줄을 누르면 로그인
+              trailingValue={user ? syncLabel ?? t('profile.syncNever') : t('profile.loginToSync')}
+              trailing={user ? undefined : {type: 'icon', icon: IconChevronRight}}
+              onPress={user ? undefined : () => openAuthSheet()}
               showDivider
             />
             <ListItem
               title={t('profile.export')}
               leading={{type: 'icon', icon: IconExport}}
               trailing={{type: 'icon', icon: IconChevronRight}}
-              disabled={recipes.length === 0}
+              // 늘 눌린다 — 로그인 전이면 로그인, 레시피가 없으면 알림
               showDivider
-              onPress={handleExport}
+              onPress={() => {
+                if (!user) { openAuthSheet(); return; }
+                if (recipes.length === 0) { showSnackbar(t('explore.noRecipesToExport')); return; }
+                handleExport();
+              }}
             />
             <ListItem
               title={t('profile.import')}
