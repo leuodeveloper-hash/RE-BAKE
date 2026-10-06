@@ -73,11 +73,104 @@ export function splitNameAmount(entry: string): ParsedIngredient {
   return name ? {name, amount: m[1].trim()} : {name: s};
 }
 
+// ---- 배합표(비율·재료명·무게) ----
+// 제과제빵 배합표는 "비율(%) | 재료명 | 무게(g)" 표다. 그대로 읽으면 비율 숫자가 재료 앞에 붙고
+// ("100 박력분 500"), 맨 아래 합계 줄(계 421.5 2,107.5)까지 재료로 들어간다.
+// 머리 줄로 표를 알아보고, 재료명과 무게만 짝지어 뽑는다.
+
+/** 표 머리 — 재료명 + (무게|중량|g) 이거나 비율이 함께 있으면 배합표로 본다 */
+const TABLE_HEAD = /(재료\s*명?|재료이름)/;
+const TABLE_HEAD_AMOUNT = /(무게|중량|분량|\(\s*g\s*\)|비율|%)/;
+/** 머리에 들어가는 낱말 — 재료로 세지 않는다 */
+const HEAD_WORDS = /^(비율|\(?%\)?|재료명?|재료이름|무게|중량|분량|\(?g\)?|비율\(%\)|무게\(g\)|중량\(g\))$/;
+/** 합계 줄 — 여기서 표가 끝난다 */
+const TOTAL_WORD = /^(계|합계|총계|총량|total)$/i;
+/** 숫자 칸 — 5, 2.5, 2,107.5, 5(4), (2,106), 500g, 100% */
+const NUM_CELL = /^\(?[\d０-９][\d０-９.,]*\)?(?:\([\d０-９.,]+\))?\s*(?:g|kg|%)?$/;
+
+/** 배합표면 재료(이름 + 무게)들, 아니면 null */
+export function parseIngredientTable(lines: string[]): ParsedIngredient[] | null {
+  const cleaned = lines.map(l => stripOcrNoise(l)).filter(Boolean);
+  const headIdx = cleaned.findIndex(l => TABLE_HEAD.test(l) && TABLE_HEAD_AMOUNT.test(l));
+  // 머리가 여러 줄로 쪼개진 경우(재료명 / 무게(g)가 따로 읽힘)도 앞쪽 몇 줄 안에서 찾는다
+  const headLooseIdx = headIdx >= 0 ? headIdx
+    : (cleaned.slice(0, 4).some(l => TABLE_HEAD.test(l)) && cleaned.slice(0, 4).some(l => TABLE_HEAD_AMOUNT.test(l))
+      ? Math.max(...cleaned.slice(0, 4).map((l, i) => (TABLE_HEAD.test(l) || TABLE_HEAD_AMOUNT.test(l) ? i : -1)))
+      : -1);
+  if (headLooseIdx < 0) return null;
+  const grams = cleaned.slice(0, headLooseIdx + 1).some(l => /\(\s*g\s*\)|무게|중량/.test(l));
+
+  // 칸 단위로 펼친다. 합계 낱말 자리를 기억해 둔다(줄 단위면 거기서 끝, 열 단위면 그 칸만 뺀다)
+  const all: string[] = [];
+  let totalAt = -1;
+  for (const line of cleaned.slice(headLooseIdx + 1)) {
+    for (const tok of line.split(/\s+/).filter(Boolean)) {
+      if (TOTAL_WORD.test(tok)) { if (totalAt < 0) totalAt = all.length; continue; }
+      if (HEAD_WORDS.test(tok)) continue;
+      all.push(tok);
+    }
+  }
+  if (!all.length) return null;
+  const rowMajor = rowMajorHint(all);
+  // 줄 단위: 합계 줄(계 앞 숫자 = 비율 합계)부터 끝까지 버린다
+  const tokens = rowMajor && totalAt >= 0 ? all.slice(0, Math.max(0, totalAt - 1)) : all;
+
+  // 이름 칸은 붙여 둔다("바닐라 향"처럼 두 낱말로 읽힌 이름)
+  type Cell = {kind: 'num' | 'name'; text: string};
+  const cells: Cell[] = [];
+  for (const tok of tokens) {
+    const kind = NUM_CELL.test(tok) ? 'num' : 'name';
+    const last = cells[cells.length - 1];
+    if (kind === 'name' && last?.kind === 'name' && rowMajor) last.text += ` ${tok}`;
+    else cells.push({kind, text: tok});
+  }
+  const names = cells.filter(c => c.kind === 'name');
+  const nums = cells.filter(c => c.kind === 'num');
+  if (!names.length || !nums.length) return null;
+
+  // 무게 칸 정리 — 5(4)는 앞 숫자, 단위가 없으면 머리의 g
+  const weight = (raw: string) => {
+    const n = raw.replace(/\(.*\)/, '').replace(/,/g, '').replace(/\s+/g, '');
+    if (/%$/.test(n)) return undefined;
+    return /[a-z]$/i.test(n) ? n : grams ? `${n}g` : n;
+  };
+
+  const out: ParsedIngredient[] = [];
+  if (rowMajor) {
+    // 줄 단위(비율 이름 무게 / 비율 이름 무게 …) — 이름 바로 뒤 숫자가 무게
+    cells.forEach((c, i) => {
+      if (c.kind !== 'name') return;
+      const next = cells[i + 1];
+      out.push({name: c.text, amount: next?.kind === 'num' ? weight(next.text) : undefined});
+    });
+  } else {
+    // 열 단위(비율 전부 → 이름 전부 → 무게 전부) — 무게는 마지막 이름 뒤에 나오는 숫자부터 이름 개수만큼(합계 뺌)
+    const lastName = cells.map(c => c.kind).lastIndexOf('name');
+    const w = cells.slice(lastName + 1).filter(c => c.kind === 'num').slice(0, names.length);
+    names.forEach((c, i) => out.push({name: c.text, amount: w[i] ? weight(w[i].text) : undefined}));
+  }
+  return out.filter(i => i.name.length > 0 && i.name.length <= 40);
+}
+
+/** 이름과 숫자가 번갈아 나오면 줄 단위 읽기 — 이름이 연달아 둘 이상 나오는 일이 드물면 */
+function rowMajorHint(tokens: string[]): boolean {
+  let nameRuns = 0;
+  let names = 0;
+  for (let i = 0; i < tokens.length; i++) {
+    const isName = !NUM_CELL.test(tokens[i]);
+    if (isName) { names++; if (i > 0 && !NUM_CELL.test(tokens[i - 1])) nameRuns++; }
+  }
+  return names > 0 && nameRuns / names < 0.5;
+}
+
 /**
  * 표 형태 재료 목록을 한 항목씩 가른다.
  * 줄 단위로 끊고, 각 줄을 다시 열 단위로 가른다.
  */
 export function parseIngredientLines(lines: string[]): ParsedIngredient[] {
+  // 배합표(비율·재료명·무게)면 재료명 + 무게만 — 비율·합계는 뺀다
+  const table = parseIngredientTable(lines);
+  if (table && table.length) return table;
   return lines
     .flatMap(splitTableRow)
     .map(splitNameAmount)
@@ -99,6 +192,11 @@ const TOOL_HEADINGS = /^(도구|기구|준비물|tools?|equipment)(?=$|[\s:：(�
 export function ocrTextToMarkdown(text: string): string {
   const lines = (text ?? '').split(/\r?\n/).map(l => stripOcrNoise(l)).filter(Boolean);
   if (lines.length === 0) return '';
+  // 배합표 사진이면 재료만 깔끔하게(비율·합계 없이)
+  const table = parseIngredientTable(lines);
+  if (table && table.length) {
+    return ['## 재료', ...table.map(it => `- ${[it.name, it.amount].filter(Boolean).join(' ')}`)].join('\n');
+  }
 
   let title: string | undefined;
   const ingredients: string[] = [];

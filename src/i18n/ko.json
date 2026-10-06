@@ -1035,5 +1035,7 @@
   "recipeEdit.doughTemp": "반죽 온도",
   "recipeEdit.divideWeight": "분할 용량",
   "common.delete": "삭제",
-  "recipeEdit.linkSecret": "비밀재료로 표시"
+  "recipeEdit.linkSecret": "비밀재료로 표시",
+  "profile.accountSettings": "계정 설정",
+  "profile.viewProfile": "프로필 보기"
 }

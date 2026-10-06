@@ -682,7 +682,7 @@ function NavigationContent() {
             loading={paste.loading}
             animateInitial={paste.animate}
             // 헤더 맨 오른쪽 '이미지로 읽기' — [+] 이미지와 같은 흐름(시트를 닫고 고른 뒤 읽어 다시 연다)
-            readImageItems={[...photoSourceMenuItems(t), {id: 'recipe', label: t('recipeImagePicker.menu'), icon: IconNoteFilled}]}
+            readImageItems={photoSourceMenuItems(t)}
             onReadImage={id => {
               setPaste({visible: false});
               setTimeout(() => {

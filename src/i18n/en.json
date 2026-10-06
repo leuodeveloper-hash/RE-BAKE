@@ -1050,5 +1050,7 @@
   "recipeEdit.doughTemp": "Dough temp",
   "recipeEdit.divideWeight": "Divide weight",
   "common.delete": "Delete",
-  "recipeEdit.linkSecret": "Mark as secret ingredient"
+  "recipeEdit.linkSecret": "Mark as secret ingredient",
+  "profile.accountSettings": "Account",
+  "profile.viewProfile": "View profile"
 }

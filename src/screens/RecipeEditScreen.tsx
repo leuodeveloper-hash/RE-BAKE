@@ -56,7 +56,7 @@ import {WritingRules} from '@components/WritingRules';
 import {Tooltip} from '@components/Tooltip';
 import {getCookbookColorKey} from '@components/ColorPicker';
 import type {AvatarColor} from '@components/Avatar/Avatar';
-import {RainbowText, BulkTypingOverlay} from '@components/RainbowText';
+import {RainbowText, BulkTypingOverlay, TYPING_CONCEAL} from '@components/RainbowText';
 import {SkeletonLine} from '@components/SkeletonLine';
 import {useYouTubePlayer} from '@contexts/YouTubePlayerContext';
 import {parseYouTubeVideoId} from '@utils/youtube';
@@ -1900,7 +1900,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                     titleInputRef.current = node;
                     sectionInputRefs.current['title'] = node;
                   }}
-                  style={[styles.cardFieldInput, noOutline, typing && typingField === 'title' && !!title && {color: 'transparent'}]}
+                  style={[styles.cardFieldInput, noOutline, typing && typingField === 'title' && !!title && TYPING_CONCEAL]}
                   placeholder={t('recipeEdit.titlePlaceholder')}
                   placeholderTextColor={titleError ? colors['foreground/negative'] : colors['foreground/on-surface-muted']}
                   value={title}
@@ -2222,7 +2222,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 <View style={styles.bulkToolInput}>
                   <AutoGrowInput
                     ref={(node: any) => { sectionInputRefs.current[`ingredients:${group.id}`] = node; }}
-                    style={[styles.cardFieldInput, styles.bulkInput, noOutline, typing && typingField === 'ingredients' && isOcrTypingTarget(group.id, ingredientGroups[0]?.id) && !!group.bulkText && {color: 'transparent'}]}
+                    style={[styles.cardFieldInput, styles.bulkInput, noOutline, typing && typingField === 'ingredients' && isOcrTypingTarget(group.id, ingredientGroups[0]?.id) && !!group.bulkText && TYPING_CONCEAL]}
                     placeholder={t('recipeEdit.ingredientsBulkPlaceholder')}
                     value={group.bulkText}
                     onChangeText={(v: string) => setIngredientGroups(p => p.map(g => g.id === group.id ? {...g, bulkText: v} : g))}
@@ -2525,7 +2525,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 <View style={styles.bulkToolInput}>
                   <AutoGrowInput
                     ref={(node: any) => { sectionInputRefs.current['tools'] = node; }}
-                    style={[styles.cardFieldInput, styles.bulkInput, noOutline, typing && typingField === 'tools' && isOcrTypingTarget(group.id, toolGroups[0]?.id) && !!group.bulkText && {color: 'transparent'}]}
+                    style={[styles.cardFieldInput, styles.bulkInput, noOutline, typing && typingField === 'tools' && isOcrTypingTarget(group.id, toolGroups[0]?.id) && !!group.bulkText && TYPING_CONCEAL]}
                     placeholder={t('recipeEdit.toolsBulkPlaceholder')}
                     value={group.bulkText}
                     onChangeText={(v: string) => setToolGroups(p => p.map(g => g.id === group.id ? {...g, bulkText: v} : g))}
@@ -2810,7 +2810,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 <View style={styles.bulkToolInput}>
                   <AutoGrowInput
                     ref={(node: any) => { sectionInputRefs.current['steps'] = node; }}
-                    style={[styles.cardFieldInput, styles.bulkInput, noOutline, typing && typingField === 'steps' && isOcrTypingTarget(group.id, stepGroups[0]?.id) && !!group.bulkText && {color: 'transparent'}]}
+                    style={[styles.cardFieldInput, styles.bulkInput, noOutline, typing && typingField === 'steps' && isOcrTypingTarget(group.id, stepGroups[0]?.id) && !!group.bulkText && TYPING_CONCEAL]}
                     placeholder={t('recipeEdit.stepsBulkPlaceholder')}
                     value={group.bulkText}
                     onChangeText={(v: string) => setStepGroups(p => p.map(g => g.id === group.id ? {...g, bulkText: v} : g))}

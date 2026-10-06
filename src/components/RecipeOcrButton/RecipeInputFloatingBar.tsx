@@ -297,15 +297,6 @@ export function RecipeInputFloatingBar({
                 pickImage('library');
               },
             },
-            ...(onScanFromRecipe ? [{
-              label: t('recipeInputFloatingBar.scanFromRecipe'),
-              icon: IconNoteFilled as any,
-              onPress: () => {
-                setShowScanMenu(false);
-                onPickActiveChange?.(false);
-                onScanFromRecipe(field);
-              },
-            }] : []),
           ],
         } : subView) : null}
       />

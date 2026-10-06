@@ -3,7 +3,7 @@ import {StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {BottomSheet} from './BottomSheet';
 import {Button} from '@components/Button';
 import {AutoGrowInput} from '@components/AutoGrowInput';
-import {BulkTypingOverlay} from '@components/RainbowText';
+import {BulkTypingOverlay, TYPING_CONCEAL} from '@components/RainbowText';
 import {SkeletonLine} from '@components/SkeletonLine';
 import {writingRuleRows} from '@components/WritingRules';
 import {FloatingPanel} from '@components/FloatingPanel';
@@ -124,7 +124,7 @@ export function PasteRecipeSheet({visible, onClose, onApply, initialText, loadin
       <View style={styles.body}>
         <View style={styles.inputWrap}>
           <AutoGrowInput
-            style={[styles.input, typing && styles.inputHidden]}
+            style={[styles.input, typing && TYPING_CONCEAL]}
             placeholder={t('recipeEdit.pastePlaceholder')}
             value={text}
             onChangeText={setText}
@@ -169,9 +169,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     color: colors['foreground/on-surface'],
   },
   // 오버레이를 입력 글자 자리에 겹친다 — inputWrap 안쪽 여백과 같게
-  inputHidden: {
-    color: 'transparent',
-  },
   inputPad: {
     paddingHorizontal: Spacing.smd,
     paddingVertical: Spacing.sm,

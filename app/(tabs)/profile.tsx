@@ -1,5 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {View, StyleSheet} from 'react-native';
+import {useMyAuthor} from '@hooks/useAuthor';
+import {resolveAuthorHandle, OFFICIAL_AUTHOR_HANDLE} from '../../src/types/author';
 import {useRouter, useLocalSearchParams} from 'expo-router';
 import {ProfileScreen} from '@screens/ProfileScreen';
 import {useRecipes} from '@contexts/RecipeContext';
@@ -26,7 +28,9 @@ export default function ProfileRoute() {
     [recipes, exploreRecipes, madeAtOf],
   );
   const {showSnackbar} = useSnackbar();
-  const {user, handle, displayName, signOut, deleteAccount, updateHandle, updateDisplayName, avatarSeed, isAdmin} = useAuth();
+  const {user, handle, displayName, signOut, updateHandle, updateDisplayName, avatarSeed, isAdmin} = useAuth();
+  // 내 작성자 프로필(공식 레시피를 올린 계정) — 프로필 보기에서 그 작성자 홈으로
+  const {author: myAuthor} = useMyAuthor(user?.uid);
   const {isPro} = useSubscription();
   const {t} = useTranslation();
 
@@ -63,17 +67,6 @@ export default function ProfileRoute() {
     }
   }, [signOut, showSnackbar, t]);
 
-  const handleDeleteAccount = useCallback(async () => {
-    try {
-      await deleteAccount();
-      showSnackbar(t('profile.accountDeleted'));
-      return true;
-    } catch (e) {
-      console.error('[profile] deleteAccount failed', e);
-      showSnackbar(t('profile.deleteAccountFailed'), {tone: 'error'});
-      return false;
-    }
-  }, [deleteAccount, showSnackbar, t]);
 
   return (
     <View style={[styles.container, {backgroundColor: colors['surface/dim']}]}>
@@ -88,7 +81,14 @@ export default function ProfileRoute() {
         onExport={exportRecipes}
         onImport={importRecipes}
         onLogout={handleLogout}
-        onDeleteAccount={handleDeleteAccount}
+        onAccountPress={() => router.push('/account' as any)}
+        // 프로필 보기 = 내가 공식(둘러보기)으로 올린 레시피 — 작성자 홈. 내 작성자 프로필이 있으면 그 아이디로
+        onProfilePress={() => {
+          // 어드민이 올린 둘러보기 레시피는 공식 작성자(베이키) 이름으로 저장된다 — 어드민은 베이키 홈으로
+          const slug = isAdmin ? OFFICIAL_AUTHOR_HANDLE
+            : myAuthor ? resolveAuthorHandle(myAuthor.id, myAuthor.handle) : handle;
+          if (slug) router.push(`/u/${slug}` as any);
+        }}
         onUpdateHandle={updateHandle}
         displayName={displayName}
         onUpdateDisplayName={updateDisplayName}

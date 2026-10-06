@@ -36,6 +36,8 @@ import {useRecipeReviews} from '@hooks/useRecipeReviews';
 import {useMadeStamps} from '@hooks/useMadeStamps';
 import {CookbookSelectSheet, MadeConfirmSheet, InquirySheet} from '@components/BottomSheet';
 import {sendAppInquiry} from '@utils/appInquiry';
+import type {AvatarColor} from '@components/Avatar/Avatar';
+import {DEFAULT_AXES} from '@components/RecipeGroups/groupAxis';
 import {
   IconTrash,
   IconTrashTwotone,
@@ -130,7 +132,8 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   const axisLoaded = useRef(false);
   useEffect(() => {
     AsyncStorage.getItem('bakle_home_axis_v1').then(v => {
-      if (v) setGroupAxis(v as GroupAxis);
+      // 작성자 홈엔 회고 축이 없다 — 마지막으로 본 게 회고여도 전체로
+      if (v) setGroupAxis(isAuthorMode && v === 'retrospective' ? 'all' : (v as GroupAxis));
       axisLoaded.current = true;
     }).catch(() => { axisLoaded.current = true; });
   }, []);
@@ -167,7 +170,17 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
   const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
 
   // 홈 타이틀 드롭다운 = 그룹화 축 선택 (공통 모듈, 전체/레시피북/공법/회고)
-  const axisMenuItems = useAxisMenuItems();
+  // 보기 종류 — 작성자 홈엔 회고가 없다(내 홈에서만). 아래 GroupScreen과 같은 목록을 쓴다
+  const homeAxes = useMemo(() => (isAuthorMode ? DEFAULT_AXES.filter(a => a !== 'retrospective') : DEFAULT_AXES), [isAuthorMode]);
+  const axisMenuItems = useAxisMenuItems(homeAxes);
+  // 레시피북 색 — 작성자 홈(공식 북)은 둘러보기 북에 지정된 색, 내 홈은 내가 지정한 색.
+  // 작성자 홈에 내 색 지도를 넘기면 공식 북 이름이 없어 전부 기본색으로 나왔다
+  const bookColors = useMemo(() => {
+    if (!isAuthorMode) return cookbookColors;
+    const map: Record<string, AvatarColor> = {};
+    exploreCookbooks?.forEach(c => { map[c.name] = c.color as AvatarColor; });
+    return map;
+  }, [isAuthorMode, cookbookColors, exploreCookbooks]);
 
   const handleHomeAxisSelect = (id: string) => {
     setCrumbMenu(null);
@@ -550,11 +563,13 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
         recipes={recipes}
         // 둘러보기 레시피에 쓴 회고도 내 기록 — 회고 노트 목록에 보여준다(작성자 홈은 제외)
         retrospectiveExtraRecipes={isAuthorMode ? undefined : exploreRecipesAll}
-        cookbookColors={cookbookColors}
+        cookbookColors={bookColors}
         authorBadge={resolvedBadge}
         menuHeaderNode={menuHeaderNode}
         onBack={onBack}
         axis={groupAxis}
+        // 회고는 내 홈에서만 — 작성자 홈(남의·공식 레시피)엔 회고 축을 두지 않는다
+        availableAxes={homeAxes}
         onAxisChange={handleAxisChange}
         onComingSoon={handleGroupComingSoon}
         onDeleteCookbook={handleGroupDeleteCookbook}
@@ -786,7 +801,7 @@ export function HomeScreen({authorId, onBack, authorBadge, menuHeaderNode}: Home
         visible={!!cookbookSheetRecipe}
         onClose={() => setCookbookSheetRecipe(null)}
         cookbooks={availableCookbooks}
-        cookbookColors={cookbookColors}
+        cookbookColors={bookColors}
         selectedCookbook={cookbookSheetRecipe?.cookbook}
         onSelect={handleCookbookSheetSelect}
         onAddCookbook={handleAddCookbook}

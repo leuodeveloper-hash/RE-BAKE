@@ -42,6 +42,7 @@ import {
   IconExprolerBookFilled,
   IconPaletteFilled,
   IconLogout,
+  IconSettingsFilled,
   IconTrash,
   IconBellFilled,
   IconSunDimFilled,
@@ -70,8 +71,10 @@ export interface ProfileScreenProps {
   onExport: () => Promise<void>;
   onImport: (onConfirmOverwrite?: (count: number) => Promise<boolean>) => Promise<boolean>;
   onLogout: () => void;
-  /** 계정 삭제(확인 후) — 성공하면 true */
-  onDeleteAccount?: () => Promise<boolean>;
+  /** 계정 설정 화면으로 */
+  onAccountPress?: () => void;
+  /** 내 프로필(작성자 홈) 보기 */
+  onProfilePress?: () => void;
   onUpdateHandle: (newHandle: string) => Promise<void>;
   /** 표시 이름 (없으면 handle 표시) */
   displayName?: string | null;
@@ -171,7 +174,8 @@ export function ProfileScreen({
   onExport,
   onImport,
   onLogout,
-  onDeleteAccount,
+  onAccountPress,
+  onProfilePress,
   onUpdateHandle,
   displayName,
   onUpdateDisplayName,
@@ -238,8 +242,6 @@ export function ProfileScreen({
   const {user} = useAuth();
   // 문의는 메일 앱을 열지 않고 앱 안에서 받는다(주소 비노출)
   const [inquiryOpen, setInquiryOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [showHandleSheet, setShowHandleSheet] = useState(false);
   const [handleInput, setHandleInput] = useState('');
   const [showDisplayNameSheet, setShowDisplayNameSheet] = useState(false);
@@ -422,30 +424,30 @@ export function ProfileScreen({
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
-          {/* 프로필 섹션 */}
-          <ContentContainer style={styles.profileSection}>
-            <Avatar type="random" size="xlarge" shape="circle" seed={avatarSeed ?? 0} />
-            {userEmail ? (
-              <>
-                <Pressable onPress={openDisplayNameEdit}>
-                  <Text style={styles.profileName}>{displayName || handle || 'handle'}</Text>
-                </Pressable>
-                <Pressable onPress={handleOpenHandleEdit}>
-                  <Text style={styles.profileHandle}>@{handle || 'handle'}</Text>
-                </Pressable>
-                <Text style={styles.profileSub}>{t('profile.profileSub', {recipeCount, reviewCount})}</Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.profileName}>@guest</Text>
-                <Button
-                  label={t('profile.loginOrCreateAccount')}
-                  size="small"
-                  onPress={() => openAuthSheet()}
-                  style={styles.profileLoginButton}
-                />
-              </>
-            )}
+          {/* 프로필 — 로그인 전후 같은 목록 카드: [아바타 + 이름 / 프로필 보기] ─ [계정 설정].
+              로그인 전엔 이름 대신 @guest, 누르면(두 줄 다) 로그인 */}
+          <ContentContainer style={styles.section}>
+            <Card>
+              <ListItem
+                leading={{type: 'custom', element: <Avatar type="random" size="medium" shape="circle" seed={avatarSeed ?? 0} />}}
+                content={{
+                  type: 'text',
+                  title: userEmail ? (displayName || handle || 'handle') : '@guest',
+                  description: userEmail ? t('profile.viewProfile') : t('profile.loginOrCreateAccount'),
+                }}
+                trailing={{type: 'icon', icon: IconChevronRight}}
+                showDivider
+                onPress={() => (userEmail ? onProfilePress?.() : openAuthSheet())}
+              />
+              {/* 계정 설정 — 한 뎁스 안에 이름·아이디·계정 삭제 */}
+              <ListItem
+                title={t('profile.accountSettings')}
+                leading={{type: 'icon', icon: IconSettingsFilled}}
+                trailing={{type: 'icon', icon: IconChevronRight}}
+                showDivider={false}
+                onPress={() => (userEmail ? onAccountPress?.() : openAuthSheet())}
+              />
+            </Card>
           </ContentContainer>
 
           {/* 내 기록 섹션 — 만든 요리가 우표로 쌓인다 */}
@@ -644,7 +646,7 @@ export function ProfileScreen({
             </ContentContainer>
           )}
 
-          {/* 문의 — 메일 앱을 열지 않고 앱 안에서 쓴다(푸터 글자 링크는 잘 안 보여 설정 줄로) */}
+          {/* Support — 메일 앱을 열지 않고 앱 안에서 문의 */}
           <ContentContainer style={styles.section}>
             <Card>
               <ListItem
@@ -657,22 +659,15 @@ export function ProfileScreen({
             </Card>
           </ContentContainer>
 
-          {/* 로그아웃 (로그인 시만) */}
+          {/* 로그아웃 — Support 아래 따로 떨어진 카드, 설정 맨 아래(로그인 시만) */}
           {userEmail && (
             <ContentContainer style={styles.section}>
               <Card>
                 <ListItem
                   title={t('profile.logout')}
                   leading={{type: 'icon', icon: IconLogout}}
-                  showDivider
-                  onPress={onLogout}
-                />
-                {/* 계정 삭제 — 앱 안에서 바로(앱스토어 요구). 되돌릴 수 없어 확인 창을 거친다 */}
-                <ListItem
-                  title={t('profile.deleteAccount')}
-                  leading={{type: 'icon', icon: IconTrash}}
                   showDivider={false}
-                  onPress={() => setDeleteOpen(true)}
+                  onPress={onLogout}
                 />
               </Card>
             </ContentContainer>
@@ -691,29 +686,6 @@ export function ProfileScreen({
           </View>
         </ScrollView>
       </SafeAreaView>
-
-      <Dialog
-        visible={deleteOpen}
-        onClose={() => { if (!deleting) setDeleteOpen(false); }}
-        icon={IconTrash}
-        title={t('profile.deleteAccountTitle')}
-        description={t('profile.deleteAccountMessage')}
-        actions={<>
-          <Button label={t('common.cancel')} variant="soft" onPress={() => setDeleteOpen(false)} disabled={deleting} />
-          <Button
-            label={deleting ? t('profile.deleting') : t('profile.deleteAccountConfirm')}
-            variant="filled"
-            destructive
-            disabled={deleting}
-            onPress={async () => {
-              setDeleting(true);
-              const ok = await (onDeleteAccount?.() ?? Promise.resolve(false));
-              setDeleting(false);
-              if (ok) setDeleteOpen(false);
-            }}
-          />
-        </>}
-      />
 
       <InquirySheet
         visible={inquiryOpen}

@@ -5,7 +5,7 @@ import {OptionTile} from '@components/OptionTile';
 import {Menu} from '@components/Menu';
 import {ListItem, LIST_ITEM_TITLE_TEXT} from '@components/ListItem';
 import {IconThumbnail} from '@components/Thumbnail';
-import {IconScanText, IconUrl, IconText, IconBookFilled, IconAdd, IconNoteFilled} from '@components/Icon/IconIndex';
+import {IconScanText, IconUrl, IconText, IconBookFilled, IconAdd} from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 import {useTranslation} from '@contexts/LanguageContext';
@@ -57,7 +57,8 @@ export function AddRecipeSheet({visible, onClose, onStartRecipe, onCreateCookboo
       // 이미지 메뉴는 시트 위로 펼친다 — 아래로 펼치면 화면 끝에 걸려 가려졌다
       aboveSheet={photoMenuOpen ? (
         <Menu
-          items={[...photoSourceMenuItems(t), {id: 'recipe', label: t('recipeImagePicker.menu'), icon: IconNoteFilled}]}
+          // 찍기·앨범만 — 기존 레시피 사진에서 고르기는 뺐다
+          items={photoSourceMenuItems(t)}
           visible
           onSelect={id => { setPhotoMenuOpen(false); start(id as AddRecipeInput); }}
           onClose={() => setPhotoMenuOpen(false)}

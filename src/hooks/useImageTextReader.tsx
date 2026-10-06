@@ -3,7 +3,6 @@ import {Platform} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {OcrCropModal} from '@components/RecipeOcrButton';
 import {RecipeImagePickerSheet} from '@components/BottomSheet/RecipeImagePickerSheet';
-import {IconNoteFilled} from '@components/Icon/IconIndex';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {ensureImagePermission} from '@utils/imagePermission';
@@ -39,11 +38,9 @@ export function useImageTextReader({onText, recipePhotos, onBusyChange}: UseImag
   const [photoSheet, setPhotoSheet] = useState(false);
   const pickedRef = useRef<string | null>(null);
   const croppedRef = useRef<string | null>(null);
-  const hasRecipePhotos = !!(recipePhotos?.imageUri || recipePhotos?.imageUris?.length);
 
   const menuItems = [
     ...photoSourceMenuItems(t),
-    ...(hasRecipePhotos ? [{id: 'recipe', label: t('recipeInputFloatingBar.scanFromRecipe'), icon: IconNoteFilled}] : []),
   ];
 
   const read = useCallback(async (uri: string) => {

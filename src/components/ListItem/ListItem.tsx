@@ -312,7 +312,8 @@ const createStyles = (colors: SemanticColors) =>
     },
     // 설명 — 캡션 서체(Figma caption-medium, label.small)
     description: {
-      ...Typography.label.small,
+      // 제목 아래 설명 — label small은 작아 안 읽혔다, 한 단계 크게
+      ...Typography.label.medium,
       color: colors['foreground/on-surface-muted'],
       marginTop: 2,
     },
