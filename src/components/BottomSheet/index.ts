@@ -21,3 +21,4 @@ export {RecipeImagePickerSheet} from './RecipeImagePickerSheet';
 export type {RecipeImagePickerSheetProps} from './RecipeImagePickerSheet';
 export {DdaySheet} from './DdaySheet';
 export type {DdaySheetProps} from './DdaySheet';
+export {RecipeVersionsSheet} from './RecipeVersionsSheet';

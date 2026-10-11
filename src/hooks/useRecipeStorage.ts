@@ -1,4 +1,5 @@
 import {useCallback, useEffect, useRef, useState} from 'react';
+import {saveRecipeVersion} from '@utils/recipeHistory';
 import {Platform} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
@@ -209,6 +210,44 @@ function findUnsupported(v: any, path = '', inArray = false): string | null {
     }
   }
   return null;
+}
+
+/**
+ * 덮어쓰기 전에 서버를 확인한다 — 이 기기가 고치기 시작한 판(base)보다 서버가 새것이면(다른 기기에서 고침) 덮어쓰지 않는다.
+ * 그 경우 이 기기 내용은 '(이 기기 수정본)' 사본으로 따로 저장해 둘 다 남긴다.
+ * 덮어쓸 때는 서버의 이전 판을 history에 남긴다(버전 기록).
+ * 돌려주는 값: 충돌로 따로 저장한 사본들 + 서버의 최신 판(이 기기 목록을 맞추는 데 쓴다)
+ */
+async function guardedWrites(
+  uid: string,
+  recipes: Recipe[],
+  bases: Map<string, string | undefined>,
+): Promise<{toWrite: Recipe[]; copies: Recipe[]; remotes: Recipe[]}> {
+  const colRef = collection(db, 'user_recipes', uid, 'recipes');
+  const toWrite: Recipe[] = [];
+  const copies: Recipe[] = [];
+  const remotes: Recipe[] = [];
+  await Promise.all(recipes.map(async r => {
+    try {
+      const snap = await getDoc(doc(colRef, r.id));
+      if (!snap.exists()) { toWrite.push(r); return; }
+      const remote = snap.data() as Recipe;
+      const base = bases.get(r.id) ?? '';
+      if ((remote.updatedAt ?? '') > base) {
+        // 다른 기기에서 더 새로 고쳤다 — 서버 것을 지키고, 이 기기 수정본은 사본으로
+        const now = new Date().toISOString();
+        copies.push({...r, id: `${r.id}_c${Date.now().toString(36)}`, title: `${r.title} (이 기기 수정본)`, createdAt: now, updatedAt: now, pinnedAt: undefined});
+        remotes.push({...remote, id: r.id});
+        return;
+      }
+      // 덮어쓰기 전 판을 기록으로
+      await saveRecipeVersion(doc(colRef, r.id), remote as any);
+      toWrite.push(r);
+    } catch {
+      toWrite.push(r); // 확인 못 하면(오프라인 등) 예전처럼 쓴다
+    }
+  }));
+  return {toWrite, copies, remotes};
 }
 
 /** Firestore에 레시피 배열을 동기화 (batch write) */
@@ -460,8 +499,12 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
   const setRecipes = useCallback(
     (updater: Recipe[] | ((prev: Recipe[]) => Recipe[])) => {
       setRecipesState(prev => {
-        const next =
+        const raw =
           typeof updater === 'function' ? updater(prev) : updater;
+        // 고친 레시피엔 고친 시각(updatedAt)을 남긴다 — 이 기기 목록에도 같이 넣어야 다음 저장 때 기준이 맞는다
+        const prevStr = new Map(prev.map(r => [r.id, stableStringify(r)]));
+        const stamp = new Date().toISOString();
+        const next = raw.map(r => (prevStr.get(r.id) === stableStringify(r) ? r : {...r, updatedAt: stamp}));
 
         // 실제 변경이 없으면 저장소 동기화 스킵.
         // stableStringify를 쓰는 이유: JSON.stringify는 undefined 키를 통째로 버려
@@ -477,20 +520,42 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
           localWritePending.current = true;
           const nextIds = new Set(next.map(r => r.id));
           const removed = prev.filter(r => !nextIds.has(r.id));
+          // 바뀐 레시피만 서버에 쓴다 — 전부 쓰면, 오래된 목록을 들고 있던 기기(예: 아이폰을 다시 열었는데
+          // 서버의 새 내용이 아직 안 내려온 상태)에서 무엇 하나만 바꿔도 다른 기기(PC)에서 고친 레시피까지
+          // 옛 내용으로 덮어썼다.
+          const prevById = new Map(prev.map(r => [r.id, stableStringify(r)]));
+          // 이 기기가 고치기 시작한 판(base) = 고치기 직전 updatedAt
+          const bases = new Map(prev.map(r => [r.id, r.updatedAt]));
+          const changed = next.filter(r => prevById.get(r.id) !== stableStringify(r));
 
           (async () => {
             try {
               // 사진 클라우드 백업 ON일 때만 로컬 이미지 → Storage 업로드. OFF면 로컬 URI 유지(이 기기 전용).
-              const uploaded = backupNow
-                ? await Promise.all(next.map(uploadLocalImages))
-                : next;
-              const hasUploads = JSON.stringify(uploaded) !== JSON.stringify(next);
+              const uploadedChanged = backupNow
+                ? await Promise.all(changed.map(uploadLocalImages))
+                : changed;
+              const hasUploads = JSON.stringify(uploadedChanged) !== JSON.stringify(changed);
               if (hasUploads) {
+                const byId = new Map(uploadedChanged.map(r => [r.id, r]));
+                const uploaded = next.map(r => byId.get(r.id) ?? r);
                 setRecipesState(uploaded);
                 AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(uploaded)).catch(() => {});
               }
-              // Firestore 동기화 (URL 포함)
-              await syncToFirestore(userNow.uid, uploaded);
+              // Firestore 동기화 — 바뀐 레시피만(URL 포함), 다른 기기의 새 내용은 덮어쓰지 않는다
+              if (uploadedChanged.length > 0) {
+                const {toWrite, copies, remotes} = await guardedWrites(userNow.uid, uploadedChanged, bases);
+                if (toWrite.length || copies.length) await syncToFirestore(userNow.uid, [...toWrite, ...copies]);
+                if (copies.length) {
+                  // 이 기기 목록도 서버 최신 판 + 수정본 사본으로 맞춘다
+                  const remoteById = new Map(remotes.map(r => [r.id, r]));
+                  setRecipesState(cur => {
+                    const merged = [...cur.map(r => remoteById.get(r.id) ?? r), ...copies];
+                    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(merged)).catch(() => {});
+                    return merged;
+                  });
+                  showSnackbarRef.current?.(`다른 기기에서 더 새로 고친 레시피가 있어요. 이 기기에서 고친 내용은 '(이 기기 수정본)'으로 따로 저장했어요`);
+                }
+              }
               setLastSyncedAt(new Date());
               setLastSyncedDevice(getDeviceName());
             } catch (e: any) {
@@ -501,7 +566,7 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
                 try { return JSON.stringify(e); } catch { return String(e); }
               })();
               showSnackbarRef.current?.(`동기화 실패: ${detail}`);
-              addToQueue({type: 'sync', uid: userNow.uid, data: next});
+              addToQueue({type: 'sync', uid: userNow.uid, data: changed});
             }
 
             // 삭제 처리

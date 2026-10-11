@@ -78,8 +78,9 @@ function useMadeStampsState() {
       AsyncStorage.setItem(CACHE_KEY, JSON.stringify(next)).catch(() => {});
       const uid = uidRef.current;
       if (uid) {
-        // merge: users 문서엔 handle 등 다른 필드가 있어 통째로 덮으면 안 된다
-        setDoc(doc(db, 'users', uid), {madeStamps: next}, {merge: true})
+        // mergeFields: 이 필드만 통째로 바꾼다 — merge:true는 안쪽 항목까지 합쳐서 지운(해제한) 항목이 서버에 남았다.
+        // (users 문서의 handle 등 다른 필드는 그대로)
+        setDoc(doc(db, 'users', uid), {madeStamps: next}, {mergeFields: ['madeStamps']})
           .catch(e => console.warn('[useMadeStamps] 계정 스탬프 저장 실패:', e));
       }
       return next;

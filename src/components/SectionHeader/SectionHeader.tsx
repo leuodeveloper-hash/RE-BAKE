@@ -42,9 +42,12 @@ export interface SectionHeaderProps {
   /** 헤더 전체를 눌러 이동할 때 — 우측에 › 가 붙는다 */
   onPress?: () => void;
   style?: ViewStyle;
+  /** 오른쪽 액션(편집) 왼쪽에 붙는 요소 — 스위치 등 */
+  actionExtra?: React.ReactNode;
 }
 
 export function SectionHeader({
+  actionExtra,
   title,
   variant = 'muted',
   breadcrumb,
@@ -100,16 +103,26 @@ export function SectionHeader({
           <IconChevronRight width={16} height={16} color={colors['foreground/on-surface-muted']} />
         )}
       </View>
-      {onAction && actionLabel && (
-        <Pressable onPress={onAction} hitSlop={8}>
-          <Text style={styles.action}>{actionLabel}</Text>
-        </Pressable>
-      )}
+      {(actionExtra || (onAction && actionLabel)) ? (
+        <View style={styles.actionRow}>
+          {actionExtra}
+          {onAction && actionLabel ? (
+            <Pressable onPress={onAction} hitSlop={8}>
+              <Text style={styles.action}>{actionLabel}</Text>
+            </Pressable>
+          ) : null}
+        </View>
+      ) : null}
     </Wrapper>
   );
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  actionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.md,
+  },
   container: {
     // 고정 높이가 아니라 최소 높이 — 게이지·아이콘이 들어가면 줄이 커진다
     minHeight: 40,

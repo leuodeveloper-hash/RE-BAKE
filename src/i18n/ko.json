@@ -1048,5 +1048,10 @@
   "profile.officialRecipeBooks": "공식 레시피북",
   "profile.bookCount": "{{count}}권",
   "profile.recipeCountShort": "{{count}}개",
-  "profile.loginToSync": "로그인하면 동기화"
+  "profile.loginToSync": "로그인하면 동기화",
+  "recipeDetail.bulkView": "한번에 보기",
+  "id.newerElsewhere": "다른 기기에서 더 최근에 고친 레시피예요. 덮어쓰지 않았어요. 다시 열어 최신 내용에서 고쳐 주세요.",
+  "recipeEdit.versionsTitle": "이전 버전 가져오기",
+  "recipeEdit.versionsEmpty": "아직 저장된 이전 버전이 없어요",
+  "id.versionLoaded": "이전 버전을 불러왔어요"
 }

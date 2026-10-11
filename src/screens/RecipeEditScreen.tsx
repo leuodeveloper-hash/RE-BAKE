@@ -32,7 +32,7 @@ import {Button} from '@components/Button';
 import {ListItem} from '@components/ListItem';
 import {Menu} from '@components/Menu';
 import {Popover} from '@components/Popover';
-import {CookbookSelectSheet, PasteRecipeSheet} from '@components/BottomSheet';
+import {CookbookSelectSheet, PasteRecipeSheet, RecipeVersionsSheet} from '@components/BottomSheet';
 import {EditableChip} from '@components/EditableChip';
 import {Switch} from '@components/Switch';
 import {Tabs} from '@components/Tabs';
@@ -156,6 +156,8 @@ const makeEditMenuItems = (t: TFn) => [
   // 같은 자리에 두지 않는다(이 묶음만 바뀌는 줄 알고 전체를 날리는 사고 방지)
   {id: 'paste-markdown', label: t('recipeEdit.pasteMarkdown'), icon: IconNoteFilled},
   {id: 'field-manage', label: t('recipeEdit.fieldManage'), icon: IconSettingsFilled},
+  // 저장할 때마다 남는 이전 판 — 다른 기기에서 덮어써도 되살릴 수 있게
+  {id: 'versions', label: t('recipeEdit.versionsTitle'), icon: IconClockFilled},
 ];
 
 // 레시피 북 오버플로우 메뉴 아이템
@@ -197,11 +199,12 @@ export function RecipeEditScreen(props: RecipeEditScreenProps) {
   );
 }
 
-function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks, cookbookColors: cookbookColorsProp, onSetCookbookColor, initialSection, initialCookbook, isExplore, onDeleteCookbook}: RecipeEditScreenProps) {
+function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks, cookbookColors: cookbookColorsProp, onSetCookbookColor, initialSection, initialCookbook, isExplore, onDeleteCookbook, recipeId, onLoadVersion}: RecipeEditScreenProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const {t} = useTranslation();
-  const EDIT_MENU_ITEMS = useMemo(() => makeEditMenuItems(t), [t]);
+  // 이전 버전은 저장된 레시피를 고칠 때만(새로 만들 땐 기록이 없다)
+  const EDIT_MENU_ITEMS = useMemo(() => makeEditMenuItems(t).filter(m => m.id !== 'versions' || !!recipeId), [t, recipeId]);
   const COOKBOOK_SHEET_MENU_ITEMS = useMemo(() => makeCookbookSheetMenuItems(t), [t]);
   const SLASH_MENU_ITEMS = useMemo(() => makeSlashMenuItems(t), [t]);
   const {setShowCookbookDialog, setCookbookEditTarget, onCookbookCreatedRef} = useAddSheet();
@@ -1079,6 +1082,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   // URL은 원본 링크 칸을 열어 붙여넣으면 가져온다(만개의레시피 등).
   const [pasteInitial, setPasteInitial] = useState<string | undefined>(undefined);
   const [pasteAnimate, setPasteAnimate] = useState(false);
+  const [versionsOpen, setVersionsOpen] = useState(false);
   const startedInputRef = useRef(false);
   useEffect(() => {
     if (!initialInput || recipe || startedInputRef.current) return;
@@ -1092,6 +1096,10 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const handleMenuSelectRef = useRef<((id: string) => void) | null>(null);
   const handleMenuSelect = (id: string) => {
     setShowMenu(false);
+    if (id === 'versions') {
+      setVersionsOpen(true);
+      return;
+    }
     if (id === 'field-manage') {
       setFieldManageVisible(true);
     } else if (id === 'paste-markdown') {
@@ -3282,6 +3290,14 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         }}
         onApply={applyMarkdown}
         initialText={pasteInitial}
+      />
+
+      {/* 이전 버전 — 고르면 그 판을 불러온다(지금 내용은 저장 시 기록으로 남는다) */}
+      <RecipeVersionsSheet
+        visible={versionsOpen}
+        onClose={() => setVersionsOpen(false)}
+        docPath={recipeId ? (isExplore ? `explore_recipes/${recipeId}` : user ? `user_recipes/${user.uid}/recipes/${recipeId}` : null) : null}
+        onPick={v => onLoadVersion?.(v)}
       />
 
       <FieldManageDialog

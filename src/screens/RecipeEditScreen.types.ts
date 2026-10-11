@@ -65,6 +65,10 @@ export interface RecipeEditScreenProps {
    */
   initialInput?: 'paste' | 'url';
   onClose?: () => void;
+  /** 저장된 레시피 id — 이전 버전 기록을 찾는다 */
+  recipeId?: string;
+  /** 이전 버전 고름 — 부르는 쪽이 그 판을 레시피에 넣고 편집 화면을 다시 연다 */
+  onLoadVersion?: (version: import('../types/recipe').Recipe) => void;
   onSave?: (data: {
     title: string;
     cookbook?: string;

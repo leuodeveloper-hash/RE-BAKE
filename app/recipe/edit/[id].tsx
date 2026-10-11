@@ -1,7 +1,8 @@
-import React, {useCallback, useMemo} from 'react';
+import React, {useState, useCallback, useMemo} from 'react';
+import {saveRecipeVersion} from '@utils/recipeHistory';
 import {View, StyleSheet} from 'react-native';
 import {useLocalSearchParams, useRouter} from 'expo-router';
-import {doc, setDoc, deleteField} from 'firebase/firestore';
+import {doc, getDoc, setDoc, deleteField} from 'firebase/firestore';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {RecipeEditScreen} from '@screens/RecipeEditScreen';
 import {useRecipes} from '@contexts/RecipeContext';
@@ -121,7 +122,17 @@ export default function RecipeEditRoute() {
         for (const f of OPTIONAL_FIELDS) {
           if ((rest as any)[f] === undefined) (serializable as any)[f] = deleteField();
         }
-        await setDoc(doc(db, 'explore_recipes', id!), serializable, {merge: true});
+        // 다른 기기(PC 등)에서 더 새로 고친 공식 레시피면 덮어쓰지 않는다 — 덮어쓸 땐 이전 판을 기록으로
+        const ref = doc(db, 'explore_recipes', id!);
+        const cur = await getDoc(ref);
+        const remote = cur.data() as any;
+        if (remote && (remote.updatedAt ?? '') > ((recipe as any)?.updatedAt ?? '')) {
+          showSnackbar(t('id.newerElsewhere'), {tone: 'error'});
+          return;
+        }
+        if (remote) await saveRecipeVersion(ref, remote);
+        (serializable as any).updatedAt = new Date().toISOString();
+        await setDoc(ref, serializable, {merge: true});
         // explore는 1회 fetch+캐시라 저장 후 즉시 반영이 안 됨 → fresh reload로 바로 반영
         await reloadExplore();
       } catch (e: any) {
@@ -138,13 +149,33 @@ export default function RecipeEditRoute() {
     navigateBack();
   }, [id, isMyRecipe, isExploreTarget, isAdmin, recipe, setRecipes, showSnackbar, navigateBack, t]);
 
+  const [editorKey, setEditorKey] = useState(0);
+  const handleLoadVersion = useCallback(async (v: any) => {
+    const {savedAt: _saved, ...version} = v ?? {};
+    if (isExploreTarget && isAdmin) {
+      const ref = doc(db, 'explore_recipes', id!);
+      const cur = await getDoc(ref);
+      if (cur.exists()) await saveRecipeVersion(ref, cur.data());
+      await setDoc(ref, stripUndefined({...version, id, updatedAt: new Date().toISOString()}));
+      await reloadExplore();
+    } else if (isMyRecipe) {
+      setRecipes(prev => prev.map(r => (r.id === id ? {...version, id} as any : r)));
+    }
+    showSnackbar(t('id.versionLoaded'), {tone: 'positive'});
+    setEditorKey(k => k + 1);
+  }, [id, isExploreTarget, isAdmin, isMyRecipe, setRecipes, reloadExplore, showSnackbar, t]);
+
   if (!recipe) return null;
 
   return (
     <SafeAreaProvider>
       <View style={[styles.container, {backgroundColor: colors['surface/dim']}]}>
         <RecipeEditScreen
+          key={editorKey}
           recipe={recipe}
+          recipeId={id}
+          // 이전 버전 고름 — 그 판을 저장하고(지금 판은 기록으로 남는다) 편집 화면을 새로 연다
+          onLoadVersion={handleLoadVersion}
           cookbooks={isExploreTarget
             ? [...new Set([...DEFAULT_EXPLORE_COOKBOOKS, ...exploreCookbooks.map(c => c.name)])]
             : availableCookbooks}

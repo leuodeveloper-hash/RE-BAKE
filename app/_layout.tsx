@@ -242,6 +242,11 @@ function NavigationContent() {
   const pathname = usePathname();
   // 화면 진입 기록 — 경로가 바뀔 때마다 한 번
   useEffect(() => { trackScreen(pathname); }, [pathname]);
+  // 마지막으로 본 화면(탭) 기억 — 앱을 다시 켜면 홈이 아니라 그 탭에서 시작(아래 복귀 effect가 읽는다).
+  // 탭만 기억한다 — 레시피 상세는 last_viewed_recipe_id가 따로 맡는다
+  useEffect(() => {
+    if (/^\/(explore|group|profile)?$/.test(pathname)) AsyncStorage.setItem('@bakle_last_tab', pathname).catch(() => {});
+  }, [pathname]);
   const {t} = useTranslation();
   // 앱 시작 시 시험 알림 동기화 (저장된 prefs → Firestore 일정 fetch → 로컬 알림 재등록)
   useExamNotificationPrefs();
@@ -301,6 +306,9 @@ function NavigationContent() {
         const initialUrl = await Linking.getInitialURL();
         if (initialUrl && initialUrl.includes('/recipe/')) return;
 
+        // 마지막 탭부터 — 홈이 아니면 그 탭으로(그 위에 보던 레시피가 있으면 이어서 연다)
+        const lastTab = await AsyncStorage.getItem('@bakle_last_tab');
+        if (lastTab && lastTab !== '/') router.replace(lastTab as any);
         const lastId = await AsyncStorage.getItem('last_viewed_recipe_id');
         if (!lastId) return;
         const exists = recipes.some(r => r.id === lastId) || exploreRecipesAll.some(r => r.id === lastId);

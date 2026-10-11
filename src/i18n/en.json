@@ -1063,5 +1063,10 @@
   "profile.officialRecipeBooks": "Official books",
   "profile.bookCount": "{{count}} books",
   "profile.recipeCountShort": "{{count}} recipes",
-  "profile.loginToSync": "Log in to sync"
+  "profile.loginToSync": "Log in to sync",
+  "recipeDetail.bulkView": "View as text",
+  "id.newerElsewhere": "This recipe was changed more recently on another device. Not overwritten — reopen to edit the latest version.",
+  "recipeEdit.versionsTitle": "Restore a previous version",
+  "recipeEdit.versionsEmpty": "No previous versions yet",
+  "id.versionLoaded": "Previous version restored"
 }

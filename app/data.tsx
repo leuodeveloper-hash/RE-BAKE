@@ -17,6 +17,9 @@ import {useTranslation} from '@contexts/LanguageContext';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {goBackOr} from '@utils/navigation';
+import {SectionHeader} from '@components/SectionHeader';
+import app from '@config/firebase';
+import {getFunctions, httpsCallable} from 'firebase/functions';
 import {syncTimeLabel} from '@utils/dateLabel';
 
 /**
@@ -27,7 +30,7 @@ export default function DataRoute() {
   const router = useRouter();
   const {t} = useTranslation();
   const {showSnackbar} = useSnackbar();
-  const {user} = useAuth();
+  const {user, isAdmin} = useAuth();
   const {recipes, exportRecipes, importRecipes, lastSyncedAt, lastSyncedDevice} = useRecipes();
   const {isPro, photoCloudBackup, setPhotoCloudBackup} = useSubscription();
   const {open: openPlanSheet} = usePlanSheet();
@@ -60,6 +63,17 @@ export default function DataRoute() {
     const ok = await importRecipes(confirmOverwrite);
     showSnackbar(ok ? t('profile.importSuccess') : t('profile.importFailed'));
   }, [importRecipes, showSnackbar, t]);
+
+  const restoreAt = useCallback(async (minutesAgo: number, scope?: 'explore') => {
+    try {
+      showSnackbar(`${minutesAgo}분 전 내용을 찾는 중…`);
+      const res: any = await httpsCallable(getFunctions(app, 'asia-northeast3'), 'restoreRecipesAt')({minutesAgo, scope});
+      const n = res?.data?.restored ?? 0;
+      showSnackbar(n > 0 ? `복구본 ${n}개를 만들었어요. 홈에서 '(복구본 ${minutesAgo}분 전)'을 확인하세요` : `${minutesAgo}분 전과 지금이 같아요`);
+    } catch (e: any) {
+      showSnackbar(`되살리기 실패: ${e?.message ?? e}`, {tone: 'error'});
+    }
+  }, [showSnackbar]);
 
   // 사진 클라우드 백업은 Pro 기능 — 무료면 플랜을 보여준다
   const toggleBackup = useCallback((v: boolean) => {
@@ -110,6 +124,43 @@ export default function DataRoute() {
             />
           </Card>
         </ContentContainer>
+
+        {/* 덮어쓴 레시피 되살리기 — 최근 1시간 안의 한 시점을 골라 그때 내용을 '(복구본)' 사본으로 넣는다 */}
+        {user ? (
+          <ContentContainer style={{marginTop: Spacing.lg}}>
+            <SectionHeader title="덮어쓴 레시피 되살리기 (최근 1시간)" />
+            <Card>
+              {[5, 15, 30, 50].map((m, i, arr) => (
+                <ListItem
+                  key={m}
+                  title={`${m}분 전 내용으로 복구본 만들기`}
+                  leading={{type: 'icon', icon: IconImport}}
+                  trailing={{type: 'icon', icon: IconChevronRight}}
+                  showDivider={i < arr.length - 1}
+                  onPress={() => restoreAt(m)}
+                />
+              ))}
+            </Card>
+            {/* 어드민 — 공식(둘러보기) 레시피도 같은 방식(복구본은 숨김으로 들어간다) */}
+            {isAdmin ? (
+              <>
+                <SectionHeader title="공식 레시피 되살리기 (최근 1시간)" />
+                <Card>
+                  {[5, 15, 30, 50].map((m, i, arr) => (
+                    <ListItem
+                      key={m}
+                      title={`${m}분 전 공식 레시피로 복구본 만들기`}
+                      leading={{type: 'icon', icon: IconImport}}
+                      trailing={{type: 'icon', icon: IconChevronRight}}
+                      showDivider={i < arr.length - 1}
+                      onPress={() => restoreAt(m, 'explore')}
+                    />
+                  ))}
+                </Card>
+              </>
+            ) : null}
+          </ContentContainer>
+        ) : null}
       </ScrollView>
 
       <AppBar centered title={t('profile.dataManagement')} leftIcon={IconArrowLeft} onLeftPress={() => goBackOr(router)} />

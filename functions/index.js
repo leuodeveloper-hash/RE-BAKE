@@ -324,3 +324,45 @@ export const deleteAccount = onCall(
     return {ok: true};
   },
 );
+
+/**
+ * 덮어쓴 레시피 되살리기 — 최근 1시간 안의 한 시점(minutesAgo분 전) 내 레시피를 읽어,
+ * 지금과 다른 레시피만 '(복구본 N분 전)' 사본으로 넣는다. 지금 레시피는 건드리지 않는다.
+ * Firestore는 기본으로 1시간 안의 이전 판을 읽을 수 있다(그보다 오래되면 못 읽는다).
+ */
+export const restoreRecipesAt = onCall(
+  {region: 'asia-northeast3', memory: '512MiB', timeoutSeconds: 120},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) throw new HttpsError('unauthenticated', 'LOGIN_REQUIRED');
+    const minutesAgo = Math.min(59, Math.max(1, Number(req.data?.minutesAgo) || 10));
+    const db = getFirestore();
+    // scope 'explore' — 공식(둘러보기) 레시피, 어드민만
+    const explore = req.data?.scope === 'explore';
+    if (explore && !(await db.collection('admin').doc(uid).get()).exists) throw new HttpsError('permission-denied', 'ADMIN_ONLY');
+    const col = explore ? db.collection('explore_recipes') : db.collection('user_recipes').doc(uid).collection('recipes');
+    const readTime = Timestamp.fromMillis(Date.now() - minutesAgo * 60 * 1000);
+    const past = await db.runTransaction(tx => tx.get(col), {readOnly: true, readTime});
+    const now = await col.get();
+    const nowById = new Map(now.docs.map(d => [d.id, JSON.stringify(d.data())]));
+    let restored = 0;
+    const stamp = new Date().toISOString();
+    for (const d of past.docs) {
+      if (d.id.includes('_restored_')) continue;
+      if (nowById.get(d.id) === JSON.stringify(d.data())) continue; // 그대로면 건너뜀
+      const data = d.data();
+      const id = `${d.id}_restored_${minutesAgo}m`;
+      await col.doc(id).set({
+        ...data,
+        id,
+        title: `${data.title ?? ''} (복구본 ${minutesAgo}분 전)`,
+        createdAt: stamp,
+        updatedAt: stamp,
+        // 공식 복구본은 숨김으로 — 확인 전에 사용자에게 보이지 않게
+        ...(explore ? {hidden: true} : {}),
+      });
+      restored++;
+    }
+    return {restored, minutesAgo};
+  },
+);

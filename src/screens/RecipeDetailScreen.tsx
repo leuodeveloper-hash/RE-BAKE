@@ -46,6 +46,8 @@ import {photoSourceMenuItems, type PhotoSource} from '@utils/photoSourceMenu';
 import {MadeConfirmSheet, RecipeFeedbackSheet} from '@components/BottomSheet';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {normalizeStepPhotos} from '@utils/stepPhotos';
+import {Switch} from '@components/Switch';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {hasFlour, flourTotal, bakersPercentOf} from '@utils/bakersPercentage';
 import type {StepPhoto} from '../types/recipe';
 import {EmptyState} from '@components/EmptyState';
@@ -670,6 +672,15 @@ export function RecipeDetailScreen({
   // ---- 기존 로직 ----
   const hasFlourBase = useMemo(() => hasFlour(ingredientGroups), [ingredientGroups]);
   const computedGroups = useMemo(() => computeBakersPercentages(ingredientGroups), [ingredientGroups]);
+  // 한번에 보기 — 재료·과정을 줄 목록 대신 글 한 덩어리로. 처음엔 꺼져 있고, 켜든 끄든 마지막 선택을 기기에 기억
+  const [bulkView, setBulkView] = useState(false);
+  useEffect(() => {
+    AsyncStorage.getItem('@bakle_detail_bulk_view').then(v => { if (v === '1') setBulkView(true); }).catch(() => {});
+  }, []);
+  const toggleBulkView = useCallback((v: boolean) => {
+    setBulkView(v);
+    AsyncStorage.setItem('@bakle_detail_bulk_view', v ? '1' : '0').catch(() => {});
+  }, []);
   const ingredientsHasContent = useMemo(
     () => computedGroups.some(g => g.ingredients.length > 0),
     [computedGroups],
@@ -843,6 +854,8 @@ export function RecipeDetailScreen({
     label: string,
     sectionId: string,
     breadcrumb?: string,
+    // 재료·과정 맨 위 머리엔 편집 옆에 '한번에 보기' 스위치
+    withBulkToggle = false,
   ) => (
     <View key={key} style={styles.stickyHeader}>
       <ContentContainer>
@@ -852,6 +865,7 @@ export function RecipeDetailScreen({
           breadcrumbIcon={breadcrumb ? IconChevronRight : undefined}
           actionLabel={onEdit ? t('recipeDetail.edit') : undefined}
           onAction={onEdit ? () => onEdit(sectionId) : undefined}
+          actionExtra={withBulkToggle ? <Switch label={t('recipeDetail.bulkView')} value={bulkView} onValueChange={toggleBulkView} /> : undefined}
         />
       </ContentContainer>
     </View>
@@ -1051,7 +1065,34 @@ export function RecipeDetailScreen({
 
         {/* Ingredients Section */}
         {isFieldActive('ingredients') && <View onLayout={(e) => { sectionPositions.current.ingredients = e.nativeEvent.layout.y; }} />}
-        {isFieldActive('ingredients') && (
+        {/* 한번에 보기 — 재료를 글 한 덩어리로(묶음은 작은 이름 줄) */}
+        {isFieldActive('ingredients') && bulkView && ingredientsHasContent && [
+          renderSectionHeader('ing-header-bulk', t('recipeDetail.tabIngredients'), 'ingredients', undefined, true),
+          <Animated.View key="ing-bulk" style={{opacity: sectionAnims[0]}}>
+            <ContentContainer>
+              <Card>
+                <ListItem showDivider={false} onLongPress={onEdit ? () => onEdit('ingredients') : undefined}>
+                  <View style={styles.bulkBody}>
+                    {ingredientGroups.map((g, gi) => (
+                      <View key={gi}>
+                        {ingredientGroups.length > 1 && g.title ? <Text style={styles.bulkGroupTitle}>{g.title}</Text> : null}
+                        <Text style={styles.bulkText}>
+                          {g.ingredients.map((ing, ii) => (
+                            <React.Fragment key={ii}>
+                              {ii > 0 ? ', ' : ''}
+                              <RichText inline>{ing.name}</RichText>{ing.amount ? ` ${ing.amount}` : ''}
+                            </React.Fragment>
+                          ))}
+                        </Text>
+                      </View>
+                    ))}
+                  </View>
+                </ListItem>
+              </Card>
+            </ContentContainer>
+          </Animated.View>,
+        ]}
+        {isFieldActive('ingredients') && (!bulkView || !ingredientsHasContent) && (
           ingredientsHasContent
             ? computedGroups.flatMap((group, groupIndex) => [
                 renderSectionHeader(
@@ -1059,6 +1100,7 @@ export function RecipeDetailScreen({
                   t('recipeDetail.tabIngredients'),
                   'ingredients',
                   computedGroups.length > 1 ? group.title : undefined,
+                  groupIndex === 0, // 맨 위 묶음 머리에만 한번에 보기
                 ),
                 <Animated.View key={`ing-content-${groupIndex}`} style={{opacity: sectionAnims[0]}}>
                   <ContentContainer>
@@ -1171,7 +1213,33 @@ export function RecipeDetailScreen({
 
         {/* Process Section */}
         {isFieldActive('steps') && <View onLayout={(e) => { sectionPositions.current.steps = e.nativeEvent.layout.y; }} />}
-        {isFieldActive('steps') && (!stepsHasContent ? [
+        {/* 한번에 보기 — 과정을 번호 붙은 글줄로(팁·주의는 바로 아래 옅게) */}
+        {isFieldActive('steps') && bulkView && stepsHasContent && [
+          renderSectionHeader('step-header-bulk', t('recipeDetail.tabSteps'), 'steps', undefined, true),
+          <Animated.View key="step-bulk" style={{opacity: sectionAnims[1]}}>
+            <ContentContainer>
+              <Card>
+                <ListItem showDivider={false} onLongPress={onEdit ? () => onEdit('steps') : undefined}>
+                  <View style={styles.bulkBody}>
+                    {(stepGroups?.length ? stepGroups : [{title: '', steps: steps ?? []}]).map((g, gi, arr) => (
+                      <View key={gi}>
+                        {arr.length > 1 && g.title ? <Text style={styles.bulkGroupTitle}>{g.title}</Text> : null}
+                        {g.steps.filter(st => st.description?.trim()).map((st, si) => (
+                          <View key={si}>
+                            <Text style={styles.bulkText}>{`${si + 1}. `}<RichText inline>{st.description}</RichText></Text>
+                            {st.tip?.trim() ? <Text style={styles.bulkNote}><RichText inline>{st.tip}</RichText></Text> : null}
+                            {st.caution?.trim() ? <Text style={[styles.bulkNote, styles.bulkCaution]}><RichText inline>{st.caution}</RichText></Text> : null}
+                          </View>
+                        ))}
+                      </View>
+                    ))}
+                  </View>
+                </ListItem>
+              </Card>
+            </ContentContainer>
+          </Animated.View>,
+        ]}
+        {isFieldActive('steps') && (!bulkView || !stepsHasContent) && (!stepsHasContent ? [
           renderSectionHeader('step-header-empty', t('recipeDetail.tabSteps'), 'steps'),
           <Animated.View key="step-content-empty" style={{opacity: sectionAnims[1]}}>
             <ContentContainer>
@@ -1184,7 +1252,7 @@ export function RecipeDetailScreen({
           stepGroups.flatMap((group, groupIndex) => {
             const groupOffset = stepGroups.slice(0, groupIndex).reduce((sum, g) => sum + g.steps.length, 0);
             return [
-              renderSectionHeader(`step-header-${groupIndex}`, t('recipeDetail.tabSteps'), 'steps', group.title),
+              renderSectionHeader(`step-header-${groupIndex}`, t('recipeDetail.tabSteps'), 'steps', group.title, groupIndex === 0),
               <Animated.View key={`step-content-${groupIndex}`} style={{opacity: sectionAnims[1]}}>
                 <ContentContainer>
                   <Card>
@@ -1237,7 +1305,7 @@ export function RecipeDetailScreen({
             ];
           })
         ) : [
-          renderSectionHeader('step-header', t('recipeDetail.tabSteps'), 'steps'),
+          renderSectionHeader('step-header', t('recipeDetail.tabSteps'), 'steps', undefined, true),
           <Animated.View key="step-content" style={{opacity: sectionAnims[1]}}>
             <ContentContainer>
               <Card>
@@ -1722,6 +1790,33 @@ export function RecipeDetailScreen({
 const HERO_HEIGHT = 280;
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  // 한번에 보기
+  bulkToggleRow: {
+    alignItems: 'flex-end',
+    marginTop: Spacing.sm,
+  },
+  bulkBody: {
+    flex: 1,
+    gap: Spacing.sm,
+  },
+  bulkGroupTitle: {
+    ...Typography.caption.medium,
+    color: colors['foreground/on-surface-muted'],
+    marginBottom: 2,
+  },
+  bulkText: {
+    ...Typography.body.medium,
+    lineHeight: 24,
+    color: colors['foreground/on-surface'],
+  },
+  bulkNote: {
+    ...Typography.body.small,
+    color: colors['foreground/on-surface-muted'],
+    paddingLeft: Spacing.md,
+  },
+  bulkCaution: {
+    color: colors['custom/yellow-var'],
+  },
   container: {
     flex: 1,
     backgroundColor: colors['surface/dim'],

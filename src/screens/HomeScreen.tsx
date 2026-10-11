@@ -150,6 +150,17 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
   const [guestBannerDismissed, setGuestBannerDismissed] = useState(false);
   // 시험이 임박하면 홈 상단에 알린다 (알림 설정에서 고른 종목 기준)
   const upcomingExam = useUpcomingExam();
+  // 시험·D-day 배너 닫기 — 오늘 날짜 + 대상 이름으로 기억(다음 날·다른 시험이면 다시 뜬다)
+  const examBannerKey = upcomingExam ? `${new Date().toDateString()}|${upcomingExam.label}|${upcomingExam.days}` : '';
+  const [examBannerDismissed, setExamBannerDismissed] = useState<string | null>(null);
+  useEffect(() => {
+    AsyncStorage.getItem('@bakle_exam_banner_dismissed').then(v => setExamBannerDismissed(v)).catch(() => {});
+  }, []);
+  const examBannerHidden = !!examBannerKey && examBannerDismissed === examBannerKey;
+  const dismissExamBanner = useCallback(() => {
+    setExamBannerDismissed(examBannerKey);
+    AsyncStorage.setItem('@bakle_exam_banner_dismissed', examBannerKey).catch(() => {});
+  }, [examBannerKey]);
 
   // 화면에 다시 진입할 때마다 게스트 배너 dismissal 초기화 → 재표시
   useFocusEffect(
@@ -607,7 +618,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
       // 배너가 없으면 undefined — 빈 조각을 넘기면 상단 줄 자리(여백)가 남는다
       listHeaderExtra={
         // 시험이 임박하면 그 배너를 먼저 — 기한이 있어 더 시급하다
-        upcomingExam ? (
+        upcomingExam && !examBannerHidden ? (
           <InlineBanner
             icon={IconClockFilled}
             label={upcomingExam.days === 0
@@ -619,6 +630,8 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
               label: t('home.examSchedule'),
               onPress: () => router.navigate('/exam-schedule' as any),
             }}
+            // 닫으면 오늘은 이 배너를 다시 안 띄운다(내일 남은 일수가 바뀌면 다시)
+            onClose={dismissExamBanner}
           />
         ) : !isAuthorMode && isGuest && !guestBannerDismissed ? (
         <InlineBanner

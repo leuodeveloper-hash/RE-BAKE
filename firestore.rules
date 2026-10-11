@@ -43,6 +43,10 @@ service cloud.firestore {
     // ⚠️ 공개 북 목록 쿼리는 반드시 where('cookbook','==',이름)으로 제약할 것.
     match /user_recipes/{uid}/recipes/{recipeId} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
+      // 이전 내용 기록(덮어쓰기 전 판) — 본인만
+      match /history/{versionId} {
+        allow read, write: if request.auth != null && request.auth.uid == uid;
+      }
       allow read: if exists(/databases/$(database)/documents/public_cookbooks/$(uid))
         && resource.data.cookbook in get(/databases/$(database)/documents/public_cookbooks/$(uid)).data.names;
     }
@@ -53,6 +57,10 @@ service cloud.firestore {
     match /explore_recipes/{recipeId} {
       allow read: if isAdmin() || resource.data.hidden == false;
       allow write: if isAdmin();
+      // 이전 판 기록 — 어드민만
+      match /history/{versionId} {
+        allow read, write: if isAdmin();
+      }
     }
 
     // explore_meta: 누구나 읽기, 쓰기는 어드민만
