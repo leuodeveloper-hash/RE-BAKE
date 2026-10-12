@@ -1,3 +1,4 @@
+import {Switch} from '@components/Switch';
 import React, {useEffect, useRef, useState} from 'react';
 import type {TextInput as RNTextInput} from 'react-native';
 import {Animated, Pressable, Text, View, StyleSheet} from 'react-native';
@@ -110,22 +111,12 @@ export function CookbookDialog({visible, onClose, onConfirm, editTarget, isAdmin
       }>
       <View style={s.content}>
         {showOfficialToggle && (
-          <Pressable
-            style={s.officialRow}
-            onPress={() => setIsOfficial(prev => !prev)}>
-            <Text style={s.officialLabel}>{t('cookbook.officialLabel')}</Text>
-            <View style={[s.toggleTrack, isOfficial && {backgroundColor: colors['custom/orange-var']}]}>
-              <Animated.View style={[s.toggleThumb, isOfficial && {transform: [{translateX: 16}]}]} />
-            </View>
-          </Pressable>
+          // 공통 스위치 — 직접 그린 토글은 앱의 다른 스위치와 모양·움직임이 달랐다
+          <Switch label={t('cookbook.officialLabel')} value={isOfficial} onValueChange={setIsOfficial} />
         )}
-        {showHiddenToggle && (
-          <Pressable style={s.officialRow} onPress={() => setHidden(prev => !prev)}>
-            <Text style={s.officialLabel}>{t('cookbook.hiddenLabel')}</Text>
-            <View style={[s.toggleTrack, hidden && {backgroundColor: colors['custom/orange-var']}]}>
-              <Animated.View style={[s.toggleThumb, hidden && {transform: [{translateX: 16}]}]} />
-            </View>
-          </Pressable>
+        {/* 비공개 — 공식 북(어드민)이면 만들 때도 편집할 때도 */}
+        {(showHiddenToggle || (isOfficial && !!isAdmin)) && (
+          <Switch label={t('cookbook.hiddenLabel')} value={hidden} onValueChange={setHidden} />
         )}
         <TextInput
           ref={nameRef}

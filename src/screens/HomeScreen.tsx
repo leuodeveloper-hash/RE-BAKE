@@ -1,5 +1,11 @@
 import {SETTINGS_ROUTE} from '@utils/navigation';
-import {OFFICIAL_AUTHOR_ID} from '../types/author';
+import {OFFICIAL_AUTHOR_ID, OFFICIAL_AUTHOR_HANDLE} from '../types/author';
+import {cookbookColorOf} from '@contexts/RecipeContext';
+import {getCookbookColorKey} from '@components/ColorPicker';
+import {IconBookFilled} from '@components/Icon/IconIndex';
+import {getColorVarKey} from '@components/ColorPicker';
+import {IconExprolerBookFilled} from '@components/Icon/IconIndex';
+import {BREADCRUMB_ITEM_OFFSET} from '@components/Navigation/Breadcrumb';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Linking, StyleSheet, Text} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -112,8 +118,13 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
       if (own) ids.add(own.id);
       else { orphans.push(p); ids.add(p.id); }
     }
-    return {homeRecipes: [...myRecipes, ...orphans], publishedIds: ids};
-  }, [isAuthorMode, myAuthorKey, myRecipes, exploreRecipesAll]);
+    // 내가 쓴 레시피는 내가 공개하는 이름(관리자=공식 베이키)으로 묶는다.
+    // 관리자의 개인 레시피엔 계정 uid가 박혀 있어, 공식 북에 섞이면 "by 베이키 외 1명"으로 보였다
+    const mine = user?.uid && myAuthorKey !== user.uid
+      ? myRecipes.map(r => (r.authorId === user.uid ? {...r, authorId: myAuthorKey, authorHandle: OFFICIAL_AUTHOR_HANDLE} : r))
+      : myRecipes;
+    return {homeRecipes: [...mine, ...orphans], publishedIds: ids};
+  }, [isAuthorMode, myAuthorKey, myRecipes, exploreRecipesAll, user?.uid]);
   // 전체 / 개인 / 공개
   const [visibility, setVisibility] = useState<'all' | 'personal' | 'public'>('all');
 
@@ -237,12 +248,24 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
   // 2뎁스 항목 메뉴 (책/공법 목록 + '전체로')
   const ALL_ID = '__all__';
   const ADD_COOKBOOK_ID = '__add_cookbook__';
+  // 메뉴의 레시피북 항목 — 북 아이콘(공식 북은 공식 레시피북 아이콘) + 그 북의 var 색('전체'·추가는 제외)
+  const officialBookNames = useMemo(() => new Set((exploreCookbooks ?? []).map(c => c.name)), [exploreCookbooks]);
+  const bookItem = useCallback((n: string) => {
+    // 공식 북은 내 콘텐츠든 아니든 공식 아이콘·공식 색
+    const official = isAuthorMode || officialBookNames.has(n);
+    const color = official ? (exploreCookbooks?.find(c => c.name === n)?.color as AvatarColor | undefined) ?? bookColors[n] : bookColors[n];
+    return {
+      id: n, label: n, icon: official ? IconExprolerBookFilled : IconBookFilled,
+      iconColor: colors[getColorVarKey(cookbookColorOf(color, official))] as string,
+    };
+  }, [colors, bookColors, isAuthorMode, officialBookNames, exploreCookbooks]);
+
   const crumbItemMenuItems = useMemo(() => {
     if (crumbAxis === 'cookbook' || crumbAxis === 'all') {
       const names = new Set<string>();
       for (const r of recipes) names.add(r.cookbook || t('home.noCookbook'));
       availableCookbooks.forEach(n => names.add(n));
-      const items = [{id: ALL_ID, label: t('home.all')}, ...[...names].map(n => ({id: n, label: n}))];
+      const items = [{id: ALL_ID, label: t('home.all')}, ...[...names].map(bookItem)];
       // '레시피' 축에선 북을 여기서 고르므로 새 북 만들기도 여기 둔다
       return crumbAxis === 'all'
         ? [...items, {id: ADD_COOKBOOK_ID, label: t('cookbookSelect.addCookbook'), icon: IconAdd}]
@@ -254,7 +277,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
       return [{id: ALL_ID, label: t('home.all')}, ...[...names].map(n => ({id: n, label: n}))];
     }
     return [];
-  }, [crumbAxis, recipes, availableCookbooks, t]);
+  }, [crumbAxis, recipes, availableCookbooks, t, bookItem]);
 
   /**
    * 축 메뉴에 붙는 레시피북 목록.
@@ -268,8 +291,8 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
     const names = new Set<string>();
     for (const r of recipes) names.add(r.cookbook || t('home.noCookbook'));
     availableCookbooks.forEach(n => names.add(n));
-    return [{id: ALL_ID, label: t('home.all')}, ...[...names].map(n => ({id: n, label: n}))];
-  }, [recipes, availableCookbooks, t]);
+    return [{id: ALL_ID, label: t('home.all')}, ...[...names].map(bookItem)];
+  }, [recipes, availableCookbooks, t, bookItem]);
 
   const handleCookbookFilterSelect = useCallback((id: string) => {
     setCrumbMenu(null);
@@ -600,6 +623,8 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
     return (
       <>
       <GroupScreen
+        // 공식 북 판정·색 — 내 홈에 섞인 공식 북도 공식 아이콘으로
+        exploreCookbooks={exploreCookbooks}
         recipes={recipes}
         // 둘러보기 레시피에 쓴 회고도 내 기록 — 회고 노트 목록에 보여준다(작성자 홈은 제외)
         retrospectiveExtraRecipes={isAuthorMode ? undefined : exploreRecipesAll}
@@ -678,7 +703,8 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
           size="medium"
           action={{
             label: t('home.sync'),
-            onPress: () => router.push(SETTINGS_ROUTE as any),
+            // 동기화 = 계정 연결 — 설정을 거치지 않고 바로 로그인
+            onPress: () => openAuthSheet(),
           }}
           onClose={() => setGuestBannerDismissed(true)}
         />
@@ -779,6 +805,8 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
               />
               {crumbItemLabel != null && (
                 <Menu
+                  // 항목 셀렉터 기준 좌정렬(앞의 축 버튼만큼 민다)
+                  style={{marginLeft: BREADCRUMB_ITEM_OFFSET}}
                   items={crumbItemMenuItems}
                   selectedId={crumbAxis === 'all' ? selectedCookbook ?? ALL_ID : crumbItemLabel}
                   onSelect={handleCrumbItemSelect}

@@ -1,3 +1,7 @@
+import {cookbookColorOf} from '@contexts/RecipeContext';
+import {IconBookFilled} from '@components/Icon/IconIndex';
+import {getColorVarKey} from '@components/ColorPicker';
+import {BREADCRUMB_ITEM_OFFSET} from '@components/Navigation/Breadcrumb';
 import React, {useCallback, useMemo, useState} from 'react';
 import {useRouter} from 'expo-router';
 import {AppBar} from '@components/Navigation';
@@ -55,6 +59,10 @@ const makeAdminCardMenuItems = (t: (key: string, params?: Record<string, unknown
 export interface ExploreScreenProps {
   /** 게스트 랜딩 카드 — 팩 보기 한가운데 */
   guestHero?: React.ReactNode;
+  /** 앱바 오른쪽을 대신할 요소 — 소개 화면은 도구 대신 [로그인]만 */
+  appBarRight?: React.ReactNode;
+  /** 앱바 셀렉터(보기 축·레시피북) 숨김 — 소개 화면은 고를 게 없다 */
+  hideAppBarPicker?: boolean;
   data: Recipe[];
   loading?: boolean;
   isAdmin?: boolean;
@@ -79,6 +87,8 @@ export interface ExploreScreenProps {
 
 export function ExploreScreen({
   guestHero,
+  appBarRight,
+  hideAppBarPicker,
   data,
   loading = false,
   isAdmin = false,
@@ -195,7 +205,7 @@ export function ExploreScreen({
         id: r.id,
         label: r.title,
         locked: lockedRecipeIds?.has(r.id),
-        iconColor: r.cookbook ? colors[getCookbookColorKey((ecColor ?? 'orange') as any)] : undefined,
+        iconColor: r.cookbook ? colors[getCookbookColorKey(cookbookColorOf(ecColor as any, true))] : undefined,
         searchableTexts: [r.cookbook, r.method, r.specificGravity].filter(Boolean) as string[],
       };
     }),
@@ -261,13 +271,18 @@ export function ExploreScreen({
     cookbook: selectedCategory !== CRUMB_ALL ? selectedCategory : null,
     method: selectedMethod,
   }, drillFrom);
+  // 메뉴의 레시피북 항목 — 북 아이콘(공식 북은 공식 레시피북 아이콘) + 그 북의 var 색('전체'·추가는 제외)
+  const bookItem = useCallback((n: string) => ({
+    id: n, label: n, icon: IconExprolerBookFilled,
+    iconColor: colors[getColorVarKey(cookbookColorOf(exploreCookbookColors[n], true))] as string,
+  }), [colors, exploreCookbookColors]);
   /** 축 메뉴에서 '레시피별' 아래 펼칠 공식 레시피북 목록 (홈과 같은 구조) */
   const cookbookFilterItems = useMemo(() => {
     const names = new Set<string>();
     for (const r of data) names.add(r.cookbook || '공식 레시피 북 없음');
     exploreCookbooks?.forEach(c => names.add(c.name));
-    return [{id: CRUMB_ALL, label: t('explore.all')}, ...[...names].map(n => ({id: n, label: n}))];
-  }, [data, exploreCookbooks, t]);
+    return [{id: CRUMB_ALL, label: t('explore.all')}, ...[...names].map(bookItem)];
+  }, [data, exploreCookbooks, t, bookItem]);
 
 
   const ADD_COOKBOOK_ID = '__add_cookbook__';
@@ -282,7 +297,7 @@ export function ExploreScreen({
       const names = new Set<string>();
       for (const r of data) names.add(r.cookbook || '공식 레시피 북 없음');
       exploreCookbooks?.forEach(c => names.add(c.name));
-      return [{id: CRUMB_ALL, label: t('explore.all')}, ...[...names].map(n => ({id: n, label: n}))];
+      return [{id: CRUMB_ALL, label: t('explore.all')}, ...[...names].map(bookItem)];
     }
     if (crumbAxis === 'method') {
       const names = new Set<string>();
@@ -290,7 +305,7 @@ export function ExploreScreen({
       return [{id: CRUMB_ALL, label: t('explore.all')}, ...[...names].map(n => ({id: n, label: n}))];
     }
     return [];
-  }, [crumbAxis, data, exploreCookbooks, cookbookFilterItems, isAdmin, t]);
+  }, [crumbAxis, data, exploreCookbooks, cookbookFilterItems, isAdmin, t, bookItem]);
 
   const handleCrumbItemSelect = useCallback((id: string) => {
     setShowItemMenu(false);
@@ -394,7 +409,7 @@ export function ExploreScreen({
       }
       renderAppBar={({handleFilterPress, showLayoutMenu, closeMenus, layoutMenu, filterIcon}) =>
         <AppBar
-          titleNode={
+          titleNode={hideAppBarPicker ? <></> : 
             <Breadcrumb
               axisLabel={axisLabel(t, crumbAxis, EXPLORE_AXIS_OVERRIDES)}
               axisIcon={axisMenuItems.find(i => i.id === crumbAxis)?.icon}
@@ -417,6 +432,7 @@ export function ExploreScreen({
             />
           }
           filterIcon={filterIcon}
+          rightNode={appBarRight}
           showAddButton={!!onAddRecipe}
           showMenuButton={!!onDownloadPdf}
           menuOpen={showFlatMoreMenu}
@@ -457,6 +473,8 @@ export function ExploreScreen({
               />
               {flatFilterLabel != null && (
                 <Menu
+                  // 항목 셀렉터 기준 좌정렬(앞의 축 버튼만큼 민다)
+                  style={{marginLeft: BREADCRUMB_ITEM_OFFSET}}
                   items={crumbItemMenuItems}
                   selectedId={selectedMethod ?? selectedCategory}
                   onSelect={handleCrumbItemSelect}

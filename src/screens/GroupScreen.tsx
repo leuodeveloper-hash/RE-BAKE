@@ -1,4 +1,5 @@
 import {shortDate} from '@utils/dateLabel';
+import {getColorVarKey} from '@components/ColorPicker';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {Dimensions, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
@@ -26,7 +27,7 @@ import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
 import {useColors} from '@contexts/ThemeContext';
 import {useAddSheet} from '@contexts/AddSheetContext';
-import {DEFAULT_COOKBOOK_COLOR} from '@contexts/RecipeContext';
+import {cookbookColorOf} from '@contexts/RecipeContext';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
@@ -149,7 +150,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
       showSnackbar(t('group.publishAllFailed'), {tone: 'error'});
     }
   };
-  const {setShowCookbookDialog, setCookbookEditTarget, setCookbookInitialOfficial} = useAddSheet();
+  const {setShowCookbookDialog, setCookbookEditTarget, setCookbookInitialOfficial, setShowAddSheet} = useAddSheet();
   const {pullProgress, isRefreshing, refreshStripProgress, refreshOpacity, refreshGapHeight, handleScroll} = usePullProgress(onRefresh);
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   const [showGroupFilterMenu, setShowGroupFilterMenu] = useState(false);
@@ -311,6 +312,22 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
   }, [exploreCookbooks]);
 
   // 레시피 북 팩: 책마다 1팩, 탭하면 펼침 오버레이
+  const exploreCookbookColorMap = useMemo(() => {
+    const map = new Map<string, string>();
+    exploreCookbooks?.forEach(c => map.set(c.name, c.color));
+    return map;
+  }, [exploreCookbooks]);
+
+  // 공식(공개) 북인지 — 둘러보기든 내 홈이든 공식 북이면 공식 아이콘·공식 색
+  const isOfficialBook = useCallback(
+    (name: string) => cookbooksAreOfficial || exploreCookbookColorMap.has(name),
+    [cookbooksAreOfficial, exploreCookbookColorMap],
+  );
+  const bookColorOf = useCallback((name: string) => cookbookColorOf(
+    isOfficialBook(name) ? (exploreCookbookColorMap.get(name) as AvatarColor | undefined) ?? cookbookColors[name] : cookbookColors[name],
+    isOfficialBook(name),
+  ), [isOfficialBook, exploreCookbookColorMap, cookbookColors]);
+
   const cookbookPacks = useMemo<PackBoardItem[]>(() => {
     // 정렬은 공용 cookbooks에서 이미 처리됨 ('없음' 맨 뒤 → 개수순 → 최신순)
     return cookbooks.map(cb => {
@@ -325,12 +342,13 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         count: cb.items.length,
         footerLeft: t('group.recipeCountMultiline', {count: cb.items.length}),
         footerRight: t('group.reviewCountMultiline', {count: reviewTotal}),
-        icon: IconBookFilled,
+        icon: isOfficialBook(cb.name) ? IconExprolerBookFilled : IconBookFilled,
         // 책 표지 글씨용: var(0.64 반투명) 대신 솔리드 커스텀 색 (반투명이면 글씨가 비쳐 보임)
         // 미분류는 고정 옐로 표지 위에서 라이트/다크 대비가 뜨지 않도록 fixed 색 사용
         iconColor: isUngrouped
           ? colors['foreground/on-surface-fixed']
-          : colors[getCookbookColorKey(cookbookColors[cb.name] || DEFAULT_COOKBOOK_COLOR)],
+          : // 공식 북은 둘러보기 북 색(메뉴·아이콘과 같은 출처)이 먼저 — 개인 색표를 보면 글씨만 다른 색이 됐다
+          colors[getCookbookColorKey(bookColorOf(cb.name))],
         cards,
         variant: 'book' as const,
         authors: deriveBookAuthors(cb.items),
@@ -339,7 +357,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         onPress: (rect: PackOriginRect) => { setExpandedOrigin(rect); setExpandedMethod(cb.name); },
       };
     });
-  }, [cookbooks, cookbookColors, colors, cookbooksAreOfficial, exploreCookbookHiddenMap, t, reviewsOf]);
+  }, [cookbooks, cookbookColors, colors, cookbooksAreOfficial, exploreCookbookHiddenMap, exploreCookbookColorMap, t, reviewsOf, isOfficialBook, bookColorOf]);
 
   // 회고 노트 기준: 실제 작성된 회고가 있는 레시피만 (같은 remakeGroup은 회고 유무 합산 후 최신 회차 하나로 대표)
   // 회고 노트 대상 — 내 레시피 + 내가 회고를 쓴 둘러보기 레시피
@@ -497,16 +515,11 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
     return stats;
   }, [retrospectiveSource, reviewsOf]);
 
-  const exploreCookbookColorMap = useMemo(() => {
-    const map = new Map<string, string>();
-    exploreCookbooks?.forEach(c => map.set(c.name, c.color));
-    return map;
-  }, [exploreCookbooks]);
-
   // 둘러보기 레시피 북 (홈 어드민 전용 섹션): 레시피 그룹 + explore_cookbooks의 빈 레시피 북 포함.
   // 둘러보기 화면(cookbooksAreOfficial)은 주 목록이 이미 공식이라 이 섹션은 숨김(중복 방지).
   const exploreGroups = useMemo(() => {
-    if (!isAdmin || cookbooksAreOfficial) return [];
+    // 공식 레시피 목록을 같이 받았을 때만(색·아이콘 판정용으로 북 목록만 받은 경우엔 섹션을 만들지 않는다)
+    if (!isAdmin || cookbooksAreOfficial || !exploreRecipes) return [];
     const map = new Map<string, Recipe[]>();
     // explore_cookbooks에 등록된 빈 레시피 북도 포함
     for (const cb of exploreCookbooks ?? []) {
@@ -584,9 +597,10 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
     if (id === 'rename' && target) {
       // 둘러보기(공식 북)면 explore 경로로: isExplore 표시 → 확인 시 Firestore 반영
       setCookbookEditTarget(
-        cookbooksAreOfficial
-          ? {name: target, color: (cookbookColors[target] || 'orange') as AvatarColor, isExplore: true, hidden: exploreCookbookHiddenMap.get(target)}
-          : {name: target, color: cookbookColors[target] || DEFAULT_COOKBOOK_COLOR},
+        // 공식 북이면(내 홈에서 열어도) 공식 편집 — 숨기기 토글이 나온다
+        isOfficialBook(target)
+          ? {name: target, color: bookColorOf(target), isExplore: true, hidden: exploreCookbookHiddenMap.get(target)}
+          : {name: target, color: cookbookColorOf(cookbookColors[target])},
       );
       setShowCookbookDialog(true);
     } else if (id === 'delete' && target) {
@@ -604,7 +618,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
     const target = exploreCookbookMenuTarget;
     setExploreCookbookMenuTarget(null);
     if (id === 'rename' && target) {
-      const ecColor = exploreCookbookColorMap.get(target) ?? 'orange';
+      const ecColor = cookbookColorOf(exploreCookbookColorMap.get(target) as AvatarColor | undefined, true);
       setCookbookEditTarget({name: target, color: ecColor as AvatarColor, isExplore: true, hidden: exploreCookbookHiddenMap.get(target)});
       setShowCookbookDialog(true);
     } else if (id === 'delete' && target) {
@@ -619,16 +633,16 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
   // ── 팩뷰 확대 오버레이 헤더용: 리스트뷰 앱바와 동일한 편집/삭제 ──
   // 다이얼로그가 오버레이(zIndex 100) 아래로 가려지지 않게 오버레이를 먼저 닫고 띄운다.
   // 둘러보기(주 목록이 공식)면 모든 북이 공식 → 어드민 게이트 + explore 라우팅. 홈이면 exploreGroups(어드민 병합분)만 공식.
-  const isExploreCookbookName = (name: string) => cookbooksAreOfficial || exploreGroups.some(g => g.name === name);
+  const isExploreCookbookName = (name: string) => isOfficialBook(name) || exploreGroups.some(g => g.name === name);
   const editCookbookFromOverlay = (name: string, isExplore: boolean) => {
     setExpandedMethod(null);
     setExpandedOrigin(null);
     if (isExplore) {
       // 홈-어드민 경로는 exploreCookbookColorMap, 둘러보기 경로는 cookbookColors(=explore 색맵)에 색이 있다.
-      const ecColor = (exploreCookbookColorMap.get(name) ?? cookbookColors[name] ?? 'orange') as AvatarColor;
+      const ecColor = cookbookColorOf((exploreCookbookColorMap.get(name) as AvatarColor | undefined) ?? cookbookColors[name], true);
       setCookbookEditTarget({name, color: ecColor, isExplore: true, hidden: exploreCookbookHiddenMap.get(name)});
     } else {
-      setCookbookEditTarget({name, color: cookbookColors[name] || DEFAULT_COOKBOOK_COLOR});
+      setCookbookEditTarget({name, color: cookbookColorOf(cookbookColors[name])});
     }
     setShowCookbookDialog(true);
   };
@@ -652,13 +666,15 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         onLeftPress={onBack}
         titleNode={
           // 레시피 축과 같은 모양: [축 아이콘(축 메뉴)] [항목 ⌄]
-          // 레시피북·공법은 '전체'에서 하나를 골라 들어가고, 회고 노트는 고를 항목이 없어 축 이름을 둔다
+          // 레시피북·공법은 '전체'에서 하나를 골라 들어간다. 회고 노트는 2뎁스(고를 항목)가 없어 축 아이콘만
           <Breadcrumb
             leadingNode={authorBadge}
             axisLabel={axisLabel(t, axis, axisOverrides)}
             axisIcon={groupFilterMenuItems.find(i => i.id === axis)?.icon}
             axisIconColor={groupFilterMenuItems.find(i => i.id === axis)?.iconColor}
-            itemLabel={axis === 'retrospective' ? axisLabel(t, axis, axisOverrides) : t('home.all')}
+            // 회고 노트는 2뎁스가 없다 — 축 아이콘만
+            iconOnly={axis === 'retrospective'}
+            itemLabel={axis === 'retrospective' ? undefined : t('home.all')}
             onAxisPress={() => { setShowItemMenu(false); handleTitlePress(); }}
             onItemPress={() => {
               if (axis === 'retrospective') { handleTitlePress(); return; }
@@ -761,10 +777,21 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
           {viewMode === 'pack' ? (
             activePacks.length === 0 ? (
               /* 팩이 하나도 없으면 빈 캔버스 대신 공통 빈 상태 */
+              axis === 'retrospective' && recipes.length === 0 ? (
+                // 회고는 레시피를 만든 뒤에 남긴다 — 레시피가 아예 없으면 만들기부터
+                <EmptyState
+                  category="no-recipe"
+                  title={t('home.emptyRecipesTitle')}
+                  subtitle={t('group.emptyRetroNoRecipe')}
+                  actionLabel={t('home.addRecipe')}
+                  onAction={() => setShowAddSheet(true)}
+                />
+              ) : (
               <EmptyState
                 category="no-recipe"
                 title={axis === 'retrospective' ? t('group.emptyRetro') : axis === 'method' ? t('group.emptyMethods') : t('group.emptyCookbooks')}
               />
+              )
             ) : (bookCarousel && axis === 'cookbook') || axis === 'retrospective' ? (
               /* 레시피 북·회고 노트 팩뷰: 센터 카드 캐러셀 (하나씩 스와이프, 탭 시 펼침) */
               <CookbookCarousel items={activePacks} />
@@ -800,8 +827,9 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                                   cookbook={t('group.recipeCount', {count: cookbook.items.length})}
                                   reviewCount={cookbook.items.reduce((sum, r) => sum + reviewsOf(r).length, 0)}
                                   layout="list"
-                                  placeholderIcon={axisOverrides?.cookbook?.icon ?? IconBookFilled}
-                                  placeholderIconColor={isUngrouped ? colors['foreground/on-surface-muted'] : colors[getCookbookColorKey(cookbookColors[cookbook.name] || DEFAULT_COOKBOOK_COLOR)]}
+                                  // 공식(공개) 북은 공식 레시피북 아이콘, 색은 그 북의 var 색(메뉴 아이콘과 같은 출처)
+                                  placeholderIcon={isOfficialBook(cookbook.name) ? IconExprolerBookFilled : axisOverrides?.cookbook?.icon ?? IconBookFilled}
+                                  placeholderIconColor={isUngrouped ? colors['foreground/on-surface-muted'] : colors[getColorVarKey(bookColorOf(cookbook.name))]}
                                   onPress={() => onCookbookPress?.(cookbook.name)}
                                   hidden={cookbooksAreOfficial ? exploreCookbookHiddenMap.get(cookbook.name) : undefined}
                                   // 공식 북(둘러보기)은 어드민만 편집·삭제. 개인 북(홈)은 소유자 항상 가능
@@ -813,7 +841,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                           })}
                           {/* 둘러보기 레시피 북 (어드민 전용) */}
                           {exploreGroups.map((cookbook, idx) => {
-                            const ecColor = (exploreCookbookColorMap.get(cookbook.name) || 'orange') as AvatarColor;
+                            const ecColor = cookbookColorOf(exploreCookbookColorMap.get(cookbook.name) as AvatarColor | undefined, true);
                             const isExploreUngrouped = cookbook.name === '공식 레시피 북 없음';
                             const isLast = cookbooks.length + idx === totalLen - 1;
                             return (

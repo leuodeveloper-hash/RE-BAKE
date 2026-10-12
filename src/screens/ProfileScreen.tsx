@@ -625,6 +625,7 @@ export function ProfileScreen({
             <LogoText width={89} height={20} color={colors['foreground/on-surface-muted']} />
             <View style={styles.footerTextGroup}>
               <Text style={styles.footerText}>{t('profile.version', {version: APP_VERSION})}</Text>
+              <Text style={styles.footerText}>{t('profile.company')}</Text>
               <View style={styles.footerLinks}>
                 <Text style={styles.footerLink} onPress={onTermsPress}>{t('profile.termsOfService')}</Text>
                 <Text style={styles.footerLink} onPress={onPrivacyPress}>{t('profile.privacyPolicy')}</Text>

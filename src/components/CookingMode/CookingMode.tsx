@@ -1,3 +1,4 @@
+import {NOTE_BLOCK} from '@constants/noteBlock';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {triggerHaptic} from '@utils/haptics';
 import {
@@ -2479,8 +2480,7 @@ const createStyles = (colors: SemanticColors) =>
     },
     // 참고/주의: PDF처럼 좌측 세로 라인(블록쿼트) — 색은 인라인으로 지정
     noteBlock: {
-      borderLeftWidth: 2,
-      paddingLeft: 12,
+      ...NOTE_BLOCK,
       marginTop: 12,
     },
     // 재료 인라인 — 본문과 같은 크기

@@ -255,7 +255,15 @@ function NavigationContent() {
   useExamNotificationPrefs();
   const {showAddSheet, setShowAddSheet, setShowSearchSheet, hideTabBar, hideContentMask, showCookbookDialog, setShowCookbookDialog, cookbookEditTarget, setCookbookEditTarget, cookbookInitialOfficial, setCookbookInitialOfficial, onCookbookCreatedRef} = useAddSheet();
   const {snackbar, clearSnackbar, showSnackbar} = useSnackbar();
-  const {user, isAdmin, avatarSeed} = useAuth();
+  const {user, isAdmin, avatarSeed, isLoading: authLoading} = useAuth();
+  // 처음 여는 게스트는 소개 화면(/welcome)부터 — 한 번 보면 다음부터는 바로 앱
+  const welcomeCheckedRef = useRef(false);
+  useEffect(() => {
+    if (authLoading || welcomeCheckedRef.current) return;
+    welcomeCheckedRef.current = true;
+    if (user || pathname !== '/') return;
+    AsyncStorage.getItem('@bakle_welcome_seen').then(v => { if (!v) router.replace('/welcome' as any); }).catch(() => {});
+  }, [authLoading, user, pathname, router]);
   const {recipes, setRecipes, lastSyncedAt, setCookbookColor, renameCookbookColor, migrationCount, confirmMigration, dismissMigration} = useRecipes();
   const {reload: exploreReload, exploreCookbooks, recipes: exploreRecipesAll} = useExploreRecipeContext();
   const [migrating, setMigrating] = useState(false);
@@ -400,6 +408,8 @@ function NavigationContent() {
     // 작성자 홈(/u/[handle])은 둘러보기 소속 → 둘러보기 탭 활성으로 표시.
     // (매칭 안 되면 activeTab이 이전값 '홈'에 남아 탭이 안 바뀌던 문제)
     else if (pathname.startsWith('/u/')) setActiveTab('explore');
+    // 소개 화면은 어느 탭에도 속하지 않는다 — 아무 탭도 켜지 않음
+    else if (pathname === '/welcome') setActiveTab('');
   }, [pathname]);
 
   // 레시피 상세/편집 라우트에서는 메인 탭바 숨김 (상세는 회차 눈금 슬라이더가 대신함)
@@ -544,7 +554,8 @@ function NavigationContent() {
         await setDoc(doc(db, 'explore_cookbooks', name), {
           name,
           color,
-          hidden: false,
+          // 만들 때 고른 비공개도 저장
+          hidden: !!hidden,
           createdAt: new Date().toISOString(),
         });
         await exploreReload();
@@ -556,6 +567,8 @@ function NavigationContent() {
     } else {
       const exists = recipes.some(r => r.cookbook === name);
       if (exists) {
+        // 이미 있는 북이어도 만들 때 고른 색은 반영한다
+        setCookbookColor(name, color);
         showSnackbar(t('layout.cookbookAlreadyExists'));
       } else {
         setCookbookColor(name, color);

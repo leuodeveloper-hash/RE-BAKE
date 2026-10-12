@@ -4,11 +4,22 @@ import {useRecipeStorage} from '@hooks/useRecipeStorage';
 import type {Recipe} from '../types/recipe';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import {useSnackbar} from '@contexts/SnackbarContext';
+import {useAuth} from '@contexts/AuthContext';
+import {doc, getDoc, setDoc} from 'firebase/firestore';
+import {db} from '@config/firebase';
 
 const COOKBOOK_COLORS_KEY = 'bakle_cookbook_colors_v1';
 // 홈/둘러보기 메뉴 선택 유지 (앱 재시작해도 마지막 본 페이지 유지)
 const SELECTION_KEY = 'bakle_home_selection_v1';
 export const DEFAULT_COOKBOOK_COLOR: AvatarColor = 'brown';
+/** 공식(둘러보기) 레시피북의 기본 색 */
+export const DEFAULT_OFFICIAL_COOKBOOK_COLOR: AvatarColor = 'orange';
+/**
+ * 색을 정하지 않은 레시피북의 색 — 아이콘·팩 표지 글씨·메뉴가 모두 이 값을 쓴다.
+ * 화면마다 기본값을 따로 적으면(브라운/오렌지) 같은 북인데 아이콘과 글씨 색이 달라진다.
+ */
+export const cookbookColorOf = (color: AvatarColor | undefined, official = false): AvatarColor =>
+  color || (official ? DEFAULT_OFFICIAL_COOKBOOK_COLOR : DEFAULT_COOKBOOK_COLOR);
 
 interface RecipeContextValue {
   recipes: Recipe[];
@@ -104,32 +115,64 @@ export function RecipeProvider({children}: {children: React.ReactNode}) {
     persistSelection(selectedCookbook, selectedMethod, v);
   }, [persistSelection, selectedCookbook, selectedMethod]);
 
+  // 레시피북 색 저장 — 기기(AsyncStorage)와 계정(users/{uid}.cookbookColors) 둘 다.
+  // 기기에만 두면 만들 때 고른 색이 다른 기기·재설치에서 기본색으로 돌아갔다.
+  const {user} = useAuth();
+  const uidRef = useRef<string | undefined>(undefined);
+  uidRef.current = user?.uid;
+  const persistColors = useCallback((next: Record<string, AvatarColor>) => {
+    AsyncStorage.setItem(COOKBOOK_COLORS_KEY, JSON.stringify(next)).catch(() => {});
+    const uid = uidRef.current;
+    // mergeFields: 이 필드만 통째로 — merge:true면 지운 북 색이 서버에 남는다
+    if (uid) setDoc(doc(db, 'users', uid), {cookbookColors: next}, {mergeFields: ['cookbookColors']})
+      .catch(e => console.warn('[RecipeContext] 레시피북 색 저장 실패:', e));
+  }, []);
+
+  // 로그인하면 계정 색을 불러와 기기 색과 합친다(계정 우선). 기기에만 있던 색은 계정에 올린다.
+  useEffect(() => {
+    const uid = user?.uid;
+    if (!uid) return;
+    let alive = true;
+    getDoc(doc(db, 'users', uid)).then(snap => {
+      if (!alive) return;
+      const remote = (snap.data()?.cookbookColors ?? {}) as Record<string, AvatarColor>;
+      setCookbookColorsState(prev => {
+        const next = {...prev, ...remote};
+        const hasLocalOnly = Object.keys(prev).some(k => !(k in remote));
+        AsyncStorage.setItem(COOKBOOK_COLORS_KEY, JSON.stringify(next)).catch(() => {});
+        if (hasLocalOnly) setDoc(doc(db, 'users', uid), {cookbookColors: next}, {mergeFields: ['cookbookColors']}).catch(() => {});
+        return next;
+      });
+    }).catch(e => console.warn('[RecipeContext] 레시피북 색 불러오기 실패:', e));
+    return () => { alive = false; };
+  }, [user?.uid]);
+
   const setCookbookColor = useCallback((name: string, color: AvatarColor) => {
     setCookbookColorsState(prev => {
       const next = {...prev, [name]: color};
-      AsyncStorage.setItem(COOKBOOK_COLORS_KEY, JSON.stringify(next)).catch(() => {});
+      persistColors(next);
       return next;
     });
-  }, []);
+  }, [persistColors]);
 
   const renameCookbookColor = useCallback((oldName: string, newName: string) => {
     setCookbookColorsState(prev => {
       if (!(oldName in prev)) return prev;
       const {[oldName]: color, ...rest} = prev;
       const next = {...rest, [newName]: color};
-      AsyncStorage.setItem(COOKBOOK_COLORS_KEY, JSON.stringify(next)).catch(() => {});
+      persistColors(next);
       return next;
     });
-  }, []);
+  }, [persistColors]);
 
   const removeCookbookColor = useCallback((name: string) => {
     setCookbookColorsState(prev => {
       if (!(name in prev)) return prev;
       const {[name]: _, ...rest} = prev;
-      AsyncStorage.setItem(COOKBOOK_COLORS_KEY, JSON.stringify(rest)).catch(() => {});
+      persistColors(rest);
       return rest;
     });
-  }, []);
+  }, [persistColors]);
 
   const availableCookbooks = useMemo(() => {
     const fromRecipes = recipes.map(r => r.cookbook).filter(Boolean) as string[];

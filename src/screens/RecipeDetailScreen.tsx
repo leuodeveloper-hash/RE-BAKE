@@ -1,3 +1,4 @@
+import {NOTE_BLOCK} from '@constants/noteBlock';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   Animated,
@@ -1247,8 +1248,17 @@ export function RecipeDetailScreen({
                         {g.steps.filter(st => st.description?.trim()).map((st, si) => (
                           <View key={si}>
                             <Text style={styles.bulkText}>{`${si + 1}. `}<RichText inline>{st.description}</RichText></Text>
-                            {st.tip?.trim() ? <Text style={styles.bulkNote}><RichText inline>{st.tip}</RichText></Text> : null}
-                            {st.caution?.trim() ? <Text style={[styles.bulkNote, styles.bulkCaution]}><RichText inline>{st.caution}</RichText></Text> : null}
+                            {/* 팁·주의 — 편집처럼 왼쪽 세로 라인 */}
+                            {st.tip?.trim() ? (
+                              <View style={[NOTE_BLOCK, styles.bulkNoteBlock, {borderLeftColor: colors['foreground/on-surface-muted']}]}>
+                                <Text style={styles.bulkNote}><RichText inline>{st.tip}</RichText></Text>
+                              </View>
+                            ) : null}
+                            {st.caution?.trim() ? (
+                              <View style={[NOTE_BLOCK, styles.bulkNoteBlock, {borderLeftColor: colors['custom/yellow-var']}]}>
+                                <Text style={[styles.bulkNote, styles.bulkCaution]}><RichText inline>{st.caution}</RichText></Text>
+                              </View>
+                            ) : null}
                           </View>
                         ))}
                       </View>
@@ -1846,7 +1856,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   bulkNote: {
     ...Typography.body.small,
     color: colors['foreground/on-surface-muted'],
-    paddingLeft: Spacing.md,
+  },
+  // 라인 블록 — 본문 줄 아래 살짝 띄우고, 본문 번호 들여쓰기만큼 안쪽에서 시작
+  bulkNoteBlock: {
+    marginTop: Spacing.xs,
+    marginLeft: Spacing.md,
   },
   bulkCaution: {
     color: colors['custom/yellow-var'],

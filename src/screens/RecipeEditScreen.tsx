@@ -1,3 +1,4 @@
+import {cookbookColorOf} from '@contexts/RecipeContext';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
@@ -3110,7 +3111,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                       width: 20,
                       height: 20,
                       color: cookbook
-                        ? colors[getCookbookColorKey(cookbookColorsProp?.[cookbook] || (isExplore ? 'orange' : 'brown'))]
+                        ? colors[getCookbookColorKey(cookbookColorOf(cookbookColorsProp?.[cookbook], isExplore))]
                         : colors['foreground/on-surface-muted'],
                     })}
                   </View>

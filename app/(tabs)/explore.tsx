@@ -1,6 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {View, StyleSheet} from 'react-native';
 import {GuestHero} from '@components/GuestHero';
+import {Button} from '@components/Button';
 import {useRouter} from 'expo-router';
 import {doc, updateDoc, deleteField, deleteDoc} from 'firebase/firestore';
 import {ExploreScreen} from '@screens/ExploreScreen';
@@ -19,7 +20,8 @@ import {useTranslation} from '@contexts/LanguageContext';
 import {db} from '@config/firebase';
 import type {Recipe} from '../../src/types/recipe';
 
-export default function ExploreRoute() {
+/** 둘러보기 — landing이면 로그인 전 소개 화면을 팩 보기 한가운데 얹는다(/welcome). */
+export function ExploreRouteBase({landing = false}: {landing?: boolean}) {
   const router = useRouter();
   const colors = useColors();
   const {recipes, setRecipes} = useRecipes();
@@ -166,8 +168,11 @@ export default function ExploreRoute() {
   return (
     <View style={[styles.container, {backgroundColor: colors['surface/dim']}]}>
       <ExploreScreen
-        // 게스트: 팩 보기 한가운데 랜딩 카드 — 로그인 → 플랜(공통 흐름)
-        guestHero={!user ? <GuestHero onLogin={() => openAuthSheet()} /> : undefined}
+        // 둘러보기는 누구나 열려 있다. 소개 화면은 최상위(/welcome)에서만 — 레시피 카드들이 배경
+        // 소개 화면 앱바 — 도구는 필요 없고 오른쪽에 [로그인]만
+        hideAppBarPicker={landing && !user}
+        appBarRight={landing && !user ? <Button label={t('auth.signIn')} size="medium" variant="filled" onPress={() => openAuthSheet()} /> : undefined}
+        guestHero={landing && !user ? <GuestHero onLogin={() => openAuthSheet()} onBrowse={() => router.replace('/explore' as any)} /> : undefined}
         data={exploreRecipes}
         loading={exploreLoading}
         isAdmin={isAdmin}
@@ -205,3 +210,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
 });
+
+export default function ExploreRoute() {
+  return <ExploreRouteBase />;
+}

@@ -1,3 +1,4 @@
+import {cookbookColorOf} from '@contexts/RecipeContext';
 import React, {useCallback, useState} from 'react';
 import {LayoutChangeEvent, Pressable, StyleSheet, Text, View} from 'react-native';
 import {SvgProps} from 'react-native-svg';
@@ -102,7 +103,7 @@ export function CookbookSelectSheet({
                 <BookIcon
                   width={20}
                   height={20}
-                  color={colors[getCookbookColorKey(cbColor || 'brown')]}
+                  color={colors[getCookbookColorKey(cookbookColorOf(cbColor))]}
                 />
                 <Text style={styles.itemLabel}>{name}</Text>
                 {renderItemTrailing?.(name)}

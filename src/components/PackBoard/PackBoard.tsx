@@ -52,7 +52,7 @@ function seeded(seed: number): number {
 export function PackBoard({items, height, boardWidth, entrance = false, dimExceptId, onFocusPoint}: PackBoardProps) {
   const intro = useRef(new Animated.Value(entrance ? 0 : 1)).current;
 
-  const {placed, width, contentHeight, originX, originY} = useMemo(() => {
+  const {placed, width, contentHeight} = useMemo(() => {
     // 상하·좌우 여백 (보드 가장자리에 팩이 붙지 않게)
     const PAD_V = 24;
     const PAD_H = 32;
@@ -231,13 +231,9 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
           : null;
 
         const opacity: Animated.AnimatedInterpolation<number> | number = p ?? 1;
-        // 날아오는 거리/스케일 변화를 줄여 과한 모션 완화
-        const translateX: Animated.AnimatedInterpolation<number> | number = p
-          ? p.interpolate({inputRange: [0, 1], outputRange: [(originX - left) * 0.45, 0]}) : 0;
-        const translateY: Animated.AnimatedInterpolation<number> | number = p
-          ? p.interpolate({inputRange: [0, 1], outputRange: [(originY - top) * 0.45, 0]}) : 0;
+        // 제자리에서 살짝 커지며 페이드 인 — 날아오는(좌→우 슬라이드) 이동은 뺐다
         const scale: Animated.AnimatedInterpolation<number> | number = p
-          ? p.interpolate({inputRange: [0, 1], outputRange: [0.85, 1]}) : 1;
+          ? p.interpolate({inputRange: [0, 1], outputRange: [0.94, 1]}) : 1;
 
         const isActive = dimExceptId != null && item.id === dimExceptId;
         const dimmed = dimExceptId != null && !isActive;
@@ -251,7 +247,7 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
             renderToHardwareTextureAndroid
             style={[
               styles.pack,
-              {left, top, opacity, transform: [{translateX}, {translateY}, {scale}]},
+              {left, top, opacity, transform: [{scale}]},
               // 웹: 그림자 요소를 transform 애니메이션할 때 box-shadow 잔상이 남음 →
               // GPU 레이어로 승격해 깨끗이 리페인트 (상단에 그림자 박스 잔상 방지)
               Platform.OS === 'web' && ({willChange: 'transform', backfaceVisibility: 'hidden'} as any),

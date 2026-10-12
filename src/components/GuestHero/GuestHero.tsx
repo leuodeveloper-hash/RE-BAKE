@@ -2,7 +2,6 @@ import React from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {Button} from '@components/Button';
 import {GradientText} from '@components/GradientText';
-import {IconLogoSymbol} from '@components/Icon/IconIndex';
 import {useColors} from '@contexts/ThemeContext';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {PrimitiveColors, type SemanticColors} from '@constants/tokens';
@@ -13,20 +12,20 @@ import {useTranslation} from '@contexts/LanguageContext';
 export interface GuestHeroProps {
   /** 로그인 버튼 — 로그인 시트를 연다(성공하면 플랜 선택으로 이어진다) */
   onLogin: () => void;
+  /** 로그인 없이 둘러보기로 — 있으면 버튼 아래에 보조 버튼 */
+  onBrowse?: () => void;
 }
 
 /**
  * 게스트용 랜딩 카드 — 팩 보드 한가운데에 놓여 주위로 공식 레시피 팩이 흩어진다.
  * "일상적 레시피, 베이클" 헤드라인 + 버튼.
  */
-export function GuestHero({onLogin}: GuestHeroProps) {
+export function GuestHero({onLogin, onBrowse}: GuestHeroProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const colors = useColors();
   return (
     <View style={styles.wrap}>
-      {/* 맨 위 작은 로고 */}
-      <IconLogoSymbol width={28} height={28} color={colors['foreground/on-surface-muted']} style={styles.logo} />
       {/* 한 문장 헤드라인 — "일상적 레시피, 베이클" */}
       {/* 카피 전체는 기본 글자색, 오른쪽 아래에서 소라색이 살짝 원형으로 번진다 */}
       <GradientText
@@ -40,6 +39,7 @@ export function GuestHero({onLogin}: GuestHeroProps) {
       {/* 서브카피 */}
       <Text style={styles.subcopy}>{t('guestHero.subcopy')}</Text>
       <Button label={t('guestHero.login')} onPress={onLogin} size="medium" style={styles.button} />
+      {onBrowse ? <Button label={t('guestHero.browse')} onPress={onBrowse} size="medium" variant="ghost" /> : null}
     </View>
   );
 }
@@ -50,9 +50,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     width: 350,
     alignItems: 'center',
     paddingVertical: Spacing.lg,
-  },
-  logo: {
-    marginBottom: Spacing.sm,
   },
   headline: {
     // Bold·SemiBold는 큰 크기에서 두꺼워 보였다 — Medium

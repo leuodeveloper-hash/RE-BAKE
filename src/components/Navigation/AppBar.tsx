@@ -1,5 +1,5 @@
 import React from 'react';
-import {StyleSheet, View} from 'react-native';
+import {Pressable, StyleSheet, View} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {
   IconAdd,
@@ -8,13 +8,21 @@ import {
   IconSearch,
   IconEllipsisVertical,
   IconSettings,
+  IconLogoSymbol,
 } from '@components/Icon/IconIndex';
+import {useRouter} from 'expo-router';
+import {useAuth} from '@contexts/AuthContext';
+import {useColors} from '@contexts/ThemeContext';
+import {triggerHaptic} from '@utils/haptics';
 import {IconButton} from '@components/IconButton';
 import {NavPillButton} from './NavPillButton';
 import {Selector} from '@components/Selector';
 import {GlassContainer} from '@components/Container';
 import {useTranslation} from '@contexts/LanguageContext';
 import {FloatingNavBar, navPillStyle} from './FloatingNavBar';
+
+/** 로그인 전 앱바 로고 칸 폭 — 로고 24 + 좌우 4 */
+const GUEST_LOGO_WIDTH = 24 + 4 * 2;
 
 export interface AppBarProps {
   title?: string;
@@ -36,6 +44,8 @@ export interface AppBarProps {
   filterIcon?: React.FC<SvgProps>;
   onMenuPress?: () => void;
   onSearchPress?: () => void;
+  /** 오른쪽을 이 요소로 통째로 대신한다(예: 소개 화면의 [로그인]) */
+  rightNode?: React.ReactNode;
   /** 설정(톱니) — 주면 오른쪽 알약 뒤에 따로 붙는다(홈=내 화면에서 설정 진입) */
   onSettingsPress?: () => void;
   /** ⓘ 정보 버튼 (예: 공법 설명 페이지 진입) */
@@ -79,6 +89,7 @@ export function AppBar({
   onMenuPress,
   onSearchPress,
   onSettingsPress,
+  rightNode,
   onInfoPress,
   showDropdown = true,
   showAddButton = true,
@@ -96,6 +107,21 @@ export function AppBar({
 }: AppBarProps) {
   const {t} = useTranslation();
   const resolvedTitle = title ?? t('appBar.allRecipeBooks');
+  const router = useRouter();
+  const {user} = useAuth();
+  const colors = useColors();
+  // 로그인 전엔 맨 왼쪽에 로고 — 누르면 소개(랜딩) 화면. 뒤로가기가 있는 화면은 그 자리를 비워 둔다
+  const guestLogo = !user && !leftIcon
+    ? (
+      // 글래스 알약 없이 로고만 — 버튼이 아니라 브랜드 표시
+      <Pressable
+        hitSlop={8}
+        style={styles.guestLogo}
+        onPress={() => { triggerHaptic('light'); router.push('/welcome' as any); }}>
+        <IconLogoSymbol width={24} height={24} color={colors['foreground/on-surface']} />
+      </Pressable>
+    )
+    : null;
 
   if (centered) {
     // 일반 모드와 같은 껍데기(FloatingNavBar)를 쓴다 — 직접 View로 그리면
@@ -131,8 +157,9 @@ export function AppBar({
       left={
         // 뒤로가기 버튼이 있으면 셀렉터 알약 앞에 나란히 배치.
         // below(레시피북 탭)는 셀렉터 뒤에 이어 붙인다.
-        leftIcon || below ? (
+        leftIcon || below || guestLogo ? (
           <View style={styles.leftRow}>
+            {guestLogo}
             {leftIcon ? <NavPillButton icon={leftIcon} onPress={onLeftPress} /> : null}
             {leftContent}
             {below ? <View style={styles.leftTabs}>{below}</View> : null}
@@ -141,7 +168,7 @@ export function AppBar({
       }
       leftFull={!!below}
       right={
-        hasRightButtons || onSettingsPress ? (
+        rightNode ? rightNode : hasRightButtons || onSettingsPress ? (
           <View style={styles.rightRow}>
           {hasRightButtons ? (
           <GlassContainer contentStyle={navPillStyle}>
@@ -193,13 +220,20 @@ export function AppBar({
           </View>
         ) : undefined
       }
-      leftMenu={titleMenu}
+      // 왼쪽 메뉴는 연 셀렉터 기준 좌정렬 — 로그인 전 로고가 앞에 있으면 그만큼 민다
+      leftMenu={guestLogo && titleMenu ? <View style={{marginLeft: GUEST_LOGO_WIDTH + 8}}>{titleMenu}</View> : titleMenu}
       rightMenu={rightMenu}
     />
   );
 }
 
 const styles = StyleSheet.create({
+  // 로고 — 알약(44) 높이에 맞춰 가운데
+  guestLogo: {
+    height: 44,
+    justifyContent: 'center',
+    paddingHorizontal: 4,
+  },
   rightRow: {
     flexDirection: 'row',
     alignItems: 'center',

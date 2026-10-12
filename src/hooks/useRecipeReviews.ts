@@ -62,10 +62,17 @@ function useRecipeReviewsState() {
     getDoc(doc(db, 'users', uid))
       .then(snap => {
         if (!alive) return;
-        const remote = snap.data()?.recipeReviews;
-        if (!isReviewMap(remote)) return;
-        setReviews(remote);
-        AsyncStorage.setItem(CACHE_KEY, JSON.stringify(remote)).catch(() => {});
+        const remote = isReviewMap(snap.data()?.recipeReviews) ? snap.data()!.recipeReviews : {};
+        // 로그인 전에 쓴 회고는 버리지 않는다 — 계정 값과 합치고(계정 우선), 기기에만 있던 건 계정에 올린다.
+        // (예전엔 계정 값으로 통째로 덮어 로그인 전 회고가 사라졌다)
+        setReviews(prev => {
+          const next = {...prev, ...remote};
+          AsyncStorage.setItem(CACHE_KEY, JSON.stringify(next)).catch(() => {});
+          if (Object.keys(prev).some(k => !(k in remote))) {
+            setDoc(doc(db, 'users', uid), {recipeReviews: next}, {mergeFields: ['recipeReviews']}).catch(() => {});
+          }
+          return next;
+        });
       })
       // 조회 실패 시 캐시를 지우지 않는다 — 빈 상태로 덮으면 회고가 사라져 보인다
       .catch(e => console.warn('[useRecipeReviews] 계정 회고 불러오기 실패:', e));

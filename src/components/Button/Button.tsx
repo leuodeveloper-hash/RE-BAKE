@@ -1,3 +1,4 @@
+import {NAV_PILL_HEIGHT} from '@constants/layout';
 import React, {useState} from 'react';
 import {Animated,ActivityIndicator, Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {SvgProps} from 'react-native-svg';
@@ -38,7 +39,9 @@ export interface ButtonProps {
 
 const SIZE_CONFIG = {
   small: {height: 32, paddingHorizontal: Spacing.smd, gap: 4, borderRadius: Radius['radius-full']},
-  medium: {height: 48, paddingHorizontal: 20, gap: 6, borderRadius: Radius['radius-full']},
+  // 중간 = 앱바 알약 높이(44). 앱바 셀렉터·버튼과 나란히 놓아도 높이가 맞는다.
+  // 크기 단계는 32 · 44 · 56(12씩)
+  medium: {height: NAV_PILL_HEIGHT, paddingHorizontal: 18, gap: 6, borderRadius: Radius['radius-full']},
   // 랜딩처럼 화면의 주인공 버튼 — medium보다 한 단계 크게
   large: {height: 56, paddingHorizontal: 28, gap: 8, borderRadius: Radius['radius-full']},
 } as const;
