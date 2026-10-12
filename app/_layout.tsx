@@ -269,6 +269,8 @@ function NavigationContent() {
   const [migrating, setMigrating] = useState(false);
   // 강제 업데이트 — 권장(스낵바)은 아래 checkForUpdate에서 처리한다
   const [forcedUpdate, setForcedUpdate] = useState<(() => void) | null>(null);
+  // 권장 업데이트 — 접속했을 때 팝업으로(버전마다 한 번, [나중에] 누르면 그 버전은 다시 안 묻는다)
+  const [optionalUpdate, setOptionalUpdate] = useState<{version: string; onUpdate: () => void} | null>(null);
 
   // 설치 후 최초 1회는 둘러보기로 시작한다.
   // 내 레시피가 하나도 없는 첫 화면은 보여줄 게 없어, 무엇을 하는 앱인지 알기 어렵다.
@@ -337,7 +339,7 @@ function NavigationContent() {
     syncTodayRecipeToWidget(exploreRecipesAll).catch(() => {/* 무시 */});
   }, [exploreRecipesAll]);
 
-  // 앱/웹 접속 시 새 버전 체크 → 있으면 스낵바로 알림(버튼: 웹=새로고침, 앱=스토어).
+  // 앱/웹 접속 시 새 버전 체크 → 있으면 팝업(버튼: 웹=새로고침, 앱=스토어).
   // 켤 때와 다시 앞으로 돌아올 때 확인한다(오래 켜 둔 웹 탭·백그라운드 앱도 잡히게).
   // 같은 버전 안내는 한 번만.
   const notifiedVersionRef = useRef<string | null>(null);
@@ -351,10 +353,10 @@ function NavigationContent() {
       }
       if (notifiedVersionRef.current === res.latestVersion) return;
       notifiedVersionRef.current = res.latestVersion;
-      showSnackbar(t('layout.updateAvailable'), {
-        label: t('layout.updateAction'),
-        onPress: res.onUpdate,
-      });
+      AsyncStorage.getItem('@bakle_update_later').then(later => {
+        if (later === res.latestVersion) return;
+        setOptionalUpdate({version: res.latestVersion, onUpdate: res.onUpdate});
+      }).catch(() => setOptionalUpdate({version: res.latestVersion, onUpdate: res.onUpdate}));
     });
     run();
     const sub = AppState.addEventListener('change', state => {
@@ -626,6 +628,14 @@ function NavigationContent() {
 
       {/* 강제 업데이트 — 닫을 수 없다. 스토어로만 나갈 수 있다 */}
       <UpdateDialog visible={!!forcedUpdate} onUpdate={() => forcedUpdate?.()} />
+      <UpdateDialog
+        visible={!forcedUpdate && !!optionalUpdate}
+        onUpdate={() => { optionalUpdate?.onUpdate(); setOptionalUpdate(null); }}
+        onLater={() => {
+          if (optionalUpdate) AsyncStorage.setItem('@bakle_update_later', optionalUpdate.version).catch(() => {});
+          setOptionalUpdate(null);
+        }}
+      />
 
       {/* 레시피 북 추가/편집 다이얼로그 */}
       <CookbookDialog

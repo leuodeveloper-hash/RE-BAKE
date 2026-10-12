@@ -6,6 +6,7 @@ import {IconBookFilled} from '@components/Icon/IconIndex';
 import {getColorVarKey} from '@components/ColorPicker';
 import {IconExprolerBookFilled} from '@components/Icon/IconIndex';
 import {BREADCRUMB_ITEM_OFFSET} from '@components/Navigation/Breadcrumb';
+import {cookbookMenuItem} from '@utils/cookbookMenuItem';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Linking, StyleSheet, Text} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -254,18 +255,22 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
     // 공식 북은 내 콘텐츠든 아니든 공식 아이콘·공식 색
     const official = isAuthorMode || officialBookNames.has(n);
     const color = official ? (exploreCookbooks?.find(c => c.name === n)?.color as AvatarColor | undefined) ?? bookColors[n] : bookColors[n];
-    return {
-      id: n, label: n, icon: official ? IconExprolerBookFilled : IconBookFilled,
-      iconColor: colors[getColorVarKey(cookbookColorOf(color, official))] as string,
-    };
+    return cookbookMenuItem(n, {colors, color, official});
   }, [colors, bookColors, isAuthorMode, officialBookNames, exploreCookbooks]);
+
+  // '레시피북 없음'은 메뉴 맨 끝으로
+  const noBookLast = useCallback((names: Iterable<string>) => {
+    const none = t('home.noCookbook');
+    const list = [...names];
+    return [...list.filter(n => n !== none), ...list.filter(n => n === none)];
+  }, [t]);
 
   const crumbItemMenuItems = useMemo(() => {
     if (crumbAxis === 'cookbook' || crumbAxis === 'all') {
       const names = new Set<string>();
       for (const r of recipes) names.add(r.cookbook || t('home.noCookbook'));
       availableCookbooks.forEach(n => names.add(n));
-      const items = [{id: ALL_ID, label: t('home.all')}, ...[...names].map(bookItem)];
+      const items = [{id: ALL_ID, label: t('home.all')}, ...noBookLast(names).map(bookItem)];
       // '레시피' 축에선 북을 여기서 고르므로 새 북 만들기도 여기 둔다
       return crumbAxis === 'all'
         ? [...items, {id: ADD_COOKBOOK_ID, label: t('cookbookSelect.addCookbook'), icon: IconAdd}]
@@ -277,7 +282,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
       return [{id: ALL_ID, label: t('home.all')}, ...[...names].map(n => ({id: n, label: n}))];
     }
     return [];
-  }, [crumbAxis, recipes, availableCookbooks, t, bookItem]);
+  }, [crumbAxis, recipes, availableCookbooks, t, bookItem, noBookLast]);
 
   /**
    * 축 메뉴에 붙는 레시피북 목록.
@@ -291,8 +296,8 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
     const names = new Set<string>();
     for (const r of recipes) names.add(r.cookbook || t('home.noCookbook'));
     availableCookbooks.forEach(n => names.add(n));
-    return [{id: ALL_ID, label: t('home.all')}, ...[...names].map(bookItem)];
-  }, [recipes, availableCookbooks, t, bookItem]);
+    return [{id: ALL_ID, label: t('home.all')}, ...noBookLast(names).map(bookItem)];
+  }, [recipes, availableCookbooks, t, bookItem, noBookLast]);
 
   const handleCookbookFilterSelect = useCallback((id: string) => {
     setCrumbMenu(null);

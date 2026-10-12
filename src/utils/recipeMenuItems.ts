@@ -17,7 +17,7 @@ import {
 } from '@components/Icon/IconIndex';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import type {SemanticColors} from '@constants/tokens';
-import {getCookbookColorKey} from '@components/ColorPicker';
+import {cookbookMenuItem} from './cookbookMenuItem';
 
 type TFunction = (key: string, params?: Record<string, unknown>) => string;
 
@@ -99,13 +99,7 @@ export function getCookbookSubmenuItems(options: CookbookSubmenuOptions): {
     {id: 'cookbook:__none__', label: t('recipeMenuItems.noRecipeBook'), icon: IconBookFilled},
   ];
   for (const name of availableCookbooks) {
-    const avatarColor = cookbookColors[name];
-    items.push({
-      id: `cookbook:${name}`,
-      label: name,
-      icon: IconBookFilled,
-      iconColor: avatarColor ? colors[getCookbookColorKey(avatarColor)] : undefined,
-    });
+    items.push(cookbookMenuItem(name, {colors, color: cookbookColors[name], id: `cookbook:${name}`}));
   }
   const selectedId = currentCookbook
     ? `cookbook:${currentCookbook}`

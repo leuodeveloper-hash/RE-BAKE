@@ -534,11 +534,12 @@ export function RecipeCard({
   const hasImage = !!imageUrl;
   // 메타 줄 세그먼트: 각 항목이 자기 링크로 이동(핸들→작성자, 레시피북→북, 공법→공법).
   // 색은 전부 동일(muted). 링크 여부와 무관하게 톤 통일.
-  const metaSegments: {key: string; text: string; onPress?: () => void}[] = [];
+  const metaSegments: {key: string; text: string; onPress?: () => void; icon?: boolean}[] = [];
   // 팁은 맨 앞에 — 같은 레시피북 안에서도, 어느 보기(2열 포함)에서도 구분되게
   if (isTip) metaSegments.push({key: 'kind', text: t('recipeEdit.kindTip')});
   if (authorHandle) metaSegments.push({key: 'author', text: `@${authorHandle}`, onPress: onAuthorPress});
-  if (cookbook) metaSegments.push({key: 'cookbook', text: cookbook, onPress: onCookbookPress});
+  // 공개(공식) 레시피면 레시피북 이름 앞에 작은 공식 레시피북 아이콘
+  if (cookbook) metaSegments.push({key: 'cookbook', text: cookbook, onPress: onCookbookPress, icon: !!published});
   if (method) metaSegments.push({key: 'method', text: method, onPress: onMethodPress});
   if (specificGravity) metaSegments.push({key: 'sg', text: t('recipeCard.specificGravity', {value: specificGravity})});
   const hasMeta = metaSegments.length > 0;
@@ -562,9 +563,15 @@ export function RecipeCard({
         {seg.onPress ? (
           // flexShrink: 폭이 모자라면 이 조각이 줄어들며 말줄임(…)이 나온다.
           // Pressable에 주지 않으면 자식 Text가 폭을 몰라 잘리지 않고 넘친다.
-          <Pressable onPress={seg.onPress} hitSlop={2} style={segStyle}>
-            <Text style={textStyle} {...lineProps}>{seg.text}</Text>
+          <Pressable onPress={seg.onPress} hitSlop={2} style={[segStyle, seg.icon && styles.metaIconRow]}>
+            {seg.icon ? <IconExprolerBookFilled width={12} height={12} color={StyleSheet.flatten(textStyle)?.color ?? colors['foreground/on-surface-muted']} /> : null}
+            <Text style={seg.icon ? [textStyle, {flexShrink: 1}] : textStyle} {...lineProps}>{seg.text}</Text>
           </Pressable>
+        ) : seg.icon ? (
+          <View style={[segStyle, styles.metaIconRow]}>
+            <IconExprolerBookFilled width={12} height={12} color={StyleSheet.flatten(textStyle)?.color ?? colors['foreground/on-surface-muted']} />
+            <Text style={[textStyle, {flexShrink: 1}]} {...lineProps}>{seg.text}</Text>
+          </View>
         ) : (
           <Text style={[textStyle, segStyle]} {...lineProps}>{seg.text}</Text>
         )}
@@ -659,9 +666,6 @@ export function RecipeCard({
                 <Text style={isSmall ? styles.listTitleSmall : styles.listTitle} numberOfLines={1}>
                   {title}
                 </Text>
-                {published && (
-                  <IconExprolerBookFilled width={14} height={14} color={colors['foreground/on-surface-muted']} />
-                )}
                 {hidden && (
                   <IconEyeClosed width={14} height={14} color={colors['foreground/on-surface-muted']} />
                 )}
@@ -782,9 +786,6 @@ export function RecipeCard({
               <IconLockFilled width={16} height={16} color="rgba(255,255,255,0.9)" />
             )}
             <Text style={styles.photoListTitle} numberOfLines={1}>{title}</Text>
-            {published && (
-              <IconExprolerBookFilled width={14} height={14} color="rgba(255,255,255,0.9)" />
-            )}
             {hidden && (
               <IconEyeClosed width={14} height={14} color="rgba(255,255,255,0.9)" />
             )}
@@ -831,9 +832,6 @@ export function RecipeCard({
                 <IconLockFilled width={16} height={16} color={colors['foreground/on-surface-muted']} />
               )}
               <Text style={styles.gridTitle} numberOfLines={1}>{title}</Text>
-              {published && (
-                <IconExprolerBookFilled width={14} height={14} color={colors['foreground/on-surface-muted']} />
-              )}
               {hidden && (
                 <IconEyeClosed width={14} height={14} color={colors['foreground/on-surface-muted']} />
               )}
@@ -866,6 +864,8 @@ export function RecipeCard({
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  // 메타 조각 앞 아이콘(공식 레시피북) — 글자와 2 간격
+  metaIconRow: {flexDirection: 'row', alignItems: 'center', gap: 2},
   // Grid 레이아웃 (새 디자인: 썸네일 + 하단 콘텐츠)
   gridCard: {
     width: '100%',

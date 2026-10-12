@@ -2,6 +2,7 @@ import {cookbookColorOf} from '@contexts/RecipeContext';
 import {IconBookFilled} from '@components/Icon/IconIndex';
 import {getColorVarKey} from '@components/ColorPicker';
 import {BREADCRUMB_ITEM_OFFSET} from '@components/Navigation/Breadcrumb';
+import {cookbookMenuItem} from '@utils/cookbookMenuItem';
 import React, {useCallback, useMemo, useState} from 'react';
 import {useRouter} from 'expo-router';
 import {AppBar} from '@components/Navigation';
@@ -272,16 +273,19 @@ export function ExploreScreen({
     method: selectedMethod,
   }, drillFrom);
   // 메뉴의 레시피북 항목 — 북 아이콘(공식 북은 공식 레시피북 아이콘) + 그 북의 var 색('전체'·추가는 제외)
-  const bookItem = useCallback((n: string) => ({
-    id: n, label: n, icon: IconExprolerBookFilled,
-    iconColor: colors[getColorVarKey(cookbookColorOf(exploreCookbookColors[n], true))] as string,
-  }), [colors, exploreCookbookColors]);
+  const bookItem = useCallback((n: string) => cookbookMenuItem(n, {colors, color: exploreCookbookColors[n], official: true}), [colors, exploreCookbookColors]);
+  const officialIds = useMemo(() => new Set(data.map(r => r.id)), [data]);
+  // '공식 레시피 북 없음'은 메뉴 맨 끝으로
+  const noBookLast = (names: Iterable<string>) => {
+    const list = [...names];
+    return [...list.filter(n => n !== '공식 레시피 북 없음'), ...list.filter(n => n === '공식 레시피 북 없음')];
+  };
   /** 축 메뉴에서 '레시피별' 아래 펼칠 공식 레시피북 목록 (홈과 같은 구조) */
   const cookbookFilterItems = useMemo(() => {
     const names = new Set<string>();
     for (const r of data) names.add(r.cookbook || '공식 레시피 북 없음');
     exploreCookbooks?.forEach(c => names.add(c.name));
-    return [{id: CRUMB_ALL, label: t('explore.all')}, ...[...names].map(bookItem)];
+    return [{id: CRUMB_ALL, label: t('explore.all')}, ...noBookLast(names).map(bookItem)];
   }, [data, exploreCookbooks, t, bookItem]);
 
 
@@ -297,7 +301,7 @@ export function ExploreScreen({
       const names = new Set<string>();
       for (const r of data) names.add(r.cookbook || '공식 레시피 북 없음');
       exploreCookbooks?.forEach(c => names.add(c.name));
-      return [{id: CRUMB_ALL, label: t('explore.all')}, ...[...names].map(bookItem)];
+      return [{id: CRUMB_ALL, label: t('explore.all')}, ...noBookLast(names).map(bookItem)];
     }
     if (crumbAxis === 'method') {
       const names = new Set<string>();
@@ -366,6 +370,8 @@ export function ExploreScreen({
   return (
     <>
     <RecipeListTemplate
+      // 둘러보기 레시피는 모두 공식 — 카드의 레시피북 이름 앞에 공식 아이콘
+      publishedIds={officialIds}
       packHero={guestHero}
       // 로그인 전 첫 화면은 항상 팩뷰 랜딩 — 저장된 보기(기본 그리드)를 따르면 랜딩 카드가 안 보였다
       forceLayout={guestHero ? 'pack' : undefined}

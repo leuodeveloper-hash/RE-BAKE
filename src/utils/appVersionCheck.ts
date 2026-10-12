@@ -5,6 +5,14 @@ import {db} from '../config/firebase';
 
 /** 현재 실행 중인 앱/웹 버전 (app.json version) */
 export const CURRENT_VERSION = Constants.expoConfig?.version ?? '0.0.0';
+/**
+ * 웹 배포 번호 — 웹은 배포할 때마다 바뀌어야 새 버전을 알아챈다.
+ * app.json 버전은 스토어 출시 때만 올라가서, 그것만 비교하면 웹 배포를 해도 팝업이 안 떴다.
+ * deploy:web이 export 때 넣고 같은 값을 dist/version.json에도 적는다.
+ */
+const WEB_BUILD = process.env.EXPO_PUBLIC_WEB_BUILD ?? '0';
+/** 비교에 쓰는 현재 버전 — 웹은 배포 번호까지(1.0.21.<배포번호>) */
+const CURRENT_COMPARE = Platform.OS === 'web' ? `${CURRENT_VERSION}.${WEB_BUILD}` : CURRENT_VERSION;
 
 /**
  * Firestore `config/app` 문서의 최신 버전 정보.
@@ -44,8 +52,9 @@ async function fetchAutoLatest(): Promise<{version: string; storeUrl?: string} |
     if (Platform.OS === 'web') {
       const res = await fetch(`/version.json?t=${Date.now()}`, {cache: 'no-store'});
       if (!res.ok) return null;
-      const v = (await res.json())?.version;
-      return typeof v === 'string' ? {version: v} : null;
+      const json = await res.json();
+      const v = json?.version;
+      return typeof v === 'string' ? {version: `${v}.${json?.build ?? 0}`} : null;
     }
     if (Platform.OS === 'ios') {
       const res = await fetch(`https://itunes.apple.com/lookup?bundleId=${IOS_BUNDLE_ID}&country=kr&t=${Date.now()}`);
@@ -87,7 +96,7 @@ export async function checkForUpdate(): Promise<{
   const latest = candidates.sort((a, b) => compareVersions(b, a))[0];
   // 강제는 minVersion 기준 — latestVersion이 없어도 강제는 걸릴 수 있다
   const required = !!cfg.minVersion && compareVersions(cfg.minVersion, CURRENT_VERSION) > 0;
-  const hasNewer = !!latest && compareVersions(latest, CURRENT_VERSION) > 0;
+  const hasNewer = !!latest && compareVersions(latest, CURRENT_COMPARE) > 0;
   if (!required && !hasNewer) return null;
 
   const onUpdate = () => {

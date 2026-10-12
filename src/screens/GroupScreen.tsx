@@ -1,5 +1,6 @@
 import {shortDate} from '@utils/dateLabel';
 import {getColorVarKey} from '@components/ColorPicker';
+import {cookbookMenuItem} from '@utils/cookbookMenuItem';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {Dimensions, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
@@ -716,7 +717,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
             {/* 2뎁스: 북·공법을 골라 그 항목으로 들어간다 */}
             <Menu
               items={axis === 'cookbook'
-                ? cookbooks.map(c => ({id: c.name, label: c.name}))
+                ? cookbooks.map(c => cookbookMenuItem(c.name, {colors, color: bookColorOf(c.name), official: isOfficialBook(c.name)}))
                 : axis === 'method'
                   ? methodGroups.map(g => ({id: g.method, label: g.method}))
                   : []}
