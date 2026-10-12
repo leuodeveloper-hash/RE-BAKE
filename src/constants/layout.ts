@@ -20,3 +20,6 @@ export const APPBAR_AREA_BOTTOM = APPBAR_CONTENT_BOTTOM + APPBAR_TOP_PADDING;
 export const APPBAR_CONTENT_GAP = Spacing.sm;
 /** 첫 요소가 시작하는 위치(안전영역 제외) — 앱바 공간 64 + 8 = 72 */
 export const APPBAR_CONTENT_TOP = APPBAR_AREA_BOTTOM + APPBAR_CONTENT_GAP;
+
+/** 앱바 안 떠 있는 요소(알약·버튼·로고) 사이 간격 */
+export const APPBAR_ITEM_GAP = 4;

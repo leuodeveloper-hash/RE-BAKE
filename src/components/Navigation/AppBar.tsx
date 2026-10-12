@@ -11,6 +11,7 @@ import {
   IconLogoSymbol,
 } from '@components/Icon/IconIndex';
 import {useRouter} from 'expo-router';
+import {APPBAR_ITEM_GAP} from '@constants/layout';
 import {useAuth} from '@contexts/AuthContext';
 import {useColors} from '@contexts/ThemeContext';
 import {triggerHaptic} from '@utils/haptics';
@@ -221,7 +222,7 @@ export function AppBar({
         ) : undefined
       }
       // 왼쪽 메뉴는 연 셀렉터 기준 좌정렬 — 로그인 전 로고가 앞에 있으면 그만큼 민다
-      leftMenu={guestLogo && titleMenu ? <View style={{marginLeft: GUEST_LOGO_WIDTH + 8}}>{titleMenu}</View> : titleMenu}
+      leftMenu={guestLogo && titleMenu ? <View style={{marginLeft: GUEST_LOGO_WIDTH + APPBAR_ITEM_GAP}}>{titleMenu}</View> : titleMenu}
       rightMenu={rightMenu}
     />
   );
@@ -237,12 +238,12 @@ const styles = StyleSheet.create({
   rightRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: APPBAR_ITEM_GAP,
   },
   leftRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: APPBAR_ITEM_GAP,
   },
   // 셀렉터 옆 탭 — 남는 폭만 쓰고 넘치면 그 안에서 가로 스크롤.
   // 셀렉터(44)와 탭(40) 높이가 달라 가운데로 맞춘다.

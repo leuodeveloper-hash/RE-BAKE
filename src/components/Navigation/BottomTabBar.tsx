@@ -168,7 +168,7 @@ export function BottomTabBar({
         borderRadius={showMenu ? 'xl' : 'full'}
         intensity={80}
         style={Platform.OS === 'web' ? styles.webTransition : undefined}
-        contentStyle={showMenu ? styles.expandedContainer : styles.container}>
+        contentStyle={showMenu ? styles.expandedContainer : [styles.container, {width: tabBarWidth(tabs.length)}]}>
         {showMenu ? (
           <Animated.View style={{opacity: menuOpacity}}>
             <SheetHeader title={t('bottomTabBar.addTitle')} headerType="center" onClose={onClose} />
@@ -269,13 +269,14 @@ export function BottomTabBar({
   );
 }
 
-// 공통 너비
-const BOTTOM_MENU_WIDTH = 328;
+// 탭 한 칸 폭 — 탭바 너비 = 칸 수 × 이 폭 + 좌우 여백(탭이 줄면 바도 줄어든다).
+// 예전엔 5칸 기준 328로 고정이라 4칸이면 칸만 넓어졌다
+const TAB_SEGMENT_WIDTH = 72;
+const tabBarWidth = (count: number) => count * TAB_SEGMENT_WIDTH + Spacing.xs * 2;
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 탭바 컨테이너 (축소 상태)
   container: {
-    width: BOTTOM_MENU_WIDTH,
     paddingVertical: Spacing.xs,
     paddingHorizontal: Spacing.xs,
     // 배경은 GlassContainer의 glass fill 토큰(fill/glass-normal, 테마대응)이 담당

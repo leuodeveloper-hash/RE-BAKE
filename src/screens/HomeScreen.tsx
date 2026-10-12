@@ -255,7 +255,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
     // 공식 북은 내 콘텐츠든 아니든 공식 아이콘·공식 색
     const official = isAuthorMode || officialBookNames.has(n);
     const color = official ? (exploreCookbooks?.find(c => c.name === n)?.color as AvatarColor | undefined) ?? bookColors[n] : bookColors[n];
-    return cookbookMenuItem(n, {colors, color, official});
+    return cookbookMenuItem(n, {colors, color, official, hidden: official && !!exploreCookbooks?.find(c => c.name === n)?.hidden});
   }, [colors, bookColors, isAuthorMode, officialBookNames, exploreCookbooks]);
 
   // '레시피북 없음'은 메뉴 맨 끝으로
@@ -628,6 +628,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
     return (
       <>
       <GroupScreen
+        onSettingsPress={isAuthorMode ? undefined : () => router.push(SETTINGS_ROUTE as any)}
         // 공식 북 판정·색 — 내 홈에 섞인 공식 북도 공식 아이콘으로
         exploreCookbooks={exploreCookbooks}
         recipes={recipes}

@@ -11,13 +11,15 @@ import type {SemanticColors} from '@constants/tokens';
  */
 export function cookbookMenuItem(
   name: string,
-  opts: {colors: SemanticColors; color?: AvatarColor; official?: boolean; id?: string},
+  opts: {colors: SemanticColors; color?: AvatarColor; official?: boolean; id?: string; hidden?: boolean},
 ) {
-  const {colors, color, official = false, id = name} = opts;
+  const {colors, color, official = false, id = name, hidden} = opts;
   return {
     id,
     label: name,
     icon: official ? IconExprolerBookFilled : IconBookFilled,
     iconColor: colors[getColorVarKey(cookbookColorOf(color, official))] as string,
+    // 비공개 북은 이름 뒤 눈 감은 표시(카드·목록과 같은 기준)
+    hiddenMark: !!hidden,
   };
 }

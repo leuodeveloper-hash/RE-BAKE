@@ -51,6 +51,8 @@ export type {GroupAxis};
 // 레시피 없는 빈 레시피 북 표지 썸넬용 (no-recipe 일러스트)
 
 export interface GroupScreenProps {
+  /** 앱바 설정(톱니) — 홈(내 화면)에서만. 보기 축을 바꿔도 톱니가 사라지지 않게 */
+  onSettingsPress?: () => void;
   recipes: Recipe[];
   cookbookColors: Record<string, AvatarColor>;
   /** 현재 그룹화 축 (홈이 소유, 'all'이면 홈이 평면 리스트를 그리므로 여기엔 cookbook/method/retrospective만 전달됨) */
@@ -112,7 +114,7 @@ export interface GroupScreenProps {
 const VIEW_MODE_STORAGE_KEY = '@bakle_group_view_mode';
 type ViewMode = 'list' | 'pack';
 
-export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors, axis, onAxisChange, onComingSoon, onDeleteCookbook, onCookbookPress, onMethodPress, onMethodGuidePress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress, availableAxes = DEFAULT_AXES, axisOverrides, showAddButton = true, bookCarousel = false, addAsOfficial = false, cookbooksAreOfficial = false, onDownloadPdf, onAddRecipeToCookbook, authorBadge, menuHeaderNode, onBack}: GroupScreenProps) {
+export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors, axis, onAxisChange, onComingSoon, onDeleteCookbook, onCookbookPress, onMethodPress, onMethodGuidePress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress, availableAxes = DEFAULT_AXES, axisOverrides, showAddButton = true, bookCarousel = false, addAsOfficial = false, cookbooksAreOfficial = false, onDownloadPdf, onAddRecipeToCookbook, authorBadge, menuHeaderNode, onBack, onSettingsPress}: GroupScreenProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const {reviewsOf, reviewOf, saveReview} = useRecipeReviews();
@@ -354,7 +356,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         variant: 'book' as const,
         authors: deriveBookAuthors(cb.items),
         emptyCover: cb.items.length === 0, // 빈 북 → 일러스트 투명 렌더
-        hidden: cookbooksAreOfficial ? exploreCookbookHiddenMap.get(cb.name) : undefined,
+        // 비공개 공식 북이면 눈 감은 표시 — 둘러보기든 내 홈이든
+        hidden: isOfficialBook(cb.name) ? exploreCookbookHiddenMap.get(cb.name) : undefined,
         onPress: (rect: PackOriginRect) => { setExpandedOrigin(rect); setExpandedMethod(cb.name); },
       };
     });
@@ -663,6 +666,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
   return (
     <View style={styles.container}>
       <AppBar
+        onSettingsPress={onSettingsPress}
         leftIcon={onBack ? IconClose : undefined}
         onLeftPress={onBack}
         titleNode={
@@ -717,7 +721,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
             {/* 2뎁스: 북·공법을 골라 그 항목으로 들어간다 */}
             <Menu
               items={axis === 'cookbook'
-                ? cookbooks.map(c => cookbookMenuItem(c.name, {colors, color: bookColorOf(c.name), official: isOfficialBook(c.name)}))
+                ? cookbooks.map(c => cookbookMenuItem(c.name, {colors, color: bookColorOf(c.name), official: isOfficialBook(c.name), hidden: isOfficialBook(c.name) && !!exploreCookbookHiddenMap.get(c.name)}))
                 : axis === 'method'
                   ? methodGroups.map(g => ({id: g.method, label: g.method}))
                   : []}
@@ -832,7 +836,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                                   placeholderIcon={isOfficialBook(cookbook.name) ? IconExprolerBookFilled : axisOverrides?.cookbook?.icon ?? IconBookFilled}
                                   placeholderIconColor={isUngrouped ? colors['foreground/on-surface-muted'] : colors[getColorVarKey(bookColorOf(cookbook.name))]}
                                   onPress={() => onCookbookPress?.(cookbook.name)}
-                                  hidden={cookbooksAreOfficial ? exploreCookbookHiddenMap.get(cookbook.name) : undefined}
+                                  hidden={isOfficialBook(cookbook.name) ? exploreCookbookHiddenMap.get(cookbook.name) : undefined}
                                   // 공식 북(둘러보기)은 어드민만 편집·삭제. 개인 북(홈)은 소유자 항상 가능
                                   onMenuPress={isUngrouped || (cookbooksAreOfficial && !isAdmin) ? undefined : (pos) => handleCookbookMenuPress(cookbook.name, pos)}
                                   hideDivider={isLast}

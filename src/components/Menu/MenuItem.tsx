@@ -1,3 +1,4 @@
+import {IconEyeClosed} from '@components/Icon/IconIndex';
 import React from 'react';
 import {Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {Radius} from '@constants/tokens';
@@ -24,6 +25,8 @@ export interface MenuItemProps {
   hasChildren?: boolean;
   /** 우측 텍스트 (예: 재료 양) */
   trailingText?: string;
+  /** 비공개 표시 — 이름 뒤 눈 감은 아이콘(카드·레시피북 목록과 같은 표시) */
+  hiddenMark?: boolean;
   /** 삭제 등 위험한 액션 (빨간색으로 표시) */
   destructive?: boolean;
   /** 비활성 상태 */
@@ -42,6 +45,7 @@ export function MenuItem({
   checked,
   hasChildren,
   trailingText,
+  hiddenMark,
   destructive,
   disabled,
   showDivider,
@@ -81,6 +85,7 @@ export function MenuItem({
         ]}>
           {label}
         </Text>
+        {hiddenMark ? <IconEyeClosed width={16} height={16} color={colors['foreground/on-surface-muted']} /> : null}
         {trailingText !== undefined && (
           <Text style={styles.trailingText}>{trailingText}</Text>
         )}

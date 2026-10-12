@@ -37,12 +37,27 @@ export function RecipeHtmlPreview({data, html: htmlProp, width, height, scrollEn
     const html = htmlProp ?? (data ? generateRecipeHtml(data) : '');
     if (!html) return '';
     // 크게 보는 미리보기(스크롤)는 종이 한 장처럼 — 흰 종이, 둘레 여백. 작게 줄이면 글이 종이 끝에 붙어 잘려 보였다
+    // 종이 비율(A4)은 '최소' 높이 — min-height:0이면 높이가 A4로 고정돼, 긴 레시피 글이 종이 밖으로
+    // 흘러나와 다음 장 글자 위에 겹쳤다. min-height:auto면 내용만큼 늘어난다.
     const paper = scrollEnabled
-      ? 'body { background: #e9eaec !important; padding: 16px !important; } .recipe-page { background: #fff !important; padding: 28px 24px !important; margin: 0 auto 16px !important; border-radius: 8px; min-height: 0 !important; aspect-ratio: auto 210 / 297; }'
+      ? 'body { background: #e9eaec !important; padding: 16px !important; } .recipe-page { background: #fff !important; padding: 28px 24px !important; margin: 0 auto 16px !important; border-radius: 8px; min-height: auto !important; aspect-ratio: auto 210 / 297; }'
       : '';
+    // 아이폰(WKWebView)은 CSS zoom을 걸면 글자 줄 높이 계산이 틀어지고, 작은 글씨를 시스템이
+    // 멋대로 키워(text autosizing) 줄이 서로 겹쳐 보였다.
+    // 네이티브는 zoom 대신 "600px 폭 문서를 화면 폭에 맞춰 축소"하는 뷰포트로 줄이고, 글자 자동 확대를 끈다.
+    // 웹(iframe)은 크롬에서 zoom이 정상이라 그대로 둔다.
+    const noAutosize = 'html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }';
+    if (Platform.OS !== 'web') {
+      return html
+        .replace(
+          /<meta name="viewport"[^>]*>/,
+          `<meta name="viewport" content="width=${HTML_SOURCE_WIDTH}, initial-scale=${scale}, maximum-scale=${scale}, user-scalable=no"/>`,
+        )
+        .replace('</style>', `${noAutosize} ${paper}</style>`);
+    }
     return html.replace(
       '</style>',
-      `body { zoom: ${scale}; } ${paper}</style>`,
+      `${noAutosize} body { zoom: ${scale}; } ${paper}</style>`,
     );
   }, [data, htmlProp, width, scrollEnabled]);
 

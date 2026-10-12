@@ -25,6 +25,8 @@ export interface MenuItemData {
   hasChildren?: boolean;
   /** 우측 텍스트 (예: 재료 양) */
   trailingText?: string;
+  /** 비공개 표시 — 이름 뒤 눈 감은 아이콘 */
+  hiddenMark?: boolean;
   destructive?: boolean;
   disabled?: boolean;
   /** 하단 구분선 */
@@ -215,6 +217,7 @@ export function Menu({
                     checked={item.checked}
                     hasChildren={item.hasChildren}
                     trailingText={item.trailingText}
+                    hiddenMark={item.hiddenMark}
                     destructive={item.destructive}
                     disabled={item.disabled}
                     showDivider={item.showDivider}
@@ -237,6 +240,7 @@ export function Menu({
                   checked={item.checked}
                   hasChildren={item.hasChildren}
                   trailingText={item.trailingText}
+                  hiddenMark={item.hiddenMark}
                   destructive={item.destructive}
                   disabled={item.disabled}
                   showDivider={item.showDivider}

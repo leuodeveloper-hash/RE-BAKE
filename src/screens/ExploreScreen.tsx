@@ -273,7 +273,7 @@ export function ExploreScreen({
     method: selectedMethod,
   }, drillFrom);
   // 메뉴의 레시피북 항목 — 북 아이콘(공식 북은 공식 레시피북 아이콘) + 그 북의 var 색('전체'·추가는 제외)
-  const bookItem = useCallback((n: string) => cookbookMenuItem(n, {colors, color: exploreCookbookColors[n], official: true}), [colors, exploreCookbookColors]);
+  const bookItem = useCallback((n: string) => cookbookMenuItem(n, {colors, color: exploreCookbookColors[n], official: true, hidden: !!exploreCookbooks?.find(c => c.name === n)?.hidden}), [colors, exploreCookbookColors, exploreCookbooks]);
   const officialIds = useMemo(() => new Set(data.map(r => r.id)), [data]);
   // '공식 레시피 북 없음'은 메뉴 맨 끝으로
   const noBookLast = (names: Iterable<string>) => {

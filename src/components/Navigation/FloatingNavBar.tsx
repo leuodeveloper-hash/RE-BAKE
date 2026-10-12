@@ -57,7 +57,7 @@ function colorRgb(color: string): [number, number, number] {
 
 /** NavBar pill 높이 */
 export {NAV_PILL_HEIGHT, APPBAR_TOP_PADDING, APPBAR_CONTENT_BOTTOM, APPBAR_CONTENT_GAP, APPBAR_CONTENT_TOP, APPBAR_AREA_BOTTOM} from '@constants/layout';
-import {NAV_PILL_HEIGHT, APPBAR_CONTENT_BOTTOM, APPBAR_CONTENT_GAP, APPBAR_AREA_BOTTOM} from '@constants/layout';
+import {NAV_PILL_HEIGHT, APPBAR_CONTENT_BOTTOM, APPBAR_CONTENT_GAP, APPBAR_AREA_BOTTOM, APPBAR_ITEM_GAP} from '@constants/layout';
 
 /** 공통 pill 스타일 — GlassContainer contentStyle에 사용 */
 export const navPillStyle: ViewStyle = {
@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   right: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: APPBAR_ITEM_GAP,
   },
   leftFull: {
     flex: 1,

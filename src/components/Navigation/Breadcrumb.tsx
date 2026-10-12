@@ -1,4 +1,4 @@
-import {NAV_PILL_HEIGHT} from '@constants/layout';
+import {NAV_PILL_HEIGHT, APPBAR_ITEM_GAP} from '@constants/layout';
 import React from 'react';
 import {StyleSheet, View} from 'react-native';
 import {SvgProps} from 'react-native-svg';
@@ -9,10 +9,10 @@ import {useColors} from '@contexts/ThemeContext';
 import {NavPillButton} from '@components/Navigation';
 
 /**
- * 항목 셀렉터(2뎁스 알약)가 시작하는 x — 앞의 축 버튼(44) + 간격(8).
+ * 항목 셀렉터(2뎁스 알약)가 시작하는 x — 앞의 축 버튼(44) + 앱바 요소 간격.
  * 항목 메뉴는 이만큼 밀어서 셀렉터와 왼쪽을 맞춘다(메뉴는 연 셀렉터 기준 좌정렬).
  */
-export const BREADCRUMB_ITEM_OFFSET = NAV_PILL_HEIGHT + 8;
+export const BREADCRUMB_ITEM_OFFSET = NAV_PILL_HEIGHT + APPBAR_ITEM_GAP;
 
 export interface BreadcrumbProps {
   /** 1뎁스: 축 라벨 (전체/레시피 북/공법/회고 노트) */
@@ -115,7 +115,7 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: APPBAR_ITEM_GAP,
   },
   // 북 아이콘 — 셀렉터 글자 앞, 왼쪽 여백만
   itemIcon: {

@@ -1209,7 +1209,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         setLocalCookbooks(prev => prev.map(n => n === target ? newName : n));
         onSetCookbookColor?.(newName, newColor);
       };
-      setCookbookEditTarget({name: target, color, isExplore});
+      // 지금 비공개 값도 넘긴다 — 없으면 창이 늘 '공개'로 열렸다
+      setCookbookEditTarget({name: target, color, isExplore, hidden: isExplore ? !!exploreCookbooks?.find(c => c.name === target)?.hidden : undefined});
       setShowCookbookDialog(true);
     } else if (id === 'delete') {
       if (cookbook === target) setCookbook('');
