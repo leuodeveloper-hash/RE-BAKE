@@ -1,6 +1,7 @@
 import {cookbookColorOf} from '@contexts/RecipeContext';
 import {focusAt} from '@utils/focusAt';
 import {ocrFailMessage} from '@utils/ocrFailMessage';
+import {BREAD_FIELDS, isBreadRecipe} from '@utils/breadFieldsMigration';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
@@ -531,6 +532,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     recipe?.activeFieldIds ?? [
       'info', 'photo', 'time', 'ingredients', 'tools', 'steps', 'servings',
       'method', 'ratio', 'cookbook', 'advice', 'review', 'source', 'origin',
+      // 제빵 북에서 새로 만들면 반죽 온도·분할 무게도 켜 둔다
+      ...(isBreadRecipe({cookbook: recipe?.cookbook ?? initialCookbook ?? '', kind: recipe?.kind}) ? BREAD_FIELDS : []),
     ],
   );
   const isFieldActive = (id: string) => activeFieldIds.includes(id);
@@ -1253,8 +1256,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
       if (!node) return;
       const end = (text ?? '').length;
       if (typeof node.setSelection !== 'function') {
-        // RichEditor — caret을 함께 넘긴다
-        node.focus?.(end);
+        // RichEditor면 caret을 함께 넘기고, 웹 입력칸(HTML 요소)이면 focus() 뒤 선택 범위로 —
+        // 웹 TextInput ref엔 setSelection이 없어 이쪽으로 오는데 focus(숫자)는 브라우저 오류였다
+        focusAt(node, end);
         return;
       }
       node.focus?.();

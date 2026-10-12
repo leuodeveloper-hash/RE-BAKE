@@ -456,6 +456,7 @@
   "layout.addRecipe": "레시피",
   "layout.addText": "텍스트",
   "layout.addUrl": "URL",
+  "layout.breadStepsUnified": "제빵 레시피 {{count}}개의 반죽 과정을 통일했어요",
   "layout.cloudSyncComplete": "클라우드 동기화 완료",
   "layout.cookbookAdded": "'{{name}}' 레시피 북이 추가되었습니다",
   "layout.cookbookAlreadyExists": "이미 존재하는 레시피 북입니다",

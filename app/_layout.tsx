@@ -31,6 +31,8 @@ import {AuthSheet} from '@components/AuthSheet';
 import {ExploreRecipeProvider, useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {UpdateDialog} from '@components/Dialog';
 import {migrateExploreCategoryToCookbook} from '@hooks/useExploreRecipes';
+import {migrateBreadMixSteps} from '@utils/breadStepsMigration';
+import {migrateExploreBreadFields, isBreadRecipe, withBreadFields} from '@utils/breadFieldsMigration';
 import {migrateStorageKeys} from '@utils/migrateStorageKeys';
 import {LanguageProvider, useTranslation} from '@contexts/LanguageContext';
 import {YouTubePlayerProvider, useYouTubePlayer} from '@contexts/YouTubePlayerContext';
@@ -368,9 +370,33 @@ function NavigationContent() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // 내 제빵 레시피도 반죽 온도·분할 무게 칸을 켠다(기기마다 1회, 레시피를 불러온 뒤)
+  const breadMigratedRef = useRef(false);
+  useEffect(() => {
+    if (breadMigratedRef.current || recipes.length === 0) return;
+    breadMigratedRef.current = true;
+    AsyncStorage.getItem('bread_fields_personal_v1').then(done => {
+      if (done) return;
+      setRecipes(prev => prev.map(r => {
+        if (!isBreadRecipe(r)) return r;
+        const next = withBreadFields(r.activeFieldIds);
+        return next ? {...r, activeFieldIds: next} : r;
+      }));
+      AsyncStorage.setItem('bread_fields_personal_v1', '1').catch(() => {});
+    }).catch(() => {});
+  }, [recipes.length, setRecipes]);
+
   // 기존 데이터 마이그레이션(어드민 1회): explore_recipes 레거시 category → cookbook 필드 정리.
   useEffect(() => {
     if (!isAdmin) return;
+    // 공식 제빵 레시피 반죽 첫 과정 통일(1회, 바꾸기 전 판은 버전 기록에)
+    migrateBreadMixSteps()
+      .then(n => { if (n > 0) { exploreReload(); showSnackbar(t('layout.breadStepsUnified', {count: n})); } })
+      .catch(e => console.warn('[breadSteps] 반죽 과정 통일 실패:', e));
+    // 제빵 레시피는 반죽 온도·분할 무게 칸을 켠다(공식 1회)
+    migrateExploreBreadFields()
+      .then(n => { if (n > 0) exploreReload(); })
+      .catch(e => console.warn('[breadFields] 공식 레시피 칸 켜기 실패:', e));
     migrateExploreCategoryToCookbook()
       .then(n => { if (n > 0) { showSnackbar(t('layout.officialFieldsCleaned', {count: n})); exploreReload(); } })
       .catch(e => console.warn('explore category 마이그레이션 실패:', e));

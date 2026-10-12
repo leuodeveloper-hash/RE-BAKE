@@ -469,6 +469,7 @@
   "layout.addRecipe": "Recipe",
   "layout.addText": "Text",
   "layout.addUrl": "URL",
+  "layout.breadStepsUnified": "Unified mixing steps in {{count}} bread recipes",
   "layout.cloudSyncComplete": "Cloud sync complete",
   "layout.cookbookAdded": "Recipe book '{{name}}' added",
   "layout.cookbookAlreadyExists": "Recipe book already exists",

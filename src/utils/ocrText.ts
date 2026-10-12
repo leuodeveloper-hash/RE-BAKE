@@ -257,7 +257,12 @@ export function parseRecipeMetaFromOcr(text: string): OcrRecipeMeta {
   const temp = num(pick(/반죽\s*온도\s*[:：]?\s*([\d.,]+)/));
   if (temp) out.doughTemp = `${temp}°C`;
   // 분할 — "분할 50g", "분할 무게: 50g", "분할 용량 50 g" → 50g
-  const div = num(pick(/분할\s*(?:무게|용량|중량)?\s*[:：]?\s*([\d.,]+)/));
+  // 무게가 앞에 오는 꼴도 — "330g 분할", "30g씩 나누어 분할", "450g씩 5개로 분할", "50g으로 24개를 분할",
+  // "분할은 50그램씩 24개". g/그램 단위가 붙은 숫자만 무게로 본다("16분할"의 16은 개수)
+  const div = num(pick(/분할\s*(?:무게|용량|중량)?\s*[:：]?\s*([\d.,]+)\s*(?:g|그램)/i))
+    ?? num(pick(/분할[은는]?\s*[:：]?\s*([\d.,]+)\s*(?:g|그램)/i))
+    ?? num(pick(/([\d.,]+)\s*(?:g|그램)\s*(?:씩|으로|로)?[^\n.]{0,12}?분할/i))
+    ?? num(pick(/분할\s*(?:무게|용량|중량)\s*[:：]?\s*([\d.,]+)/));
   if (div) out.divideWeight = `${div}g`;
   // 비중 — "비중 0.45~0.55"
   const sg = pick(/비중\s*[:：]?\s*([\d.]+(?:\s*[~\-]\s*[\d.]+)?)/);
