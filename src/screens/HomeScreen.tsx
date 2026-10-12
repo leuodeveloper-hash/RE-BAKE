@@ -713,9 +713,17 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
                 {value: publishedIds.size, label: t('home.statPublic')},
               ]}
               onPress={() => (user ? router.push('/account' as any) : openAuthSheet())}
-              // 로그인했으면 프로필 편집(계정 설정), 전이면 로그인
+              // 내 홈도 작성자 홈과 같은 [프로필 공유](편집은 이름·아바타를 눌러 계정 설정으로). 로그인 전이면 로그인
               action={user
-                ? {label: t('home.editProfile'), onPress: () => router.push('/account' as any)}
+                ? {
+                  label: t('home.shareProfile'),
+                  onPress: () => shareProfile({
+                    handle: isAdmin ? OFFICIAL_AUTHOR_HANDLE : handle || '',
+                    name: isAdmin ? OFFICIAL_AUTHOR_DISPLAY_NAME : displayName || handle || '',
+                    onCopied: () => showSnackbar(t('groupExpandOverlay.linkCopied')),
+                    onError: m => showSnackbar(m, {tone: 'error'}),
+                  }),
+                }
                 : {label: t('auth.signIn'), onPress: () => openAuthSheet()}}
             />
             {homeBanner}
