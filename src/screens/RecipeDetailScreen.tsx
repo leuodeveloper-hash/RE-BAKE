@@ -14,9 +14,11 @@ import {
   useWindowDimensions,
   View,
   Linking,
+  RefreshControl,
 } from 'react-native';
 import {LockedBottomBar} from '@components/LockedBottomBar';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useSafeBottom} from '@hooks/useSafeBottom';
 import {LinearGradient} from 'expo-linear-gradient';
 import {Image as ExpoImage} from 'expo-image';
 import {FloatingNavBar, navPillStyle, NavPillButton, RulerSlider} from '@components/Navigation';
@@ -169,7 +171,13 @@ export interface RecipeDetailScreenProps {
   onAddPress?: () => void;
   onMenuPress?: () => void;
   onComingSoon?: () => void;
-  onEdit?: (section?: string) => void;
+  /** 편집으로 — bulk면 한번에 쓰기로 연다(한번에 보기 중에 들어간 경우) */
+  onEdit?: (section?: string, opts?: {bulk?: boolean}) => void;
+  /** 아래로 당겨 새로고침 — 다른 기기에서 고친 내용을 다시 받는다 */
+  onRefresh?: () => Promise<void>;
+  /** 다른 기기에서 고친 새 내용이 있음 — 떠 있는 '업데이트됨' 버튼, 누르면 새로고침 */
+  updateAvailable?: boolean;
+
   onDelete?: () => void;
   onRemake?: () => void;
   /** 팁(실기 준비물 등) — 요리모드·회고 섹션을 숨긴다 */
@@ -359,6 +367,8 @@ export function RecipeDetailScreen({
   onAddPress,
   onComingSoon,
   onEdit,
+  onRefresh,
+  updateAvailable,
   onDelete,
   onRemake,
   isTip = false,
@@ -446,6 +456,7 @@ export function RecipeDetailScreen({
   const totalSessions = sessionItems?.length ?? 0;
   const reviewLabel = totalSessions > 1 ? `${totalReviewCount}/${totalSessions}` : `${totalReviewCount}`;
   const insets = useSafeAreaInsets();
+  const safeBottom = useSafeBottom();
   const [showMenu, setShowMenu] = useState(false);
   const [showCookbookSubmenu, setShowCookbookSubmenu] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
@@ -677,6 +688,13 @@ export function RecipeDetailScreen({
   useEffect(() => {
     AsyncStorage.getItem('@bakle_detail_bulk_view').then(v => { if (v === '1') setBulkView(true); }).catch(() => {});
   }, []);
+  // 편집으로 — 한번에 보기 중이면 편집도 한번에 쓰기로
+  const editWith = (section?: string) => onEdit?.(section, {bulk: bulkView});
+  const [refreshing, setRefreshing] = useState(false);
+  const handlePullRefresh = useCallback(async () => {
+    setRefreshing(true);
+    try { await onRefresh?.(); } finally { setRefreshing(false); }
+  }, [onRefresh]);
   const toggleBulkView = useCallback((v: boolean) => {
     setBulkView(v);
     AsyncStorage.setItem('@bakle_detail_bulk_view', v ? '1' : '0').catch(() => {});
@@ -864,7 +882,7 @@ export function RecipeDetailScreen({
           breadcrumb={breadcrumb}
           breadcrumbIcon={breadcrumb ? IconChevronRight : undefined}
           actionLabel={onEdit ? t('recipeDetail.edit') : undefined}
-          onAction={onEdit ? () => onEdit(sectionId) : undefined}
+          onAction={onEdit ? () => editWith(sectionId) : undefined}
           actionExtra={withBulkToggle ? <Switch label={t('recipeDetail.bulkView')} value={bulkView} onValueChange={toggleBulkView} /> : undefined}
         />
       </ContentContainer>
@@ -882,6 +900,8 @@ export function RecipeDetailScreen({
         onScrollBeginDrag={handleScrollBeginDrag}
         scrollEventThrottle={16}
         scrollEnabled={!locked}
+        // 아래로 당기면 새로고침 — 다른 기기에서 고친 내용 받기
+        refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={handlePullRefresh} /> : undefined}
       >
         {/* Hero Section — 상단 이미지 좌우 스와이프 시 이웃 레시피로 이동 */}
         <View style={styles.heroSection} {...heroPanResponder.panHandlers}>
@@ -1071,7 +1091,7 @@ export function RecipeDetailScreen({
           <Animated.View key="ing-bulk" style={{opacity: sectionAnims[0]}}>
             <ContentContainer>
               <Card>
-                <ListItem showDivider={false} onLongPress={onEdit ? () => onEdit('ingredients') : undefined}>
+                <ListItem showDivider={false} onLongPress={onEdit ? () => editWith('ingredients') : undefined}>
                   <View style={styles.bulkBody}>
                     {ingredientGroups.map((g, gi) => (
                       <View key={gi}>
@@ -1116,7 +1136,7 @@ export function RecipeDetailScreen({
                         <ListItem
                           key={index}
                           // 롱프레스 = 그 재료 줄로 편집 진입(햅틱은 ListItem이 낸다)
-                          onLongPress={onEdit ? () => onEdit(`ingredients:${flatIndex}`) : undefined}
+                          onLongPress={onEdit ? () => editWith(`ingredients:${flatIndex}`) : undefined}
                           showDivider={index < group.ingredients.length - 1}
                           leading={hasFlourBase ? {type: 'custom', element: (
                             <Text style={styles.ingredientPercentage}>{ingredient.percentage}</Text>
@@ -1219,7 +1239,7 @@ export function RecipeDetailScreen({
           <Animated.View key="step-bulk" style={{opacity: sectionAnims[1]}}>
             <ContentContainer>
               <Card>
-                <ListItem showDivider={false} onLongPress={onEdit ? () => onEdit('steps') : undefined}>
+                <ListItem showDivider={false} onLongPress={onEdit ? () => editWith('steps') : undefined}>
                   <View style={styles.bulkBody}>
                     {(stepGroups?.length ? stepGroups : [{title: '', steps: steps ?? []}]).map((g, gi, arr) => (
                       <View key={gi}>
@@ -1270,7 +1290,7 @@ export function RecipeDetailScreen({
                         }}
                         // 롱프레스 = 이 과정을 편집 (탭은 요리모드)
                         // 어느 과정을 눌렀는지까지 전달 — 편집에서 그 줄로 스크롤·포커스
-                        onLongPress={onEdit ? () => { triggerHaptic('medium'); onEdit(`steps:${groupOffset + index}`); } : undefined}
+                        onLongPress={onEdit ? () => { triggerHaptic('medium'); editWith(`steps:${groupOffset + index}`); } : undefined}
                       >
                         <Text style={styles.stepDescription}>
                           <Text
@@ -1365,7 +1385,7 @@ export function RecipeDetailScreen({
                 <ListItem
                   title={t('recipeDetail.bakeyAdvice')}
                   leading={{type: 'icon', icon: IconLogoSymbol}}
-                  trailing={onEdit ? {type: 'iconButton', icon: IconEditFilled, onPress: () => onEdit('advice'), variant: 'ghost-yellow', size: 'small'} : undefined}
+                  trailing={onEdit ? {type: 'iconButton', icon: IconEditFilled, onPress: () => editWith('advice'), variant: 'ghost-yellow', size: 'small'} : undefined}
                 />
                 <ListItem
                   titleNumberOfLines={0}
@@ -1511,8 +1531,15 @@ export function RecipeDetailScreen({
         })()}
 
         {/* Bottom Padding for Tab Bar */}
-        <View style={{height: 120 + insets.bottom}} />
+        <View style={{height: 120 + safeBottom}} />
       </Animated.ScrollView>
+
+      {/* 업데이트됨 — 다른 기기에서 고친 내용이 있으면 아래쪽에 떠 있는 버튼, 누르면 새로 받는다 */}
+      {updateAvailable && onRefresh ? (
+        <View pointerEvents="box-none" style={styles.updatePillWrap}>
+          <Button label={refreshing ? t('recipeDetail.updating') : t('recipeDetail.updated')} variant="filled" size="small" onPress={handlePullRefresh} />
+        </View>
+      ) : null}
 
       {/* Overlay for Menu */}
       <Pressable
@@ -1707,7 +1734,7 @@ export function RecipeDetailScreen({
       )}
       {hasMultipleSessions && !locked && !showCookingMode && (
         <View
-          style={[styles.sessionSliderWrap, {bottom: (insets.bottom || Spacing.sm) + Spacing.xs}]}
+          style={[styles.sessionSliderWrap, {bottom: safeBottom + Spacing.xs}]}
           pointerEvents="box-none">
           <RulerSlider
             items={sessionItems!}
@@ -1790,6 +1817,13 @@ export function RecipeDetailScreen({
 const HERO_HEIGHT = 280;
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  updatePillWrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 110,
+    alignItems: 'center',
+  },
   // 한번에 보기
   bulkToggleRow: {
     alignItems: 'flex-end',
@@ -1998,7 +2032,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
 
   // Ingredients
   ingredientPercentage: {
-    width: 60,
+    // 가장 긴 값(예: 3000%)이 들어가는 만큼만 — 60은 재료 이름과 사이가 휑했다
+    width: 44,
     fontFamily: Typography.caption.medium.fontFamily,
     fontSize: Typography.caption.medium.fontSize,
     fontWeight: Typography.caption.medium.fontWeight as '600',

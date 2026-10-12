@@ -1,12 +1,12 @@
+import {PageScrollView} from '@components/Page';
 import React, {useCallback, useEffect, useState} from 'react';
 import {View, Text, ScrollView, StyleSheet, Pressable} from 'react-native';
 import {useRouter} from 'expo-router';
-import {SafeAreaView} from 'react-native-safe-area-context';
 import {collection, query, where, orderBy, getDocs, doc, setDoc, updateDoc} from 'firebase/firestore';
 import {db} from '@config/firebase';
 import {Avatar} from '@components/Avatar';
 import {Button} from '@components/Button';
-import {Card} from '@components/Container';
+import {Card, ContentContainer} from '@components/Container';
 import {EmptyState} from '@components/EmptyState';
 import {FloatingNavBar, NavPillButton} from '@components/Navigation';
 import {IconClose} from '@components/Icon/IconIndex';
@@ -97,11 +97,12 @@ export default function AdminSubmissionsRoute() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.safe} edges={['top']}>
+      <View style={styles.safe}>
         {!loading && items.length === 0 ? (
-          <EmptyState title={t('adminSubmissions.empty')} />
+          <EmptyState category="no-recipe" title={t('adminSubmissions.empty')} />
         ) : (
-          <ScrollView contentContainerStyle={styles.scrollContent}>
+          <PageScrollView>
+          <ContentContainer fill style={styles.content}>
             {items.map(s => (
             <Card key={s.id} style={styles.item}>
               <Pressable
@@ -130,9 +131,10 @@ export default function AdminSubmissionsRoute() {
               </View>
             </Card>
             ))}
-          </ScrollView>
+            </ContentContainer>
+          </PageScrollView>
         )}
-      </SafeAreaView>
+      </View>
 
       <FloatingNavBar
         title={t('adminSubmissions.title')}
@@ -147,7 +149,8 @@ const createStyles = (colors: SemanticColors) =>
     container: {flex: 1, backgroundColor: colors['surface/normal']},
     safe: {flex: 1},
     // FloatingNavBar(오버레이)에 가리지 않게 상단 여백
-    scrollContent: {padding: Spacing.md, paddingTop: 56, gap: Spacing.md},
+    // 콘텐츠 너비(최대 폭·좌우 여백) 안에
+    content: {gap: Spacing.md},
     item: {padding: Spacing.md, gap: Spacing.md},
     itemHeader: {flexDirection: 'row', alignItems: 'center', gap: Spacing.sm},
     itemInfo: {flex: 1},

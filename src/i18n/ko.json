@@ -1053,5 +1053,9 @@
   "id.newerElsewhere": "다른 기기에서 더 최근에 고친 레시피예요. 덮어쓰지 않았어요. 다시 열어 최신 내용에서 고쳐 주세요.",
   "recipeEdit.versionsTitle": "이전 버전 가져오기",
   "recipeEdit.versionsEmpty": "아직 저장된 이전 버전이 없어요",
-  "id.versionLoaded": "이전 버전을 불러왔어요"
+  "id.versionLoaded": "이전 버전을 불러왔어요",
+  "recipeEdit.ocrMetaNone": "사진에서 값을 찾지 못했어요",
+  "recipeEdit.ocrMetaOne": "사진에서 읽어 \"{{value}}\"(으)로 채웠어요",
+  "recipeDetail.updated": "업데이트됨 · 새로고침",
+  "recipeDetail.updating": "불러오는 중"
 }

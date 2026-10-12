@@ -31,7 +31,7 @@ function stripUndefined(obj: any): any {
 }
 
 export default function RecipeEditRoute() {
-  const {id, section, target} = useLocalSearchParams<{id: string; section?: string; target?: string}>();
+  const {id, section, target, bulk} = useLocalSearchParams<{id: string; section?: string; target?: string; bulk?: string}>();
   const router = useRouter();
   const {t} = useTranslation();
   const colors = useColors();
@@ -181,6 +181,8 @@ export default function RecipeEditRoute() {
             : availableCookbooks}
           cookbookColors={mergedCookbookColors}
           initialSection={section}
+          // 상세 한번에 보기에서 들어오면 재료·과정을 한번에 쓰기로
+          initialBulk={bulk === '1'}
           onClose={handleClose}
           onSave={handleSave}
           onSetCookbookColor={handleSetCookbookColor}

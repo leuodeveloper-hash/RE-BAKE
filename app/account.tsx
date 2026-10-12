@@ -1,6 +1,8 @@
+import {PageScrollView} from '@components/Page';
 import React, {useCallback, useState} from 'react';
 import {ScrollView, StyleSheet, View} from 'react-native';
 import {useRouter} from 'expo-router';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {AppBar, APPBAR_CONTENT_BOTTOM} from '@components/Navigation';
 import {ContentContainer, Card} from '@components/Container';
 import {ListItem} from '@components/ListItem';
@@ -23,6 +25,8 @@ import {goBackOr} from '@utils/navigation';
 export default function AccountRoute() {
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
+  // 앱바는 안전영역(노치) 아래에 떠 있다 — 내용도 그만큼 내려야 앱바에 가리지 않는다
+  const insets = useSafeAreaInsets();
   const {t} = useTranslation();
   const {showSnackbar} = useSnackbar();
   const {user, handle, displayName, deleteAccount, updateHandle, updateDisplayName} = useAuth();
@@ -69,7 +73,7 @@ export default function AccountRoute() {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={{paddingTop: APPBAR_CONTENT_BOTTOM + Spacing.lg, paddingBottom: 100}}>
+      <PageScrollView>
         <ContentContainer style={styles.section}>
           <Card>
             {/* 이름·아이디는 눌러서 고친다, 이메일은 보기만 */}
@@ -105,7 +109,7 @@ export default function AccountRoute() {
             />
           </Card>
         </ContentContainer>
-      </ScrollView>
+      </PageScrollView>
 
       <Dialog
         visible={deleteOpen}

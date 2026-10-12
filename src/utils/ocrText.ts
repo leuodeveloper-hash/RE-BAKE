@@ -231,3 +231,39 @@ export function ocrTextToMarkdown(text: string): string {
   if (steps.length) out.push('', '## 과정', ...steps.filter(Boolean).map((x, i) => `${i + 1}. ${x}`));
   return out.join('\n').trim();
 }
+
+/** 사진에서 읽은 글 → 레시피 정보 칸(시간·분량·반죽 온도·분할 용량·비중·공법). 못 찾은 칸은 비운다 */
+export interface OcrRecipeMeta {
+  time?: string;
+  servings?: string;
+  doughTemp?: string;
+  divideWeight?: string;
+  specificGravity?: string;
+  method?: string;
+}
+
+export function parseRecipeMetaFromOcr(text: string): OcrRecipeMeta {
+  const t = (text ?? '').split(/\r?\n/).map(l => stripOcrNoise(l)).join('\n');
+  const pick = (re: RegExp) => t.match(re)?.[1]?.trim();
+  const num = (s?: string) => s?.match(/\d+(?:[.,]\d+)?/)?.[0]?.replace(',', '.');
+  const out: OcrRecipeMeta = {};
+  // 시간 — "시간 1시간 40분", "소요 시간: 50분", "굽기 시간 25분"
+  const time = pick(/(?:소요\s*)?시간\s*[:：]?\s*((?:\d+\s*시간\s*)?\d+\s*분|\d+\s*시간)/);
+  if (time) out.time = time.replace(/\s+/g, ' ');
+  // 분량 — "분량 20개", "인분 4", "수량: 12개", "1호 1개"
+  const servings = pick(/(?:분량|수량|인분)\s*[:：]?\s*([^\n,]{1,20})/);
+  if (servings) out.servings = servings;
+  // 반죽 온도 — "반죽 온도 27℃", "반죽온도: 27±1℃" → 27°C
+  const temp = num(pick(/반죽\s*온도\s*[:：]?\s*([\d.,]+)/));
+  if (temp) out.doughTemp = `${temp}°C`;
+  // 분할 — "분할 50g", "분할 무게: 50g", "분할 용량 50 g" → 50g
+  const div = num(pick(/분할\s*(?:무게|용량|중량)?\s*[:：]?\s*([\d.,]+)/));
+  if (div) out.divideWeight = `${div}g`;
+  // 비중 — "비중 0.45~0.55"
+  const sg = pick(/비중\s*[:：]?\s*([\d.]+(?:\s*[~\-]\s*[\d.]+)?)/);
+  if (sg) out.specificGravity = sg.replace(/\s+/g, '');
+  // 공법 — "공법: 크림법", "제법 스트레이트법"
+  const method = pick(/(?:공법|제법)\s*[:：]?\s*([가-힣A-Za-z ]{2,15}법)/);
+  if (method) out.method = method.trim();
+  return out;
+}

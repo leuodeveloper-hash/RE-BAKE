@@ -42,6 +42,14 @@ const ANIMATION_CONFIG = {
 const DISMISS_THRESHOLD = 0.3;
 const VELOCITY_THRESHOLD = 800;
 
+/**
+ * 화면 아래에 떠 있는 요소(바텀시트·탭바)의 아랫변 높이 — 기기마다 다른 홈 인디케이터 안전영역을 따르고, 없으면 8.
+ * 탭바와 시트가 같은 식을 써야 [+] 시트 아랫변이 탭바와 맞는다.
+ */
+// 웹은 안전영역이 없어 16(화면 끝에 너무 붙지 않게)
+export const sheetBottomInset = (safeBottom: number) =>
+  Platform.OS === 'web' ? Spacing.md : Math.max(Spacing.sm, safeBottom);
+
 export interface BottomSheetProps {
   visible: boolean;
   onClose: () => void;
@@ -319,7 +327,7 @@ export function BottomSheet({
   }
 
   const inner = (
-      <View style={[styles.container, !fullScreen && {paddingBottom: keyboardHeight > 0 ? keyboardHeight + Spacing.sm : Math.max(Spacing.sm, safeBottom)}, fullScreen && styles.containerFullScreen]}>
+      <View style={[styles.container, !fullScreen && {paddingBottom: keyboardHeight > 0 ? keyboardHeight + Spacing.sm : sheetBottomInset(safeBottom)}, fullScreen && styles.containerFullScreen]}>
         {/* 배경 오버레이 */}
         <Animated.View
           style={[
@@ -441,7 +449,7 @@ export function BottomSheet({
             pointerEvents="box-none"
             style={[
               styles.aboveSheet,
-              {bottom: (keyboardHeight > 0 ? keyboardHeight + Spacing.sm : Math.max(Spacing.sm, safeBottom)) + sheetH + Spacing.xs},
+              {bottom: (keyboardHeight > 0 ? keyboardHeight + Spacing.sm : sheetBottomInset(safeBottom)) + sheetH + Spacing.xs},
               {transform: [{translateY}], opacity: visibleOpacity},
             ]}>
             <View pointerEvents="box-none" style={[styles.aboveSheetInner, maxWidth != null && {maxWidth}]}>{aboveSheet}</View>

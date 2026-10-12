@@ -25,6 +25,7 @@ import * as VideoThumbnails from 'expo-video-thumbnails';
 import {getPersistentUri} from '@utils/imageUpload';
 import {ensureImagePermission} from '@utils/imagePermission';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useSafeBottom} from '@hooks/useSafeBottom';
 import {PhotoViewer} from '@components/PhotoViewer';
 import {stableStringify} from '@utils/stableStringify';
 import {GlassContainer, Card, MAX_CONTENT_WIDTH, ContentMask} from '@components/Container';
@@ -33,7 +34,7 @@ import {BottomSheet, MadeConfirmSheet, sheetTileWidth} from '@components/BottomS
 import {Snackbar, type SnackbarTone} from '@components/Snackbar';
 import {IconButton} from '@components/IconButton';
 import {Selector} from '@components/Selector';
-import {navPillStyle, RulerSlider, NavPillButton, FloatingNavBar} from '@components/Navigation';
+import {navPillStyle, RulerSlider, NavPillButton, FloatingNavBar, useAppBarContentTop} from '@components/Navigation';
 import {Menu, MenuItem, type MenuItemData} from '@components/Menu';
 import {SectionHeader} from '@components/SectionHeader';
 import {SearchCommandBar} from '@components/SearchCommandBar';
@@ -268,6 +269,9 @@ export function CookingMode({
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const insets = useSafeAreaInsets();
+  const safeBottom = useSafeBottom();
+  const contentTop = useAppBarContentTop();
+  const appBarBottom = useAppBarContentTop(0);
   const {t} = useTranslation();
 
   // 로컬 스낵바 (Modal 위에 표시)
@@ -479,7 +483,7 @@ export function CookingMode({
   const PHOTO_CLIP_PAD = 24;
   // 하단 눈금바(FloatingNavBar, absolute) 실제 높이 = 세이프에리어 + 상하 패딩 + pill.
   // 디바이스마다 insets.bottom이 달라지므로 반드시 이 값을 통해 계산할 것.
-  const RULER_BAR_H = insets.bottom + Spacing.md * 2 + 48;
+  const RULER_BAR_H = safeBottom + Spacing.md * 2 + 48;
   const MAX_TEXT_W = 380;
   const textColW = Math.max(180, Math.min(containerWidth - PAD * 2 - 48, MAX_TEXT_W));
   // 사진 카드 수 = 사진(최대3) + 추가카드(편집 가능 & 3장 미만)
@@ -940,6 +944,7 @@ export function CookingMode({
     const card = editCards[currentIndex];
     if (!card) return;
     setOcrBusy(true);
+    let ocrUri: string | undefined;
     // iOS: 메뉴/키보드 전환과 겹치면 피커 present가 무시됨 → 실제로 키보드 내려간 뒤 present
     try {
       await dismissKeyboardAndWait();
@@ -956,7 +961,7 @@ export function CookingMode({
         ? await ImagePicker.launchCameraAsync({quality: 0.85})
         : await ImagePicker.launchImageLibraryAsync({mediaTypes: ['images'], quality: 0.85});
       if (result.canceled || !result.assets[0]) return;
-      const ocrUri = result.assets[0].uri;
+      ocrUri = result.assets[0].uri;
       const text = (await recognizeImageText(ocrUri)).trim();
       // 기록은 흘려보낸다 — 업로드를 기다리면 붙여넣기가 늦어진다
       void logOcrWithImage(
@@ -973,9 +978,11 @@ export function CookingMode({
           : c,
       ));
       showSnackbar(t('cookingMode.textRecognized'), {tone: 'positive'});
-    } catch (e) {
+    } catch (e: any) {
       // eslint-disable-next-line no-console
       console.warn('CookingMode OCR failed', e);
+      // 인식 자체가 실패한 것도 남긴다
+      if (ocrUri) void logOcrWithImage({source: 'cookingMode', ok: false, textLength: 0, error: String(e?.message ?? e), uid: user?.uid}, ocrUri);
       showSnackbar(t('cookingMode.imageAnalysisFailed'), {tone: 'error'});
     } finally {
       setOcrBusy(false);
@@ -1542,7 +1549,7 @@ export function CookingMode({
         ) : null}
       </View>
     );
-  }, [isNarrow, canEdit, user, activePhotoIdx, insets.bottom, openAuthSheet, pickPhoto, addStepPhoto, replacePhoto, replaceStepPhotoView, removePhoto, commitStepPhotos, updateCardPhotoCaption, showSnackbar, styles, colors, t]);
+  }, [isNarrow, canEdit, user, activePhotoIdx, safeBottom, openAuthSheet, pickPhoto, addStepPhoto, replacePhoto, replaceStepPhotoView, removePhoto, commitStepPhotos, updateCardPhotoCaption, showSnackbar, styles, colors, t]);
 
   // 보기(요리) 스텝 — [텍스트 칼럼(좌)][사진 최대 3장 일렬·기울임 + 추가카드(우)].
   // 사진은 고정 크기, 좁으면 잘리고 슬라이드로 노출.
@@ -1561,7 +1568,7 @@ export function CookingMode({
               styles.viewScrollContent,
               // 편집과 동일 — 앱바·눈금바 자리를 콘텐츠 패딩으로 확보
               {
-                paddingTop: insets.top + 54 + Spacing.md,
+                paddingTop: contentTop,
                 paddingBottom: RULER_BAR_H + 24,
               },
             ]}
@@ -1659,9 +1666,9 @@ export function CookingMode({
               styles.scrollContent,
               {
                 // 앱바(absolute) 높이만큼 위를 비운다.
-                paddingTop: insets.top + 54 + Spacing.md,
+                paddingTop: contentTop,
                 // 편집 툴바(하단 고정)에 마지막 줄이 가리지 않게 그 높이만큼 비운다.
-                paddingBottom: KEYBOARD_TOOLBAR_HEIGHT + insets.bottom + Spacing.md,
+                paddingBottom: KEYBOARD_TOOLBAR_HEIGHT + safeBottom + Spacing.md,
               },
             ]}
             showsVerticalScrollIndicator={false}
@@ -1770,7 +1777,7 @@ export function CookingMode({
         </Card>
       </View>
     );
-  }, [isEditing, renderViewStep, renderPhotoStack, styles, colors, updateCardField, totalCards, photoExpanded, checkedIngredients, toggleIngredient, undo, redo, canUndo, canRedo, showAddMenu, showPhotoSubmenu, addMenuItems, photoSubmenuItems, handleAddMenuSelect, removeCardField, canEdit, handleDoubleTap, showCardOverflow, cardOverflowItems, handleCardOverflowSelect, activePhotoIdx, exitEditing, insets.top, insets.bottom, t]);
+  }, [isEditing, renderViewStep, renderPhotoStack, styles, colors, updateCardField, totalCards, photoExpanded, checkedIngredients, toggleIngredient, undo, redo, canUndo, canRedo, showAddMenu, showPhotoSubmenu, addMenuItems, photoSubmenuItems, handleAddMenuSelect, removeCardField, canEdit, handleDoubleTap, showCardOverflow, cardOverflowItems, handleCardOverflowSelect, activePhotoIdx, exitEditing, insets.top, safeBottom, t]);
 
   return (
     <BottomSheet
@@ -1934,7 +1941,7 @@ export function CookingMode({
                   style={{
                     width: pageWidths[adviceIdx],
                     // 바에 딱 붙지 않게 여유를 더 준다 (다른 카드의 +24와 같은 기준)
-                    paddingTop: insets.top + 54 + Spacing.md + 24,
+                    paddingTop: contentTop + 24,
                     paddingBottom: RULER_BAR_H + 24,
                   }}>
                   <View style={styles.cardOuter}>
@@ -2027,7 +2034,7 @@ export function CookingMode({
               앞에 두면 스크롤 내용에 가려 페이드가 안 보인다.
               앱바/눈금바가 absolute라 스크롤한 글이 그 뒤를 지나가므로 양쪽 다 필요. */}
           <ContentMask
-            topHeight={insets.top + 54}
+            topHeight={appBarBottom}
             bottomHeight={RULER_BAR_H + 24}
           />
         </Animated.View>

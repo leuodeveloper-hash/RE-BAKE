@@ -61,6 +61,8 @@ export interface DialogProps {
    * 입력칸이 있는 팝업은 'top' — 가운데면 키보드가 올라올 때 칸이 가려지거나 팝업이 튄다.
    */
   position?: 'center' | 'top';
+  /** 헤더 오른쪽 슬롯 — 사진에서 읽기 같은 보조 버튼 */
+  headerRight?: React.ReactNode;
   headerType?: 'default' | 'center';
 }
 
@@ -84,6 +86,7 @@ export function Dialog({
   blurBackdrop = false,
   headerType,
   position = 'center',
+  headerRight,
 }: DialogProps) {
   const insets = useSafeAreaInsets();
   const styles = useThemedStyles(createStyles);
@@ -206,6 +209,7 @@ export function Dialog({
             title={title ?? ''}
             description={description}
             headerType="center"
+            headerRight={headerRight}
             onClose={showCloseButton ? onClose : undefined}
           />
         )}

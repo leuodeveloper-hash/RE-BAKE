@@ -1,3 +1,4 @@
+import {PageScrollView} from '@components/Page';
 import React, {useCallback, useState} from 'react';
 import {Platform, ScrollView, StyleSheet, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -69,12 +70,11 @@ export default function WidgetPreviewRoute() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
+        <PageScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
-          <View style={{height: 80}} />
 
           <ContentContainer style={styles.section}>
             <InlineBanner label={t('widgetPreview.guide')} />
@@ -125,7 +125,7 @@ export default function WidgetPreviewRoute() {
               />
             </Card>
           </ContentContainer>
-        </ScrollView>
+        </PageScrollView>
       </SafeAreaView>
 
       <FloatingNavBar

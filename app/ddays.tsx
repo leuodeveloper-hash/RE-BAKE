@@ -1,3 +1,4 @@
+import {PageScrollView} from '@components/Page';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {ScrollView, StyleSheet, View} from 'react-native';
 import {useRouter} from 'expo-router';
@@ -55,7 +56,7 @@ export default function DdaysRoute() {
   return (
     <View style={styles.container}>
       {/* 앱바 아래(상태바 높이 포함) + 8, 목록 자체도 상하 8 */}
-      <ScrollView contentContainerStyle={{paddingTop: insets.top + APPBAR_CONTENT_BOTTOM + Spacing.sm, paddingBottom: 100}}>
+      <PageScrollView>
         <ContentContainer horizontalPadding={false} style={styles.list}>
           {sorted.length === 0 ? (
             // 비었을 때 — 공통 빈 상태(아이콘 · 제목 · 만들기 버튼)
@@ -118,7 +119,7 @@ export default function DdaysRoute() {
             })
           )}
         </ContentContainer>
-      </ScrollView>
+      </PageScrollView>
 
       <DdaySheet
         visible={sheet}

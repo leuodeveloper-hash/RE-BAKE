@@ -2,6 +2,7 @@ import React, {useEffect, useState} from 'react';
 import {Keyboard, Platform, ScrollView, StyleSheet, View, ViewStyle} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useSafeBottom} from '@hooks/useSafeBottom';
 import {GlassContainer} from '@components/Container';
 import {ContentContainer} from '@components/Container/ContentContainer';
 import {useColors} from '@contexts/ThemeContext';
@@ -46,6 +47,7 @@ export interface KeyboardToolbarProps {
  */
 export function KeyboardToolbar({left, right, above, style}: KeyboardToolbarProps) {
   const insets = useSafeAreaInsets();
+  const safeBottom = useSafeBottom();
   const colors = useColors();
   const bg = colors['surface/normal'];
   // 재마운트(포커스 재진입) 시 이미 올라온 키보드 높이를 즉시 반영 → 키보드 뒤로 숨지 않게
@@ -107,7 +109,7 @@ export function KeyboardToolbar({left, right, above, style}: KeyboardToolbarProp
   // 웹은 safe-area가 0이라 키보드 없을 때 최소 여백 16 확보(바닥에 딱 안 붙게).
   const baseBottom = kbHeight > 0
     ? kbHeight
-    : (Platform.OS === 'web' ? Math.max(insets.bottom, 16) : insets.bottom);
+    : safeBottom;
   const bottom = baseBottom + 8;
 
   return (

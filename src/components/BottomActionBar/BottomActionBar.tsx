@@ -2,6 +2,7 @@ import React from 'react';
 import {StyleSheet, View, ViewStyle} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useSafeBottom} from '@hooks/useSafeBottom';
 import {Spacing} from '@constants/spacing';
 import {ContentContainer} from '@components/Container';
 import {withOpacity} from '@constants/tokens';
@@ -22,10 +23,11 @@ export interface BottomActionBarProps {
  */
 export function BottomActionBar({children, background, showTopMask = true, style}: BottomActionBarProps) {
   const insets = useSafeAreaInsets();
+  const safeBottom = useSafeBottom();
   const bg = background ?? 'transparent';
 
   return (
-    <View style={[styles.wrap, {paddingBottom: insets.bottom + Spacing.md, backgroundColor: bg}, style]}>
+    <View style={[styles.wrap, {paddingBottom: safeBottom + Spacing.md, backgroundColor: bg}, style]}>
       {showTopMask && background ? (
         <LinearGradient
           colors={[withOpacity(background, 0), background]}

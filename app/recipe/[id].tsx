@@ -1,8 +1,8 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Platform, View, StyleSheet} from 'react-native';
+import {AppState, Platform, View, StyleSheet} from 'react-native';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {doc, updateDoc, setDoc, deleteField} from 'firebase/firestore';
+import {doc, getDoc, updateDoc, setDoc, deleteField} from 'firebase/firestore';
 import {RecipeDetailScreen} from '@screens/RecipeDetailScreen';
 import {sendRecipeFeedback, type FeedbackKind} from '@utils/recipeFeedback';
 import {useMadeCount} from '@hooks/useMadeCount';
@@ -41,7 +41,7 @@ export default function RecipeDetailRoute() {
   const [id, setId] = useState(routeId);
   const router = useRouter();
   const colors = useColors();
-  const {findRecipeById, recipes, setRecipes, availableCookbooks, cookbookColors} = useRecipes();
+  const {findRecipeById, recipes, setRecipes, availableCookbooks, cookbookColors, reload: reloadRecipes} = useRecipes();
   const {showSnackbar} = useSnackbar();
   const {isAdmin, user, handle, displayName, avatarSeed} = useAuth();
   const {open: openAuthSheet} = useAuthSheet();
@@ -114,6 +114,22 @@ export default function RecipeDetailRoute() {
   const {setMade, madeAtOf} = useMadeStamps();
   const isMyRecipe = recipes.some(r => r.id === id);
   const isExploreRecipe = !isMyRecipe && exploreRecipes.some(r => r.id === id);
+
+  // 다른 기기에서 고친 게 있는지 — 서버의 고친 시각(updatedAt)이 지금 보는 것과 다르면 '업데이트됨' 버튼을 띄운다.
+  // 열 때와 앱으로 돌아올 때 확인한다(내 레시피는 실시간으로도 받지만, 둘러보기는 한 번 받아 두는 데이터라 여기서 확인)
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  useEffect(() => {
+    if (!id || (!isMyRecipe && !isExploreRecipe)) return;
+    const path = isExploreRecipe ? doc(db, 'explore_recipes', id) : user ? doc(db, 'user_recipes', user.uid, 'recipes', id) : null;
+    if (!path) return;
+    const check = () => getDoc(path).then(snap => {
+      const remote = (snap.data() as any)?.updatedAt;
+      setUpdateAvailable(!!remote && remote !== (recipe as any)?.updatedAt && remote > ((recipe as any)?.updatedAt ?? ''));
+    }).catch(() => {});
+    check();
+    const sub = AppState.addEventListener('change', st => { if (st === 'active') check(); });
+    return () => sub.remove();
+  }, [id, isMyRecipe, isExploreRecipe, user, (recipe as any)?.updatedAt]);
   const alreadyImported = recipes.some(r => r.sourceId === id);
 
   const exploreCookbookColorMap = useMemo(() => {
@@ -192,9 +208,10 @@ export default function RecipeDetailRoute() {
     savePhoto(uri).then(ok => { if (!ok) showSnackbar(t('photoSave.failed'), {tone: 'error'}); });
   }, [tier, user, showSnackbar, t, openAuthSheet, openPlanSheet]);
 
-  const handleEdit = useCallback((section?: string) => {
+  const handleEdit = useCallback((section?: string, opts?: {bulk?: boolean}) => {
     const params = new URLSearchParams();
     if (section) params.set('section', section);
+    if (opts?.bulk) params.set('bulk', '1');
     if (isExploreRecipe) params.set('target', 'explore');
     const qs = params.toString();
     const path = `/recipe/edit/${id}${qs ? `?${qs}` : ''}`;
@@ -632,6 +649,9 @@ const handleDelete = useCallback(async () => {
         onBack={handleBack}
         onComingSoon={handleComingSoon}
         onEdit={canEdit ? handleEdit : undefined}
+        // 아래로 당겨 새로고침 — 내 레시피·둘러보기 둘 다 서버에서 다시
+        onRefresh={async () => { await Promise.all([reloadRecipes(), exploreReload()]); setUpdateAvailable(false); }}
+        updateAvailable={updateAvailable}
         onDownloadPhoto={handleDownloadPhoto}
         onDelete={canDelete ? handleDelete : undefined}
         onRemake={isMyRecipe && recipe?.kind !== 'tip' ? handleRemake : undefined}

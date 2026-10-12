@@ -339,3 +339,14 @@ BlurView 컨테이너 자체가 아닌 **내부 콘텐츠**에만 opacity 적용
 ---
 
 **이 규칙은 모든 페이지와 컴포넌트 구현 시 적용됩니다.**
+
+## 앱바 아래 간격 (MUST)
+
+**앱바 공간**(위 10 + 버튼 44 + 아래 10 = 64) 다음에 **8**을 두고 첫 요소가 온다(= 72, 안전영역 별도). 이걸 지키는 룰:
+
+1. **값은 한 곳** — `src/constants/layout.ts` (`APPBAR_AREA_BOTTOM` 64, `APPBAR_CONTENT_GAP` 8, `APPBAR_CONTENT_TOP` 72). `APPBAR_CONTENT_BOTTOM`(54, 버튼 아래 끝)은 앱바 메뉴·팝오버 위치 전용. 화면에 54·56·72·80 같은 숫자를 적지 않는다.
+2. **안전영역은 훅이 더한다** — `useAppBarContentTop()` / `usePageContentPadding()`이 플랫폼별 값(네이티브 기기 값, 웹 0)을 더한다. 화면에서 `insets.top`을 직접 더하지 않는다. 하단은 `useSafeBottom()`(네이티브 기기 값, 웹 16).
+3. **페이지 본문은 `PageScrollView`** — 앱바 아래 8 · 하단 안전영역 위 8이 자동. 바깥을 SafeAreaView top/bottom으로 또 감싸지 않는다.
+4. **첫 요소에 여백 추가 금지** — 첫 섹션 marginTop, 빈 View 스페이서 금지. 섹션 사이는 gap.
+5. **간격 인자 바꾸지 않기** — `useAppBarContentTop()`은 기본값(8)으로만 쓴다. 다른 값이 필요하면 룰을 먼저 바꾼다.
+6. **빈 상태는 상하 중앙** — `PageScrollView`는 높이를 채우고(flexGrow), EmptyState를 감싸는 `ContentContainer`에 `fill`.

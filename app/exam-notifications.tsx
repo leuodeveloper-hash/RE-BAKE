@@ -1,3 +1,4 @@
+import {PageScrollView} from '@components/Page';
 import React, {useCallback, useEffect} from 'react';
 import {Alert, Linking, Platform, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -118,12 +119,11 @@ export default function ExamNotificationsRoute() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
+        <PageScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
-          <View style={{height: 80}} />
 
           <ContentContainer>
             <SectionHeader title={t('examnotifications.examScheduleAlerts')} />
@@ -164,7 +164,7 @@ export default function ExamNotificationsRoute() {
               </Text>
             </View>
           </ContentContainer>
-        </ScrollView>
+        </PageScrollView>
       </SafeAreaView>
 
       <FloatingNavBar

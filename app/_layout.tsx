@@ -1,4 +1,5 @@
 import '../global.css';
+import {logOcrWithImage} from '@utils/ocrLog';
 import {trackScreen} from '@utils/analytics';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, StyleSheet, View, Easing, Pressable, Platform, AppState} from 'react-native';
@@ -43,6 +44,8 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {ContentMask} from '@components/Container';
 import {BottomTabBar, type TabItem} from '@components/Navigation/BottomTabBar';
+import {sheetBottomInset} from '@components/BottomSheet/BottomSheet';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {AddRecipeSheet, PasteRecipeSheet, RecipeImagePickerSheet, type AddRecipeInput} from '@components/BottomSheet';
 import * as ImagePicker from 'expo-image-picker';
 import {ensureImagePermission} from '@utils/imagePermission';
@@ -240,6 +243,7 @@ const splashStyles = StyleSheet.create({
 function NavigationContent() {
   const router = useRouter();
   const pathname = usePathname();
+  const insets = useSafeAreaInsets();
   // 화면 진입 기록 — 경로가 바뀔 때마다 한 번
   useEffect(() => { trackScreen(pathname); }, [pathname]);
   // 마지막으로 본 화면(탭) 기억 — 앱을 다시 켜면 홈이 아니라 그 탭에서 시작(아래 복귀 effect가 읽는다).
@@ -450,14 +454,18 @@ function NavigationContent() {
     setPaste({visible: true, loading: true});
     try {
       const text = normalizeOcrWhitespace(await recognizeImageText(uri));
+      // 관리자 도구의 이미지 인식 기록에 남긴다
+      void logOcrWithImage({source: 'addSheet', ok: !!text.trim(), textLength: text.length, uid: user?.uid}, uri);
       if (!text.trim()) { setPaste({visible: true}); showLayoutSnackbar(t('recipeEdit.ocrEmpty'), {tone: 'error'}); return; }
       // 읽은 글을 쓰기 규칙(# 제목 / ## 재료 / ## 과정)으로 정리해 채운다 — 그대로면 적용 때 전부 과정이 됐다
       setPaste({visible: true, text: ocrTextToMarkdown(text) || text, animate: true});
-    } catch {
+    } catch (e: any) {
+      // 인식 자체가 실패한 것도 남긴다 — 고칠 거리는 대부분 여기
+      void logOcrWithImage({source: 'addSheet', ok: false, textLength: 0, error: String(e?.message ?? e), uid: user?.uid}, uri);
       setPaste({visible: true});
       showLayoutSnackbar(t('recipeEdit.ocrEmpty'), {tone: 'error'});
     }
-  }, [t, showLayoutSnackbar]);
+  }, [t, showLayoutSnackbar, user?.uid]);
   runImageToTextRef.current = runImageToText;
 
   const handleStartRecipe = useCallback((input: AddRecipeInput) => {
@@ -636,7 +644,8 @@ function NavigationContent() {
           {!hideContentMask && <ContentMask topHeight={0} />}
 
           {/* 탭바 */}
-          <View style={tabStyles.tabBarWrapper}>
+          {/* 탭바 아랫변 = 기기 홈 인디케이터 안전영역(없으면 8) — 바텀시트 아랫변과 같은 식이라 [+] 시트와 높이가 맞는다 */}
+          <View style={[tabStyles.tabBarWrapper, {bottom: sheetBottomInset(insets.bottom)}]}>
             <BottomTabBar
               tabs={tabs}
               activeTab={activeTab}
@@ -962,7 +971,7 @@ const createTabBarStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   tabBarWrapper: {
     position: 'absolute',
-    bottom: Spacing.lg,
+    bottom: Spacing.sm,
     alignSelf: 'center',
     zIndex: 30,
   },

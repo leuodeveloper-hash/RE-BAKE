@@ -1,11 +1,11 @@
+import {PageScrollView} from '@components/Page';
 import React, {useCallback, useEffect, useState} from 'react';
 import {View, Text, ScrollView, StyleSheet, Pressable} from 'react-native';
 import {useRouter} from 'expo-router';
-import {SafeAreaView} from 'react-native-safe-area-context';
 import {collection, query, orderBy, limit, getDocs} from 'firebase/firestore';
 import {Image} from 'expo-image';
 import {db} from '@config/firebase';
-import {Card} from '@components/Container';
+import {Card, ContentContainer} from '@components/Container';
 import {EmptyState} from '@components/EmptyState';
 import {FloatingNavBar, NavPillButton} from '@components/Navigation';
 import {Tabs} from '@components/Tabs';
@@ -87,8 +87,9 @@ export default function AdminOcrLogsRoute() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.safe} edges={['top']}>
-        <ScrollView contentContainerStyle={styles.scrollContent}>
+      <View style={styles.safe}>
+        <PageScrollView>
+          <ContentContainer fill style={styles.content}>
           <Tabs
             tabs={[
               {id: 'failed', label: t('adminOcrLogs.failedOnly', {count: failedCount})},
@@ -96,11 +97,12 @@ export default function AdminOcrLogsRoute() {
             ]}
             selectedId={filter}
             onSelect={id => setFilter(id as 'all' | 'failed')}
+            fullWidth
             style={styles.tabs}
           />
 
           {!loading && shown.length === 0 ? (
-            <EmptyState title={t('adminOcrLogs.empty')} />
+            <EmptyState category="no-recipe" title={t('adminOcrLogs.empty')} />
           ) : (
             shown.map(row => (
               <Card key={row.id} style={styles.item}>
@@ -145,8 +147,9 @@ export default function AdminOcrLogsRoute() {
               </Card>
             ))
           )}
-        </ScrollView>
-      </SafeAreaView>
+          </ContentContainer>
+        </PageScrollView>
+      </View>
 
       <FloatingNavBar
         title={t('adminOcrLogs.title')}
@@ -168,7 +171,8 @@ export default function AdminOcrLogsRoute() {
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   container: {flex: 1, backgroundColor: colors['surface/dim']},
   safe: {flex: 1},
-  scrollContent: {padding: Spacing.md, paddingBottom: Spacing.xxl, gap: Spacing.sm},
+  // 탭·카드 모두 콘텐츠 너비(최대 폭·좌우 여백) 안에
+  content: {gap: Spacing.sm},
   tabs: {marginBottom: Spacing.xs},
   item: {padding: Spacing.md, gap: Spacing.sm},
   itemHeader: {flexDirection: 'row', alignItems: 'center', gap: Spacing.sm},

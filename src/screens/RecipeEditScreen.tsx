@@ -15,7 +15,7 @@ import {
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {takePendingRecipeText} from '@utils/pendingRecipeText';
-import {ocrTextToMarkdown} from '@utils/ocrText';
+import {ocrTextToMarkdown, parseRecipeMetaFromOcr} from '@utils/ocrText';
 import {useImageTextReader} from '@hooks/useImageTextReader';
 import {parseRecognizedText} from '@utils/recipeOcr';
 import * as Haptics from 'expo-haptics';
@@ -23,7 +23,8 @@ import {getPersistentUri, MAX_HERO_PHOTOS} from '@utils/imageUpload';
 import {photoSourceMenuItems} from '@utils/photoSourceMenu';
 import {PhotoViewer} from '@components/PhotoViewer';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
-import {FloatingNavBar, NavPillButton, navPillStyle, NAV_PILL_HEIGHT} from '@components/Navigation';
+import {useSafeBottom} from '@hooks/useSafeBottom';
+import {FloatingNavBar, NavPillButton, navPillStyle, NAV_PILL_HEIGHT, APPBAR_CONTENT_BOTTOM, useAppBarContentTop, useAppBarPillBottom} from '@components/Navigation';
 import {RecipeInputFloatingBar} from '@components/RecipeOcrButton';
 import type {RecipeOcrField} from '@utils/recipeOcr';
 import {ContentContainer, Card, GlassContainer, MAX_CONTENT_WIDTH} from '@components/Container';
@@ -150,6 +151,9 @@ type TFn = (key: string, params?: Record<string, any>) => string;
 
 /** 상단 이미지는 대표 1장 + 추가 2장까지 (스텝 사진과 동일한 3장 제한) */
 const MAX_EXTRA_HERO = MAX_HERO_PHOTOS - 1;
+/** 사진에서 읽어 채우는 값 칸 */
+type MetaField = 'time' | 'servings' | 'doughTemp' | 'divideWeight';
+
 const makeEditMenuItems = (t: TFn) => [
   {id: 'import-url', label: t('recipeEdit.importFromSite'), icon: IconImport},
   // 묶음별 "한 번에 쓰기"는 그 묶음만 고친다 — 이건 레시피 전체를 채우므로
@@ -199,7 +203,7 @@ export function RecipeEditScreen(props: RecipeEditScreenProps) {
   );
 }
 
-function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks, cookbookColors: cookbookColorsProp, onSetCookbookColor, initialSection, initialCookbook, isExplore, onDeleteCookbook, recipeId, onLoadVersion}: RecipeEditScreenProps) {
+function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks, cookbookColors: cookbookColorsProp, onSetCookbookColor, initialSection, initialCookbook, isExplore, onDeleteCookbook, recipeId, onLoadVersion, initialBulk}: RecipeEditScreenProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const {t} = useTranslation();
@@ -215,6 +219,10 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const {open: openAuthSheet} = useAuthSheet();
   const isLoggedIn = !!user && !user.isAnonymous;
   const insets = useSafeAreaInsets();
+  const safeBottom = useSafeBottom();
+  // 편집 중 해당 칸으로 스크롤할 때 — 칸이 떠 있는 앱바(안전영역 + 앱바) 바로 아래 16에 오게
+  const scrollTopGap = useAppBarContentTop();
+  const discardTopFallback = useAppBarPillBottom() + 4;
   const {width: screenWidth} = useWindowDimensions();
   // 팝오버는 콘텐츠 최대너비 기준 X 버튼 아래에 붙어야 함(넓은 웹 화면에서 좌측 밖으로 안 나가게)
   const contentLeftEdge = Math.max(Spacing.md, (screenWidth - MAX_CONTENT_WIDTH) / 2 + Spacing.md);
@@ -971,9 +979,19 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                           }
                         };
 
+  // 상세 한번에 보기에서 들어왔으면 재료·과정을 한번에 쓰기로 연다(처음 한 번)
+  const initialBulkDone = useRef(false);
+  useEffect(() => {
+    if (!initialBulk || initialBulkDone.current) return;
+    initialBulkDone.current = true;
+    if (ingredientGroups[0] && !ingredientGroups[0].bulkMode) toggleIngredientBulk(ingredientGroups[0], true);
+    if (stepGroups[0] && !stepGroups[0].bulkMode) toggleStepBulk(stepGroups[0], true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialBulk]);
+
   // 사진에서 글 읽기(촬영·갤러리·레시피 사진 → 영역 선택 → 인식) — 화면에 하나.
   // 툴바 [레시피 사진]과 한번에 쓰기 인식 버튼이 같이 쓴다. 읽은 글은 대상 칸(ocrTargetRef)에 넣는다.
-  const ocrTargetRef = useRef<{field: RecipeOcrField; bulkGroupId?: string; paste?: boolean}>({field: 'title'});
+  const ocrTargetRef = useRef<{field: RecipeOcrField; bulkGroupId?: string; paste?: boolean; meta?: MetaField}>({field: 'title'});
   // 한번에 쓰기 머리의 인식 메뉴가 열린 묶음
   const [bulkScanMenu, setBulkScanMenu] = useState<string | null>(null);
   const ocrReader = useImageTextReader({
@@ -981,6 +999,28 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     onBusyChange: setOcrLoading,
     onText: text => {
       // 텍스트로 채우기 시트에서 '이미지로 읽기' — 읽은 글을 쓰기 규칙 글로 바꿔 시트를 다시 연다(무지개 타이핑)
+      // 시간·분량 등 정보 줄 인식 — 읽은 글에서 칸별 값을 찾아 넣고 그 칸을 켠다
+      // 시간·분량·반죽 온도·분할 용량 팝업의 '사진에서 읽기' — 그 칸 하나만 채운다
+      const metaField = ocrTargetRef.current.meta;
+      if (metaField) {
+        ocrTargetRef.current = {field: 'title'};
+        const m = parseRecipeMetaFromOcr(text);
+        const firstLine = text.split(/\r?\n/).map(l => l.trim()).find(Boolean) ?? '';
+        const firstNum = firstLine.match(/\d+(?:[.,]\d+)?/)?.[0]?.replace(',', '.');
+        // 이름표(예: '반죽 온도')가 없이 값만 찍었어도 읽히게 — 없으면 첫 줄·첫 숫자로
+        const value = metaField === 'time' ? (m.time ?? firstLine)
+          : metaField === 'servings' ? (m.servings ?? firstLine)
+          : metaField === 'doughTemp' ? (m.doughTemp ?? (firstNum ? `${firstNum}°C` : ''))
+          : (m.divideWeight ?? (firstNum ? `${firstNum}g` : ''));
+        if (!value) { showSnackbar(t('recipeEdit.ocrMetaNone'), {tone: 'error'}); return; }
+        if (metaField === 'time') setTime(value);
+        else if (metaField === 'servings') setServings(value);
+        else if (metaField === 'doughTemp') setDoughTemp(value);
+        else setDivideWeight(value);
+        setActiveFieldIds(ids => (ids.includes(metaField) ? ids : [...ids, metaField]));
+        showSnackbar(t('recipeEdit.ocrMetaOne', {value}), {tone: 'positive'});
+        return;
+      }
       if (ocrTargetRef.current.paste) {
         ocrTargetRef.current = {field: 'title'};
         setPasteInitial(ocrTextToMarkdown(text) || text);
@@ -1083,6 +1123,14 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const [pasteInitial, setPasteInitial] = useState<string | undefined>(undefined);
   const [pasteAnimate, setPasteAnimate] = useState(false);
   const [versionsOpen, setVersionsOpen] = useState(false);
+  /** 값 팝업에서 '사진에서 읽기' — 팝업을 닫고 레시피 사진(없으면 앨범)에서 영역을 골라 그 칸을 채운다 */
+  const scanInto = (field: MetaField) => {
+    setShowTimeDialog(false);
+    setShowServingsDialog(false);
+    setNumberDialog(null);
+    ocrTargetRef.current = {field: 'title', meta: field};
+    setTimeout(() => ocrReader.start(imageUri || imageUris.length ? 'recipe' : 'gallery'), 350);
+  };
   const startedInputRef = useRef(false);
   useEffect(() => {
     if (!initialInput || recipe || startedInputRef.current) return;
@@ -1116,7 +1164,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
       if (!isFieldActive('origin')) setActiveFieldIds(prev => [...prev, 'origin']);
       setTimeout(() => {
         const y = sectionPositions.current['origin'];
-        if (y != null) scrollViewRef.current?.scrollTo({y: y - 80, animated: true});
+        if (y != null) scrollViewRef.current?.scrollTo({y: Math.max(0, y - scrollTopGap), animated: true});
         setTimeout(() => originInputRef.current?.focus(), 250);
       }, 50);
     }
@@ -1228,7 +1276,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         // (measureLayout은 ScrollView 노드 핸들이 필요하고 렌더 타이밍도 타서 불안정)
         const y = target ? stepRowY.current[target.id] : undefined;
         if (target && y != null) {
-          scrollViewRef.current?.scrollTo({y: Math.max(0, y - 120), animated: false});
+          scrollViewRef.current?.scrollTo({y: Math.max(0, y - scrollTopGap), animated: false});
           focusAtEnd(rowInputRefs.current[target.id], (target as any).description ?? '');
           return;
         }
@@ -1241,7 +1289,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         const target = flat[stepIndex];
         const y = target ? ingRowY.current[target.id] : undefined;
         if (target && y != null) {
-          scrollViewRef.current?.scrollTo({y: Math.max(0, y - 120), animated: false});
+          scrollViewRef.current?.scrollTo({y: Math.max(0, y - scrollTopGap), animated: false});
           focusAtEnd(rowInputRefs.current[target.id], (target as any).name ?? '');
           return;
         }
@@ -1250,7 +1298,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
 
       const y = sectionPositions.current[section];
       if (y != null) {
-        scrollViewRef.current?.scrollTo({y: y - 80, animated: false});
+        scrollViewRef.current?.scrollTo({y: Math.max(0, y - scrollTopGap), animated: false});
       }
       const input = sectionInputRefs.current[section];
       if (input) {
@@ -1893,7 +1941,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         keyboardDismissMode="none"
         scrollEnabled={drag.scrollEnabled}>
         {/* Spacer for nav bar */}
-        <View style={{height: 72 + insets.top}} />
+        <View style={{height: scrollTopGap}} />
 
         {/* Title & Description */}
         <View style={{zIndex: showMethodMenu ? 100 : 1, elevation: showMethodMenu ? 100 : 1}}>
@@ -3181,7 +3229,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         </ContentContainer>
 
         {/* Bottom Padding */}
-        <View style={{height: Spacing.xxl + insets.bottom}} />
+        <View style={{height: Spacing.xxl + safeBottom}} />
       </ScrollView>
 
       {/* Overlay for Menu */}
@@ -3246,9 +3294,10 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         style={{
           position: 'absolute',
           // 측정값(화면 절대좌표)이 있으면 X 버튼 바로 아래에, 없으면 기존 추정치로 폴백
+          // 버튼 아래 4 — 다른 메뉴(Menu)들과 같은 간격
           top: closeBtnRect
-            ? closeBtnRect.y + closeBtnRect.height + 8
-            : insets.top + NAV_PILL_HEIGHT + 8,
+            ? closeBtnRect.y + closeBtnRect.height + 4
+            : discardTopFallback,
           left: closeBtnRect ? closeBtnRect.x : contentLeftEdge,
           zIndex: 100,
         }}
@@ -3314,6 +3363,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         onClose={() => setShowTimeDialog(false)}
         value={time}
         onConfirm={setTime}
+        onScan={() => scanInto('time')}
       />
 
       {/* 링크 입력 — 모든 플랫폼 공통 (웹 window.prompt는 차단·모양 제각각) */}
@@ -3335,6 +3385,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         suffix={numberDialog === 'divideWeight' ? 'g' : '°C'}
         onConfirm={v => (numberDialog === 'divideWeight' ? setDivideWeight(v) : setDoughTemp(v))}
         onDelete={() => (numberDialog === 'divideWeight' ? setDivideWeight('') : setDoughTemp(''))}
+        onScan={() => scanInto(numberDialog === 'divideWeight' ? 'divideWeight' : 'doughTemp')}
       />
 
       {/* 분량 다이얼로그 */}
@@ -3343,6 +3394,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         onClose={() => setShowServingsDialog(false)}
         value={servings}
         onConfirm={setServings}
+        onScan={() => scanInto('servings')}
       />
 
       {/* 재료 용량 다이얼로그 */}

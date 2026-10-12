@@ -5,8 +5,7 @@ import {useFocusEffect} from 'expo-router';
 import {loadCustomDdays} from '@utils/customDdays';
 import {LinearGradient} from 'expo-linear-gradient';
 import {BlurView} from 'expo-blur';
-import {SafeAreaView} from 'react-native-safe-area-context';
-import {FloatingNavBar, NavPillButton, APPBAR_CONTENT_BOTTOM} from '@components/Navigation';
+import {FloatingNavBar, NavPillButton, useAppBarContentTop} from '@components/Navigation';
 import {ContentContainer, Card} from '@components/Container';
 import {SectionHeader} from '@components/SectionHeader';
 import {ListItem} from '@components/ListItem';
@@ -200,6 +199,7 @@ export function ProfileScreen({
   avatarSeed,
   openPlanSheetSignal = 0,
 }: ProfileScreenProps) {
+  const contentTop = useAppBarContentTop();
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const {appearanceMode, setAppearanceMode} = useTheme();
@@ -422,10 +422,10 @@ export function ProfileScreen({
         title={t('profile.settingsTitle')}
       />
 
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <View style={styles.safeArea}>
         <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[styles.scrollContent, {paddingTop: contentTop}]}
           showsVerticalScrollIndicator={false}>
           {/* 맨 위 두 칸 — [프로필] [레시피북] */}
           <ContentContainer style={styles.section}>
@@ -627,7 +627,7 @@ export function ProfileScreen({
             </View>
           </View>
         </ScrollView>
-      </SafeAreaView>
+      </View>
 
       <InquirySheet
         visible={inquiryOpen}
@@ -733,8 +733,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
+    gap: Spacing.md,
     // 앱바(뒤로·제목) 아래 기본 여백 8 — 48이면 맨 위 카드가 앱바에 붙어 보였다
-    paddingTop: APPBAR_CONTENT_BOTTOM + Spacing.sm,
     paddingBottom: 120,
   },
   profileSection: {
@@ -766,9 +766,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   profileLoginButton: {
     marginTop: Spacing.md,
   },
-  section: {
-    paddingTop: Spacing.md,
-  },
+  // 섹션 사이 간격은 스크롤의 gap — 첫 섹션 위에 여백이 붙으면 앱바 아래 8이 깨진다
+  section: {},
   authForm: {
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.md,

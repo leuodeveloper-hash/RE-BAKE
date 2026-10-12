@@ -1,3 +1,4 @@
+import {PageScrollView} from '@components/Page';
 import React from 'react';
 import {ScrollView, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -19,12 +20,11 @@ export default function PrivacyScreen() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
+        <PageScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
-          <View style={{height: 80}} />
 
           <ContentContainer>
             <Text style={styles.title}>{t('privacy.title')}</Text>
@@ -57,9 +57,7 @@ export default function PrivacyScreen() {
             <Text style={styles.sectionTitle}>{t('privacy.section9Title')}</Text>
             <Text style={styles.body}>{t('privacy.section9Body')}</Text>
           </ContentContainer>
-
-          <View style={{height: 80}} />
-        </ScrollView>
+        </PageScrollView>
       </SafeAreaView>
 
       <FloatingNavBar

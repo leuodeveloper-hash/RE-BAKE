@@ -1,6 +1,8 @@
+import {PageScrollView} from '@components/Page';
 import React, {useCallback} from 'react';
 import {Alert, Platform, ScrollView, StyleSheet, View} from 'react-native';
 import {useRouter} from 'expo-router';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {AppBar, APPBAR_CONTENT_BOTTOM} from '@components/Navigation';
 import {ContentContainer, Card} from '@components/Container';
 import {ListItem} from '@components/ListItem';
@@ -28,6 +30,8 @@ import {syncTimeLabel} from '@utils/dateLabel';
 export default function DataRoute() {
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
+  // 앱바는 안전영역(노치) 아래에 떠 있다 — 내용도 그만큼 내려야 앱바에 가리지 않는다
+  const insets = useSafeAreaInsets();
   const {t} = useTranslation();
   const {showSnackbar} = useSnackbar();
   const {user, isAdmin} = useAuth();
@@ -83,7 +87,7 @@ export default function DataRoute() {
 
   return (
     <View style={styles.container}>
-      <ScrollView contentContainerStyle={{paddingTop: APPBAR_CONTENT_BOTTOM + Spacing.lg, paddingBottom: 100}}>
+      <PageScrollView>
         <ContentContainer>
           <Card>
             {/* 마지막 동기화 — 늘 맨 위. 로그인 전·기록 없을 땐 그 상태를 그대로 적는다 */}
@@ -161,7 +165,7 @@ export default function DataRoute() {
             ) : null}
           </ContentContainer>
         ) : null}
-      </ScrollView>
+      </PageScrollView>
 
       <AppBar centered title={t('profile.dataManagement')} leftIcon={IconArrowLeft} onLeftPress={() => goBackOr(router)} />
     </View>

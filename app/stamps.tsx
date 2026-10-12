@@ -1,10 +1,10 @@
+import {PageScrollView} from '@components/Page';
 import {shortDate} from '@utils/dateLabel';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, Easing, InteractionManager, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {triggerHaptic} from '@utils/haptics';
-import {SafeAreaView} from 'react-native-safe-area-context';
 import {useLocalSearchParams, useRouter} from 'expo-router';
-import {AppBar, APPBAR_CONTENT_BOTTOM} from '@components/Navigation';
+import {AppBar} from '@components/Navigation';
 import {ContentContainer} from '@components/Container';
 import {InlineBanner} from '@components/InlineBanner';
 import {EmptyState} from '@components/EmptyState';
@@ -440,15 +440,14 @@ export default function StampsRoute() {
           />
         }
       />
-      <SafeAreaView style={styles.safeArea} edges={['top']}>
-        <ScrollView
+      <View style={styles.safeArea}>
+        <PageScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
           {/* 앱바가 절대위치로 떠 있어 그만큼 콘텐츠를 내린다.
               고정값이면 기기·플랫폼마다 어긋나므로 앱바 실제 높이 + 여백으로 잡는다.
               (상단 인셋은 바깥 SafeAreaView가 이미 밀어줬다) */}
-          <View style={{height: APPBAR_CONTENT_BOTTOM + Spacing.sm}} />
 
           {/* 하나도 안 찍었으면 빈 칸만 늘어놓지 않고 무엇을 하는 곳인지 알린다.
               sections.length로 재면 "레시피북 없음" 섹션 때문에 레시피가 하나라도
@@ -552,8 +551,8 @@ export default function StampsRoute() {
               ))}
             </ContentContainer>
           )}
-        </ScrollView>
-      </SafeAreaView>
+        </PageScrollView>
+      </View>
 
       <StampDetailSheet
         visible={!!selected}

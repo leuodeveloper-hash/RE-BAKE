@@ -1,3 +1,4 @@
+import {PageScrollView} from '@components/Page';
 import React, {useMemo, useState} from 'react';
 import {ScrollView, StyleSheet, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -31,12 +32,11 @@ export default function MethodGuideRoute() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
+        <PageScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
-          <View style={{height: 80}} />
 
           <ContentContainer>
             <View style={styles.tabsWrap}>
@@ -61,7 +61,7 @@ export default function MethodGuideRoute() {
               />
             ))}
           </ContentContainer>
-        </ScrollView>
+        </PageScrollView>
       </SafeAreaView>
 
       <FloatingNavBar

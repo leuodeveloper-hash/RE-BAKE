@@ -1,4 +1,6 @@
 import React, {useCallback, useRef, useState} from 'react';
+import {logOcrWithImage} from '@utils/ocrLog';
+import {auth} from '@config/firebase';
 import {Platform} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {OcrCropModal} from '@components/RecipeOcrButton';
@@ -47,9 +49,12 @@ export function useImageTextReader({onText, recipePhotos, onBusyChange}: UseImag
     onBusyChange?.(true);
     try {
       const text = normalizeOcrWhitespace(await recognizeImageText(uri));
+      // 관리자 도구의 이미지 인식 기록에 남긴다(이 경로는 기록이 빠져 있었다)
+      void logOcrWithImage({source: 'reader', ok: !!text.trim(), textLength: text.length, uid: auth.currentUser?.uid}, uri);
       if (!text.trim()) showSnackbar(t('recipeEdit.ocrEmpty'), {tone: 'error'});
       else onText(text);
-    } catch {
+    } catch (e: any) {
+      void logOcrWithImage({source: 'reader', ok: false, textLength: 0, error: String(e?.message ?? e), uid: auth.currentUser?.uid}, uri);
       showSnackbar(t('recipeEdit.ocrEmpty'), {tone: 'error'});
     } finally {
       onBusyChange?.(false);

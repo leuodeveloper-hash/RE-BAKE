@@ -15,7 +15,7 @@ import {Typography} from '@constants/typography';
 import {Spacing} from '@constants/spacing';
 import {Radius} from '@constants/tokens';
 
-const MAX_CONTENT_WIDTH = 800;
+import {MAX_CONTENT_WIDTH} from '@components/Container/ContentContainer';
 
 export interface PhotoViewerProps {
   /**

@@ -1,3 +1,4 @@
+import {PageScrollView} from '@components/Page';
 import React from 'react';
 import {ScrollView, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -19,12 +20,11 @@ export default function TermsScreen() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
+        <PageScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
-          <View style={{height: 80}} />
 
           <ContentContainer>
             <Text style={styles.title}>{t('terms.title')}</Text>
@@ -60,9 +60,7 @@ export default function TermsScreen() {
             <Text style={styles.sectionTitle}>{t('terms.section10Title')}</Text>
             <Text style={styles.body}>{t('terms.section10Body')}</Text>
           </ContentContainer>
-
-          <View style={{height: 80}} />
-        </ScrollView>
+        </PageScrollView>
       </SafeAreaView>
 
       <FloatingNavBar

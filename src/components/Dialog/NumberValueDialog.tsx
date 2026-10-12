@@ -2,6 +2,8 @@ import React, {useEffect, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {Dialog} from './Dialog';
+import {NavPillButton} from '@components/Navigation/NavPillButton';
+import {IconScanText} from '@components/Icon/IconIndex';
 import {Button} from '@components/Button';
 import {TextInput} from '@components/TextInput';
 import type {AvatarColor} from '@components/Avatar/Avatar';
@@ -12,6 +14,8 @@ import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 
 export interface NumberValueDialogProps {
+  /** 사진에서 읽어 채우기 — 주면 헤더 오른쪽에 인식 버튼 */
+  onScan?: () => void;
   visible: boolean;
   onClose: () => void;
   title: string;
@@ -30,7 +34,7 @@ export interface NumberValueDialogProps {
  * 숫자 하나 + 단위 입력 — 반죽 온도(°C), 분할 용량(g)처럼 한 칸짜리 값.
  * 시간·분량처럼 형식이 정해진 값과 같은 모양(위쪽 팝업, 확인·취소).
  */
-export function NumberValueDialog({visible, onClose, title, icon, avatarColor = 'lime', value, suffix, onConfirm, onDelete}: NumberValueDialogProps) {
+export function NumberValueDialog({visible, onClose, title, icon, avatarColor = 'lime', value, suffix, onConfirm, onDelete, onScan}: NumberValueDialogProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const [num, setNum] = useState('');
@@ -47,6 +51,8 @@ export function NumberValueDialog({visible, onClose, title, icon, avatarColor = 
     <Dialog
       // 입력 팝업 — 통합 검색처럼 위쪽에(키보드에 안 가리게)
       position="top"
+      // 사진에서 읽기 — 헤더 오른쪽(누르면 사진·영역을 골라 이 칸을 채운다)
+      headerRight={onScan ? <NavPillButton icon={IconScanText} onPress={onScan} /> : undefined}
       visible={visible}
       onClose={onClose}
       icon={icon}

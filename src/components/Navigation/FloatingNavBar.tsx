@@ -1,6 +1,7 @@
 import React from 'react';
 import {Platform, StyleSheet, Text, View, ViewStyle} from 'react-native';
-import {SafeAreaView} from 'react-native-safe-area-context';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useSafeBottom} from '@hooks/useSafeBottom';
 import MaskedView from '@react-native-masked-view/masked-view';
 import {BlurView} from 'expo-blur';
 import {LinearGradient} from 'expo-linear-gradient';
@@ -55,7 +56,8 @@ function colorRgb(color: string): [number, number, number] {
 }
 
 /** NavBar pill 높이 */
-export const NAV_PILL_HEIGHT = 44;
+export {NAV_PILL_HEIGHT, APPBAR_TOP_PADDING, APPBAR_CONTENT_BOTTOM, APPBAR_CONTENT_GAP, APPBAR_CONTENT_TOP, APPBAR_AREA_BOTTOM} from '@constants/layout';
+import {NAV_PILL_HEIGHT, APPBAR_CONTENT_BOTTOM, APPBAR_CONTENT_GAP, APPBAR_AREA_BOTTOM} from '@constants/layout';
 
 /** 공통 pill 스타일 — GlassContainer contentStyle에 사용 */
 export const navPillStyle: ViewStyle = {
@@ -66,21 +68,48 @@ export const navPillStyle: ViewStyle = {
   gap: 2,
 };
 
-/**
- * AppBar가 안전영역 아래로 두는 여백.
- * 앱바와 같은 높이에서 시작해야 하는 오버레이(검색 등)가 같이 쓴다 —
- * 값을 따로 적으면 한쪽만 바뀌어 몇 px씩 어긋난다.
- */
-export const APPBAR_TOP_PADDING = Spacing.smd;
 
-/** AppBar 영역 하단 위치 (paddingTop + pill height). 메뉴 top 기준으로 사용 */
-export const APPBAR_CONTENT_BOTTOM = Spacing.smd + NAV_PILL_HEIGHT; // 10 + 44 = 54
+
+/**
+ * 앱바 위 안전영역 — 플랫폼마다 다르다.
+ * 네이티브: 기기 값(노치·다이내믹 아일랜드·상태바, iOS/안드로이드 기종별로 다름). 웹: 0(브라우저가 이미 비켜준다).
+ * 시트 하단의 sheetBottomInset과 같은 방식.
+ */
+export const appBarTopInset = (safeTop: number) => (Platform.OS === 'web' ? 0 : safeTop);
+
+/**
+ * 앱바 아래 콘텐츠가 시작할 위치(안전영역 + 앱바 + 간격).
+ * 화면 맨 위가 안전영역 밖(SafeAreaView top 아님)인 스크롤에 paddingTop으로 준다.
+ */
+export function useAppBarContentTop(gap: number = APPBAR_CONTENT_GAP) {
+  const insets = useSafeAreaInsets();
+  return appBarTopInset(insets.top) + APPBAR_AREA_BOTTOM + gap;
+}
+
+/** 앱바 버튼(알약) 아래 끝 — 앱바 버튼에서 펼쳐지는 메뉴·팝오버 위치용(콘텐츠 위치엔 쓰지 않는다) */
+export function useAppBarPillBottom() {
+  const insets = useSafeAreaInsets();
+  return appBarTopInset(insets.top) + APPBAR_CONTENT_BOTTOM;
+}
+
+/**
+ * 페이지 콘텐츠 상하 기본 여백 — 위는 앱바 아래 8, 아래는 하단 안전영역 위 8.
+ * 이 8은 여기 한 곳만 책임진다. 화면·섹션은 위아래 바깥 여백을 따로 두지 않는다
+ * (첫 섹션 marginTop 같은 걸 더하면 화면마다 간격이 달라진다).
+ * 보통은 PageScrollView를 쓰면 자동으로 들어간다.
+ */
+export function usePageContentPadding() {
+  const paddingTop = useAppBarContentTop();
+  const paddingBottom = useSafeBottom() + Spacing.sm;
+  return {paddingTop, paddingBottom};
+}
 
 // pill 바로 아래에서 짧게 페이드아웃 — 콘텐츠 침범 방지 (이전 66 → 24)
 const GRADIENT_EXTENSION = Spacing.lg; // 24
 
 export function FloatingNavBar({left, right, title, center, leftMenu, rightMenu, leftFull, tintColor, style}: FloatingNavBarProps) {
   const colors = useColors();
+  const insets = useSafeAreaInsets();
   const {isDark} = useTheme();
   // 페이지 배경과 같은 색이라야 그라디언트 끝이 표시 안 나게 녹는다.
   // surface/normal(neutral/98)은 페이지(neutral/95)보다 밝아 앱바만 떠 보였다.
@@ -92,9 +121,8 @@ export function FloatingNavBar({left, right, title, center, leftMenu, rightMenu,
   const gradStop = (a: number) => `rgba(${gr}, ${gg}, ${gb}, ${a * gradAlpha})`;
 
   return (
-    <SafeAreaView
-      edges={['top']}
-      style={[styles.container, style]}
+    <View
+      style={[styles.container, {paddingTop: appBarTopInset(insets.top)}, style]}
       pointerEvents="box-none">
       {/* 블러 + 그라디언트 배경 (하단 페이드 포함) */}
       {Platform.OS === 'web' ? (
@@ -178,7 +206,7 @@ export function FloatingNavBar({left, right, title, center, leftMenu, rightMenu,
           )}
         </ContentContainer>
       </View>
-    </SafeAreaView>
+    </View>
   );
 }
 

@@ -1068,5 +1068,9 @@
   "id.newerElsewhere": "This recipe was changed more recently on another device. Not overwritten — reopen to edit the latest version.",
   "recipeEdit.versionsTitle": "Restore a previous version",
   "recipeEdit.versionsEmpty": "No previous versions yet",
-  "id.versionLoaded": "Previous version restored"
+  "id.versionLoaded": "Previous version restored",
+  "recipeEdit.ocrMetaNone": "Couldn't find a value in the photo",
+  "recipeEdit.ocrMetaOne": "Filled \"{{value}}\" from the photo",
+  "recipeDetail.updated": "Updated · Refresh",
+  "recipeDetail.updating": "Loading"
 }

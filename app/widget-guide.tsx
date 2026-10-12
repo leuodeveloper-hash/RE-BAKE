@@ -1,7 +1,8 @@
 import React, {useEffect, useState} from 'react';
 import {Image, Platform, StyleSheet, Text, View} from 'react-native';
 import {useRouter} from 'expo-router';
-import {AppBar, APPBAR_CONTENT_BOTTOM} from '@components/Navigation';
+import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {AppBar, APPBAR_CONTENT_BOTTOM, useAppBarContentTop} from '@components/Navigation';
 import {Button} from '@components/Button';
 import {BottomActionBar} from '@components/BottomActionBar';
 import {useColors} from '@contexts/ThemeContext';
@@ -33,6 +34,9 @@ const IMAGE_HEIGHT = Math.round((IMAGE_WIDTH * 667) / 314);
 export default function WidgetGuideRoute() {
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
+  // 앱바는 안전영역(노치) 아래에 떠 있다 — 내용도 그만큼 내려야 앱바에 가리지 않는다
+  const insets = useSafeAreaInsets();
+  const contentTop = useAppBarContentTop();
   const colors = useColors();
   const {t} = useTranslation();
   const [step, setStep] = useState(0);
@@ -49,7 +53,7 @@ export default function WidgetGuideRoute() {
 
   return (
     <View style={styles.container}>
-      <View style={[styles.body, {paddingTop: APPBAR_CONTENT_BOTTOM + Spacing.xl}]}>
+      <View style={[styles.body, {paddingTop: contentTop}]}>
         {Platform.OS === 'android' ? (
           <Text style={styles.headline}>{t('widgetGuide.androidHelper')}</Text>
         ) : (

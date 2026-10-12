@@ -1,8 +1,9 @@
+import {PageScrollView} from '@components/Page';
 import React, {useCallback} from 'react';
 import {Platform, ScrollView, StyleSheet, View} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useRouter} from 'expo-router';
-import {FloatingNavBar, NavPillButton} from '@components/Navigation';
+import {FloatingNavBar, NavPillButton, usePageContentPadding} from '@components/Navigation';
 import {ContentContainer, Card} from '@components/Container';
 import {ListItem} from '@components/ListItem';
 import {SectionHeader} from '@components/SectionHeader';
@@ -16,6 +17,7 @@ import {IconArrowLeft, IconBellFilled} from '@components/Icon/IconIndex';
 import {goBackOr} from '@utils/navigation';
 
 export default function LabsRoute() {
+  const pagePadding = usePageContentPadding();
   const styles = useThemedStyles(createStyles);
   const router = useRouter();
   const {isAdmin} = useAuth();
@@ -106,8 +108,8 @@ export default function LabsRoute() {
   if (!isAdmin) {
     return (
       <View style={styles.container}>
-        <SafeAreaView style={styles.safeArea}>
-          <ContentContainer style={{paddingTop: 120}}>
+        <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
+          <ContentContainer style={{paddingTop: pagePadding.paddingTop}}>
             <SectionHeader title={t('labs.accessDenied')} />
           </ContentContainer>
         </SafeAreaView>
@@ -120,12 +122,11 @@ export default function LabsRoute() {
 
   return (
     <View style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ScrollView
+      <SafeAreaView style={styles.safeArea} edges={['left', 'right']}>
+        <PageScrollView
           style={styles.scrollView}
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
-          <View style={{height: 80}} />
 
           <ContentContainer>
             <SectionHeader title={t('labs.pushNotifications')} />
@@ -150,7 +151,7 @@ export default function LabsRoute() {
               />
             </Card>
           </ContentContainer>
-        </ScrollView>
+        </PageScrollView>
       </SafeAreaView>
 
       <FloatingNavBar

@@ -1,6 +1,8 @@
 import React, {useEffect, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {Dialog} from './Dialog';
+import {NavPillButton} from '@components/Navigation/NavPillButton';
+import {IconScanText} from '@components/Icon/IconIndex';
 import {Button} from '@components/Button';
 import {TextInput} from '@components/TextInput';
 import {useThemedStyles} from '@hooks/useThemedStyles';
@@ -11,6 +13,8 @@ import {IconClockTwotone} from '@components/Icon/IconIndex';
 import {useTranslation} from '@contexts/LanguageContext';
 
 export interface TimeDialogProps {
+  /** 사진에서 읽어 채우기 — 주면 헤더 오른쪽에 인식 버튼 */
+  onScan?: () => void;
   visible: boolean;
   onClose: () => void;
   value?: string;
@@ -37,7 +41,7 @@ function formatTime(hours: string, minutes: string): string {
   return '';
 }
 
-export function TimeDialog({visible, onClose, value, onConfirm}: TimeDialogProps) {
+export function TimeDialog({visible, onClose, value, onConfirm, onScan}: TimeDialogProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const [hours, setHours] = useState('');
@@ -61,6 +65,8 @@ export function TimeDialog({visible, onClose, value, onConfirm}: TimeDialogProps
     <Dialog
       // 입력 팝업 — 통합 검색처럼 위쪽에(키보드에 안 가리게)
       position="top"
+      // 사진에서 읽기 — 헤더 오른쪽(누르면 사진·영역을 골라 이 칸을 채운다)
+      headerRight={onScan ? <NavPillButton icon={IconScanText} onPress={onScan} /> : undefined}
       visible={visible}
       onClose={onClose}
       icon={IconClockTwotone}

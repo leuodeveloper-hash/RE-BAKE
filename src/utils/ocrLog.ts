@@ -10,7 +10,9 @@ export type OcrSource =
   | 'edit.tools'        // 편집 화면 도구 필드
   | 'edit.steps'        // 편집 화면 과정 필드
   | 'inputBar'          // 입력 플로팅바 (필드는 그때그때 다름)
-  | 'cookingMode';      // 요리모드 사진 → 텍스트
+  | 'cookingMode'       // 요리모드 사진 → 텍스트
+  | 'reader'            // 편집 한번에 쓰기·텍스트로 채우기·값 팝업 사진 인식(useImageTextReader)
+  | 'addSheet';         // [+] 이미지 → 텍스트 시트
 
 export interface OcrLogInput {
   source: OcrSource;
@@ -38,8 +40,12 @@ export interface OcrLogInput {
  */
 export async function logOcrAttempt(input: OcrLogInput): Promise<void> {
   try {
+    // Firestore는 값이 undefined인 필드가 하나라도 있으면 문서 전체를 거부한다
+    // (이미지 업로드 실패 → imageUrl undefined, 비로그인 → uid undefined).
+    // 그래서 기록이 통째로 안 남았다 — undefined 필드는 빼고 쓴다.
+    const clean = Object.fromEntries(Object.entries(input).filter(([, v]) => v !== undefined));
     await addDoc(collection(db, 'ocr_logs'), {
-      ...input,
+      ...clean,
       platform: Platform.OS,
       createdAt: serverTimestamp(),
     });
