@@ -520,6 +520,7 @@
   "notifOffMessage": "To receive exam alerts, enable notifications for this app in your device settings.",
   "notifOffTitle": "Notifications are off",
   "notifTest": "Notification Test",
+  "ocr.failedWeb": "Text recognition is less accurate on the web. Try the app for much better results.",
   "ocrAppOnly": "Image recognition (OCR) is available in the app",
   "ocrCrop.cancel": "Cancel",
   "ocrCrop.recognizeArea": "Scan This Area",

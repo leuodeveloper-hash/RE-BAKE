@@ -1,3 +1,4 @@
+import {ocrFailMessage} from '@utils/ocrFailMessage';
 import React, {useCallback, useState} from 'react';
 import {Keyboard, Platform, ViewStyle} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -145,13 +146,13 @@ export function RecipeInputFloatingBar({
         );
       if (!text || !text.trim()) {
         log(false, 0, 'no-text');
-        showSnackbar(t('recipeInputFloatingBar.noTextFound'), {tone: 'error'});
+        showSnackbar(ocrFailMessage(t, 'recipeInputFloatingBar.noTextFound'), {tone: 'error'});
         return;
       }
       const parsed = parseRecognizedText(text, capturedField);
       if (typeof parsed === 'string' ? !parsed.trim() : parsed.length === 0) {
         log(false, 0, 'parsed-empty');
-        showSnackbar(t('recipeInputFloatingBar.noTextFound'), {tone: 'error'});
+        showSnackbar(ocrFailMessage(t, 'recipeInputFloatingBar.noTextFound'), {tone: 'error'});
         return;
       }
       log(true, Array.isArray(parsed) ? parsed.length : 1);
@@ -163,7 +164,7 @@ export function RecipeInputFloatingBar({
         {source: 'inputBar', field: capturedField, ok: false, textLength: 0, error: err?.message ?? String(err), uid: user?.uid},
         uri,
       );
-      showSnackbar(t('recipeInputFloatingBar.ocrFailed'), {tone: 'error'});
+      showSnackbar(ocrFailMessage(t, 'recipeInputFloatingBar.ocrFailed'), {tone: 'error'});
     } finally {
       onOcrEnd?.();
     }

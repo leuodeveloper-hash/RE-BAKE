@@ -1857,9 +1857,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     ...Typography.body.small,
     color: colors['foreground/on-surface-muted'],
   },
-  // 라인 블록 — 본문 줄 아래 살짝 띄운다. 들여쓰지 않고 본문과 같은 왼쪽에서 시작
+  // 라인 블록 — 본문 줄 아래 4, 다음 줄과 8 띄운다. 들여쓰지 않고 본문과 같은 왼쪽에서 시작
   bulkNoteBlock: {
     marginTop: Spacing.xs,
+    // 다음 과정 줄과 붙어 보이지 않게
+    marginBottom: Spacing.sm,
   },
   bulkCaution: {
     color: colors['custom/yellow-var'],

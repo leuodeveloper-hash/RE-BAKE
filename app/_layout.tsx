@@ -1,6 +1,7 @@
 import '../global.css';
 import {logOcrWithImage} from '@utils/ocrLog';
 import {trackScreen} from '@utils/analytics';
+import {ocrFailMessage} from '@utils/ocrFailMessage';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, StyleSheet, View, Easing, Pressable, Platform, AppState} from 'react-native';
 import {Stack, usePathname, useRouter} from 'expo-router';
@@ -467,14 +468,14 @@ function NavigationContent() {
       const text = normalizeOcrWhitespace(await recognizeImageText(uri));
       // 관리자 도구의 이미지 인식 기록에 남긴다
       void logOcrWithImage({source: 'addSheet', ok: !!text.trim(), textLength: text.length, uid: user?.uid}, uri);
-      if (!text.trim()) { setPaste({visible: true}); showLayoutSnackbar(t('recipeEdit.ocrEmpty'), {tone: 'error'}); return; }
+      if (!text.trim()) { setPaste({visible: true}); showLayoutSnackbar(ocrFailMessage(t, 'recipeEdit.ocrEmpty'), {tone: 'error'}); return; }
       // 읽은 글을 쓰기 규칙(# 제목 / ## 재료 / ## 과정)으로 정리해 채운다 — 그대로면 적용 때 전부 과정이 됐다
       setPaste({visible: true, text: ocrTextToMarkdown(text) || text, animate: true});
     } catch (e: any) {
       // 인식 자체가 실패한 것도 남긴다 — 고칠 거리는 대부분 여기
       void logOcrWithImage({source: 'addSheet', ok: false, textLength: 0, error: String(e?.message ?? e), uid: user?.uid}, uri);
       setPaste({visible: true});
-      showLayoutSnackbar(t('recipeEdit.ocrEmpty'), {tone: 'error'});
+      showLayoutSnackbar(ocrFailMessage(t, 'recipeEdit.ocrEmpty'), {tone: 'error'});
     }
   }, [t, showLayoutSnackbar, user?.uid]);
   runImageToTextRef.current = runImageToText;

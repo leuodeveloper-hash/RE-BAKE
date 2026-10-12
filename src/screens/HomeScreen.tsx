@@ -96,9 +96,17 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
   const {t} = useTranslation();
   const styles = useThemedStyles(createStyles);
   const isAuthorMode = !!authorId;
+  // 작성자 홈은 고른 북·공법을 따로 둔다 — 내 홈과 같은 저장소를 쓰면 남의 홈에서 고른 게
+  // 내 홈 필터를 덮어써서 "기억이 안 되는" 것처럼 보였다
+  const [authorCookbook, setAuthorCookbook] = useState<string | null>(null);
+  const [authorMethod, setAuthorMethod] = useState<string | null>(null);
   const colors = useColors();
   const router = useRouter();
-  const {recipes: myRecipes, setRecipes, selectedCookbook, setSelectedCookbook, selectedMethod, setSelectedMethod, availableCookbooks: myAvailableCookbooks, cookbookColors, setCookbookColor, removeCookbookColor, isLoading: myLoading, reload, canAddRecipe} = useRecipes();
+  const {recipes: myRecipes, setRecipes, selectedCookbook: mySelectedCookbook, setSelectedCookbook: setMySelectedCookbook, selectedMethod: mySelectedMethod, setSelectedMethod: setMySelectedMethod, availableCookbooks: myAvailableCookbooks, cookbookColors, setCookbookColor, removeCookbookColor, isLoading: myLoading, reload, canAddRecipe} = useRecipes();
+  const selectedCookbook = isAuthorMode ? authorCookbook : mySelectedCookbook;
+  const setSelectedCookbook = isAuthorMode ? setAuthorCookbook : setMySelectedCookbook;
+  const selectedMethod = isAuthorMode ? authorMethod : mySelectedMethod;
+  const setSelectedMethod = isAuthorMode ? setAuthorMethod : setMySelectedMethod;
   const {showSnackbar} = useSnackbar();
   const {setShowCookbookDialog, setCookbookEditTarget} = useAddSheet();
   const {isPro} = useSubscription();
@@ -142,8 +150,8 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
     }).catch(() => {}).finally(() => { visLoaded.current = true; });
   }, []);
   useEffect(() => {
-    if (visLoaded.current) AsyncStorage.setItem('@bakle_home_visibility', visibility).catch(() => {});
-  }, [visibility]);
+    if (visLoaded.current && !isAuthorMode) AsyncStorage.setItem('@bakle_home_visibility', visibility).catch(() => {});
+  }, [visibility, isAuthorMode]);
 
   const recipes = useMemo(
     () => isAuthorMode ? exploreRecipesAll.filter(r => r.authorId === authorId && !r.hidden) : homeRecipes,
@@ -198,17 +206,20 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
   const axisLoaded = useRef(false);
   useEffect(() => {
     // 처음 축을 정해 들어왔으면 복원하지 않는다
-    if (initialAxis) { axisLoaded.current = true; return; }
+    if (initialAxis || isAuthorMode) { axisLoaded.current = true; return; }
     AsyncStorage.getItem('bakle_home_axis_v1').then(v => {
       // 작성자 홈엔 회고 축이 없다 — 마지막으로 본 게 회고여도 전체로
       if (v) setGroupAxis(isAuthorMode && v === 'retrospective' ? 'all' : (v as GroupAxis));
       axisLoaded.current = true;
     }).catch(() => { axisLoaded.current = true; });
   }, []);
+  // 축이 어떤 경로로 바뀌든 저장(내 홈만) — 예전엔 축 메뉴로 바꿀 때만 저장돼, 북 메뉴로 바뀐 축은 잊었다
+  useEffect(() => {
+    if (axisLoaded.current && !isAuthorMode) AsyncStorage.setItem('bakle_home_axis_v1', groupAxis).catch(() => {});
+  }, [groupAxis, isAuthorMode]);
   const handleAxisChange = useCallback((a: GroupAxis) => {
     setGroupAxis(a);
     setDrillFrom(null);
-    if (axisLoaded.current) AsyncStorage.setItem('bakle_home_axis_v1', a).catch(() => {});
     if (a === 'all') { setSelectedCookbook(null); setSelectedMethod(null); }
   }, [setSelectedCookbook, setSelectedMethod]);
   const [guestBannerDismissed, setGuestBannerDismissed] = useState(false);

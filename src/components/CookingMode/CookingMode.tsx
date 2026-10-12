@@ -1,4 +1,5 @@
 import {NOTE_BLOCK} from '@constants/noteBlock';
+import {ocrFailMessage} from '@utils/ocrFailMessage';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {triggerHaptic} from '@utils/haptics';
 import {
@@ -970,7 +971,7 @@ export function CookingMode({
         ocrUri,
       );
       if (!text) {
-        showSnackbar(t('cookingMode.noTextFound'), {tone: 'error'});
+        showSnackbar(ocrFailMessage(t, 'cookingMode.noTextFound'), {tone: 'error'});
         return;
       }
       updateEditCards(prev => prev.map(c =>
@@ -984,7 +985,7 @@ export function CookingMode({
       console.warn('CookingMode OCR failed', e);
       // 인식 자체가 실패한 것도 남긴다
       if (ocrUri) void logOcrWithImage({source: 'cookingMode', ok: false, textLength: 0, error: String(e?.message ?? e), uid: user?.uid}, ocrUri);
-      showSnackbar(t('cookingMode.imageAnalysisFailed'), {tone: 'error'});
+      showSnackbar(ocrFailMessage(t, 'cookingMode.imageAnalysisFailed'), {tone: 'error'});
     } finally {
       setOcrBusy(false);
     }

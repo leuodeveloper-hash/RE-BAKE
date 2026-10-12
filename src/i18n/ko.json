@@ -505,6 +505,7 @@
   "notifOffMessage": "시험 알림을 받으려면 기기 설정에서 이 앱의 알림을 켜주세요.",
   "notifOffTitle": "알림이 꺼져 있어요",
   "notifTest": "알림 테스트",
+  "ocr.failedWeb": "웹에서는 글자를 잘 못 읽을 수 있어요. 앱에서 하면 훨씬 정확해요.",
   "ocrAppOnly": "이미지 인식(OCR)은 앱에서 사용할 수 있어요",
   "ocrCrop.cancel": "취소",
   "ocrCrop.recognizeArea": "이 영역 인식",

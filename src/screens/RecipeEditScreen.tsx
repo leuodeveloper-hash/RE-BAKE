@@ -1,4 +1,6 @@
 import {cookbookColorOf} from '@contexts/RecipeContext';
+import {focusAt} from '@utils/focusAt';
+import {ocrFailMessage} from '@utils/ocrFailMessage';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
@@ -1013,7 +1015,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
           : metaField === 'servings' ? (m.servings ?? firstLine)
           : metaField === 'doughTemp' ? (m.doughTemp ?? (firstNum ? `${firstNum}°C` : ''))
           : (m.divideWeight ?? (firstNum ? `${firstNum}g` : ''));
-        if (!value) { showSnackbar(t('recipeEdit.ocrMetaNone'), {tone: 'error'}); return; }
+        if (!value) { showSnackbar(ocrFailMessage(t, 'recipeEdit.ocrMetaNone'), {tone: 'error'}); return; }
         if (metaField === 'time') setTime(value);
         else if (metaField === 'servings') setServings(value);
         else if (metaField === 'doughTemp') setDoughTemp(value);
@@ -1034,7 +1036,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
       try {
         handleOcrRecognized(parseRecognizedText(text, field), field);
       } catch {
-        showSnackbar(t('recipeEdit.ocrEmpty'), {tone: 'error'});
+        showSnackbar(ocrFailMessage(t, 'recipeEdit.ocrEmpty'), {tone: 'error'});
       }
     },
   });
@@ -2383,7 +2385,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                               const newId = addIngredient(group.id, 'bottom', ingredient.id, rest ?? '');
                               // 새 행이 렌더된 뒤 포커스 — 넘어온 글자가 있으면 그 맨 앞에 커서
                               // rowInputRefs는 RNTextInput 타입이라 RichEditor의 focus(caret)을 모른다
-                              setTimeout(() => (rowInputRefs.current[newId] as any)?.focus?.(0), 50);
+                              setTimeout(() => focusAt(rowInputRefs.current[newId], 0), 50);
                             }}
                             onBackspaceAtStart={() => {
                               // 빈 칸에서 백스페이스 = 그 행 삭제 (과정과 같은 약속).
@@ -2393,7 +2395,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                               const prev = group.ingredients[index - 1];
                               if (!prev) return; // 첫 행은 지우지 않는다(최소 1행 유지)
                               removeIngredient(group.id, ingredient.id);
-                              setTimeout(() => (rowInputRefs.current[prev.id] as any)?.focus(Number.MAX_SAFE_INTEGER), 50);
+                              setTimeout(() => focusAt(rowInputRefs.current[prev.id], Number.MAX_SAFE_INTEGER), 50);
                             }}
                             onSelectionChange={(sel, srcValue) => {
                               // 툴바 링크 버튼이 볼 대상 — 쿠팡 링크의 주 용도가 재료다
@@ -2682,7 +2684,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                             const prev = group.tools[index - 1];
                             if (!prev) return; // 첫 행은 지우지 않는다(최소 1행 유지)
                             removeTool(group.id, tool.id);
-                            setTimeout(() => (rowInputRefs.current[prev.id] as any)?.focus(Number.MAX_SAFE_INTEGER), 50);
+                            setTimeout(() => focusAt(rowInputRefs.current[prev.id], Number.MAX_SAFE_INTEGER), 50);
                           }}
                           onSelectionChange={(sel, srcValue) => {
                             linkCtx?.report({
@@ -2972,7 +2974,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                             // 문단 중간이면 커서 뒤 글자를 새 과정으로 가져간다
                             const newId = addStep(group.id, 'bottom', step.id, rest ?? '');
                             // 넘어온 글자가 있으면 그 맨 앞에 커서
-                            setTimeout(() => (rowInputRefs.current[newId] as any)?.focus?.(0), 50);
+                            setTimeout(() => focusAt(rowInputRefs.current[newId], 0), 50);
                           }}
                           // 커서가 맨 앞일 때 백스페이스 → 이전 행과 병합
                           // (엔터로 잘못 나눈 걸 되돌리는 가장 자연스러운 조작)
@@ -2990,7 +2992,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                             }));
                             // 이전 행으로 포커스 이동 + 병합 지점에 커서
                             // RichEditor.focus(caret) — ref 맵 타입은 RN TextInput 기준이라 캐스팅한다
-                            setTimeout(() => (rowInputRefs.current[prev.id] as any)?.focus(mergedAt), 50);
+                            setTimeout(() => focusAt(rowInputRefs.current[prev.id], mergedAt), 50);
                           }}
                           onSelectionChange={(sel, srcValue) => {
                             stepSelRef.current[step.id] = sel;
