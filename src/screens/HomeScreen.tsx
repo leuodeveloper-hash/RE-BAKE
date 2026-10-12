@@ -1,5 +1,5 @@
 import {SETTINGS_ROUTE} from '@utils/navigation';
-import {OFFICIAL_AUTHOR_ID, OFFICIAL_AUTHOR_HANDLE} from '../types/author';
+import {OFFICIAL_AUTHOR_ID, OFFICIAL_AUTHOR_HANDLE, OFFICIAL_AUTHOR_DISPLAY_NAME} from '../types/author';
 import {cookbookColorOf} from '@contexts/RecipeContext';
 import {getCookbookColorKey} from '@components/ColorPicker';
 import {IconBookFilled} from '@components/Icon/IconIndex';
@@ -7,8 +7,10 @@ import {getColorVarKey} from '@components/ColorPicker';
 import {IconExprolerBookFilled} from '@components/Icon/IconIndex';
 import {BREADCRUMB_ITEM_OFFSET} from '@components/Navigation/Breadcrumb';
 import {cookbookMenuItem} from '@utils/cookbookMenuItem';
+import {ProfileHeader} from '@components/ProfileHeader';
+import {shareProfile} from '@utils/shareCookbook';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {Linking, StyleSheet, Text} from 'react-native';
+import {Linking, StyleSheet, Text, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {useFocusEffect, useRouter} from 'expo-router';
 import {AppBar} from '@components/Navigation';
@@ -84,11 +86,13 @@ export interface HomeScreenProps {
   onBack?: () => void;
   /** 앱바 타이틀 자리에 넣을 컴팩트 노드(작성자 아바타+닉네임 배지). 주어지면 그룹화 셀렉터 대신 표시 */
   authorBadge?: React.ReactNode;
+  /** 작성자 홈 머리말 — 내 홈과 같은 프로필 머리말로 보여준다 */
+  authorProfile?: {name: string; handle?: string; avatarSeed: string | number};
   /** 축 셀렉터 메뉴 최상단에 한 줄로 넣을 작성자 정보 노드(작성자 홈용). */
   menuHeaderNode?: React.ReactNode;
 }
 
-export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHeaderNode}: HomeScreenProps = {}) {
+export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorProfile, menuHeaderNode}: HomeScreenProps = {}) {
   const {t} = useTranslation();
   const styles = useThemedStyles(createStyles);
   const isAuthorMode = !!authorId;
@@ -98,7 +102,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
   const {showSnackbar} = useSnackbar();
   const {setShowCookbookDialog, setCookbookEditTarget} = useAddSheet();
   const {isPro} = useSubscription();
-  const {user, isAdmin} = useAuth();
+  const {user, isAdmin, displayName, handle, avatarSeed} = useAuth();
   // 홈은 개인 레시피만 표시. explore는 pull-to-refresh 동기화 용도로만 reload 사용.
   const {reload: exploreReload, exploreCookbooks, recipes: exploreRecipesAll, isLoading: exploreLoading} = useExploreRecipeContext();
 
@@ -107,6 +111,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
   // 공개본은 원본(sourceRecipeId, 예전 것은 같은 제목)이 있으면 원본 카드에 공개 표시만 하고,
   // 원본이 없는 공개본(둘러보기에 직접 쓴 공식 레시피 등)은 그대로 목록에 넣는다.
   const myAuthorKey = isAdmin ? OFFICIAL_AUTHOR_ID : user?.uid;
+  // publishedIds = 공식(둘러보기에 올라간) 레시피 — 공개·비공개 상관없이. 카드 공식 아이콘·'공식' 필터
   const {homeRecipes, publishedIds} = useMemo(() => {
     const ids = new Set<string>();
     if (isAuthorMode || !myAuthorKey) return {homeRecipes: myRecipes, publishedIds: ids};
@@ -116,8 +121,9 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
     for (const p of exploreRecipesAll) {
       if (p.authorId !== myAuthorKey) continue;
       const own = (p.sourceRecipeId && byId.get(p.sourceRecipeId)) || byTitle.get(p.title.trim());
-      if (own) ids.add(own.id);
-      else { orphans.push(p); ids.add(p.id); }
+      const id = own ? own.id : p.id;
+      if (!own) orphans.push(p);
+      ids.add(id);
     }
     // 내가 쓴 레시피는 내가 공개하는 이름(관리자=공식 베이키)으로 묶는다.
     // 관리자의 개인 레시피엔 계정 uid가 박혀 있어, 공식 북에 섞이면 "by 베이키 외 1명"으로 보였다
@@ -128,6 +134,16 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
   }, [isAuthorMode, myAuthorKey, myRecipes, exploreRecipesAll, user?.uid]);
   // 전체 / 개인 / 공개
   const [visibility, setVisibility] = useState<'all' | 'personal' | 'public'>('all');
+  // 전체/개인/공식도 마지막 선택을 기억한다
+  const visLoaded = useRef(false);
+  useEffect(() => {
+    AsyncStorage.getItem('@bakle_home_visibility').then(v => {
+      if (v === 'all' || v === 'personal' || v === 'public') setVisibility(v);
+    }).catch(() => {}).finally(() => { visLoaded.current = true; });
+  }, []);
+  useEffect(() => {
+    if (visLoaded.current) AsyncStorage.setItem('@bakle_home_visibility', visibility).catch(() => {});
+  }, [visibility]);
 
   const recipes = useMemo(
     () => isAuthorMode ? exploreRecipesAll.filter(r => r.authorId === authorId && !r.hidden) : homeRecipes,
@@ -163,8 +179,21 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
 
   // 그룹화 축: 'all'이면 평면 리스트, 그 외엔 그룹 화면(GroupScreen) 호스팅
   const [groupAxis, setGroupAxis] = useState<GroupAxis>(initialAxis ?? 'all');
+  // 이미 열린 홈으로 축을 지정해 다시 들어오면(설정 → 공식 레시피북) 그 축으로 바꾼다
+  useEffect(() => { if (initialAxis) setGroupAxis(initialAxis); }, [initialAxis]);
   // 레시피북/공법 목록에서 항목을 눌러 들어왔는지 — 들어왔으면 탭 대신 2뎁스 셀렉터 (crumbAxisOf 참고)
   const [drillFrom, setDrillFrom] = useState<GroupAxis | null>(null);
+  // 레시피북·공법에서 들어온 상태(뒤로가기로 돌아갈 곳)도 기억 — 축·북·공법은 이미 저장된다
+  const drillLoaded = useRef(false);
+  useEffect(() => {
+    if (isAuthorMode) { drillLoaded.current = true; return; }
+    AsyncStorage.getItem('@bakle_home_drill').then(v => {
+      if (v === 'cookbook' || v === 'method') setDrillFrom(v);
+    }).catch(() => {}).finally(() => { drillLoaded.current = true; });
+  }, [isAuthorMode]);
+  useEffect(() => {
+    if (drillLoaded.current && !isAuthorMode) AsyncStorage.setItem('@bakle_home_drill', drillFrom ?? '').catch(() => {});
+  }, [drillFrom, isAuthorMode]);
   // 마지막 본 축 복원 (앱 재시작해도 유지). 저장 덮어쓰기 방지용 로드 플래그.
   const axisLoaded = useRef(false);
   useEffect(() => {
@@ -357,6 +386,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
 
   const filteredRecipes = useMemo(() => {
     let result = visibleRecipes;
+    // 공식 = 둘러보기에 올라간 레시피(공개·비공개 상관없이), 개인 = 그 밖의 내 레시피
     if (visibility === 'public') result = result.filter(r => publishedIds.has(r.id));
     else if (visibility === 'personal') result = result.filter(r => !publishedIds.has(r.id));
     if (selectedCookbook) {
@@ -623,11 +653,92 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
     />
   );
 
+  const homeBanner = (
+        // 시험이 임박하면 그 배너를 먼저 — 기한이 있어 더 시급하다
+          upcomingExam && !examBannerHidden ? (
+            <InlineBanner
+              icon={IconClockFilled}
+              label={upcomingExam.days === 0
+                ? t('home.examToday', {label: upcomingExam.label})
+                : t('home.examDday', {label: upcomingExam.label, days: upcomingExam.days})}
+              color="warning"
+              size="medium"
+              action={{
+                label: t('home.examSchedule'),
+                onPress: () => router.navigate('/exam-schedule' as any),
+              }}
+              // 닫으면 오늘은 이 배너를 다시 안 띄운다(내일 남은 일수가 바뀌면 다시)
+              onClose={dismissExamBanner}
+            />
+          ) : !isAuthorMode && isGuest && !guestBannerDismissed ? (
+          <InlineBanner
+            icon={IconCloudFilled}
+            label={t('home.guestBanner')}
+            color="accent"
+            size="medium"
+            action={{
+              label: t('home.sync'),
+              // 동기화 = 계정 연결 — 설정을 거치지 않고 바로 로그인
+              onPress: () => openAuthSheet(),
+            }}
+            onClose={() => setGuestBannerDismissed(true)}
+          />
+        ) : undefined
+  );
+
+  // 프로필 머리말(+배너) — '레시피' 보기와 레시피북·공법 보기가 같은 머리말을 쓴다
+  const profileHeader = (
+        // 내 홈 맨 위 프로필 머리말 + 그 아래 배너(있을 때)
+        !isAuthorMode ? (
+          <View style={styles.homeHeader}>
+            <ProfileHeader
+              // 관리자는 공식 작성자(베이키)로 — 내 홈의 공식 레시피도 베이키 이름으로 묶인다
+              name={isAdmin ? OFFICIAL_AUTHOR_DISPLAY_NAME : user ? (displayName || handle || 'handle') : t('home.guestName')}
+              handle={isAdmin ? OFFICIAL_AUTHOR_HANDLE : user ? handle ?? undefined : undefined}
+              avatarSeed={isAdmin ? OFFICIAL_AUTHOR_ID : avatarSeed ?? 0}
+              stats={[
+                // 홈에 보이는 레시피 수 — 개인 레시피만 세면 공식 레시피(관리자) 등이 빠져 1개처럼 보였다
+                {value: visibleRecipes.length, label: t('home.statRecipes')},
+                {value: publishedIds.size, label: t('home.statPublic')},
+              ]}
+              onPress={() => (user ? router.push('/account' as any) : openAuthSheet())}
+              // 로그인했으면 프로필 편집(계정 설정), 전이면 로그인
+              action={user
+                ? {label: t('home.editProfile'), onPress: () => router.push('/account' as any)}
+                : {label: t('auth.signIn'), onPress: () => openAuthSheet()}}
+            />
+            {homeBanner}
+          </View>
+        ) : authorProfile ? (
+          // 작성자 홈도 같은 머리말 — 버튼 없이(남의 프로필은 고칠 수 없다)
+          <ProfileHeader
+            name={authorProfile.name}
+            handle={authorProfile.handle}
+            avatarSeed={authorProfile.avatarSeed}
+            stats={[
+              {value: visibleRecipes.length, label: t('home.statRecipes')},
+              {value: availableCookbooks.length, label: t('home.statBooks')},
+            ]}
+            // 남의 프로필 — 고칠 수 없으니 [프로필 공유]
+            action={authorProfile.handle ? {
+              label: t('home.shareProfile'),
+              onPress: () => shareProfile({
+                handle: authorProfile.handle!,
+                name: authorProfile.name,
+                onCopied: () => showSnackbar(t('groupExpandOverlay.linkCopied')),
+                onError: m => showSnackbar(m, {tone: 'error'}),
+              }),
+            } : undefined}
+          />
+        ) : homeBanner
+  );
+
   if (groupAxis !== 'all') {
     // 홈 = 내 개인 레시피 북만. 공식(explore) 데이터는 GroupScreen에 주입하지 않는다 (둘러보기 전용)
     return (
       <>
       <GroupScreen
+        headerExtra={profileHeader}
         onSettingsPress={isAuthorMode ? undefined : () => router.push(SETTINGS_ROUTE as any)}
         // 공식 북 판정·색 — 내 홈에 섞인 공식 북도 공식 아이콘으로
         exploreCookbooks={exploreCookbooks}
@@ -684,38 +795,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
       extraOverlayVisible={showMoreMenu || crumbMenu !== null}
       onRefresh={reload}
       // 배너가 없으면 undefined — 빈 조각을 넘기면 상단 줄 자리(여백)가 남는다
-      listHeaderExtra={
-        // 시험이 임박하면 그 배너를 먼저 — 기한이 있어 더 시급하다
-        upcomingExam && !examBannerHidden ? (
-          <InlineBanner
-            icon={IconClockFilled}
-            label={upcomingExam.days === 0
-              ? t('home.examToday', {label: upcomingExam.label})
-              : t('home.examDday', {label: upcomingExam.label, days: upcomingExam.days})}
-            color="warning"
-            size="medium"
-            action={{
-              label: t('home.examSchedule'),
-              onPress: () => router.navigate('/exam-schedule' as any),
-            }}
-            // 닫으면 오늘은 이 배너를 다시 안 띄운다(내일 남은 일수가 바뀌면 다시)
-            onClose={dismissExamBanner}
-          />
-        ) : !isAuthorMode && isGuest && !guestBannerDismissed ? (
-        <InlineBanner
-          icon={IconCloudFilled}
-          label={t('home.guestBanner')}
-          color="accent"
-          size="medium"
-          action={{
-            label: t('home.sync'),
-            // 동기화 = 계정 연결 — 설정을 거치지 않고 바로 로그인
-            onPress: () => openAuthSheet(),
-          }}
-          onClose={() => setGuestBannerDismissed(true)}
-        />
-      ) : undefined
-      }
+      listHeaderExtra={profileHeader}
       listEmptyComponent={
         !isLoading ? (
           selectedCookbook ? (
@@ -901,6 +981,8 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  // 프로필 머리말과 배너 사이 16
+  homeHeader: {gap: Spacing.md},
   deleteAllCount: {
     color: colors['foreground/on-surface-var'],
   },

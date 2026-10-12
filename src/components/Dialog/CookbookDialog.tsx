@@ -114,10 +114,6 @@ export function CookbookDialog({visible, onClose, onConfirm, editTarget, isAdmin
           // 공통 스위치 — 직접 그린 토글은 앱의 다른 스위치와 모양·움직임이 달랐다
           <Switch label={t('cookbook.officialLabel')} value={isOfficial} onValueChange={setIsOfficial} />
         )}
-        {/* 비공개 — 공식 북(어드민)이면 만들 때도 편집할 때도 */}
-        {(showHiddenToggle || (isOfficial && !!isAdmin)) && (
-          <Switch label={t('cookbook.hiddenLabel')} value={hidden} onValueChange={setHidden} />
-        )}
         <TextInput
           ref={nameRef}
           label={t('cookbook.nameLabel')}
@@ -132,6 +128,10 @@ export function CookbookDialog({visible, onClose, onConfirm, editTarget, isAdmin
           colors={COOKBOOK_COLORS}
           dotSize={20}
         />
+        {/* 비공개 — 맨 아래 한 줄을 꽉 채운다(이름 왼쪽, 스위치 오른쪽). 공식 북(어드민)이면 만들 때도 편집할 때도 */}
+        {(showHiddenToggle || (isOfficial && !!isAdmin)) && (
+          <Switch fullWidth label={t('cookbook.hiddenLabel')} value={hidden} onValueChange={setHidden} />
+        )}
       </View>
     </Dialog>
   );

@@ -1,7 +1,7 @@
 import {Platform, Share} from 'react-native';
 import {doc, setDoc, arrayUnion, arrayRemove} from 'firebase/firestore';
 import {db, auth} from '@config/firebase';
-import {getOfficialCookbookShareUrl, getPersonalCookbookShareUrl} from '@config/share';
+import {getOfficialCookbookShareUrl, getPersonalCookbookShareUrl, getProfileShareUrl} from '@config/share';
 import {translate, deviceLanguage} from '../i18n';
 
 const t = (key: string, params?: Record<string, string | number>) =>
@@ -70,4 +70,9 @@ export async function setCookbookPublic(name: string, isPublic: boolean): Promis
     {names: isPublic ? arrayUnion(name) : arrayRemove(name)},
     {merge: true},
   );
+}
+
+/** 작성자 프로필(작성자 홈) 공유 — 레시피북 공유와 같은 방식(공유 시트, 웹은 복사) */
+export async function shareProfile(args: {handle: string; name: string; onCopied?: () => void; onError?: (m: string) => void}): Promise<void> {
+  await shareUrl(getProfileShareUrl(args.handle), t('shareRecipe.profileWithName', {name: args.name}), args.onCopied, args.onError);
 }

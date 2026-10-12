@@ -1,6 +1,8 @@
 import {shortDate} from '@utils/dateLabel';
 import {getColorVarKey} from '@components/ColorPicker';
 import {cookbookMenuItem} from '@utils/cookbookMenuItem';
+import {APPBAR_HEIGHT} from '@components/Container/ContentContainer';
+import {BREADCRUMB_ITEM_OFFSET} from '@components/Navigation/Breadcrumb';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {Dimensions, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
@@ -53,6 +55,8 @@ export type {GroupAxis};
 export interface GroupScreenProps {
   /** 앱바 설정(톱니) — 홈(내 화면)에서만. 보기 축을 바꿔도 톱니가 사라지지 않게 */
   onSettingsPress?: () => void;
+  /** 맨 위 머리말(프로필 등) — 홈의 '레시피' 보기와 같은 머리말을 여기도 */
+  headerExtra?: React.ReactNode;
   recipes: Recipe[];
   cookbookColors: Record<string, AvatarColor>;
   /** 현재 그룹화 축 (홈이 소유, 'all'이면 홈이 평면 리스트를 그리므로 여기엔 cookbook/method/retrospective만 전달됨) */
@@ -114,7 +118,7 @@ export interface GroupScreenProps {
 const VIEW_MODE_STORAGE_KEY = '@bakle_group_view_mode';
 type ViewMode = 'list' | 'pack';
 
-export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors, axis, onAxisChange, onComingSoon, onDeleteCookbook, onCookbookPress, onMethodPress, onMethodGuidePress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress, availableAxes = DEFAULT_AXES, axisOverrides, showAddButton = true, bookCarousel = false, addAsOfficial = false, cookbooksAreOfficial = false, onDownloadPdf, onAddRecipeToCookbook, authorBadge, menuHeaderNode, onBack, onSettingsPress}: GroupScreenProps) {
+export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors, axis, onAxisChange, onComingSoon, onDeleteCookbook, onCookbookPress, onMethodPress, onMethodGuidePress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress, availableAxes = DEFAULT_AXES, axisOverrides, showAddButton = true, bookCarousel = false, addAsOfficial = false, cookbooksAreOfficial = false, onDownloadPdf, onAddRecipeToCookbook, authorBadge, menuHeaderNode, onBack, onSettingsPress, headerExtra}: GroupScreenProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const {reviewsOf, reviewOf, saveReview} = useRecipeReviews();
@@ -159,6 +163,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
   const [showGroupFilterMenu, setShowGroupFilterMenu] = useState(false);
   // 2뎁스 셀렉터 메뉴(북·공법 목록) — 레시피 축과 같은 [축 아이콘][항목 ⌄] 구성
   const [showItemMenu, setShowItemMenu] = useState(false);
+  // 팩 보기 머리말 높이 — 팩·캐러셀이 그 자리를 피해 배열된다
+  const [headerExtraHeight, setHeaderExtraHeight] = useState(0);
   // 회고 노트 팩을 누른 레시피 — 그 레시피의 회고로 바로 연다
   const [retroTarget, setRetroTarget] = useState<Recipe | null>(null);
   const [cookbookMenuTarget, setCookbookMenuTarget] = useState<string | null>(null);
@@ -720,6 +726,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
             />
             {/* 2뎁스: 북·공법을 골라 그 항목으로 들어간다 */}
             <Menu
+              // 항목 셀렉터 기준 좌정렬(앞의 축 버튼만큼 민다)
+              style={{marginLeft: BREADCRUMB_ITEM_OFFSET}}
               items={axis === 'cookbook'
                 ? cookbooks.map(c => cookbookMenuItem(c.name, {colors, color: bookColorOf(c.name), official: isOfficialBook(c.name), hidden: isOfficialBook(c.name) && !!exploreCookbookHiddenMap.get(c.name)}))
                 : axis === 'method'
@@ -779,6 +787,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         <View style={styles.pullWrapper}>
           <PullIndicator progress={pullProgress} isRefreshing={isRefreshing} refreshStripProgress={refreshStripProgress} refreshOpacity={refreshOpacity} />
 
+
           {viewMode === 'pack' ? (
             activePacks.length === 0 ? (
               /* 팩이 하나도 없으면 빈 캔버스 대신 공통 빈 상태 */
@@ -799,19 +808,24 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
               )
             ) : (bookCarousel && axis === 'cookbook') || axis === 'retrospective' ? (
               /* 레시피 북·회고 노트 팩뷰: 센터 카드 캐러셀 (하나씩 스와이프, 탭 시 펼침) */
-              <CookbookCarousel items={activePacks} />
+              // 머리말 자리는 비우고 그 아래 남은 높이에 캐러셀
+              <View style={{flex: 1, paddingTop: headerExtra ? headerExtraHeight : 0}}>
+                <CookbookCarousel items={activePacks} />
+              </View>
             ) : (
               /* 그 외 팩뷰: 흩뿌림 캔버스 + 패닝/핀치 줌 */
-              <PackCanvas items={activePacks} />
+              <PackCanvas items={activePacks} insetTop={headerExtra ? headerExtraHeight : 0} />
             )
           ) : (
           <ScrollView
           style={styles.scrollView}
-          contentContainerStyle={styles.scrollContent}
+          // 머리말이 앱바 밑을 이미 차지하면 목록은 그 아래에서 바로 시작
+          contentContainerStyle={[styles.scrollContent, headerExtra ? {paddingTop: APPBAR_HEIGHT} : null]}
           showsVerticalScrollIndicator={false}
           onScroll={handleScroll}
           scrollEventThrottle={16}>
           <RefreshGap height={refreshGapHeight} />
+          {headerExtra ? <ContentContainer style={styles.listHeaderExtra}>{headerExtra}</ContentContainer> : null}
           <ContentContainer style={styles.sections}>
             {/* 레시피 북 섹션 */}
             {viewMode === 'list' && showCookbookSection && (
@@ -1009,6 +1023,13 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
           </ContentContainer>
           </ScrollView>
           )}
+          {/* 머리말은 자리를 차지하지 않는다 — 팩 보기는 앱바 아래에 떠 있고, 목록 보기는 목록 맨 위에서 같이 스크롤.
+              둘 다 앱바 아래 같은 위치에서 시작한다(홈 '레시피' 보기와 같다) */}
+          {viewMode === 'pack' && headerExtra ? (
+            <View style={styles.headerExtraFloat} pointerEvents="box-none" onLayout={e => setHeaderExtraHeight(e.nativeEvent.layout.height)}>
+              <ContentContainer style={styles.packHeaderExtra}>{headerExtra}</ContentContainer>
+            </View>
+          ) : null}
         </View>
       </SafeAreaView>
 
@@ -1159,6 +1180,23 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   pullWrapper: {
     flex: 1,
+  },
+  // 머리말 — 앱바 아래 고정. 아래 콘텐츠와 16
+  // 팩보다 위 — 팩보다 나중에 그리고 zIndex·elevation도 올린다
+  headerExtraFloat: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    // 앱바(10)보다는 아래 — 앱바 메뉴가 머리말 위로 펼쳐져야 한다
+    zIndex: 5,
+    elevation: 5,
+  },
+  packHeaderExtra: {
+    paddingTop: APPBAR_HEIGHT,
+  },
+  listHeaderExtra: {
+    paddingBottom: Spacing.md,
   },
   scrollView: {
     flex: 1,

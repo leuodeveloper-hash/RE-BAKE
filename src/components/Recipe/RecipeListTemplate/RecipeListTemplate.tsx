@@ -234,8 +234,6 @@ function SkeletonFooter({layout}: {layout: RecipeCardLayout}) {
   );
 }
 
-/** 앱바 아래 레시피북 탭 한 줄 높이 */
-const PACK_HEADER_INSET = 48;
 
 const footerStyles = StyleSheet.create({
   gridWrap: {
@@ -356,6 +354,8 @@ export function RecipeListTemplate({
   const [layout, setLayoutState] = useState<RecipeCardLayout>('grid');
   const [sortId, setSortIdState] = useState('default');
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
+  // 팩 보기 머리말 높이 — 팩이 그 자리를 피해 배열된다
+  const [headerExtraHeight, setHeaderExtraHeight] = useState(0);
 
   // AsyncStorage에서 마지막 레이아웃/정렬 복원.
   //
@@ -645,9 +645,6 @@ export function RecipeListTemplate({
       <SafeAreaView style={styles.safeArea} edges={['top']}>
         {/* 레시피북 탭 등은 레이아웃과 무관하다 — 분기 안에 두면 레이아웃을
             바꿀 때마다 자리가 달라져 탭이 튄다. 바깥에 한 번만 그린다. */}
-        {listHeaderExtra ? (
-          <ContentContainer style={styles.listHeaderExtra}>{listHeaderExtra}</ContentContainer>
-        ) : null}
         {activeLayout === 'pack' ? (
           // 팩뷰: 콘텐츠 너비(maxWidth 800)·패딩 제약 밖에서 전체 너비로 로밍
           <View style={styles.packFull}>
@@ -658,7 +655,8 @@ export function RecipeListTemplate({
             ) : (
               <RecipePackView
                 // 앱바(+레시피북 탭)와 하단 탭바 뒤로 팩이 숨지 않게
-                insetTop={APPBAR_HEIGHT + (listHeaderExtra ? PACK_HEADER_INSET : 0)}
+                // 떠 있는 머리말 자리는 비워 두고 그 아래에 팩을 배열한다
+                insetTop={listHeaderExtra && headerExtraHeight ? headerExtraHeight : APPBAR_HEIGHT}
                 insetBottom={TABBAR_BOTTOM_SPACE}
                 recipes={loading || !layoutLoaded ? [] : sortedData}
                 lockedRecipeIds={lockedRecipeIds}
@@ -684,7 +682,6 @@ export function RecipeListTemplate({
               keyExtractor={item => item.id}
               contentContainerStyle={[
                 styles.listContent,
-                listHeaderExtra ? styles.listContentUnderHeader : null,
                 !loading && data.length === 0 && styles.listContentEmpty,
               ]}
               columnWrapperStyle={activeLayout === 'grid' ? styles.row : undefined}
@@ -692,13 +689,26 @@ export function RecipeListTemplate({
               scrollEventThrottle={16}
               onEndReached={handleEndReached}
               onEndReachedThreshold={0.5}
-              ListHeaderComponent={<RefreshGap height={refreshGapHeight} />}
+              ListHeaderComponent={
+                <>
+                  <RefreshGap height={refreshGapHeight} />
+                  {listHeaderExtra ? <View style={styles.listHeaderInList}>{listHeaderExtra}</View> : null}
+                </>
+              }
               ListEmptyComponent={(loading || !layoutLoaded) && !isRefreshing ? undefined : listEmptyComponent}
               ListFooterComponent={loadingMore ? <SkeletonFooter layout={activeLayout} /> : undefined}
               renderItem={renderItem}
             />
           </ContentContainer>
         )}
+        {/* 머리말(프로필·배너)은 자리를 차지하지 않는다.
+            팩 보기: 앱바 아래에 떠 있다(팩 캔버스는 화면 전체). 목록 보기: 목록 맨 위에 붙어 같이 스크롤.
+            둘 다 앱바 아래 같은 위치에서 시작해 보기를 바꿔도 튀지 않는다. */}
+        {listHeaderExtra && activeLayout === 'pack' ? (
+          <View style={styles.headerExtraFloat} pointerEvents="box-none" onLayout={e => setHeaderExtraHeight(e.nativeEvent.layout.height)}>
+            <ContentContainer style={styles.listHeaderExtra}>{listHeaderExtra}</ContentContainer>
+          </View>
+        ) : null}
       </SafeAreaView>
 
       {renderAppBar(helpers)}
@@ -748,6 +758,21 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // APPBAR_HEIGHT(72)는 앱바가 실제로 끝나는 지점(54)보다 커서 위가 휑했다.
   // 레이아웃과 무관한 상단 줄(레시피북 탭 등) — 앱바 아래 한 자리에 고정.
   // 리스트 콘텐츠와 같은 APPBAR_HEIGHT를 써야 레이아웃을 바꿔도 자리가 같다.
+  // 팩 보기 머리말 — 앱바 아래에 떠 있다(자리 차지 안 함)
+  // 팩보다 위 — 팩(그림자·회전)보다 나중에 그리고 zIndex·elevation도 올린다
+  headerExtraFloat: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    // 앱바(10)보다는 아래 — 앱바 메뉴가 머리말 위로 펼쳐져야 한다
+    zIndex: 5,
+    elevation: 5,
+  },
+  // 목록 보기 머리말 — 목록 콘텐츠 첫 줄(좌우 여백은 목록 쪽이 이미 준다), 아래 16
+  listHeaderInList: {
+    paddingBottom: Spacing.md,
+  },
   listHeaderExtra: {
     paddingTop: APPBAR_HEIGHT,
     paddingHorizontal: Spacing.md,

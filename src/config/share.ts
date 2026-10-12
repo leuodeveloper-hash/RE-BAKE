@@ -18,3 +18,8 @@ export function getOfficialCookbookShareUrl(name: string): string {
 export function getPersonalCookbookShareUrl(uid: string, name: string): string {
   return `${SHARE_BASE_URL}/cookbook/u/${uid}/${encodeURIComponent(name)}`;
 }
+
+/** 작성자 홈(프로필) URL: `/u/{handle}` */
+export function getProfileShareUrl(handle: string): string {
+  return `${SHARE_BASE_URL}/u/${encodeURIComponent(handle)}`;
+}

@@ -3,6 +3,7 @@ import {IconBookFilled} from '@components/Icon/IconIndex';
 import {getColorVarKey} from '@components/ColorPicker';
 import {BREADCRUMB_ITEM_OFFSET} from '@components/Navigation/Breadcrumb';
 import {cookbookMenuItem} from '@utils/cookbookMenuItem';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, {useCallback, useMemo, useState} from 'react';
 import {useRouter} from 'expo-router';
 import {AppBar} from '@components/Navigation';
@@ -121,6 +122,26 @@ export function ExploreScreen({
   const [selectedCategory, setSelectedCategory] = useState<string>('__all__');
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const axisMenuItems = useAxisMenuItems(EXPLORE_AXES, EXPLORE_AXIS_OVERRIDES);
+
+  // 마지막으로 본 보기(축)·레시피북·공법·들어온 경로를 기억한다 — 다시 열면 그대로(홈과 같다)
+  const exploreSelLoaded = React.useRef(false);
+  React.useEffect(() => {
+    AsyncStorage.getItem('@bakle_explore_selection_v1').then(v => {
+      if (v) {
+        try {
+          const p = JSON.parse(v);
+          if (p.axis) setExploreAxis(p.axis);
+          if (p.category) setSelectedCategory(p.category);
+          setSelectedMethod(p.method ?? null);
+          setDrillFrom(p.drillFrom ?? null);
+        } catch { /* 무시 */ }
+      }
+    }).catch(() => {}).finally(() => { exploreSelLoaded.current = true; });
+  }, []);
+  React.useEffect(() => {
+    if (!exploreSelLoaded.current) return;
+    AsyncStorage.setItem('@bakle_explore_selection_v1', JSON.stringify({axis: exploreAxis, category: selectedCategory, method: selectedMethod, drillFrom})).catch(() => {});
+  }, [exploreAxis, selectedCategory, selectedMethod, drillFrom]);
 
   // 외부에서 레시피 북 필터가 설정되면 반영 후 초기화 (해당 레시피 북으로 평면 필터)
   React.useEffect(() => {

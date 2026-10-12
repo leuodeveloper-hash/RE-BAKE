@@ -2,7 +2,6 @@ import React, {useMemo} from 'react';
 import {View, Text, StyleSheet} from 'react-native';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import {HomeScreen} from '@screens/HomeScreen';
-import {AuthorBadge} from '@components/AuthorBadge';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {useAuthor} from '@hooks/useAuthor';
 import {useTranslation} from '@contexts/LanguageContext';
@@ -50,16 +49,6 @@ export default function AuthorHomeRoute() {
   const handle = resolveAuthorHandle(authorId, author?.handle ?? snapshot?.authorHandle) ?? routeHandle ?? 'guest';
   const avatarSeed = author?.avatarSeed ?? snapshot?.authorAvatarSeed ?? authorId ?? handle;
 
-  const authorBadge = (
-    <AuthorBadge
-      authorId={authorId}
-      displayName={`@${handle}`}
-      handle={handle}
-      avatarSeed={avatarSeed}
-      recipeCount={authorRecipes.length}
-      bare
-    />
-  );
 
   // 축 셀렉터 메뉴 최상단: 아바타 + (1줄 @핸들 / 2줄 "레시피 북 N · 레시피 M")
   const menuHeaderNode = (
@@ -91,7 +80,8 @@ export default function AuthorHomeRoute() {
       // ?axis=cookbook — 설정의 레시피북 칸에서 오면 레시피북부터
       initialAxis={routeAxis === 'cookbook' || routeAxis === 'method' ? routeAxis : undefined}
       onBack={handleClose}
-      authorBadge={authorBadge}
+      // 앱바 셀렉터의 작성자 칩은 뺀다 — 같은 정보가 바로 아래 프로필 머리말에 있다
+      authorProfile={{name: author?.displayName || snapshot?.authorDisplayName || handle, handle, avatarSeed}}
       menuHeaderNode={menuHeaderNode}
     />
   );

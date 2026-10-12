@@ -11,7 +11,7 @@ import {
   IconLogoSymbol,
 } from '@components/Icon/IconIndex';
 import {useRouter} from 'expo-router';
-import {APPBAR_ITEM_GAP} from '@constants/layout';
+import {APPBAR_ITEM_GAP, NAV_PILL_HEIGHT} from '@constants/layout';
 import {useAuth} from '@contexts/AuthContext';
 import {useColors} from '@contexts/ThemeContext';
 import {triggerHaptic} from '@utils/haptics';
@@ -112,6 +112,9 @@ export function AppBar({
   const {user} = useAuth();
   const colors = useColors();
   // 로그인 전엔 맨 왼쪽에 로고 — 누르면 소개(랜딩) 화면. 뒤로가기가 있는 화면은 그 자리를 비워 둔다
+  // 셀렉터 앞에 붙는 것(로고·닫기 버튼)의 폭 — 왼쪽 메뉴를 그만큼 밀어 셀렉터에 맞춘다
+  const menuOffset = (!user && !leftIcon ? GUEST_LOGO_WIDTH + APPBAR_ITEM_GAP : 0)
+    + (leftIcon ? NAV_PILL_HEIGHT + APPBAR_ITEM_GAP : 0);
   const guestLogo = !user && !leftIcon
     ? (
       // 글래스 알약 없이 로고만 — 버튼이 아니라 브랜드 표시
@@ -221,8 +224,8 @@ export function AppBar({
           </View>
         ) : undefined
       }
-      // 왼쪽 메뉴는 연 셀렉터 기준 좌정렬 — 로그인 전 로고가 앞에 있으면 그만큼 민다
-      leftMenu={guestLogo && titleMenu ? <View style={{marginLeft: GUEST_LOGO_WIDTH + APPBAR_ITEM_GAP}}>{titleMenu}</View> : titleMenu}
+      // 왼쪽 메뉴는 연 셀렉터 기준 좌정렬 — 앞에 로고·닫기 버튼이 있으면 그만큼 민다
+      leftMenu={titleMenu && menuOffset > 0 ? <View style={{marginLeft: menuOffset}}>{titleMenu}</View> : titleMenu}
       rightMenu={rightMenu}
     />
   );

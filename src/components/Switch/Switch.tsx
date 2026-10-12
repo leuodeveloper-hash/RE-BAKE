@@ -15,9 +15,11 @@ interface SwitchProps {
   onValueChange: (value: boolean) => void;
   /** 비활성 — 바꿀 수 없는 상태(흐리게, 눌러도 안 바뀜) */
   disabled?: boolean;
+  /** 줄을 꽉 채운다 — 이름은 왼쪽, 스위치는 오른쪽 끝(설정 줄처럼) */
+  fullWidth?: boolean;
 }
 
-export function Switch({label, value, onValueChange, disabled = false}: SwitchProps) {
+export function Switch({label, value, onValueChange, disabled = false, fullWidth = false}: SwitchProps) {
   const styles = useThemedStyles(createStyles);
   // 손잡이가 미끄러지듯 — 값만 바꾸면 툭 점프해 껐는지 켰는지 눈이 못 따라간다
   const anim = useRef(new Animated.Value(value ? 1 : 0)).current;
@@ -34,7 +36,7 @@ export function Switch({label, value, onValueChange, disabled = false}: SwitchPr
 
   return (
     <Pressable
-      style={[styles.container, disabled && {opacity: 0.4}]}
+      style={[styles.container, fullWidth && styles.fullWidth, disabled && {opacity: 0.4}]}
       disabled={disabled}
       onPress={() => { triggerHaptic('light'); onValueChange(!value); }}>
       {label ? <Text style={styles.label}>{label}</Text> : null}
@@ -52,6 +54,10 @@ const createStyles = (colors: SemanticColors) =>
       alignItems: 'center',
       gap: Spacing.sm,
       padding: 2,
+    },
+    fullWidth: {
+      alignSelf: 'stretch',
+      justifyContent: 'space-between',
     },
     label: {
       ...Typography.caption.medium,

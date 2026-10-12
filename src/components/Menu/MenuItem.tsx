@@ -78,14 +78,18 @@ export function MenuItem({
             <Icon width={20} height={20} color={iconColor} />
           </View>
         ) : null}
-        <Text style={[
-          styles.menuItemLabel,
-          destructive && styles.destructiveLabel,
-          disabled && styles.disabledLabel,
-        ]}>
-          {label}
-        </Text>
-        {hiddenMark ? <IconEyeClosed width={16} height={16} color={colors['foreground/on-surface-muted']} /> : null}
+        {/* 비공개 표시는 이름 바로 뒤 — 카드·목록과 같은 자리(오른쪽 끝으로 밀지 않는다) */}
+        <View style={styles.labelRow}>
+          <Text style={[
+            styles.menuItemLabel,
+            hiddenMark && styles.labelShrink,
+            destructive && styles.destructiveLabel,
+            disabled && styles.disabledLabel,
+          ]}>
+            {label}
+          </Text>
+          {hiddenMark ? <IconEyeClosed width={16} height={16} color={colors['foreground/on-surface-muted']} /> : null}
+        </View>
         {trailingText !== undefined && (
           <Text style={styles.trailingText}>{trailingText}</Text>
         )}
@@ -123,6 +127,19 @@ const createStyles = (colors: SemanticColors) =>
     },
     menuItemPressed: {
       backgroundColor: colors['state/pressed'],
+    },
+    labelRow: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 4,
+    },
+    // 이름은 제 글자 폭만큼(뒤에 눈 아이콘이 붙게), 모자라면 줄어든다.
+    // flex:0은 웹에서 기본 폭이 0이 돼 글자가 한 자씩 세로로 꺾였다 — basis를 auto로 둔다
+    labelShrink: {
+      flexGrow: 0,
+      flexShrink: 1,
+      flexBasis: 'auto',
     },
     menuItemLabel: {
       flex: 1,
