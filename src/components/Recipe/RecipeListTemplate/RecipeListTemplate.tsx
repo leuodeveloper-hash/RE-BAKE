@@ -295,6 +295,10 @@ export interface RecipeListTemplateProps {
    * recipe.pinnedAt을 쓸 수 없는 목록에서 쓴다. 주면 이쪽이 우선.
    */
   pinnedMap?: Record<string, string>;
+  /** 뷰 메뉴(레이아웃·정렬)에 덧붙는 필터 섹션 — 예: 홈의 전체/개인/공개 */
+  filterSection?: {title: string; items: MenuItemData[]; selectedId: string; onSelect: (id: string) => void};
+  /** 공개된 레시피 id — 카드에 공개(지구) 표시 */
+  publishedIds?: Set<string>;
   /**
    * 레시피 바깥에 보관되는 "만들었어요" 정보({id: 표시시각}). 핀과 같은 이유로
    * 둘러보기처럼 recipe.madeAt을 쓸 수 없는 목록에서 쓴다. 주면 이쪽이 우선.
@@ -332,6 +336,8 @@ export function RecipeListTemplate({
   scrollEnabled,
   lockedRecipeIds,
   pinnedMap,
+  publishedIds,
+  filterSection,
   madeMap,
   listHeaderExtra,
   authorHandle,
@@ -538,6 +544,20 @@ export function RecipeListTemplate({
           ),
         },
         {title: t('recipeList.sectionSort'), items: sortMenuItems, selectedId: sortId},
+        // 필터 — 설정 외관(라이트/다크)과 같은 탭
+        ...(filterSection ? [{
+          title: filterSection.title,
+          content: (
+            <View style={styles.layoutTabsWrap}>
+              <Tabs
+                fullWidth
+                tabs={filterSection.items.map(i => ({id: i.id, label: i.label}))}
+                selectedId={filterSection.selectedId}
+                onSelect={filterSection.onSelect}
+              />
+            </View>
+          ),
+        }] : []),
       ]}
       onSelect={handleMenuSelect}
       visible={showLayoutMenu}
@@ -599,6 +619,7 @@ export function RecipeListTemplate({
         made={!!(madeMap?.[item.id] ?? item.madeAt)}
         menuOpen={cardMenuTarget?.id === item.id}
         hidden={item.hidden}
+        published={publishedIds?.has(item.id)}
         hasReference={!!item.referenceUrl}
         paperPreview={paperPreview}
         paperTitle={(activeLayout === 'grid' || activeLayout === 'list') ? item.title : undefined}
@@ -617,7 +638,7 @@ export function RecipeListTemplate({
         ) : card}
       </View>
     );
-  }, [activeLayout, styles, onRecipePress, cardMenuItems, handleCardMenuPress, lockedRecipeIds, pinnedMap, cardMenuTarget, authorHandle, onAuthorPress, onCookbookPress, onMethodPress, madeMap, reviewsOf]);
+  }, [activeLayout, styles, onRecipePress, cardMenuItems, handleCardMenuPress, lockedRecipeIds, pinnedMap, cardMenuTarget, authorHandle, onAuthorPress, onCookbookPress, onMethodPress, madeMap, reviewsOf, publishedIds]);
 
   return (
     <>

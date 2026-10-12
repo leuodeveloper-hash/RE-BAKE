@@ -29,7 +29,7 @@ import {triggerHaptic} from '@utils/haptics';
 import {useColors, useTheme} from '@contexts/ThemeContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {SvgProps} from 'react-native-svg';
-import {IconArrowTopRight, IconPenTipFilled, IconEllipsisVertical, IconLockFilled, IconEyeClosed, IconPhoto, IconPinFilled} from '@components/Icon/IconIndex';
+import {IconArrowTopRight, IconPenTipFilled, IconEllipsisVertical, IconLockFilled, IconEyeClosed, IconPhoto, IconPinFilled, IconExprolerBookFilled} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
 import {Button} from '@components/Button';
 import {Thumbnail} from '@components/Thumbnail';
@@ -429,6 +429,8 @@ export interface RecipeCardProps {
   pinned?: boolean;
   /** 만들어봤음 — 제목 뒤 점으로 표시(핀처럼 안 한 것은 아무 표시 없음) */
   made?: boolean;
+  /** 둘러보기에 공개된 레시피(내 홈에서 공개본과 묶인 원본·공개본) — 제목 뒤 지구 아이콘 */
+  published?: boolean;
   /**
    * 이 카드의 메뉴가 열려 있음 — 눌린 것과 같은 배경으로 계속 강조한다.
    * 롱프레스로 열면 손을 떼는 순간 pressed가 풀려 어느 카드의 메뉴인지 알 수 없었다.
@@ -503,6 +505,7 @@ export function RecipeCard({
   hidden = false,
   pinned,
   made,
+  published,
   menuOpen,
   size = 'default',
   leadingNumber,
@@ -656,6 +659,9 @@ export function RecipeCard({
                 <Text style={isSmall ? styles.listTitleSmall : styles.listTitle} numberOfLines={1}>
                   {title}
                 </Text>
+                {published && (
+                  <IconExprolerBookFilled width={14} height={14} color={colors['foreground/on-surface-muted']} />
+                )}
                 {hidden && (
                   <IconEyeClosed width={14} height={14} color={colors['foreground/on-surface-muted']} />
                 )}
@@ -776,6 +782,9 @@ export function RecipeCard({
               <IconLockFilled width={16} height={16} color="rgba(255,255,255,0.9)" />
             )}
             <Text style={styles.photoListTitle} numberOfLines={1}>{title}</Text>
+            {published && (
+              <IconExprolerBookFilled width={14} height={14} color="rgba(255,255,255,0.9)" />
+            )}
             {hidden && (
               <IconEyeClosed width={14} height={14} color="rgba(255,255,255,0.9)" />
             )}
@@ -822,6 +831,9 @@ export function RecipeCard({
                 <IconLockFilled width={16} height={16} color={colors['foreground/on-surface-muted']} />
               )}
               <Text style={styles.gridTitle} numberOfLines={1}>{title}</Text>
+              {published && (
+                <IconExprolerBookFilled width={14} height={14} color={colors['foreground/on-surface-muted']} />
+              )}
               {hidden && (
                 <IconEyeClosed width={14} height={14} color={colors['foreground/on-surface-muted']} />
               )}

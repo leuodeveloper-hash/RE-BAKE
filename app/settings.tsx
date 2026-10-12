@@ -1,7 +1,7 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {View, StyleSheet} from 'react-native';
 import {useMyAuthor} from '@hooks/useAuthor';
-import {resolveAuthorHandle, OFFICIAL_AUTHOR_HANDLE, OFFICIAL_AUTHOR_ID} from '../../src/types/author';
+import {resolveAuthorHandle, OFFICIAL_AUTHOR_HANDLE, OFFICIAL_AUTHOR_ID} from '../src/types/author';
 import {useRouter, useLocalSearchParams} from 'expo-router';
 import {ProfileScreen} from '@screens/ProfileScreen';
 import {useRecipes} from '@contexts/RecipeContext';
@@ -39,10 +39,11 @@ export default function ProfileRoute() {
   }, [exploreRecipes, myAuthorId]);
   // 프로필 보기·레시피북 칸 공통 — 내 작성자 홈(공식 레시피). 레시피북 칸은 레시피북 보기로 떨군다
   const openMyAuthorHome = useCallback((axis?: 'cookbook') => {
-    const slug = isAdmin ? OFFICIAL_AUTHOR_HANDLE
+    // 로그인 전엔 내 북이 없다 — 누구나 보는 공식 레시피북(공식 작성자 홈)으로
+    const slug = isAdmin || !user ? OFFICIAL_AUTHOR_HANDLE
       : myAuthor ? resolveAuthorHandle(myAuthor.id, myAuthor.handle) : handle;
     if (slug) router.push(`/u/${slug}${axis ? `?axis=${axis}` : ''}` as any);
-  }, [isAdmin, myAuthor, handle, router]);
+  }, [isAdmin, user, myAuthor, handle, router]);
   const {isPro} = useSubscription();
   const {t} = useTranslation();
 

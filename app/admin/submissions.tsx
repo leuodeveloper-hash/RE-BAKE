@@ -9,7 +9,7 @@ import {Button} from '@components/Button';
 import {Card, ContentContainer} from '@components/Container';
 import {EmptyState} from '@components/EmptyState';
 import {FloatingNavBar, NavPillButton} from '@components/Navigation';
-import {IconClose} from '@components/Icon/IconIndex';
+import {IconClose, IconLink} from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
 import {useAuth} from '@contexts/AuthContext';
@@ -54,11 +54,47 @@ export default function AdminSubmissionsRoute() {
 
   useEffect(() => { if (isAdmin) load(); }, [isAdmin, load]);
 
+  /**
+   * 기존 공개본 연결(한 번만 돌리면 된다).
+   * 예전 승인은 원본 id를 지우고 복사해서 원본·공개본이 남남이었다.
+   * 승인된 신청서에는 원본 id가 남아 있으니, 같은 작성자·같은 제목의 공개본에 이어 붙인다.
+   */
+  const [linking, setLinking] = useState(false);
+  const linkExisting = useCallback(async () => {
+    setLinking(true);
+    try {
+      const [subSnap, expSnap] = await Promise.all([
+        getDocs(query(collection(db, 'submissions'), where('status', '==', 'approved'))),
+        getDocs(collection(db, 'explore_recipes')),
+      ]);
+      const unlinked = expSnap.docs.filter(d => !d.data().sourceRecipeId);
+      let linked = 0;
+      for (const sub of subSnap.docs) {
+        const v = sub.data() as Submission;
+        if (!v.sourceRecipeId) continue;
+        const match = unlinked.find(d => {
+          const e = d.data();
+          return e.authorId === v.authorId && (e.title ?? '').trim() === (v.title ?? '').trim() && !e.sourceRecipeId;
+        });
+        if (!match) continue;
+        await updateDoc(doc(db, 'explore_recipes', match.id), {sourceRecipeId: v.sourceRecipeId});
+        unlinked.splice(unlinked.indexOf(match), 1);
+        linked += 1;
+      }
+      showSnackbar(t('adminSubmissions.linkDone', {count: linked}));
+    } catch {
+      showSnackbar(t('adminSubmissions.actionFailed'), {tone: 'error'});
+    } finally {
+      setLinking(false);
+    }
+  }, [showSnackbar, t]);
+
   const approve = useCallback(async (s: Submission) => {
     setBusyId(s.id);
     try {
       // explore_recipes로 이동 — 작성자(authorId=유저)는 그대로 유지. 검토 상태 필드는 제거.
-      const {status: _st, submittedAt: _sb, reviewedAt: _rv, rejectReason: _rr, sourceRecipeId: _sr, id: _id, ...recipeData} = s;
+      // sourceRecipeId는 남긴다 — 홈에서 원본과 공개본을 한 장으로 묶는 연결 고리
+      const {status: _st, submittedAt: _sb, reviewedAt: _rv, rejectReason: _rr, id: _id, ...recipeData} = s;
       const exploreId = `explore_${Date.now()}`;
       await setDoc(doc(db, 'explore_recipes', exploreId), {
         ...recipeData,
@@ -139,6 +175,8 @@ export default function AdminSubmissionsRoute() {
       <FloatingNavBar
         title={t('adminSubmissions.title')}
         left={<NavPillButton icon={IconClose} onPress={() => goBackOr(router)} />}
+        // 기존 공개본 ↔ 원본 연결(마이그레이션)
+        right={<NavPillButton icon={IconLink} onPress={linking ? undefined : linkExisting} />}
       />
     </View>
   );

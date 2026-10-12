@@ -1,3 +1,5 @@
+import {SETTINGS_ROUTE} from '@utils/navigation';
+import {OFFICIAL_AUTHOR_ID} from '../types/author';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Linking, StyleSheet, Text} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -94,9 +96,30 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
   const {reload: exploreReload, exploreCookbooks, recipes: exploreRecipesAll, isLoading: exploreLoading} = useExploreRecipeContext();
 
   // 작성자 홈 모드: 내 레시피 대신 이 authorId로 필터된 둘러보기 레시피. 구조는 홈과 동일.
+  // 내 홈: 내 레시피 + 내가 둘러보기에 공개한 레시피를 한 장씩.
+  // 공개본은 원본(sourceRecipeId, 예전 것은 같은 제목)이 있으면 원본 카드에 공개 표시만 하고,
+  // 원본이 없는 공개본(둘러보기에 직접 쓴 공식 레시피 등)은 그대로 목록에 넣는다.
+  const myAuthorKey = isAdmin ? OFFICIAL_AUTHOR_ID : user?.uid;
+  const {homeRecipes, publishedIds} = useMemo(() => {
+    const ids = new Set<string>();
+    if (isAuthorMode || !myAuthorKey) return {homeRecipes: myRecipes, publishedIds: ids};
+    const byId = new Map(myRecipes.map(r => [r.id, r]));
+    const byTitle = new Map(myRecipes.map(r => [r.title.trim(), r]));
+    const orphans: Recipe[] = [];
+    for (const p of exploreRecipesAll) {
+      if (p.authorId !== myAuthorKey) continue;
+      const own = (p.sourceRecipeId && byId.get(p.sourceRecipeId)) || byTitle.get(p.title.trim());
+      if (own) ids.add(own.id);
+      else { orphans.push(p); ids.add(p.id); }
+    }
+    return {homeRecipes: [...myRecipes, ...orphans], publishedIds: ids};
+  }, [isAuthorMode, myAuthorKey, myRecipes, exploreRecipesAll]);
+  // 전체 / 개인 / 공개
+  const [visibility, setVisibility] = useState<'all' | 'personal' | 'public'>('all');
+
   const recipes = useMemo(
-    () => isAuthorMode ? exploreRecipesAll.filter(r => r.authorId === authorId && !r.hidden) : myRecipes,
-    [isAuthorMode, exploreRecipesAll, authorId, myRecipes],
+    () => isAuthorMode ? exploreRecipesAll.filter(r => r.authorId === authorId && !r.hidden) : homeRecipes,
+    [isAuthorMode, exploreRecipesAll, authorId, homeRecipes],
   );
   const isLoading = isAuthorMode ? exploreLoading : myLoading;
   const availableCookbooks = isAuthorMode
@@ -306,6 +329,8 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
 
   const filteredRecipes = useMemo(() => {
     let result = visibleRecipes;
+    if (visibility === 'public') result = result.filter(r => publishedIds.has(r.id));
+    else if (visibility === 'personal') result = result.filter(r => !publishedIds.has(r.id));
     if (selectedCookbook) {
       result = result.filter(r => (r.cookbook || t('home.noCookbook')) === selectedCookbook);
     }
@@ -313,7 +338,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
       result = result.filter(r => (r.method?.trim() || t('home.noMethod')) === selectedMethod);
     }
     return result;
-  }, [visibleRecipes, selectedCookbook, selectedMethod, t]);
+  }, [visibleRecipes, selectedCookbook, selectedMethod, t, visibility, publishedIds]);
 
   const handleMoreMenuSelect = (id: string) => {
     if (id === 'stamps') {
@@ -609,6 +634,18 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
     <RecipeListTemplate
       data={isLoading ? [] : filteredRecipes}
       loading={isLoading}
+      publishedIds={publishedIds}
+      // 전체/개인/공개 — 뷰 메뉴 안 필터 섹션(공개한 레시피가 있을 때만)
+      filterSection={publishedIds.size > 0 ? {
+        title: t('home.visibilityTitle'),
+        items: [
+          {id: 'vis:all', label: t('home.visibilityAll')},
+          {id: 'vis:personal', label: t('home.visibilityPersonal')},
+          {id: 'vis:public', label: t('home.visibilityPublic')},
+        ],
+        selectedId: `vis:${visibility}`,
+        onSelect: id => setVisibility(id.slice(4) as typeof visibility),
+      } : undefined}
       onRecipePress={(item) => router.push(`/recipe/${item.id}`)}
       cardMenuItems={(recipe) => getDefaultCardMenuItems(recipe, t, r => !!madeAtOf(r))}
       onCardMenuSelect={handleCardMenuSelect}
@@ -641,7 +678,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
           size="medium"
           action={{
             label: t('home.sync'),
-            onPress: () => router.navigate('/profile' as any),
+            onPress: () => router.push(SETTINGS_ROUTE as any),
           }}
           onClose={() => setGuestBannerDismissed(true)}
         />
@@ -712,6 +749,8 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, menuHead
             />
           }
           onAddPress={handleAddRecipe}
+          // 홈 = 내 화면 — 설정은 탭이 아니라 여기 톱니에서
+          onSettingsPress={isAuthorMode ? undefined : () => router.push(SETTINGS_ROUTE as any)}
           onFilterPress={() => {
             closeLocalMenus();
             handleFilterPress();

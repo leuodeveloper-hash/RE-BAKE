@@ -48,6 +48,7 @@ import {
   IconBookFilled,
   IconTrash,
   IconBellFilled,
+  IconLabFilled,
   IconSunDimFilled,
   IconCircleHalf,
   IconMoonFilled,
@@ -441,7 +442,8 @@ export function ProfileScreen({
                 icon={IconExprolerBookFilled}
                 title={t('profile.officialRecipeBooks')}
                 subtitle={[t('profile.bookCount', {count: cookbookCount}), t('profile.recipeCountShort', {count: officialRecipeCount})]}
-                onPress={() => (userEmail ? onCookbooksPress?.() : openAuthSheet())}
+                // 공식 북은 공용이라 로그인 없이 연다
+                onPress={() => onCookbooksPress?.()}
               />
             </View>
           </ContentContainer>
@@ -450,13 +452,16 @@ export function ProfileScreen({
           <ContentContainer style={styles.section}>
             <SectionHeader title={t('profile.sectionGeneral')} />
             <Card>
-              <ListItem
-                title={t('profile.accountSettings')}
-                leading={{type: 'icon', icon: IconSettingsFilled}}
-                trailing={{type: 'icon', icon: IconChevronRight}}
-                showDivider
-                onPress={() => (userEmail ? onAccountPress?.() : openAuthSheet())}
-              />
+              {/* 계정 설정 — 로그인 후에만(로그인 전엔 바꿀 계정이 없고, 입구는 프로필 카드) */}
+              {userEmail ? (
+                <ListItem
+                  title={t('profile.accountSettings')}
+                  leading={{type: 'icon', icon: IconSettingsFilled}}
+                  trailing={{type: 'icon', icon: IconChevronRight}}
+                  showDivider
+                  onPress={() => onAccountPress?.()}
+                />
+              ) : null}
               <ListItem
                 title={t('profile.examScheduleNotif')}
                 leading={{type: 'icon', icon: IconBellFilled}}
@@ -578,7 +583,7 @@ export function ProfileScreen({
                 />
                 <ListItem
                   title={t('profile.labs')}
-                  leading={{type: 'icon', icon: IconBellFilled}}
+                  leading={{type: 'icon', icon: IconLabFilled}}
                   trailing={{type: 'icon', icon: IconChevronRight}}
                   onPress={() => onLabsPress?.()}
                   showDivider

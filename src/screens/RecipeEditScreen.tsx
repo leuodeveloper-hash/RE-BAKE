@@ -98,7 +98,7 @@ import {
   IconEllipsisVertical,
   IconPhoto,
   IconClockFilled,
-  IconUsersRoundFilled, IconFireFilled, IconScaleFilled,
+  IconUsersRoundFilled, IconFireFilled, IconSplitFilled,
   IconMinus,
   IconAdd,
   IconPlusCircleFilled,
@@ -2092,7 +2092,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
             {isFieldActive('time') && <OptionTile icon={IconClockFilled} label={time || t('recipeEdit.time')} onPress={() => setShowTimeDialog(true)} />}
             {isFieldActive('servings') && <OptionTile icon={IconUsersRoundFilled} label={servings || t('recipeEdit.servings')} onPress={() => setShowServingsDialog(true)} />}
             {isFieldActive('doughTemp') && <OptionTile icon={IconFireFilled} label={doughTemp || t('recipeEdit.doughTemp')} onPress={() => setNumberDialog('doughTemp')} />}
-            {isFieldActive('divideWeight') && <OptionTile icon={IconScaleFilled} label={divideWeight || t('recipeEdit.divideWeight')} onPress={() => setNumberDialog('divideWeight')} />}
+            {isFieldActive('divideWeight') && <OptionTile icon={IconSplitFilled} label={divideWeight || t('recipeEdit.divideWeight')} onPress={() => setNumberDialog('divideWeight')} />}
             {/* 회차 타일 제거 — '다시 만들기' 자동값이라 편집화면에 표시할 필요 없음 (session 데이터는 저장 유지) */}
           </View>
           {/* 공법/비중 칩은 제목 영역으로 이동됨 */}
@@ -3380,7 +3380,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         visible={numberDialog !== null}
         onClose={() => setNumberDialog(null)}
         title={numberDialog === 'divideWeight' ? t('recipeEdit.divideWeight') : t('recipeEdit.doughTemp')}
-        icon={numberDialog === 'divideWeight' ? IconScaleFilled : IconFireFilled}
+        icon={numberDialog === 'divideWeight' ? IconSplitFilled : IconFireFilled}
         value={numberDialog === 'divideWeight' ? divideWeight : doughTemp}
         suffix={numberDialog === 'divideWeight' ? 'g' : '°C'}
         onConfirm={v => (numberDialog === 'divideWeight' ? setDivideWeight(v) : setDoughTemp(v))}

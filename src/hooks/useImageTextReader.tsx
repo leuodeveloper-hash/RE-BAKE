@@ -13,6 +13,7 @@ import {getPersistentUri} from '@utils/imageUpload';
 import {recognizeImageText, normalizeOcrWhitespace} from '@utils/recipeOcr';
 import {prepareRecipeImageForCrop, type OcrCropTarget} from '@utils/ocrImageSource';
 import {photoSourceMenuItems} from '@utils/photoSourceMenu';
+import {IconRecipeFilled} from '@components/Icon/IconIndex';
 import type {Recipe} from '../types/recipe';
 
 export type ImageTextSource = 'camera' | 'gallery' | 'recipe';
@@ -41,8 +42,11 @@ export function useImageTextReader({onText, recipePhotos, onBusyChange}: UseImag
   const pickedRef = useRef<string | null>(null);
   const croppedRef = useRef<string | null>(null);
 
+  // 이 레시피에 사진이 있으면 [기존 사진]도 — 이미 올린 배합표·과정 사진을 다시 찍지 않고 읽는다
+  const hasRecipePhoto = !!(recipePhotos?.imageUri || recipePhotos?.imageUris?.length);
   const menuItems = [
     ...photoSourceMenuItems(t),
+    ...(hasRecipePhoto ? [{id: 'recipe', label: t('recipeEdit.existingPhoto'), icon: IconRecipeFilled}] : []),
   ];
 
   const read = useCallback(async (uri: string) => {

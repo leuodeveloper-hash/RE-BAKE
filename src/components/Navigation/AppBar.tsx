@@ -7,6 +7,7 @@ import {
   IconFilter,
   IconSearch,
   IconEllipsisVertical,
+  IconSettings,
 } from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
 import {NavPillButton} from './NavPillButton';
@@ -35,6 +36,8 @@ export interface AppBarProps {
   filterIcon?: React.FC<SvgProps>;
   onMenuPress?: () => void;
   onSearchPress?: () => void;
+  /** 설정(톱니) — 주면 오른쪽 알약 뒤에 따로 붙는다(홈=내 화면에서 설정 진입) */
+  onSettingsPress?: () => void;
   /** ⓘ 정보 버튼 (예: 공법 설명 페이지 진입) */
   onInfoPress?: () => void;
   showDropdown?: boolean;
@@ -75,6 +78,7 @@ export function AppBar({
   filterIcon = IconFilter,
   onMenuPress,
   onSearchPress,
+  onSettingsPress,
   onInfoPress,
   showDropdown = true,
   showAddButton = true,
@@ -137,7 +141,9 @@ export function AppBar({
       }
       leftFull={!!below}
       right={
-        hasRightButtons ? (
+        hasRightButtons || onSettingsPress ? (
+          <View style={styles.rightRow}>
+          {hasRightButtons ? (
           <GlassContainer contentStyle={navPillStyle}>
             {showAddButton && (
               <IconButton
@@ -182,6 +188,9 @@ export function AppBar({
               />
             )}
           </GlassContainer>
+          ) : null}
+          {onSettingsPress ? <NavPillButton icon={IconSettings} onPress={onSettingsPress} /> : null}
+          </View>
         ) : undefined
       }
       leftMenu={titleMenu}
@@ -191,6 +200,11 @@ export function AppBar({
 }
 
 const styles = StyleSheet.create({
+  rightRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   leftRow: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,7 +1,7 @@
 import type {Router} from 'expo-router';
 
 /** 뒤로 갈 곳이 없을 때 기본으로 갈 곳 — 설정(프로필) 탭 */
-export const SETTINGS_ROUTE = '/(tabs)/profile';
+export const SETTINGS_ROUTE = '/settings';
 
 /**
  * 뒤로 가기 — 뒤로 갈 기록이 없으면(웹에서 주소로 바로 들어오거나 새로고침) 대신 fallback으로.

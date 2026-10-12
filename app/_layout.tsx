@@ -60,7 +60,6 @@ import {Snackbar} from '@components/Snackbar';
 import {CookbookDialog, Dialog} from '@components/Dialog';
 import {Button} from '@components/Button';
 import {
-  IconHomeFilled,
   IconBookFilled,
   IconSearch,
   IconCompassFilled,
@@ -249,7 +248,7 @@ function NavigationContent() {
   // 마지막으로 본 화면(탭) 기억 — 앱을 다시 켜면 홈이 아니라 그 탭에서 시작(아래 복귀 effect가 읽는다).
   // 탭만 기억한다 — 레시피 상세는 last_viewed_recipe_id가 따로 맡는다
   useEffect(() => {
-    if (/^\/(explore|group|profile)?$/.test(pathname)) AsyncStorage.setItem('@bakle_last_tab', pathname).catch(() => {});
+    if (/^\/(explore|group)?$/.test(pathname)) AsyncStorage.setItem('@bakle_last_tab', pathname).catch(() => {});
   }, [pathname]);
   const {t} = useTranslation();
   // 앱 시작 시 시험 알림 동기화 (저장된 prefs → Firestore 일정 fetch → 로컬 알림 재등록)
@@ -312,7 +311,8 @@ function NavigationContent() {
 
         // 마지막 탭부터 — 홈이 아니면 그 탭으로(그 위에 보던 레시피가 있으면 이어서 연다)
         const lastTab = await AsyncStorage.getItem('@bakle_last_tab');
-        if (lastTab && lastTab !== '/') router.replace(lastTab as any);
+        // 예전에 저장된 /profile(설정 탭, 이제 탭 아님) 같은 값은 무시 — 탭 경로만 복귀
+        if (lastTab === '/explore' || lastTab === '/group') router.replace(lastTab as any);
         const lastId = await AsyncStorage.getItem('last_viewed_recipe_id');
         if (!lastId) return;
         const exists = recipes.some(r => r.id === lastId) || exploreRecipesAll.some(r => r.id === lastId);
@@ -382,7 +382,7 @@ function NavigationContent() {
   const prevUserRef = useRef(user);
   const tabStyles = useThemedStyles(createTabBarStyles);
   const colors = useColors();
-  const [activeTab, setActiveTab] = useState('home');
+  const [activeTab, setActiveTab] = useState('profile');
 
   // 로그인 후 첫 싱크 완료 시 스낵바 표시
   useEffect(() => {
@@ -393,10 +393,10 @@ function NavigationContent() {
   }, [user, lastSyncedAt, showSnackbar, t]);
 
   useEffect(() => {
-    if (pathname === '/') setActiveTab('home');
+    // 홈 = 내 화면(아바타 탭). 설정은 그 안쪽 페이지라 같은 탭으로 표시
+    if (pathname === '/' || pathname === '/settings') setActiveTab('profile');
     else if (pathname === '/group') setActiveTab('group');
     else if (pathname === '/explore') setActiveTab('explore');
-    else if (pathname === '/profile') setActiveTab('profile');
     // 작성자 홈(/u/[handle])은 둘러보기 소속 → 둘러보기 탭 활성으로 표시.
     // (매칭 안 되면 activeTab이 이전값 '홈'에 남아 탭이 안 바뀌던 문제)
     else if (pathname.startsWith('/u/')) setActiveTab('explore');
@@ -407,11 +407,10 @@ function NavigationContent() {
   const shouldShowTabBar = !isRecipeRoute && !hideTabBar;
 
   const tabs = useMemo<TabItem[]>(() => [
-    {id: 'home', label: t('layout.tabHome'), icon: IconHomeFilled, onPress: () => router.navigate('/' as any)},
     {id: 'search', label: t('layout.tabSearch'), icon: IconSearch, onPress: () => setShowSearchSheet(true)},
     {id: 'add', label: t('layout.tabAdd'), icon: IconAdd, onPress: () => setShowAddSheet(true)},
     {id: 'explore', label: t('layout.tabExplore'), icon: IconCompassFilled, onPress: () => router.navigate('/explore' as any)},
-    {id: 'profile', label: user ? t('layout.tabMe') : t('layout.tabGuest'), icon: IconUserFilled, useRandomAvatar: true, avatarSeed: avatarSeed ?? 0, onPress: () => router.navigate('/profile' as any)},
+    {id: 'profile', label: user ? t('layout.tabMe') : t('layout.tabGuest'), icon: IconUserFilled, useRandomAvatar: true, avatarSeed: avatarSeed ?? 0, onPress: () => router.navigate('/' as any)},
   ], [router, setShowAddSheet, setShowSearchSheet, avatarSeed, user, t]);
 
   // 하단 탭 [+] 시트 — 위 3칸(이미지·URL·텍스트)으로 새 레시피를 채워 시작, 아래 줄은 새 레시피북

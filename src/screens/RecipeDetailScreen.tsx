@@ -74,7 +74,7 @@ import {
   IconClockFilled,
   IconUsersRoundFilled,
   IconFireFilled,
-  IconScaleFilled,
+  IconSplitFilled,
   IconArrowDownToLine,
   IconChevronLeft,
   IconChevronRight,
@@ -863,7 +863,7 @@ export function RecipeDetailScreen({
     ...(time && isFieldActive('time') ? [{icon: IconClockFilled, label: time, onPress: canEdit ? () => setShowTimeDialog(true) : undefined}] : []),
     ...(servings && isFieldActive('servings') ? [{icon: IconUsersRoundFilled, label: servings, onPress: canEdit ? () => setShowServingsDialog(true) : undefined}] : []),
     ...(doughTemp && isFieldActive('doughTemp') ? [{icon: IconFireFilled, label: doughTemp, onPress: canEdit ? () => setNumberDialog('doughTemp') : undefined}] : []),
-    ...(divideWeight && isFieldActive('divideWeight') ? [{icon: IconScaleFilled, label: divideWeight, onPress: canEdit ? () => setNumberDialog('divideWeight') : undefined}] : []),
+    ...(divideWeight && isFieldActive('divideWeight') ? [{icon: IconSplitFilled, label: divideWeight, onPress: canEdit ? () => setNumberDialog('divideWeight') : undefined}] : []),
   ];
 
   // ---- 섹션 헤더 렌더 (sticky용: ScrollView 직속 자식) ----
@@ -1661,7 +1661,7 @@ export function RecipeDetailScreen({
         visible={numberDialog !== null}
         onClose={() => setNumberDialog(null)}
         title={numberDialog === 'divideWeight' ? t('recipeEdit.divideWeight') : t('recipeEdit.doughTemp')}
-        icon={numberDialog === 'divideWeight' ? IconScaleFilled : IconFireFilled}
+        icon={numberDialog === 'divideWeight' ? IconSplitFilled : IconFireFilled}
         value={numberDialog === 'divideWeight' ? divideWeight : doughTemp}
         suffix={numberDialog === 'divideWeight' ? 'g' : '°C'}
         onConfirm={v => onUpdate?.(numberDialog === 'divideWeight' ? {divideWeight: v} : {doughTemp: v})}

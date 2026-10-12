@@ -106,6 +106,11 @@ export interface Recipe {
    * 계정이 소멸/이전돼도 이 값은 불변 → 레시피가 authorId에 묶여 안전.
    */
   authorId?: string;
+  /**
+   * 공개본(둘러보기)이 어느 내 레시피에서 왔는지 — 원본 레시피 id.
+   * 홈에서 원본과 공개본을 한 장으로 묶는다(같은 레시피가 두 번 보이지 않게).
+   */
+  sourceRecipeId?: string;
   /** 작성자 영문 handle 스냅샷 (URL·아이디) */
   authorHandle?: string;
   /** 작성자 화면 표시 이름 스냅샷 — 칩/홈에 보이는 이름(한글 등). 없으면 handle */
