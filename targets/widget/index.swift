@@ -176,13 +176,26 @@ func loadDownsampledImage(path: String, maxPixel: CGFloat = 1000) -> UIImage? {
 
 func entryFor(date: Date, sets: [DailySet], exam: UpcomingExam?) -> RecipeEntry {
   let seed = seedFor(date)
-  if let s = sets.first(where: { $0.seed == seed }) {
+  if let s = sets.first(where: { $0.seed == seed }),
+     // 사진 파일이 실제로 있어야 그날 것으로 쓴다(정리 중 지워졌으면 아래 대체로)
+     resolveImagePath(s.imagePath).map({ FileManager.default.fileExists(atPath: $0) }) ?? true {
     return RecipeEntry(
       date: date,
       recipe: DailyRecipe(id: s.id, title: s.title, cookbook: s.cookbook),
       imagePath: resolveImagePath(s.imagePath),
       exam: exam
     )
+  }
+  // 그날 세트가 없으면(앱을 며칠 안 열어 세트가 끝났거나, 고른 레시피북 세트에 그날이 빠졌을 때)
+  // 빈 배경 대신 받아 둔 세트 중 하나를 날짜로 돌려 쓴다 — 이미지가 있는 것 먼저
+  let withImage = sets.filter { s in
+    guard let p = resolveImagePath(s.imagePath) else { return false }
+    return FileManager.default.fileExists(atPath: p)
+  }
+  let pool = withImage.isEmpty ? sets : withImage
+  if !pool.isEmpty {
+    let s = pool[abs(seed) % pool.count]
+    return RecipeEntry(date: date, recipe: DailyRecipe(id: s.id, title: s.title, cookbook: s.cookbook), imagePath: resolveImagePath(s.imagePath), exam: exam)
   }
   return RecipeEntry(date: date, recipe: nil, imagePath: nil, exam: exam)
 }
