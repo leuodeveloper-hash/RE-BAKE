@@ -1,9 +1,8 @@
 import React from 'react';
-import {Platform, StyleSheet, View} from 'react-native';
-import MaskedView from '@react-native-masked-view/masked-view';
-import {BlurView} from 'expo-blur';
+import {StyleSheet, type StyleProp, type ViewStyle} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
-import {useColors, useTheme} from '@contexts/ThemeContext';
+import {useColors} from '@contexts/ThemeContext';
+import {EDGE_FADE_ALPHAS, EDGE_FADE_LOCATIONS} from '@constants/fade';
 import {withOpacity} from '@constants/tokens';
 import {APPBAR_HEIGHT, TABBAR_BOTTOM_SPACE} from './ContentContainer';
 
@@ -14,87 +13,45 @@ export interface ContentMaskProps {
   bottomHeight?: number;
 }
 
-/** 블러 + 그라디언트 마스크 페이드 */
-function FadeMask({position, height}: {position: 'top' | 'bottom'; height: number}) {
+export interface EdgeFadeProps {
+  position: 'top' | 'bottom';
+  /** 높이 — style로 위치·크기를 직접 줄 때는 생략 */
+  height?: number;
+  /** 가림 색(기본: 페이지 배경 surface/normal). 앱바처럼 배경이 다른 곳은 그 색 */
+  color?: string;
+  style?: StyleProp<ViewStyle>;
+}
+
+/**
+ * 가장자리 가림 그라디언트 — 콘텐츠 위아래 마스크와 앱바 배경이 모두 이걸 쓴다.
+ * 블러 없이 배경색만: 가장자리 절반은 꽉 막고 안쪽으로 사라진다(값은 constants/fade).
+ */
+export function EdgeFade({position, height, color, style}: EdgeFadeProps) {
   const colors = useColors();
-  const {isDark} = useTheme();
-  const surfaceDim = colors['surface/normal'] as string;
+  const surfaceDim = color ?? (colors['surface/normal'] as string);
 
-  const maskDirection = position === 'top' ? 'to bottom' : 'to top';
 
-  if (Platform.OS === 'web') {
-    // Web: backdrop-filter + mask-image로 블러를 그라디언트 마스크
-    const webMask = `linear-gradient(${maskDirection}, black 40%, transparent 100%)`;
-    return (
-      <View
-        style={[
-          styles.maskContainer,
-          position === 'top' ? {top: 0} : {bottom: 0},
-          {height},
-          {
-            backdropFilter: 'blur(32px)',
-            WebkitBackdropFilter: 'blur(32px)',
-            maskImage: webMask,
-            WebkitMaskImage: webMask,
-          } as any,
-        ]}
-        pointerEvents="none">
-        <LinearGradient
-          colors={
-            position === 'top'
-              ? [withOpacity(surfaceDim, 0.95), withOpacity(surfaceDim, 0)] as [string, string]
-              : [withOpacity(surfaceDim, 0), withOpacity(surfaceDim, 0.95)] as [string, string]
-          }
-          style={StyleSheet.absoluteFill}
-        />
-      </View>
-    );
-  }
-
-  // Native: MaskedView로 블러 경계를 그라디언트 마스킹
-  const maskColors = (position === 'top'
-    ? ['black', 'rgba(0,0,0,0.55)', 'rgba(0,0,0,0.15)', 'transparent']
-    : ['transparent', 'rgba(0,0,0,0.15)', 'rgba(0,0,0,0.55)', 'black']
-  ) as [string, string, string, string];
+  // 앱바와 같은 가림 그라디언트(블러 없음) — 위 마스크는 그대로, 아래 마스크는 뒤집는다
   const maskLocations = (position === 'top'
-    ? [0, 0.45, 0.75, 1]
-    : [0, 0.25, 0.55, 1]
-  ) as [number, number, number, number];
-  const colorStops = (position === 'top'
-    ? [withOpacity(surfaceDim, 0.85), withOpacity(surfaceDim, 0.4), withOpacity(surfaceDim, 0.1), withOpacity(surfaceDim, 0)]
-    : [withOpacity(surfaceDim, 0), withOpacity(surfaceDim, 0.1), withOpacity(surfaceDim, 0.4), withOpacity(surfaceDim, 0.85)]
-  ) as [string, string, string, string];
+    ? EDGE_FADE_LOCATIONS
+    : EDGE_FADE_LOCATIONS.map(l => 1 - l).reverse()) as unknown as [number, number, ...number[]];
+  const alphas = position === 'top' ? [...EDGE_FADE_ALPHAS] : [...EDGE_FADE_ALPHAS].reverse();
+  const colorStops = alphas.map(a => withOpacity(surfaceDim, a)) as unknown as [string, string, ...string[]];
 
+  // 웹·앱 같은 그라디언트 하나(블러 없음). style을 주면 위치·크기는 그쪽이 정한다
   return (
-    <MaskedView
-      style={[styles.maskContainer, position === 'top' ? {top: 0} : {bottom: 0}, {height}]}
+    <LinearGradient
+      colors={colorStops}
+      locations={maskLocations}
+      style={style ?? [styles.maskContainer, position === 'top' ? {top: 0} : {bottom: 0}, {height}]}
       pointerEvents="none"
-      maskElement={
-        <LinearGradient
-          colors={maskColors}
-          locations={maskLocations}
-          style={{flex: 1}}
-        />
-      }
-    >
-      <BlurView
-        intensity={64}
-        tint={isDark ? 'dark' : 'default'}
-        style={{flex: 1}}
-      />
-      <LinearGradient
-        colors={colorStops}
-        locations={maskLocations}
-        style={StyleSheet.absoluteFill}
-      />
-    </MaskedView>
+    />
   );
 }
 
 /**
  * 콘텐츠 상하단 마스크 그라디언트
- * - Web: backdrop-filter + mask-image
- * - Native: BlurView + LinearGradient
+ * - 블러 없이 그라디언트만(웹·앱 같음)
  * - 부모 View에 position: relative/absolute 가 필요
  */
 export function ContentMask({
@@ -103,8 +60,8 @@ export function ContentMask({
 }: ContentMaskProps) {
   return (
     <>
-      {topHeight > 0 && <FadeMask position="top" height={topHeight} />}
-      {bottomHeight > 0 && <FadeMask position="bottom" height={bottomHeight} />}
+      {topHeight > 0 && <EdgeFade position="top" height={topHeight} />}
+      {bottomHeight > 0 && <EdgeFade position="bottom" height={bottomHeight} />}
     </>
   );
 }

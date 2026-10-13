@@ -1,10 +1,12 @@
 import {shortDate} from '@utils/dateLabel';
 import {getColorVarKey} from '@components/ColorPicker';
 import {cookbookMenuItem} from '@utils/cookbookMenuItem';
-import {APPBAR_HEIGHT} from '@components/Container/ContentContainer';
-import {BREADCRUMB_ITEM_OFFSET} from '@components/Navigation/Breadcrumb';
+import {APPBAR_HEIGHT, TABBAR_BOTTOM_SPACE} from '@components/Container/ContentContainer';
+import {useBreadcrumbItemOffset} from '@components/Navigation/Breadcrumb';
+import {useLandingMenu} from '@components/RecipeGroups/groupAxis';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
+import {useAuth} from '@contexts/AuthContext';
 import {Dimensions, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {SafeAreaView} from 'react-native-safe-area-context';
@@ -36,7 +38,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import type {Recipe} from '../types/recipe';
-import {IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconPenTipFilled, IconChevronRight, IconCornerDownRight, IconGlobeFilled, IconSparkle, IconProcess, IconCards, IconCardsFilled, IconArrowDownToLine, IconList, IconClose} from '@components/Icon/IconIndex';
+import {IconAdd, IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconPenTipFilled, IconChevronRight, IconCornerDownRight, IconGlobeFilled, IconSparkle, IconProcess, IconCards, IconCardsFilled, IconArrowDownToLine, IconList, IconClose} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import {buildPaperPreview} from '@utils/recipePaperPreview';
 import {coverCards, recipeCoverCards, emptyCoverCard} from '@utils/cookbookCards';
@@ -120,6 +122,8 @@ type ViewMode = 'list' | 'pack';
 
 export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors, axis, onAxisChange, onComingSoon, onDeleteCookbook, onCookbookPress, onMethodPress, onMethodGuidePress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress, availableAxes = DEFAULT_AXES, axisOverrides, showAddButton = true, bookCarousel = false, addAsOfficial = false, cookbooksAreOfficial = false, onDownloadPdf, onAddRecipeToCookbook, authorBadge, menuHeaderNode, onBack, onSettingsPress, headerExtra}: GroupScreenProps) {
   const styles = useThemedStyles(createStyles);
+  const breadcrumbItemOffset = useBreadcrumbItemOffset();
+  const {user, handle, avatarSeed} = useAuth();
   const {t} = useTranslation();
   const {reviewsOf, reviewOf, saveReview} = useRecipeReviews();
   const {madeAtOf} = useMadeStamps();
@@ -231,6 +235,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
   ], [t]);
 
   const groupFilterMenuItems = useAxisMenuItems(availableAxes, axisOverrides);
+  // 보기 메뉴 맨 아래 '홈'(소개 화면) — 로그인 전에만
+  const landingMenu = useLandingMenu(groupFilterMenuItems);
 
   // 레시피를 카테고리별로 그룹핑 → 레시피 북 섹션
   const cookbooks = useMemo(() => {
@@ -360,14 +366,22 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
           colors[getCookbookColorKey(bookColorOf(cb.name))],
         cards,
         variant: 'book' as const,
-        authors: deriveBookAuthors(cb.items),
+        // 작성자를 못 찾는 북(내 개인 북·레시피 북 없음 등)은 브랜드명 대신 내 핸들 — 로그인 전이면 @guest
+        authors: (() => {
+          const a = deriveBookAuthors(cb.items);
+          if (a.length || cookbooksAreOfficial) return a;
+          return [{authorId: user?.uid ?? 'guest', displayName: `@${user ? handle || 'guest' : 'guest'}`, avatarSeed: avatarSeed ?? 0}];
+        })(),
         emptyCover: cb.items.length === 0, // 빈 북 → 일러스트 투명 렌더
         // 비공개 공식 북이면 눈 감은 표시 — 둘러보기든 내 홈이든
         hidden: isOfficialBook(cb.name) ? exploreCookbookHiddenMap.get(cb.name) : undefined,
         onPress: (rect: PackOriginRect) => { setExpandedOrigin(rect); setExpandedMethod(cb.name); },
+        // 표지 ⋮ — 목록 줄 메뉴와 같은 메뉴(공식 북은 어드민만, 레시피 북 없음은 없음)
+        onMenuPress: isUngrouped || (cookbooksAreOfficial && !isAdmin) ? undefined
+          : (pos: {pageX: number; pageY: number; width: number; height: number}) => (cookbooksAreOfficial ? handleExploreCookbookMenuPress : handleCookbookMenuPress)(cb.name, pos),
       };
     });
-  }, [cookbooks, cookbookColors, colors, cookbooksAreOfficial, exploreCookbookHiddenMap, exploreCookbookColorMap, t, reviewsOf, isOfficialBook, bookColorOf]);
+  }, [cookbooks, cookbookColors, colors, cookbooksAreOfficial, exploreCookbookHiddenMap, exploreCookbookColorMap, t, reviewsOf, isOfficialBook, bookColorOf, user, handle, avatarSeed, isAdmin]);
 
   // 회고 노트 기준: 실제 작성된 회고가 있는 레시피만 (같은 remakeGroup은 회고 유무 합산 후 최신 회차 하나로 대표)
   // 회고 노트 대상 — 내 레시피 + 내가 회고를 쓴 둘러보기 레시피
@@ -687,6 +701,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
             iconOnly={axis === 'retrospective'}
             itemLabel={axis === 'retrospective' ? undefined : t('home.all')}
             onAxisPress={() => { setShowItemMenu(false); handleTitlePress(); }}
+            // 고를 항목(북·공법)이 없으면 셀렉터를 열지 않는다 — 빈 메뉴만 떴다
+            itemDisabled={(axis === 'cookbook' ? cookbooks.length + (showAddButton ? 1 : 0) : axis === 'method' ? methodGroups.length : 1) === 0}
             onItemPress={() => {
               if (axis === 'retrospective') { handleTitlePress(); return; }
               setShowGroupFilterMenu(false);
@@ -718,24 +734,34 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         titleMenu={
           <>
             <Menu
-              items={groupFilterMenuItems}
+              items={landingMenu.items}
               selectedId={axis}
               visible={showGroupFilterMenu}
-              onSelect={handleGroupFilterSelect}
+              onSelect={id => { if (landingMenu.handle(id)) { setShowGroupFilterMenu(false); return; } handleGroupFilterSelect(id); }}
               headerNode={menuHeaderNode}
             />
             {/* 2뎁스: 북·공법을 골라 그 항목으로 들어간다 */}
             <Menu
               // 항목 셀렉터 기준 좌정렬(앞의 축 버튼만큼 민다)
-              style={{marginLeft: BREADCRUMB_ITEM_OFFSET}}
+              style={{marginLeft: breadcrumbItemOffset}}
               items={axis === 'cookbook'
-                ? cookbooks.map(c => cookbookMenuItem(c.name, {colors, color: bookColorOf(c.name), official: isOfficialBook(c.name), hidden: isOfficialBook(c.name) && !!exploreCookbookHiddenMap.get(c.name)}))
+                ? [
+                  ...cookbooks.map(c => cookbookMenuItem(c.name, {colors, color: bookColorOf(c.name), official: isOfficialBook(c.name), hidden: isOfficialBook(c.name) && !!exploreCookbookHiddenMap.get(c.name)})),
+                  // 레시피북 단계 메뉴의 추가는 '레시피북 추가'
+                  ...(showAddButton ? [{id: '__add_cookbook__', label: t('cookbookSelect.addCookbook'), icon: IconAdd}] : []),
+                ]
                 : axis === 'method'
                   ? methodGroups.map(g => ({id: g.method, label: g.method}))
                   : []}
               visible={showItemMenu && axis !== 'retrospective'}
               onSelect={id => {
                 setShowItemMenu(false);
+                if (id === '__add_cookbook__') {
+                  setCookbookEditTarget(null);
+                  setCookbookInitialOfficial(addAsOfficial);
+                  setShowCookbookDialog(true);
+                  return;
+                }
                 if (axis === 'cookbook') onCookbookPress?.(id);
                 else if (axis === 'method') onMethodPress?.(id);
               }}
@@ -809,12 +835,13 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
             ) : (bookCarousel && axis === 'cookbook') || axis === 'retrospective' ? (
               /* 레시피 북·회고 노트 팩뷰: 센터 카드 캐러셀 (하나씩 스와이프, 탭 시 펼침) */
               // 머리말 자리는 비우고 그 아래 남은 높이에 캐러셀
-              <View style={{flex: 1, paddingTop: headerExtra ? headerExtraHeight : 0}}>
+              // 위는 머리말, 아래는 탭바 자리를 빼고 그 사이 가운데에 — 탭바를 안 빼면 아래로 내려가 보였다
+              <View style={{flex: 1, paddingTop: headerExtra ? headerExtraHeight : 0, paddingBottom: TABBAR_BOTTOM_SPACE}}>
                 <CookbookCarousel items={activePacks} />
               </View>
             ) : (
               /* 그 외 팩뷰: 흩뿌림 캔버스 + 패닝/핀치 줌 */
-              <PackCanvas items={activePacks} insetTop={headerExtra ? headerExtraHeight : 0} />
+              <PackCanvas items={activePacks} insetTop={headerExtra ? headerExtraHeight : 0} insetBottom={TABBAR_BOTTOM_SPACE} />
             )
           ) : (
           <ScrollView

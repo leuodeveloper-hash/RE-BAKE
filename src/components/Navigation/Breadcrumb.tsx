@@ -1,6 +1,8 @@
 import {NAV_PILL_HEIGHT, APPBAR_ITEM_GAP} from '@constants/layout';
-import React from 'react';
-import {StyleSheet, View} from 'react-native';
+import React, {useSyncExternalStore} from 'react';
+import {Pressable, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
+import {Typography} from '@constants/typography';
+import {triggerHaptic} from '@utils/haptics';
 import {SvgProps} from 'react-native-svg';
 import {GlassContainer} from '@components/Container';
 import {Selector} from '@components/Selector';
@@ -14,6 +16,27 @@ import {NavPillButton} from '@components/Navigation';
  */
 export const BREADCRUMB_ITEM_OFFSET = NAV_PILL_HEIGHT + APPBAR_ITEM_GAP;
 
+/** 좌우가 넉넉하면(이 폭 이상) 축 버튼에 이름도 같이 보인다 */
+const AXIS_LABEL_MIN_WIDTH = 600;
+
+// 축 버튼 실제 폭 — 이름이 붙으면 넓어져 항목 메뉴를 미는 거리도 달라진다. 화면들이 같은 값을 쓰게 한 곳에 둔다
+let axisWidth = NAV_PILL_HEIGHT;
+const listeners = new Set<() => void>();
+function setAxisWidth(w: number) {
+  if (Math.abs(w - axisWidth) < 0.5) return;
+  axisWidth = w;
+  listeners.forEach(l => l());
+}
+/** 항목 메뉴를 셀렉터에 맞추는 거리 — 축 버튼 실제 폭 + 간격 */
+export function useBreadcrumbItemOffset(): number {
+  const w = useSyncExternalStore(
+    cb => { listeners.add(cb); return () => listeners.delete(cb); },
+    () => axisWidth,
+    () => axisWidth,
+  );
+  return w + APPBAR_ITEM_GAP;
+}
+
 export interface BreadcrumbProps {
   /** 1뎁스: 축 라벨 (전체/레시피 북/공법/회고 노트) */
   axisLabel: string;
@@ -24,6 +47,8 @@ export interface BreadcrumbProps {
   /** 2뎁스: 선택 항목 (특정 책/공법). 없으면 1뎁스만 */
   itemLabel?: string;
   /** 항목 이름 앞 아이콘 — 레시피북을 골랐으면 그 북 색의 북 아이콘('전체'면 없음) */
+  /** 항목 셀렉터를 열 수 없음(고를 항목이 없을 때) — ⌃⌄를 숨기고 눌러도 아무 일 없다 */
+  itemDisabled?: boolean;
   /** 2뎁스가 없는 축(회고 노트) — 축 아이콘 버튼 하나만(누르면 축 메뉴) */
   iconOnly?: boolean;
   itemIcon?: React.FC<SvgProps>;
@@ -45,12 +70,20 @@ export interface BreadcrumbProps {
  *
  * onBack이 주어지고 항목(2뎁스)이 있으면: `[‹ 뒤로가기] [항목 ⌄]` 형태로 축 텍스트를 버튼으로 대체.
  */
-export function Breadcrumb({axisLabel, axisIcon, axisIconColor, itemLabel, itemIcon: ItemIcon, itemIconColor, iconOnly, onAxisPress, onItemPress, onBack, leadingNode}: BreadcrumbProps) {
+export function Breadcrumb({axisLabel, axisIcon, axisIconColor, itemLabel, itemIcon: ItemIcon, itemIconColor, iconOnly, itemDisabled, onAxisPress, onItemPress, onBack, leadingNode}: BreadcrumbProps) {
   const colors = useColors();
   const hasItem = itemLabel != null && itemLabel !== '';
+  const wide = useWindowDimensions().width >= AXIS_LABEL_MIN_WIDTH;
+  const AxisIcon = axisIcon;
 
   if (iconOnly) {
-    return (
+    // 2뎁스 없는 축(회고 노트) — 넉넉하면 아이콘 + 이름, 좁으면 아이콘만(다른 축 버튼과 같은 규칙)
+    return wide && axisLabel ? (
+      <GlassContainer contentStyle={styles.pill}>
+        {/* 1뎁스도 셀렉터 — 아이콘 + 이름 + ⌃⌄(누르면 축 메뉴) */}
+        <Selector label={axisLabel} leadingIcon={AxisIcon} leadingIconColor={axisIconColor} showDropdown onPress={onAxisPress} variant="ghost" />
+      </GlassContainer>
+    ) : (
       <NavPillButton
         icon={axisIcon ?? IconArrowLeft}
         iconColor={axisIconColor}
@@ -67,19 +100,29 @@ export function Breadcrumb({axisLabel, axisIcon, axisIconColor, itemLabel, itemI
       <View style={styles.row}>
         {/* 돌아갈 곳의 아이콘을 쓴다 — 화살표만 있으면 어디서 들어왔는지
             (레시피들인지 레시피북인지) 알 수 없다 */}
-        <NavPillButton
-          icon={axisIcon ?? IconArrowLeft}
-          iconColor={axisIconColor}
-          onPress={onBack ?? onAxisPress}
-          variant="ghost-secondary"
-        />
+        {/* 좌우가 넉넉하면 아이콘 옆에 축 이름까지(예: [아이콘 레시피]), 좁으면 아이콘만 */}
+        <View onLayout={e => setAxisWidth(e.nativeEvent.layout.width)}>
+          {wide && axisLabel ? (
+            <GlassContainer contentStyle={styles.pill}>
+              {/* 1뎁스(축) 셀렉터 — 들어간 상태면 누르면 뒤로, 아니면 축 메뉴(⌃⌄) */}
+              <Selector label={axisLabel} leadingIcon={AxisIcon} leadingIconColor={axisIconColor} showDropdown={!onBack} onPress={onBack ?? onAxisPress} variant="ghost" />
+            </GlassContainer>
+          ) : (
+            <NavPillButton
+              icon={axisIcon ?? IconArrowLeft}
+              iconColor={axisIconColor}
+              onPress={onBack ?? onAxisPress}
+              variant="ghost-secondary"
+            />
+          )}
+        </View>
         <GlassContainer contentStyle={styles.pill}>
           {leadingNode ? <View style={styles.leading}>{leadingNode}</View> : null}
           {ItemIcon ? <View style={styles.itemIcon}><ItemIcon width={20} height={20} color={itemIconColor ?? colors['foreground/on-surface-muted']} /></View> : null}
           <Selector
             label={itemLabel!}
-            showDropdown
-            onPress={onItemPress}
+            showDropdown={!itemDisabled}
+            onPress={itemDisabled ? undefined : onItemPress}
             variant="ghost"
           />
         </GlassContainer>
@@ -112,6 +155,16 @@ export function Breadcrumb({axisLabel, axisIcon, axisIconColor, itemLabel, itemI
 }
 
 const styles = StyleSheet.create({
+  axisLabelRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    height: '100%',
+    paddingHorizontal: 10,
+  },
+  axisLabel: {
+    ...Typography.body['medium - semibold'],
+  },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -121,11 +174,13 @@ const styles = StyleSheet.create({
   itemIcon: {
     paddingLeft: 8,
   },
+  // 알약 안쪽 여백은 상하좌우 같게(2) — 셀렉터(40)가 눌리거나 열려 배경이 생기면
+  // 상하 2·좌우 4로 달라 테두리가 고르지 않아 보였다. 다른 앱바 알약(navPillStyle)과 같은 값
   pill: {
-    height: 44,
+    height: NAV_PILL_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    paddingHorizontal: 4,
+    padding: 2,
   },
   // 아바타는 셀렉터에 딱 붙인다(갭 0). 셀렉터 자체 좌측 패딩이 최소 간격 역할.
   leading: {

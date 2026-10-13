@@ -1,5 +1,6 @@
 import {NOTE_BLOCK} from '@constants/noteBlock';
 import {ocrFailMessage} from '@utils/ocrFailMessage';
+import {APPBAR_ITEM_GAP} from '@constants/layout';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {triggerHaptic} from '@utils/haptics';
 import {
@@ -2443,7 +2444,7 @@ const createStyles = (colors: SemanticColors) =>
     leftRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: APPBAR_ITEM_GAP,
     },
     // 뷰어 배경이 검정이므로 밝은 색 고정(테마 토큰은 라이트에서 안 보임)
     addCircle: {

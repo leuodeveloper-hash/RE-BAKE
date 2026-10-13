@@ -8,7 +8,6 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 const emptyRecipeImage = require('../../../assets/images/empty_recipe.png');
-const emptyNoResultsImage = require('../../../assets/images/empty_no_results.png');
 const emptyNetworkImage = require('../../../assets/images/empty_network.png');
 
 export type EmptyStateCategory = 'no-results' | 'no-recipe' | 'network-error' | 'error';
@@ -34,7 +33,8 @@ export interface EmptyStateProps {
 
 function categoryImage(category: EmptyStateCategory): ImageSourcePropType | null {
   switch (category) {
-    case 'no-results': return emptyNoResultsImage;
+    // 검색 결과 없음도 꽃 그림 — 예전 그림(empty_no_results)은 지웠다
+    case 'no-results': return emptyRecipeImage;
     case 'no-recipe': return emptyRecipeImage;
     case 'network-error': return emptyNetworkImage;
     case 'error': return null;

@@ -1,9 +1,14 @@
 import {cookbookColorOf} from '@contexts/RecipeContext';
 import {IconBookFilled} from '@components/Icon/IconIndex';
 import {getColorVarKey} from '@components/ColorPicker';
-import {BREADCRUMB_ITEM_OFFSET} from '@components/Navigation/Breadcrumb';
+import {useBreadcrumbItemOffset} from '@components/Navigation/Breadcrumb';
 import {cookbookMenuItem} from '@utils/cookbookMenuItem';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {useLandingMenu} from '@components/RecipeGroups/groupAxis';
+import {IconLogoBadge} from '@components/Icon/IconIndex';
+import {NavPillButton} from '@components/Navigation';
+import {NAV_PILL_HEIGHT} from '@constants/layout';
+import {View} from 'react-native';
 import React, {useCallback, useMemo, useState} from 'react';
 import {useRouter} from 'expo-router';
 import {AppBar} from '@components/Navigation';
@@ -108,6 +113,7 @@ export function ExploreScreen({
   onDeleteExploreCookbook,
 }: ExploreScreenProps) {
   const colors = useColors();
+  const breadcrumbItemOffset = useBreadcrumbItemOffset();
   const {t} = useTranslation();
   const {setShowCookbookDialog, setCookbookEditTarget, setCookbookInitialOfficial} = useAddSheet();
   const router = useRouter();
@@ -122,6 +128,8 @@ export function ExploreScreen({
   const [selectedCategory, setSelectedCategory] = useState<string>('__all__');
   const [selectedMethod, setSelectedMethod] = useState<string | null>(null);
   const axisMenuItems = useAxisMenuItems(EXPLORE_AXES, EXPLORE_AXIS_OVERRIDES);
+  // 보기 메뉴 맨 아래 '홈'(소개 화면) — 로그인 전에만
+  const landingMenu = useLandingMenu(axisMenuItems);
 
   // 마지막으로 본 보기(축)·레시피북·공법·들어온 경로를 기억한다 — 다시 열면 그대로(홈과 같다)
   const exploreSelLoaded = React.useRef(false);
@@ -436,7 +444,12 @@ export function ExploreScreen({
       }
       renderAppBar={({handleFilterPress, showLayoutMenu, closeMenus, layoutMenu, filterIcon}) =>
         <AppBar
-          titleNode={hideAppBarPicker ? <></> : 
+          titleNode={hideAppBarPicker ? (
+            // 소개(홈) 화면 — 셀렉터 대신 뱃지 로고만(알약 없이). 앱바 알약 높이에 맞춰 가운데
+            <View style={{height: NAV_PILL_HEIGHT, justifyContent: 'center', paddingHorizontal: Spacing.xs}}>
+              <IconLogoBadge width={36} height={36} color={colors['foreground/on-surface'] as string} />
+            </View>
+          ) : 
             <Breadcrumb
               axisLabel={axisLabel(t, crumbAxis, EXPLORE_AXIS_OVERRIDES)}
               axisIcon={axisMenuItems.find(i => i.id === crumbAxis)?.icon}
@@ -485,9 +498,10 @@ export function ExploreScreen({
           titleMenu={
             <>
               <Menu
-                items={axisMenuItems}
+                items={landingMenu.items}
                 selectedId={crumbAxis}
                 onSelect={id => {
+                  if (landingMenu.handle(id)) { setShowCategoryMenu(false); return; }
                   if (axisMenuItems.some(a => a.id === id)) { handleAxisSelect(id); return; }
                   // 레시피북 필터 — 화면을 떠나지 않고 걸러진다
                   setShowCategoryMenu(false);
@@ -501,7 +515,7 @@ export function ExploreScreen({
               {flatFilterLabel != null && (
                 <Menu
                   // 항목 셀렉터 기준 좌정렬(앞의 축 버튼만큼 민다)
-                  style={{marginLeft: BREADCRUMB_ITEM_OFFSET}}
+                  style={{marginLeft: breadcrumbItemOffset}}
                   items={crumbItemMenuItems}
                   selectedId={selectedMethod ?? selectedCategory}
                   onSelect={handleCrumbItemSelect}

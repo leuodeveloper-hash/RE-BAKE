@@ -65,12 +65,14 @@ export function Button({
   const colors = useColors();
   const {pressHandlers, animatedStyle} = usePressScale();
   const sizeConfig = SIZE_CONFIG[size];
+  const iconOnly = !label && !!Icon && !trailingText && !TrailingIcon;
   const borderRadius = shape === 'square' ? Radius['radius-md'] : sizeConfig.borderRadius;
 
   const getContainerStyle = (pressed: boolean): ViewStyle => {
     const base: ViewStyle = {
       height: sizeConfig.height,
-      paddingHorizontal: sizeConfig.paddingHorizontal,
+      // 이름 없이 아이콘만이면 정사각(폭 = 높이) — 좌우 여백·빈 글자 칸 때문에 옆으로 넓어졌다
+      ...(iconOnly ? {width: sizeConfig.height, paddingHorizontal: 0} : {paddingHorizontal: sizeConfig.paddingHorizontal}),
       borderRadius,
       alignItems: 'center',
       justifyContent: 'center',
@@ -158,7 +160,7 @@ export function Button({
             ) : (
               Icon && <Icon width={18} height={18} color={getTextColor()} />
             )}
-            <Text style={[styles.label, size === 'large' && styles.labelLarge, {color: getTextColor()}]}>{label}</Text>
+            {label ? <Text style={[styles.label, size === 'large' && styles.labelLarge, {color: getTextColor()}]}>{label}</Text> : null}
             {/* 라벨과 구분되게 조금 띄우고 옅게 */}
             {!loading && trailingText ? (
               <Text style={[styles.label, styles.trailingText, {color: getTextColor()}]}>{trailingText}</Text>

@@ -26,6 +26,12 @@ const ACCOUNT_CACHE_KEYS = [
   '@bakle_exam_notif_prefs',
   '@bakle_exam_chosen_dates', // 내가 고른 시험일
   '@bakle_custom_ddays', // 내 D-day
+  // 레시피북 색(북 이름 포함)·고른 북 — 남아 있으면 로그아웃 뒤 게스트 홈에 이전 계정의 북(제과기능사 등)이 보였다
+  'bakle_cookbook_colors_v1',
+  'bakle_home_selection_v1',
+  'bakle_home_axis_v1',
+  '@bakle_home_drill',
+  '@bakle_home_visibility',
 ];
 
 /**

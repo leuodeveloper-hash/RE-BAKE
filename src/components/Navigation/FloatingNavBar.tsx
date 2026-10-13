@@ -1,9 +1,9 @@
 import React from 'react';
 import {Platform, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {colorAlpha, colorRgb} from '@utils/color';
+import {EdgeFade} from '@components/Container/ContentMask';
 import {useSafeBottom} from '@hooks/useSafeBottom';
-import MaskedView from '@react-native-masked-view/masked-view';
-import {BlurView} from 'expo-blur';
 import {LinearGradient} from 'expo-linear-gradient';
 import {Spacing} from '@constants/spacing';
 import {useColors, useTheme} from '@contexts/ThemeContext';
@@ -33,27 +33,6 @@ export interface FloatingNavBarProps {
   style?: ViewStyle;
 }
 
-/** 색(hex 또는 rgba)에서 알파 추출 (없으면 1) */
-function colorAlpha(color: string): number {
-  if (color.startsWith('rgba')) {
-    const n = color.match(/[\d.]+/g);
-    return n && n[3] !== undefined ? Number(n[3]) : 1;
-  }
-  return 1;
-}
-
-/** 색(hex 또는 rgb/rgba)에서 rgb 추출 */
-function colorRgb(color: string): [number, number, number] {
-  if (color.startsWith('rgb')) {
-    const n = (color.match(/[\d.]+/g) || []).map(Number);
-    return [n[0] ?? 0, n[1] ?? 0, n[2] ?? 0];
-  }
-  return [
-    parseInt(color.slice(1, 3), 16),
-    parseInt(color.slice(3, 5), 16),
-    parseInt(color.slice(5, 7), 16),
-  ];
-}
 
 /** NavBar pill 높이 */
 export {NAV_PILL_HEIGHT, APPBAR_TOP_PADDING, APPBAR_CONTENT_BOTTOM, APPBAR_CONTENT_GAP, APPBAR_CONTENT_TOP, APPBAR_AREA_BOTTOM} from '@constants/layout';
@@ -105,7 +84,7 @@ export function usePageContentPadding() {
 }
 
 // pill 바로 아래에서 짧게 페이드아웃 — 콘텐츠 침범 방지 (이전 66 → 24)
-const GRADIENT_EXTENSION = Spacing.lg; // 24
+const GRADIENT_EXTENSION = Spacing.xxl; // 사라지는 구간을 길게 — 짧으면 경계가 보인다
 
 export function FloatingNavBar({left, right, title, center, leftMenu, rightMenu, leftFull, tintColor, style}: FloatingNavBarProps) {
   const colors = useColors();
@@ -124,50 +103,8 @@ export function FloatingNavBar({left, right, title, center, leftMenu, rightMenu,
     <View
       style={[styles.container, {paddingTop: appBarTopInset(insets.top)}, style]}
       pointerEvents="box-none">
-      {/* 블러 + 그라디언트 배경 (하단 페이드 포함) */}
-      {Platform.OS === 'web' ? (
-        <View
-          style={[styles.blurBackground, {
-            backdropFilter: 'blur(32px)',
-            WebkitBackdropFilter: 'blur(32px)',
-            maskImage: 'linear-gradient(to bottom, black 40%, transparent 100%)',
-            WebkitMaskImage: 'linear-gradient(to bottom, black 40%, transparent 100%)',
-          } as any]}
-          pointerEvents="none">
-          <LinearGradient
-            colors={[gradStop(0.95), gradStop(0)]}
-            style={StyleSheet.absoluteFill}
-          />
-        </View>
-      ) : (
-        <MaskedView
-          style={styles.blurBackground}
-          pointerEvents="none"
-          maskElement={
-            <LinearGradient
-              colors={['black', 'black', 'rgba(0,0,0,0.45)', 'transparent']}
-              locations={[0, 0.35, 0.7, 1]}
-              style={{flex: 1}}
-            />
-          }
-        >
-          <BlurView
-            intensity={64}
-            tint={isDark ? 'dark' : 'default'}
-            style={{flex: 1}}
-          />
-          <LinearGradient
-            colors={[
-              gradStop(0.95),
-              gradStop(0.5),
-              gradStop(0.12),
-              gradStop(0),
-            ] as [string, string, string, string]}
-            locations={[0, 0.35, 0.7, 1]}
-            style={StyleSheet.absoluteFill}
-          />
-        </MaskedView>
-      )}
+      {/* 배경 — 콘텐츠 마스크와 같은 공통 가림 그라디언트(블러 없음). 앱바 색(tint)이 있으면 그 색으로 */}
+      <EdgeFade position="top" color={tintColor ?? surfaceDim} style={styles.blurBackground} />
 
       <View style={styles.inner} pointerEvents="box-none">
         <ContentContainer

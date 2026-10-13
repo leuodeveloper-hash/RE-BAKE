@@ -1,4 +1,7 @@
 import {NOTE_BLOCK} from '@constants/noteBlock';
+import {IconRefresh} from '@components/Icon/IconIndex';
+import {FloatingNotice} from '@components/FloatingNotice';
+import {APPBAR_ITEM_GAP} from '@constants/layout';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   Animated,
@@ -1546,9 +1549,7 @@ export function RecipeDetailScreen({
 
       {/* 업데이트됨 — 다른 기기에서 고친 내용이 있으면 아래쪽에 떠 있는 버튼, 누르면 새로 받는다 */}
       {updateAvailable && onRefresh ? (
-        <View pointerEvents="box-none" style={styles.updatePillWrap}>
-          <Button label={refreshing ? t('recipeDetail.updating') : t('recipeDetail.updated')} variant="filled" size="small" onPress={handlePullRefresh} />
-        </View>
+        <FloatingNotice icon={IconRefresh} label={refreshing ? t('recipeDetail.updating') : t('recipeDetail.updated')} onPress={handlePullRefresh} loading={refreshing} />
       ) : null}
 
       {/* Overlay for Menu */}
@@ -1827,21 +1828,15 @@ export function RecipeDetailScreen({
 const HERO_HEIGHT = 280;
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
-  updatePillWrap: {
-    position: 'absolute',
-    left: 0,
-    right: 0,
-    bottom: 110,
-    alignItems: 'center',
-  },
   // 한번에 보기
   bulkToggleRow: {
     alignItems: 'flex-end',
     marginTop: Spacing.sm,
   },
+  // 한번에 보기 — 묶음(섹션)과 묶음 사이. 8이면 다음 묶음 제목이 앞 내용에 붙어 보였다
   bulkBody: {
     flex: 1,
-    gap: Spacing.sm,
+    gap: Spacing.lg,
   },
   bulkGroupTitle: {
     ...Typography.caption.medium,
@@ -1886,10 +1881,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     width: '100%',
     marginBottom: 0,
   },
+  // 앱바 떠 있는 요소 사이 — 공통 간격
   navLeftRow: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
-    gap: Spacing.sm,
+    gap: APPBAR_ITEM_GAP,
   },
   sessionSliderWrap: {
     position: 'absolute' as const,

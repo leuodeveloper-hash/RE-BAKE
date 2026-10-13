@@ -22,8 +22,8 @@ import {GlassContainer} from '@components/Container';
 import {useTranslation} from '@contexts/LanguageContext';
 import {FloatingNavBar, navPillStyle} from './FloatingNavBar';
 
-/** 로그인 전 앱바 로고 칸 폭 — 로고 24 + 좌우 4 */
-const GUEST_LOGO_WIDTH = 24 + 4 * 2;
+/** 로그인 전 앱바 로고 칸 폭 — 앱바 알약과 같다 */
+const GUEST_LOGO_WIDTH = NAV_PILL_HEIGHT;
 
 export interface AppBarProps {
   title?: string;
@@ -113,19 +113,8 @@ export function AppBar({
   const colors = useColors();
   // 로그인 전엔 맨 왼쪽에 로고 — 누르면 소개(랜딩) 화면. 뒤로가기가 있는 화면은 그 자리를 비워 둔다
   // 셀렉터 앞에 붙는 것(로고·닫기 버튼)의 폭 — 왼쪽 메뉴를 그만큼 밀어 셀렉터에 맞춘다
-  const menuOffset = (!user && !leftIcon ? GUEST_LOGO_WIDTH + APPBAR_ITEM_GAP : 0)
-    + (leftIcon ? NAV_PILL_HEIGHT + APPBAR_ITEM_GAP : 0);
-  const guestLogo = !user && !leftIcon
-    ? (
-      // 글래스 알약 없이 로고만 — 버튼이 아니라 브랜드 표시
-      <Pressable
-        hitSlop={8}
-        style={styles.guestLogo}
-        onPress={() => { triggerHaptic('light'); router.push('/welcome' as any); }}>
-        <IconLogoSymbol width={24} height={24} color={colors['foreground/on-surface']} />
-      </Pressable>
-    )
-    : null;
+  // (로그인 전 로고 버튼은 보기 메뉴의 '홈'으로 합쳤다)
+  const menuOffset = leftIcon ? NAV_PILL_HEIGHT + APPBAR_ITEM_GAP : 0;
 
   if (centered) {
     // 일반 모드와 같은 껍데기(FloatingNavBar)를 쓴다 — 직접 View로 그리면
@@ -161,9 +150,8 @@ export function AppBar({
       left={
         // 뒤로가기 버튼이 있으면 셀렉터 알약 앞에 나란히 배치.
         // below(레시피북 탭)는 셀렉터 뒤에 이어 붙인다.
-        leftIcon || below || guestLogo ? (
+        leftIcon || below ? (
           <View style={styles.leftRow}>
-            {guestLogo}
             {leftIcon ? <NavPillButton icon={leftIcon} onPress={onLeftPress} /> : null}
             {leftContent}
             {below ? <View style={styles.leftTabs}>{below}</View> : null}
@@ -232,12 +220,6 @@ export function AppBar({
 }
 
 const styles = StyleSheet.create({
-  // 로고 — 알약(44) 높이에 맞춰 가운데
-  guestLogo: {
-    height: 44,
-    justifyContent: 'center',
-    paddingHorizontal: 4,
-  },
   rightRow: {
     flexDirection: 'row',
     alignItems: 'center',

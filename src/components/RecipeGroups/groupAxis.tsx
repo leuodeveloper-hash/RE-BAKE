@@ -1,7 +1,10 @@
-import {useMemo} from 'react';
+import {useCallback, useMemo} from 'react';
+import {useAuth} from '@contexts/AuthContext';
+import {useRouter} from 'expo-router';
+import {requestLanding} from '@utils/landing';
 import {useColors} from '@contexts/ThemeContext';
 import {useTranslation, type TranslateFn} from '@contexts/LanguageContext';
-import {IconBookFilled, IconPenTipFilled, IconNoteFilled, IconProcess} from '@components/Icon/IconIndex';
+import {IconBookFilled, IconPenTipFilled, IconNoteFilled, IconProcess, IconLogoSymbol} from '@components/Icon/IconIndex';
 
 /**
  * 레시피 그룹화 축 — 홈/둘러보기 공통 기준.
@@ -59,4 +62,30 @@ export function useAxisMenuItems(availableAxes: GroupAxis[] = DEFAULT_AXES, over
       return o ? {...byAxis[a], ...(o.label != null && {label: o.label}), ...(o.icon && {icon: o.icon}), ...(o.iconColor && {iconColor: o.iconColor})} : byAxis[a];
     });
   }, [colors, t, availableAxes, overrides]);
+}
+
+export const LANDING_MENU_ID = '__landing__';
+
+/**
+ * 보기(축) 메뉴 맨 아래 "홈"(소개 화면) — 로그인 전에만(로그인 후엔 소개 화면이 없다).
+ * 따로 있던 로그인 전 로고 버튼을 이 메뉴로 합쳤다. 축 메뉴가 있는 화면은 모두 이걸 쓴다.
+ *   const landing = useLandingMenu(axisMenuItems);
+ *   <Menu items={landing.items} onSelect={id => landing.handle(id) || 원래처리(id)} />
+ */
+export function useLandingMenu<T extends {id: string; showDivider?: boolean}>(items: T[]) {
+  const {user} = useAuth();
+  const router = useRouter();
+  const {t} = useTranslation();
+  const out = useMemo(() => {
+    if (user || items.length === 0) return items as (T | AxisMenuItem)[];
+    const last = {...items[items.length - 1], showDivider: true};
+    return [...items.slice(0, -1), last, {id: LANDING_MENU_ID, label: t('appBar.landing'), icon: IconLogoSymbol} as unknown as AxisMenuItem];
+  }, [user, items, t]);
+  const handle = useCallback((id: string) => {
+    if (id !== LANDING_MENU_ID) return false;
+    requestLanding();
+    router.push('/' as any);
+    return true;
+  }, [router]);
+  return {items: out, handle};
 }

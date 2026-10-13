@@ -69,7 +69,7 @@ export default function RecipeNewRoute() {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace('/');
+      router.replace('/recipes' as any);
     }
   }, [router]);
 

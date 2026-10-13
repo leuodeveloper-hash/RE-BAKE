@@ -1,4 +1,5 @@
 import React from 'react';
+import {SvgProps} from 'react-native-svg';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {Avatar} from '@components/Avatar';
 import {Button} from '@components/Button';
@@ -24,13 +25,15 @@ export interface ProfileHeaderProps {
   onPress?: () => void;
   /** 맨 아래 꽉 찬 버튼(예: 프로필 편집 / 로그인) */
   action?: {label: string; onPress: () => void};
+  /** 프로필 줄 맨 오른쪽 아이콘 버튼(예: 설정 톱니) */
+  iconAction?: {icon: React.FC<SvgProps>; onPress: () => void};
 }
 
 /**
  * 프로필 머리말 — [아바타 · 이름 / @핸들 · 숫자] / 꽉 찬 버튼.
  * 내 홈 맨 위. 작성자 홈 등 프로필이 필요한 곳은 같은 모양으로 이걸 쓴다.
  */
-export function ProfileHeader({name, handle, avatarSeed, stats, onPress, action}: ProfileHeaderProps) {
+export function ProfileHeader({name, handle, avatarSeed, stats, onPress, action, iconAction}: ProfileHeaderProps) {
   const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.wrap}>
@@ -41,19 +44,20 @@ export function ProfileHeader({name, handle, avatarSeed, stats, onPress, action}
         <Avatar type="random" size="large" shape="circle" seed={avatarSeed} />
         <View style={styles.names}>
           <Text style={styles.name} numberOfLines={1}>{name}</Text>
-          {/* @핸들 오른쪽에 숫자(레시피 · 공개) */}
-          <Text style={styles.handle} numberOfLines={1}>
-            {handle ? `@${handle}` : ''}
-            {stats?.map((s, i) => (
-              <React.Fragment key={s.label}>
-                {handle || i > 0 ? <Text style={styles.dot}>{'  ·  '}</Text> : null}
-                <Text style={styles.statValue}>{s.value}</Text>{` ${s.label}`}
-              </React.Fragment>
+          {/* @핸들 오른쪽에 숫자 — 점 없이 간격(8)으로 구분 */}
+          <View style={styles.subRow}>
+            {handle ? <Text style={styles.handle} numberOfLines={1}>@{handle}</Text> : null}
+            {stats?.map(st => (
+              <Text key={st.label} style={styles.handle} numberOfLines={1}>
+                <Text style={styles.statValue}>{st.value}</Text>{` ${st.label}`}
+              </Text>
             ))}
-          </Text>
+          </View>
         </View>
+        {/* 프로필 줄 맨 오른쪽 아이콘 버튼(설정 등) — 외곽선·사각, 정사각 */}
+        {iconAction ? <Button icon={iconAction.icon} label="" variant="outlined" shape="square" onPress={iconAction.onPress} /> : null}
       </Pressable>
-      {action ? <Button label={action.label} variant="outlined" shape="square" onPress={action.onPress} style={styles.action} /> : null}
+      {action ? <Button label={action.label} variant="outlined" shape="square" onPress={action.onPress} style={styles.actionMain} /> : null}
     </View>
   );
 }
@@ -84,10 +88,14 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     ...Typography.caption.large,
     color: colors['foreground/on-surface'],
   },
-  dot: {
-    color: colors['foreground/on-surface-muted'],
+  subRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    columnGap: Spacing.sm,
   },
-  action: {
+  actionMain: {
     alignSelf: 'stretch',
   },
+
 });

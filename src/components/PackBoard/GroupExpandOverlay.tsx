@@ -1,3 +1,4 @@
+import {APPBAR_ITEM_GAP} from '@constants/layout';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Animated, Dimensions, Easing, StyleSheet, View} from 'react-native';
 import {FloatingNavBar, navPillStyle} from '@components/Navigation';
@@ -97,10 +98,10 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
   const activeIsPublic = !activeIsExplore && publicBooks.has(active);
   const [confirmPublish, setConfirmPublish] = useState(false);
   const moreItems = [
-    {id: 'share', label: t('groupExpandOverlay.shareCookbook'), icon: IconShare},
+    {id: 'share', label: t('group.share'), icon: IconShare},
     ...(activeIsPublic ? [{id: 'unpublish', label: t('sharedCookbook.unpublish'), icon: IconLock}] : []),
-    ...(canEditDelete && onEditCookbook ? [{id: 'edit', label: t('groupExpandOverlay.editCookbook'), icon: IconEdit}] : []),
-    ...(canEditDelete && onDeleteCookbook ? [{id: 'delete', label: t('groupExpandOverlay.deleteCookbook'), icon: IconTrash}] : []),
+    ...(canEditDelete && onEditCookbook ? [{id: 'edit', label: t('group.edit'), icon: IconEdit}] : []),
+    ...(canEditDelete && onDeleteCookbook ? [{id: 'delete', label: t('group.delete'), icon: IconTrash}] : []),
     ...(onDownloadPdf ? [{id: 'pdf', label: t('groupExpandOverlay.downloadPdf'), icon: IconArrowDownToLine}] : []),
   ];
 
@@ -366,10 +367,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     ...StyleSheet.absoluteFillObject,
     backgroundColor: colors['surface/dim'],
   },
+  // 앱바 떠 있는 요소 사이 — 공통 간격
   navLeftRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.sm,
+    gap: APPBAR_ITEM_GAP,
   },
   // 메뉴 위치는 FloatingNavBar의 left/rightMenuContainer가 앵커 아래로 잡아줌 (leftMenu/rightMenu 슬롯 사용).
   scrollContent: {

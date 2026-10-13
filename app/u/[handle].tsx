@@ -6,7 +6,7 @@ import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {useAuthor} from '@hooks/useAuthor';
 import {useTranslation} from '@contexts/LanguageContext';
 import {useColors} from '@contexts/ThemeContext';
-import {resolveAuthorHandle} from '../../src/types/author';
+import {resolveAuthorHandle, OFFICIAL_AUTHOR_ID} from '../../src/types/author';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 
@@ -47,7 +47,9 @@ export default function AuthorHomeRoute() {
 
   const snapshot = authorRecipes[0];
   const handle = resolveAuthorHandle(authorId, author?.handle ?? snapshot?.authorHandle) ?? routeHandle ?? 'guest';
-  const avatarSeed = author?.avatarSeed ?? snapshot?.authorAvatarSeed ?? authorId ?? handle;
+  // 아바타 시드는 한 번 정해지면 안 바뀌게 — 작성자 정보가 늦게 오거나 대표 레시피가 바뀔 때마다
+  // 다른 시드가 잡혀 아바타가 바뀌어 보였다. 공식(베이키)은 늘 같은 값(내 홈 머리말과 같다)
+  const avatarSeed = authorId === OFFICIAL_AUTHOR_ID ? OFFICIAL_AUTHOR_ID : (snapshot?.authorAvatarSeed ?? author?.avatarSeed ?? authorId ?? handle);
 
 
   // 축 셀렉터 메뉴 최상단: 아바타 + (1줄 @핸들 / 2줄 "레시피 북 N · 레시피 M")
@@ -59,7 +61,7 @@ export default function AuthorHomeRoute() {
           <Text style={styles.menuHeaderHandle} numberOfLines={1}>@{handle}</Text>
           <Text style={styles.menuHeaderMeta} numberOfLines={1}>
             {t('authorHome.cookbookCount', {count: cookbookCount})}
-            {'  ·  '}
+            {'   '}
             {t('authorHome.recipeCount', {count: authorRecipes.length})}
           </Text>
         </View>

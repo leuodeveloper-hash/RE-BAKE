@@ -1,3 +1,5 @@
+import {IconEllipsisVertical} from '@components/Icon/IconIndex';
+import {IconButton} from '@components/IconButton';
 import React, {useRef} from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {SvgProps} from 'react-native-svg';
@@ -66,6 +68,8 @@ export interface PackCardData {
 }
 
 export interface RecipePackProps {
+  /** 책 표지 오른쪽 위 ⋮ — 누르면 그 북 메뉴(편집·삭제·공유). 위치를 넘겨 메뉴를 그 아래 띄운다 */
+  onMenuPress?: (position: {pageX: number; pageY: number; width: number; height: number}) => void;
   /** 공법명 */
   title: string;
   /** 서브타이틀 (예: "제과기능사 · 3개") */
@@ -118,11 +122,12 @@ export interface BookAuthor {
   avatarSeed: string | number;
 }
 
-export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom, pillCorner, pillProgress, icon: PillIcon, iconColor, locked, variant = 'default', footerLeft, footerRight, emptyCover, hidden, authors}: RecipePackProps) {
+export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom, pillCorner, pillProgress, icon: PillIcon, iconColor, locked, variant = 'default', footerLeft, footerRight, emptyCover, hidden, authors, onMenuPress}: RecipePackProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const pillAnim = useAnimatedStyle(() => ({opacity: pillProgress ? pillProgress.value : 1}));
   const colors = useColors();
+  const menuBtnRef = React.useRef<View>(null);
   const {isDark} = useTheme();
   // 뱃지(pill) 그림자: 경계가 보이되 부드럽게 (너무 진하면 지저분해 보임)
   const pillShadow = {
@@ -215,11 +220,22 @@ export function RecipePack({title, cards, onPress, rotate = 0, count, pillBottom
             <Text style={[styles.bookMeta, {flex: 1, textAlign: 'right', color: titleColor}]} numberOfLines={2}>{footerRight ?? ''}</Text>
           </View>
           {/* 비공개(숨김) 표시 — 표지 우상단 자물쇠 */}
+          {/* 비공개 표시는 왼쪽 위 — 오른쪽 위는 ⋮ 메뉴 자리 */}
           {hidden && (
             <View style={styles.bookHiddenBadge} pointerEvents="none">
               <IconEyeClosed width={16} height={16} color={titleColor} />
             </View>
           )}
+          {onMenuPress ? (
+            <View ref={menuBtnRef} style={styles.bookMenuButton} collapsable={false}>
+              <IconButton
+                icon={IconEllipsisVertical}
+                variant="ghost-secondary"
+                size="small"
+                onPress={() => menuBtnRef.current?.measureInWindow((x, y, width, height) => onMenuPress({pageX: x, pageY: y, width, height}))}
+              />
+            </View>
+          ) : null}
         </View>
       </Pressable>
     );
@@ -337,7 +353,12 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   bookHiddenBadge: {
     position: 'absolute',
     top: 12,
-    right: 12,
+    left: 12,
+  },
+  bookMenuButton: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
   },
   bookTitle: {
     position: 'absolute',

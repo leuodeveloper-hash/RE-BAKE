@@ -68,7 +68,7 @@ export function ExploreRouteBase({landing = false}: {landing?: boolean}) {
     showSnackbar(t('explore.savedToMyRecipes'), {
       tone: 'positive',
       label: t('explore.goTo'),
-      onPress: () => router.navigate('/'),
+      onPress: () => router.navigate('/recipes' as any),
     });
   }, [user, setRecipes, showSnackbar, router, t, openAuthSheet]);
   importRef.current = handleImportRecipe;

@@ -103,7 +103,7 @@ export default function RecipeDetailRoute() {
     const timer = setTimeout(() => {
       if (!findRecipeById(id) && !exploreRecipes.find(r => r.id === id) && !getSharedRecipe(id)) {
         AsyncStorage.removeItem('last_viewed_recipe_id');
-        router.replace('/');
+        router.replace('/recipes' as any);
       }
     }, 1500);
     return () => clearTimeout(timer);
@@ -189,7 +189,7 @@ export default function RecipeDetailRoute() {
     } else if (from) {
       router.navigate(`/${from}` as any);
     } else {
-      router.replace('/');
+      router.replace('/recipes' as any);
     }
   }, [router, from]);
 
@@ -273,7 +273,7 @@ const handleDelete = useCallback(async () => {
     if (router.canGoBack()) {
       router.back();
     } else {
-      router.replace('/');
+      router.replace('/recipes' as any);
     }
   }, [recipe, isMyRecipe, isExploreRecipe, isAdmin, id, setRecipes, showSnackbar, router, t]);
 
@@ -308,7 +308,7 @@ const handleDelete = useCallback(async () => {
     showSnackbar(t('id.savedToMyRecipes'), {
       tone: 'positive',
       label: t('id.goTo'),
-      onPress: () => router.navigate('/'),
+      onPress: () => router.navigate('/recipes' as any),
     });
   }, [recipe, setRecipes, showSnackbar, router, t, user, handle, displayName, avatarSeed, openAuthSheet]);
   importRef.current = handleImport;

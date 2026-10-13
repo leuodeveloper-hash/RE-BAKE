@@ -71,7 +71,7 @@ export function StampDetailSheet({
         text: reviewsOf(r)
           .map(rv => rv.evaluation?.trim() || rv.improvement?.trim())
           .filter(Boolean)
-          .join(' · '),
+          .join('   '),
       }));
   }, [sessions, t, reviewsOf]);
 

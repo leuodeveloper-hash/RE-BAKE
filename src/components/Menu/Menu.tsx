@@ -83,6 +83,16 @@ export function Menu({
   onSubMenuBack,
 }: MenuProps) {
   const styles = useThemedStyles(createStyles);
+  // 메뉴 폭은 가장 긴 이름이 한 줄에 들어가게 — 좁은 버튼에 붙은 메뉴는 그 폭에 맞춰 이름이 두 줄로 꺾였다.
+  // 글자 폭은 대략(한글 약 17px, 영문 약 9px) + 아이콘·여백. 화면 폭은 넘지 않는다.
+  const allLabels = [...(items ?? []), ...(sections ?? []).flatMap(sec => sec.items ?? [])].map(i => i.label);
+  // 글자 폭 추정(본문 16px 기준) — 한글 ≈16, 영문 소문자 ≈8, 대문자 ≈10, 공백 ≈4.
+  // 남는 폭 = 아이콘 20 + 아이콘·글자 간격 + 항목 좌우 여백 + 메뉴 안쪽 여백 ≈ 64. 넉넉히 잡으면 메뉴가 휑하게 길어졌다
+  const charW = (ch: string) => (/[가-힣]/.test(ch) ? 16 : /\s/.test(ch) ? 4 : /[A-Z]/.test(ch) ? 10 : 8);
+  const textW = Math.max(0, ...allLabels.map(l => [...l].reduce((w, ch) => w + charW(ch), 0)));
+  // 최대 320 — 'Official recipe books' 정도까지는 한 줄, 그보다 긴 이름(레시피 제목 등)만 두 줄로 꺾인다
+  const MENU_MAX_WIDTH = 320;
+  const menuMinWidth = Math.min(Math.max(200, textW + 64), MENU_MAX_WIDTH, SCREEN_W - 32);
   const colors = useColors();
   const {t} = useTranslation();
   const scale = useRef(new Animated.Value(0.95)).current;
@@ -164,7 +174,7 @@ export function Menu({
           borderRadius="lg"
           // 목록 위에 떠 있으므로 한 단계 짙게 — normal은 배경과 잘 분리되지 않는다
           elevation="strong"
-          contentStyle={{padding: Spacing.xs, minWidth: 200, backgroundColor: colors['surface/normal'], ...(maxHeight ? {maxHeight} : {})}}>
+          contentStyle={{padding: Spacing.xs, minWidth: menuMinWidth, maxWidth: Math.min(MENU_MAX_WIDTH, SCREEN_W - 32), backgroundColor: colors['surface/normal'], ...(maxHeight ? {maxHeight} : {})}}>
           {/* 하위 목록이 열리면 메뉴를 덮는다 — 뒤로가기로 돌아온다 */}
           {subMenu ? (
             <>

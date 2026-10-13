@@ -78,6 +78,8 @@ import type {AvatarColor} from '@components/Avatar/Avatar';
 // 로딩 화면 로고 — 버건디(reddark)는 브랜드색이지만 로딩 배경 위에서 과했다.
 // primary(#0E0E0D)인 기본 배지를 쓴다.
 import LogoBadge from '../assets/images/logo_badge.svg';
+// 로딩 화면 뱃지 색 — SVG가 currentColor라 색을 넘겨야 한다(예전 SVG에 박혀 있던 색 그대로)
+const LOGO_BADGE_COLOR = '#0E0E0D';
 
 SplashScreen.preventAutoHideAsync();
 
@@ -166,7 +168,7 @@ function AnimatedSplash({onFinish}: {onFinish: () => void}) {
           })},
         ]}}>
           {/* 고스트 뱃지 (연한 실루엣) */}
-          <LogoBadge width={LOGO_W} height={LOGO_H} opacity={0.1} />
+          <LogoBadge width={LOGO_W} height={LOGO_H} opacity={0.1} color={LOGO_BADGE_COLOR} />
           {/* 크레파스 스트립들 */}
           {stripAnims.map((anim, i) => {
             const isLTR = i % 2 === 0;
@@ -220,7 +222,7 @@ function AnimatedSplash({onFinish}: {onFinish: () => void}) {
                           }),
                       }],
                     }}>
-                    <LogoBadge width={LOGO_W} height={LOGO_H} />
+                    <LogoBadge width={LOGO_W} height={LOGO_H} color={LOGO_BADGE_COLOR} />
                   </Animated.View>
                 </Animated.View>
               </Animated.View>
@@ -259,14 +261,6 @@ function NavigationContent() {
   const {showAddSheet, setShowAddSheet, setShowSearchSheet, hideTabBar, hideContentMask, showCookbookDialog, setShowCookbookDialog, cookbookEditTarget, setCookbookEditTarget, cookbookInitialOfficial, setCookbookInitialOfficial, onCookbookCreatedRef} = useAddSheet();
   const {snackbar, clearSnackbar, showSnackbar} = useSnackbar();
   const {user, isAdmin, avatarSeed, isLoading: authLoading} = useAuth();
-  // 처음 여는 게스트는 소개 화면(/welcome)부터 — 한 번 보면 다음부터는 바로 앱
-  const welcomeCheckedRef = useRef(false);
-  useEffect(() => {
-    if (authLoading || welcomeCheckedRef.current) return;
-    welcomeCheckedRef.current = true;
-    if (user || pathname !== '/') return;
-    AsyncStorage.getItem('@bakle_welcome_seen').then(v => { if (!v) router.replace('/welcome' as any); }).catch(() => {});
-  }, [authLoading, user, pathname, router]);
   const {recipes, setRecipes, lastSyncedAt, setCookbookColor, renameCookbookColor, migrationCount, confirmMigration, dismissMigration} = useRecipes();
   const {reload: exploreReload, exploreCookbooks, recipes: exploreRecipesAll} = useExploreRecipeContext();
   const [migrating, setMigrating] = useState(false);
@@ -288,7 +282,7 @@ function NavigationContent() {
     (async () => {
       try {
         // 딥링크(위젯·공유 링크)나 특정 경로로 들어왔으면 그 의도를 존중한다
-        if (pathname && pathname !== '/') return;
+        if (pathname && pathname !== '/' && pathname !== '/recipes') return;
         const initialUrl = await Linking.getInitialURL();
         if (initialUrl && initialUrl.includes('/recipe/')) return;
         const seen = await AsyncStorage.getItem('has_launched');
@@ -318,7 +312,7 @@ function NavigationContent() {
       try {
         // 사용자가 특정 경로로 직접 들어온 경우엔 복귀시키지 않는다.
         // (주소창에 홈을 쳐도 상세로 튕기던 문제 — pathname이 '/'가 아니면 의도된 진입)
-        if (pathname && pathname !== '/') return;
+        if (pathname && pathname !== '/' && pathname !== '/recipes') return;
         const initialUrl = await Linking.getInitialURL();
         if (initialUrl && initialUrl.includes('/recipe/')) return;
 
@@ -431,14 +425,15 @@ function NavigationContent() {
 
   useEffect(() => {
     // 홈 = 내 화면(아바타 탭). 설정은 그 안쪽 페이지라 같은 탭으로 표시
-    if (pathname === '/' || pathname === '/settings') setActiveTab('profile');
+    // 내 레시피(/recipes)·설정은 아바타 탭. 맨 앞(/)은 소개(홈) 화면이라 아무 탭도 아니다
+    if (pathname === '/recipes' || pathname === '/settings') setActiveTab('profile');
+    else if (pathname === '/') setActiveTab('');
     else if (pathname === '/group') setActiveTab('group');
     else if (pathname === '/explore') setActiveTab('explore');
     // 작성자 홈(/u/[handle])은 둘러보기 소속 → 둘러보기 탭 활성으로 표시.
     // (매칭 안 되면 activeTab이 이전값 '홈'에 남아 탭이 안 바뀌던 문제)
     else if (pathname.startsWith('/u/')) setActiveTab('explore');
     // 소개 화면은 어느 탭에도 속하지 않는다 — 아무 탭도 켜지 않음
-    else if (pathname === '/welcome') setActiveTab('');
   }, [pathname]);
 
   // 레시피 상세/편집 라우트에서는 메인 탭바 숨김 (상세는 회차 눈금 슬라이더가 대신함)
@@ -449,7 +444,7 @@ function NavigationContent() {
     {id: 'search', label: t('layout.tabSearch'), icon: IconSearch, onPress: () => setShowSearchSheet(true)},
     {id: 'add', label: t('layout.tabAdd'), icon: IconAdd, onPress: () => setShowAddSheet(true)},
     {id: 'explore', label: t('layout.tabExplore'), icon: IconCompassFilled, onPress: () => router.navigate('/explore' as any)},
-    {id: 'profile', label: user ? t('layout.tabMe') : t('layout.tabGuest'), icon: IconUserFilled, useRandomAvatar: true, avatarSeed: avatarSeed ?? 0, onPress: () => router.navigate('/' as any)},
+    {id: 'profile', label: user ? t('layout.tabMe') : t('layout.tabGuest'), icon: IconUserFilled, useRandomAvatar: true, avatarSeed: avatarSeed ?? 0, onPress: () => router.navigate('/recipes' as any)},
   ], [router, setShowAddSheet, setShowSearchSheet, avatarSeed, user, t]);
 
   // 하단 탭 [+] 시트 — 위 3칸(이미지·URL·텍스트)으로 새 레시피를 채워 시작, 아래 줄은 새 레시피북

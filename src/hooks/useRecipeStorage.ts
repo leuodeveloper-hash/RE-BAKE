@@ -721,9 +721,10 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
   const reload = useCallback(async () => {
     if (cloudEnabled && user) {
       try {
-        const {getDocs} = require('firebase/firestore');
+        // 서버에서 직접 — 캐시를 거치면 다른 기기에서 고친 게 안 들어와 '업데이트됨'을 눌러도 그대로였다
+        const {getDocsFromServer} = require('firebase/firestore');
         const colRef = collection(db, 'user_recipes', user.uid, 'recipes');
-        const snapshot = await getDocs(colRef);
+        const snapshot = await getDocsFromServer(colRef);
         const firestoreRecipes: Recipe[] = snapshot.docs.map(
           (d: any) => migrateRecipe({id: d.id, ...d.data()}),
         );

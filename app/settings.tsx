@@ -41,9 +41,8 @@ export default function ProfileRoute() {
   const openMyAuthorHome = useCallback((axis?: 'cookbook') => {
     // 내 것이면 내 홈 그대로(같은 화면·같은 앱바) — 레시피북 보기로만 바꿔서 연다.
     // 작성자 홈(/u)으로 보내면 닫기 버튼·다른 앱바가 붙어 다른 화면처럼 보였다.
-    if (user) { router.navigate(`/${axis ? `?axis=${axis}` : ''}` as any); return; }
-    // 로그인 전엔 내 북이 없다 — 공식 작성자(베이키) 작성자 홈을 레시피북 보기로
-    router.push(`/u/${OFFICIAL_AUTHOR_HANDLE}${axis ? `?axis=${axis}` : ''}` as any);
+    // 로그인 전에도 내가 만든 걸 보여준다 — 게스트 내 홈(레시피북 보기)으로. 베이키 작성자 홈으로 넘어가지 않는다
+    router.navigate(`/recipes${axis ? `?axis=${axis}` : ''}` as any);
   }, [isAdmin, user, myAuthor, handle, router]);
   const {isPro} = useSubscription();
   const {t} = useTranslation();
@@ -67,7 +66,7 @@ export default function ProfileRoute() {
   }, [recipes, reviews]);
 
   const handleBack = useCallback(() => {
-    router.navigate('/');
+    router.navigate('/recipes' as any);
   }, [router]);
 
   const handleLogout = useCallback(async () => {

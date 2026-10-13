@@ -1,3 +1,4 @@
+import {IconCameraFilled} from '@components/Icon/IconIndex';
 import React, {useState} from 'react';
 import {triggerHaptic} from '@utils/haptics';
 import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
@@ -12,6 +13,11 @@ import type {StepPhoto} from '../../types/recipe';
 import {PhotoCaptionArrow} from './PhotoCaptionArrow';
 
 export interface StepPhotosProps {
+  /**
+   * 빈 사진 칸 — 주면 사진 뒤에 빈 썸네일(같은 크기)을 붙이고, 누르면 이걸 부른다(바로 촬영 등).
+   * 커서가 있는 칸에서만 넘겨, 칸을 미리 만들어 두고 바로 사진을 넣게 한다.
+   */
+  onAdd?: () => void;
   /** 정규화된 사진 배열 ({uri, caption?}) */
   photos: StepPhoto[];
   /**
@@ -57,6 +63,7 @@ export function StepPhotos({
   onRemove,
   onReplace,
   showArrow = false,
+  onAdd,
 }: StepPhotosProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
@@ -121,11 +128,28 @@ export function StepPhotos({
           </View>
         );
       })}
+      {onAdd ? (
+        // 빈 썸네일 — 사진과 같은 크기·모서리, 점선 테두리 + 카메라
+        <Pressable
+          onPress={() => { triggerHaptic('light'); onAdd(); }}
+          style={[styles.addSlot, {width: size, height: size}]}>
+          <IconCameraFilled width={20} height={20} color={colors['foreground/on-surface-muted']} />
+        </Pressable>
+      ) : null}
     </Pressable>
   );
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  addSlot: {
+    borderRadius: Radius['radius-sm'],
+    borderWidth: 1,
+    borderStyle: 'dashed',
+    borderColor: colors['border/muted'],
+    backgroundColor: colors['fill/faint'],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   container: {
     flexDirection: 'row',
     flexWrap: 'wrap',

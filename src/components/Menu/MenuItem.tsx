@@ -85,7 +85,7 @@ export function MenuItem({
             hiddenMark && styles.labelShrink,
             destructive && styles.destructiveLabel,
             disabled && styles.disabledLabel,
-          ]}>
+          ]} numberOfLines={2}>
             {label}
           </Text>
           {hiddenMark ? <IconEyeClosed width={16} height={16} color={colors['foreground/on-surface-muted']} /> : null}

@@ -129,6 +129,17 @@ export function RecipeProvider({children}: {children: React.ReactNode}) {
   }, []);
 
   // 로그인하면 계정 색을 불러와 기기 색과 합친다(계정 우선). 기기에만 있던 색은 계정에 올린다.
+  // 로그아웃하면(있던 계정이 없어지면) 화면에 들고 있던 북 색·고른 북도 비운다 — 저장소만 지우면 화면엔 그대로 남았다
+  const prevColorUidRef = useRef<string | undefined>(user?.uid);
+  useEffect(() => {
+    if (prevColorUidRef.current && !user?.uid) {
+      setCookbookColorsState({});
+      setSelectedCookbookState(null);
+      setSelectedMethodState(null);
+    }
+    prevColorUidRef.current = user?.uid;
+  }, [user?.uid]);
+
   useEffect(() => {
     const uid = user?.uid;
     if (!uid) return;

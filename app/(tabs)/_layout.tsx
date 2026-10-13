@@ -7,6 +7,7 @@ export default function TabsLayout() {
       screenOptions={{headerShown: false}}
     >
       <Tabs.Screen name="index" />
+      <Tabs.Screen name="recipes" />
       <Tabs.Screen name="group" />
       <Tabs.Screen name="explore" />
     </Tabs>

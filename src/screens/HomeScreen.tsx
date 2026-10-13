@@ -5,14 +5,16 @@ import {getCookbookColorKey} from '@components/ColorPicker';
 import {IconBookFilled} from '@components/Icon/IconIndex';
 import {getColorVarKey} from '@components/ColorPicker';
 import {IconExprolerBookFilled} from '@components/Icon/IconIndex';
-import {BREADCRUMB_ITEM_OFFSET} from '@components/Navigation/Breadcrumb';
+import {useBreadcrumbItemOffset} from '@components/Navigation/Breadcrumb';
 import {cookbookMenuItem} from '@utils/cookbookMenuItem';
 import {ProfileHeader} from '@components/ProfileHeader';
 import {shareProfile} from '@utils/shareCookbook';
+import {IconSettings} from '@components/Icon/IconIndex';
+import {useLandingMenu} from '@components/RecipeGroups/groupAxis';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Linking, StyleSheet, Text, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {useFocusEffect, useRouter} from 'expo-router';
+import {useRouter} from 'expo-router';
 import {AppBar} from '@components/Navigation';
 import {Breadcrumb} from '@components/Navigation/Breadcrumb';
 import {Menu} from '@components/Menu';
@@ -93,6 +95,7 @@ export interface HomeScreenProps {
 }
 
 export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorProfile, menuHeaderNode}: HomeScreenProps = {}) {
+  const breadcrumbItemOffset = useBreadcrumbItemOffset();
   const {t} = useTranslation();
   const styles = useThemedStyles(createStyles);
   const isAuthorMode = !!authorId;
@@ -222,7 +225,6 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
     setDrillFrom(null);
     if (a === 'all') { setSelectedCookbook(null); setSelectedMethod(null); }
   }, [setSelectedCookbook, setSelectedMethod]);
-  const [guestBannerDismissed, setGuestBannerDismissed] = useState(false);
   // 시험이 임박하면 홈 상단에 알린다 (알림 설정에서 고른 종목 기준)
   const upcomingExam = useUpcomingExam();
   // 시험·D-day 배너 닫기 — 오늘 날짜 + 대상 이름으로 기억(다음 날·다른 시험이면 다시 뜬다)
@@ -237,12 +239,6 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
     AsyncStorage.setItem('@bakle_exam_banner_dismissed', examBannerKey).catch(() => {});
   }, [examBannerKey]);
 
-  // 화면에 다시 진입할 때마다 게스트 배너 dismissal 초기화 → 재표시
-  useFocusEffect(
-    useCallback(() => {
-      setGuestBannerDismissed(false);
-    }, []),
-  );
 
   const [showMoreMenu, setShowMoreMenu] = useState(false);
   // 브레드크럼 메뉴: 'axis'(1뎁스 축) | 'item'(2뎁스 항목) | null
@@ -261,8 +257,17 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
 
   // 홈 타이틀 드롭다운 = 그룹화 축 선택 (공통 모듈, 전체/레시피북/공법/회고)
   // 보기 종류 — 작성자 홈엔 회고가 없다(내 홈에서만). 아래 GroupScreen과 같은 목록을 쓴다
-  const homeAxes = useMemo(() => (isAuthorMode ? DEFAULT_AXES.filter(a => a !== 'retrospective') : DEFAULT_AXES), [isAuthorMode]);
+  // 공법이 하나도 없으면 '공법' 보기 자체를 메뉴에서 뺀다(고를 게 없는 빈 화면만 나왔다)
+  const hasMethods = useMemo(() => recipes.some(r => !!r.method?.trim()), [recipes]);
+  const homeAxes = useMemo(
+    () => (isAuthorMode ? DEFAULT_AXES.filter(a => a !== 'retrospective') : DEFAULT_AXES).filter(a => a !== 'method' || hasMethods),
+    [isAuthorMode, hasMethods],
+  );
+  // 공법 보기에 있었는데 공법이 사라졌으면 레시피 보기로
+  useEffect(() => { if (groupAxis === 'method' && !hasMethods && !isLoading) setGroupAxis('all'); }, [groupAxis, hasMethods, isLoading]);
   const axisMenuItems = useAxisMenuItems(homeAxes);
+  // 보기 메뉴 맨 아래 '홈'(소개 화면) — 로그인 전에만
+  const landingMenu = useLandingMenu(axisMenuItems);
   // 레시피북 색 — 작성자 홈(공식 북)은 둘러보기 북에 지정된 색, 내 홈은 내가 지정한 색.
   // 작성자 홈에 내 색 지도를 넘기면 공식 북 이름이 없어 전부 기본색으로 나왔다
   const bookColors = useMemo(() => {
@@ -289,6 +294,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
   // 2뎁스 항목 메뉴 (책/공법 목록 + '전체로')
   const ALL_ID = '__all__';
   const ADD_COOKBOOK_ID = '__add_cookbook__';
+  const ADD_RECIPE_ID = '__add_recipe__';
   // 메뉴의 레시피북 항목 — 북 아이콘(공식 북은 공식 레시피북 아이콘) + 그 북의 var 색('전체'·추가는 제외)
   const officialBookNames = useMemo(() => new Set((exploreCookbooks ?? []).map(c => c.name)), [exploreCookbooks]);
   const bookItem = useCallback((n: string) => {
@@ -312,9 +318,11 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
       availableCookbooks.forEach(n => names.add(n));
       const items = [{id: ALL_ID, label: t('home.all')}, ...noBookLast(names).map(bookItem)];
       // '레시피' 축에선 북을 여기서 고르므로 새 북 만들기도 여기 둔다
+      // 단계에 맞는 추가를 맨 아래에 — 레시피 단계는 '레시피 추가', 레시피북에서 들어온 단계는 '레시피 북 추가'
+      if (isAuthorMode) return items;
       return crumbAxis === 'all'
-        ? [...items, {id: ADD_COOKBOOK_ID, label: t('cookbookSelect.addCookbook'), icon: IconAdd}]
-        : items;
+        ? [...items, {id: ADD_RECIPE_ID, label: t('home.addRecipeShort'), icon: IconAdd}]
+        : [...items, {id: ADD_COOKBOOK_ID, label: t('cookbookSelect.addCookbook'), icon: IconAdd}];
     }
     if (crumbAxis === 'method') {
       const names = new Set<string>();
@@ -322,7 +330,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
       return [{id: ALL_ID, label: t('home.all')}, ...[...names].map(n => ({id: n, label: n}))];
     }
     return [];
-  }, [crumbAxis, recipes, availableCookbooks, t, bookItem, noBookLast]);
+  }, [crumbAxis, recipes, availableCookbooks, t, bookItem, noBookLast, isAuthorMode]);
 
   /**
    * 축 메뉴에 붙는 레시피북 목록.
@@ -349,6 +357,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
 
   const handleCrumbItemSelect = (id: string) => {
     setCrumbMenu(null);
+    if (id === ADD_RECIPE_ID) { handleAddRecipe(); return; }
     if (id === ADD_COOKBOOK_ID) {
       setCookbookEditTarget(null);
       setShowCookbookDialog(true);
@@ -681,7 +690,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
               // 닫으면 오늘은 이 배너를 다시 안 띄운다(내일 남은 일수가 바뀌면 다시)
               onClose={dismissExamBanner}
             />
-          ) : !isAuthorMode && isGuest && !guestBannerDismissed ? (
+          ) : !isAuthorMode && isGuest ? (
           <InlineBanner
             icon={IconCloudFilled}
             label={t('home.guestBanner')}
@@ -692,7 +701,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
               // 동기화 = 계정 연결 — 설정을 거치지 않고 바로 로그인
               onPress: () => openAuthSheet(),
             }}
-            onClose={() => setGuestBannerDismissed(true)}
+            // 닫기 없음 — 기기에만 저장된다는 건 모르면 데이터를 잃을 수 있어 로그인 전엔 늘 보인다
           />
         ) : undefined
   );
@@ -702,10 +711,13 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
         // 내 홈 맨 위 프로필 머리말 + 그 아래 배너(있을 때)
         !isAuthorMode ? (
           <View style={styles.homeHeader}>
+            {/* 배너(시험 일정·게스트 안내)는 프로필 위 — 지금 할 일이라 먼저 보이게 */}
+            {homeBanner}
             <ProfileHeader
               // 관리자는 공식 작성자(베이키)로 — 내 홈의 공식 레시피도 베이키 이름으로 묶인다
               name={isAdmin ? OFFICIAL_AUTHOR_DISPLAY_NAME : user ? (displayName || handle || 'handle') : t('home.guestName')}
-              handle={isAdmin ? OFFICIAL_AUTHOR_HANDLE : user ? handle ?? undefined : undefined}
+              // 로그인 전엔 @guest — 책 표지 'by @guest'와 같은 이름
+              handle={isAdmin ? OFFICIAL_AUTHOR_HANDLE : user ? handle ?? undefined : 'guest'}
               avatarSeed={isAdmin ? OFFICIAL_AUTHOR_ID : avatarSeed ?? 0}
               stats={[
                 // 홈에 보이는 레시피 수 — 개인 레시피만 세면 공식 레시피(관리자) 등이 빠져 1개처럼 보였다
@@ -724,9 +736,11 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
                     onError: m => showSnackbar(m, {tone: 'error'}),
                   }),
                 }
-                : {label: t('auth.signIn'), onPress: () => openAuthSheet()}}
+                // 로그인 전엔 버튼 없음 — 바로 위 게스트 배너의 [Sync]가 로그인
+                : undefined}
+              // 설정은 앱바 대신 프로필 버튼 줄 끝 톱니
+              iconAction={{icon: IconSettings, onPress: () => router.push(SETTINGS_ROUTE as any)}}
             />
-            {homeBanner}
           </View>
         ) : authorProfile ? (
           // 작성자 홈도 같은 머리말 — 버튼 없이(남의 프로필은 고칠 수 없다)
@@ -758,7 +772,6 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
       <>
       <GroupScreen
         headerExtra={profileHeader}
-        onSettingsPress={isAuthorMode ? undefined : () => router.push(SETTINGS_ROUTE as any)}
         // 공식 북 판정·색 — 내 홈에 섞인 공식 북도 공식 아이콘으로
         exploreCookbooks={exploreCookbooks}
         recipes={recipes}
@@ -880,8 +893,6 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
             />
           }
           onAddPress={handleAddRecipe}
-          // 홈 = 내 화면 — 설정은 탭이 아니라 여기 톱니에서
-          onSettingsPress={isAuthorMode ? undefined : () => router.push(SETTINGS_ROUTE as any)}
           onFilterPress={() => {
             closeLocalMenus();
             handleFilterPress();
@@ -899,9 +910,10 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
                   북을 고르려고 책 표지 화면으로 넘어갔다 돌아오지 않아도 된다.
                   (책 표지 화면은 북 자체를 고치는 자리로 남는다) */}
               <Menu
-                items={axisMenuItems}
+                items={landingMenu.items}
                 selectedId={crumbAxis}
                 onSelect={id => {
+                  if (landingMenu.handle(id)) { setCrumbMenu(null); return; }
                   if (axisMenuItems.some(a => a.id === id)) handleHomeAxisSelect(id);
                   else handleCookbookFilterSelect(id);
                 }}
@@ -911,7 +923,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
               {crumbItemLabel != null && (
                 <Menu
                   // 항목 셀렉터 기준 좌정렬(앞의 축 버튼만큼 민다)
-                  style={{marginLeft: BREADCRUMB_ITEM_OFFSET}}
+                  style={{marginLeft: breadcrumbItemOffset}}
                   items={crumbItemMenuItems}
                   selectedId={crumbAxis === 'all' ? selectedCookbook ?? ALL_ID : crumbItemLabel}
                   onSelect={handleCrumbItemSelect}

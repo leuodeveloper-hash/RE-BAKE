@@ -281,7 +281,8 @@ export function SearchCommandBar({
                             id={item.id}
                             title={item.label}
                             imageUrl={item.imageUrl || undefined}
-                            customSubtitle={item.searchableTexts?.join(' · ')}
+                            // 점 없이 간격으로만 — 배열을 넘기면 공통 MetaLine이 8 간격으로 늘어놓는다
+                            customSubtitle={item.searchableTexts}
                             layout="list"
                             size="small"
                             onPress={() => activeOnSelect(item.id)}

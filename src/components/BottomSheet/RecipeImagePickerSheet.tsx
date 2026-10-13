@@ -1,4 +1,5 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import {IconPhoto} from '@components/Icon/IconIndex';
 import React, {useEffect, useMemo, useState} from 'react';
 import {Pressable, StyleSheet, View, useWindowDimensions} from 'react-native';
 import {Image as ExpoImage} from 'expo-image';
@@ -35,6 +36,8 @@ export interface RecipeImagePickerSheetProps {
    * 아직 올리지 않은 기기 안 사진도 고를 수 있다.
    */
   fixedRecipe?: Pick<Recipe, 'title' | 'imageUri' | 'imageUris'>;
+  /** 주면 사진 목록 위에 [갤러리에서 고르기] 칸 — 레시피 사진 말고 새 사진으로 */
+  onGallery?: () => void;
 }
 
 /**
@@ -52,7 +55,7 @@ const RECENT_IMAGE_RECIPES_KEY = '@bakle_recent_image_recipes';
  * 기존 레시피 사진에서 글자 읽기 — 요리를 고르면 그 레시피 사진들이 펼쳐지고, 그중 한 장을 고른다.
  * [+] → 이미지 → 기존 레시피, 편집 화면 입력 툴바(이 레시피 사진, fixedRecipe)에서 쓴다.
  */
-export function RecipeImagePickerSheet({visible, onClose, myRecipes, exploreRecipes, onPick, onDismissed, fixedRecipe}: RecipeImagePickerSheetProps) {
+export function RecipeImagePickerSheet({visible, onClose, myRecipes, exploreRecipes, onPick, onDismissed, fixedRecipe, onGallery}: RecipeImagePickerSheetProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const colors = useColors();
@@ -111,6 +114,15 @@ export function RecipeImagePickerSheet({visible, onClose, myRecipes, exploreReci
       // 사진 고르기 단계 — 공통 시트 헤더의 뒤로가기(레시피 목록으로)
       onBack={recipe && !fixedRecipe ? () => setPicked(null) : undefined}>
       {recipe ? (
+        <>
+        {onGallery ? (
+          <ListItem
+            title={t('recipeEdit.chooseFromGallery')}
+            leading={{type: 'icon', icon: IconPhoto}}
+            onPress={onGallery}
+            showDivider={false}
+          />
+        ) : null}
         <View style={styles.grid}>
           {images.map(uri => (
             <Pressable key={uri} style={[styles.cell, {width: cellW, height: cellW * 1.3}]} onPress={() => onPick(uri)}>
@@ -118,6 +130,7 @@ export function RecipeImagePickerSheet({visible, onClose, myRecipes, exploreReci
             </Pressable>
           ))}
         </View>
+        </>
       ) : (
         <>
         <View style={styles.search}>

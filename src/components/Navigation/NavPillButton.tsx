@@ -5,7 +5,8 @@ import {IconButton, type IconButtonSize} from '@components/IconButton';
 import {navPillStyle} from './FloatingNavBar';
 
 /** 알약(pill) 안에는 배경 없는 ghost 계열만 사용 (유리 알약이 배경 역할을 하므로) */
-type NavPillVariant = 'ghost' | 'ghost-primary' | 'ghost-secondary' | 'ghost-inverse' | 'ghost-yellow';
+// filled = 저장처럼 주 동작(검정 채움) — 다른 앱바 알약과 같은 44 높이로
+type NavPillVariant = 'ghost' | 'ghost-primary' | 'ghost-secondary' | 'ghost-inverse' | 'ghost-yellow' | 'filled';
 
 export interface NavPillButtonProps {
   icon: React.FC<SvgProps>;
@@ -17,6 +18,8 @@ export interface NavPillButtonProps {
   /** 아이콘 색 — 지정하면 variant 색 대신 쓴다(예: 축별 색) */
   iconColor?: string;
   disabled?: boolean;
+  /** 처리 중(저장 등) */
+  loading?: boolean;
 }
 
 /**
@@ -24,10 +27,10 @@ export interface NavPillButtonProps {
  * 앱 전반에서 반복되던 `<GlassContainer contentStyle={navPillStyle}><IconButton/></GlassContainer>`
  * 조합을 공통화한 것. 하나 고치면 모든 플로팅 알약 버튼에 반영된다.
  */
-export function NavPillButton({icon, onPress, variant = 'ghost-primary', size = 'medium', disabled, iconColor}: NavPillButtonProps) {
+export function NavPillButton({icon, onPress, variant = 'ghost-primary', size = 'medium', disabled, iconColor, loading}: NavPillButtonProps) {
   return (
     <GlassContainer contentStyle={navPillStyle}>
-      <IconButton icon={icon} iconColor={iconColor} onPress={onPress} variant={variant} size={size} disabled={disabled} />
+      <IconButton icon={icon} iconColor={iconColor} onPress={onPress} variant={variant} size={size} disabled={disabled} loading={loading} />
     </GlassContainer>
   );
 }

@@ -2,6 +2,7 @@ import {cookbookColorOf} from '@contexts/RecipeContext';
 import {focusAt} from '@utils/focusAt';
 import {ocrFailMessage} from '@utils/ocrFailMessage';
 import {BREAD_FIELDS, isBreadRecipe} from '@utils/breadFieldsMigration';
+import {RecipeImagePickerSheet} from '@components/BottomSheet/RecipeImagePickerSheet';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
@@ -486,6 +487,10 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const [heroViewerIndex, setHeroViewerIndex] = useState<number | null>(null);
   // 과정 사진 전체보기 — 설명은 여기서 쓴다(썸네일 아래 칸은 좁다)
   const [stepPhotoViewer, setStepPhotoViewer] = useState<{groupId: string; stepId: string; index: number} | null>(null);
+  // 과정 사진 다시 고르기(기존 사진에서) — 대상 과정·자리
+  const [stepPhotoRemap, setStepPhotoRemap] = useState<{groupId: string; stepId: string; index: number} | null>(null);
+  const remapPickedRef = useRef<string | null>(null);
+  const stepPhotoRemapLast = useRef<{groupId: string; stepId: string; index: number} | null>(null);
   /** 베이키의 조언 사진 추가 — 과정 사진과 같은 갤러리 흐름, 최대 3장 */
   const addAdvicePhotos = useCallback(async (source: 'camera' | 'gallery' = 'gallery') => {
     const isCamera = source === 'camera';
@@ -1813,9 +1818,11 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   };
 
   // 슬래시 메뉴 선택 핸들러
-  const handleSlashMenuSelect = async (menuId: string) => {
-    if (!slashMenu) return;
-    const {groupId, stepId} = slashMenu;
+  // target: 슬래시 메뉴 말고 다른 곳(빈 사진 칸)에서 바로 부를 때 대상 과정
+  const handleSlashMenuSelect = async (menuId: string, target?: {groupId: string; stepId: string}) => {
+    const t0 = target ?? slashMenu;
+    if (!t0) return;
+    const {groupId, stepId} = t0;
 
     // 사진: 촬영(camera) 또는 갤러리(gallery) → step.photos에 추가
     if (menuId === 'camera' || menuId === 'gallery') {
@@ -3039,14 +3046,22 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                             />
                           </View>
                         )}
-                        {step.photos && step.photos.length > 0 && (
-                          <StepPhotos
-                            photos={step.photos}
-                            mode="edit"
-                            onPhotoPress={(pi) => setStepPhotoViewer({groupId: group.id, stepId: step.id, index: pi})}
-                            onRemove={(pi) => updateStepPhotos(group.id, step.id, ps => ps.filter((_, i) => i !== pi))}
-                          />
-                        )}
+                        {/* 사진 — 커서가 이 과정에 있으면 빈 사진 칸을 붙여 바로 촬영(최대 3장) */}
+                        {(() => {
+                          const photos = step.photos ?? [];
+                          const focused = focusedStep?.groupId === group.id && focusedStep?.stepId === step.id;
+                          const canAdd = focused && photos.length < 3;
+                          if (photos.length === 0 && !canAdd) return null;
+                          return (
+                            <StepPhotos
+                              photos={photos}
+                              mode="edit"
+                              onPhotoPress={(pi) => setStepPhotoViewer({groupId: group.id, stepId: step.id, index: pi})}
+                              onRemove={(pi) => updateStepPhotos(group.id, step.id, ps => ps.filter((_, i) => i !== pi))}
+                              onAdd={canAdd ? () => handleSlashMenuSelect('camera', {groupId: group.id, stepId: step.id}) : undefined}
+                            />
+                          );
+                        })()}
                       </ListItem>
                     </Animated.View>
                     {/* 행 롱프레스 메뉴 — 여기서 나누기(묶음 만들기), 위/아래 행 추가 */}
@@ -3470,16 +3485,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 forcePressed={showMenu}
               />
             </GlassContainer>
-            <GlassContainer>
-              <IconButton
-                icon={IconTick}
-                disabled={!canSave}
-                loading={saving}
-                onPress={handleSave}
-              variant="filled"
-              size="large"
-            />
-            </GlassContainer>
+            {/* 저장 — 다른 앱바 알약과 같은 공통 버튼(44). 따로 large로 두면 혼자 커 보였다 */}
+            <NavPillButton icon={IconTick} variant="filled" disabled={!canSave} loading={saving} onPress={handleSave} />
           </>
         }
       />
@@ -3632,26 +3639,53 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
               setStepPhotoViewer(null);
               updateStepPhotos(groupId, stepId, ps => ps.filter((_, i) => i !== pi));
             }}
-            onReplace={async () => {
+            // 바꾸기 = 다시 매핑 — 이 레시피에 이미 있는 사진(대표·다른 과정)에서 고르거나 갤러리에서
+            onReplace={() => {
               const pi = stepPhotoViewer.index;
               setStepPhotoViewer(null);
-              const ok = await ensureImagePermission('mediaLibrary', {
-                deniedMessage: t('recipeEdit.photoPermissionNeeded'),
-                showSnackbar,
-                settingsTitle: t('permission.photoTitle'),
-                settingsBody: t('permission.photoBody'),
-                settingsConfirmLabel: t('permission.openSettings'),
-                settingsCancelLabel: t('permission.cancel'),
-              });
-              if (!ok) return;
-              const result = await ImagePicker.launchImageLibraryAsync({mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web'});
-              if (result.canceled || !result.assets[0]) return;
-              const uri = await getPersistentUri(result.assets[0].uri, result.assets[0].base64);
-              updateStepPhotos(groupId, stepId, ps => ps.map((p, i) => (i === pi ? {...p, uri} : p)));
+              stepPhotoRemapLast.current = {groupId, stepId, index: pi};
+              setStepPhotoRemap({groupId, stepId, index: pi});
             }}
           />
         );
       })()}
+
+      {/* 과정 사진 다시 고르기 — 이 레시피의 모든 사진(대표·과정)에서. 갤러리도 위에 */}
+      <RecipeImagePickerSheet
+        visible={!!stepPhotoRemap}
+        onClose={() => setStepPhotoRemap(null)}
+        fixedRecipe={(() => {
+          const all = [...heroUris, ...stepGroups.flatMap(g => g.steps.flatMap(s => (s.photos ?? []).map(p => p.uri)))]
+            .filter((u, i, a) => !!u && a.indexOf(u) === i);
+          return {title: title || t('recipeImagePicker.title'), imageUri: all[0], imageUris: all.slice(1)};
+        })()}
+        // 고르면 시트를 닫고, 다 닫힌 뒤 바꾼다(창이 겹치지 않게)
+        onPick={uri => { remapPickedRef.current = uri; setStepPhotoRemap(null); }}
+        onGallery={async () => {
+          const target = stepPhotoRemap;
+          setStepPhotoRemap(null);
+          if (!target) return;
+          const ok = await ensureImagePermission('mediaLibrary', {
+            deniedMessage: t('recipeEdit.photoPermissionNeeded'),
+            showSnackbar,
+            settingsTitle: t('permission.photoTitle'),
+            settingsBody: t('permission.photoBody'),
+            settingsConfirmLabel: t('permission.openSettings'),
+            settingsCancelLabel: t('permission.cancel'),
+          });
+          if (!ok) return;
+          const result = await ImagePicker.launchImageLibraryAsync({mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web'});
+          if (result.canceled || !result.assets[0]) return;
+          const uri = await getPersistentUri(result.assets[0].uri, result.assets[0].base64);
+          updateStepPhotos(target.groupId, target.stepId, ps => ps.map((p, i) => (i === target.index ? {...p, uri} : p)));
+        }}
+        onDismissed={() => {
+          const uri = remapPickedRef.current;
+          remapPickedRef.current = null;
+          const target = stepPhotoRemapLast.current;
+          if (uri && target) updateStepPhotos(target.groupId, target.stepId, ps => ps.map((p, i) => (i === target.index ? {...p, uri} : p)));
+        }}
+      />
 
       {/* 상단 이미지 전체보기 — 스와이프로 넘기고, 여기서 교체·삭제까지 한다 */}
       <PhotoViewer
