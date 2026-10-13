@@ -14,6 +14,15 @@ import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
 import {Typography} from '@constants/typography';
 
+/**
+ * 지우기 항목은 늘 위험 표시(빨강) — 항목마다 destructive를 빠뜨리면 한 메뉴만 검정으로 나왔다.
+ * id가 delete/remove로 시작·끝나면 자동으로 켠다(명시적으로 false를 주면 끈다).
+ */
+export function isDestructive(item: {id: string; destructive?: boolean}): boolean {
+  if (item.destructive != null) return item.destructive;
+  return /(^|[^a-z])(delete|remove)|(delete|remove)$/i.test(item.id);
+}
+
 export interface MenuItemData {
   id: string;
   label: string;
@@ -228,7 +237,7 @@ export function Menu({
                     hasChildren={item.hasChildren}
                     trailingText={item.trailingText}
                     hiddenMark={item.hiddenMark}
-                    destructive={item.destructive}
+                    destructive={isDestructive(item)}
                     disabled={item.disabled}
                     showDivider={item.showDivider}
                     onPress={() => onSelect?.(item.id)}
@@ -251,7 +260,7 @@ export function Menu({
                   hasChildren={item.hasChildren}
                   trailingText={item.trailingText}
                   hiddenMark={item.hiddenMark}
-                  destructive={item.destructive}
+                  destructive={isDestructive(item)}
                   disabled={item.disabled}
                   showDivider={item.showDivider}
                   onPress={() => onSelect?.(item.id)}

@@ -101,7 +101,7 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
     {id: 'share', label: t('group.share'), icon: IconShare},
     ...(activeIsPublic ? [{id: 'unpublish', label: t('sharedCookbook.unpublish'), icon: IconLock}] : []),
     ...(canEditDelete && onEditCookbook ? [{id: 'edit', label: t('group.edit'), icon: IconEdit}] : []),
-    ...(canEditDelete && onDeleteCookbook ? [{id: 'delete', label: t('group.delete'), icon: IconTrash}] : []),
+    ...(canEditDelete && onDeleteCookbook ? [{id: 'delete', label: t('group.delete'), icon: IconTrash, destructive: true}] : []),
     ...(onDownloadPdf ? [{id: 'pdf', label: t('groupExpandOverlay.downloadPdf'), icon: IconArrowDownToLine}] : []),
   ];
 
