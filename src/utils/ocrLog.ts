@@ -27,6 +27,8 @@ export interface OcrLogInput {
   error?: string;
   /** 인식에 쓴 이미지 — 무엇을 넣었는지 봐야 왜 실패했는지 안다 */
   imageUrl?: string;
+  /** 레시피에 이미 있던 사진으로 인식했는지 — 관리자 기록에 '기존 이미지'로 표시 */
+  fromExisting?: boolean;
   uid?: string;
 }
 
@@ -63,7 +65,13 @@ export async function logOcrAttempt(input: OcrLogInput): Promise<void> {
 export async function logOcrWithImage(
   input: Omit<OcrLogInput, 'imageUrl'>,
   imageUri: string,
+  /** 레시피에 이미 올라간 사진(https)에서 읽었으면 그 주소 — 다시 올리지 않고 그대로 남긴다 */
+  existingUrl?: string,
 ): Promise<void> {
+  if (existingUrl && /^https?:/.test(existingUrl)) {
+    await logOcrAttempt({...input, imageUrl: existingUrl, fromExisting: true});
+    return;
+  }
   let imageUrl: string | undefined;
   try {
     const id = `${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;

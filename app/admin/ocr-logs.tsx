@@ -11,6 +11,9 @@ import {FloatingNavBar, NavPillButton} from '@components/Navigation';
 import {Tabs} from '@components/Tabs';
 import {ListItem} from '@components/ListItem';
 import {SectionHeader} from '@components/SectionHeader';
+import {SummaryCard} from '@components/SummaryCard';
+import {Selector} from '@components/Selector';
+import {Menu} from '@components/Menu';
 import {PhotoViewer} from '@components/PhotoViewer';
 import {IconClose, IconCircleCheckFilled, IconCircleAlertFilled} from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
@@ -83,8 +86,9 @@ export default function AdminOcrLogsRoute() {
   const [items, setItems] = useState<OcrLogRow[]>([]);
   const [loading, setLoading] = useState(true);
   // 실패만 보는 일이 대부분이다 — 고칠 거리가 거기 있다
-  const [filter, setFilter] = useState<'all' | 'failed'>('failed');
+  const [filter, setFilter] = useState<'all' | 'success' | 'failed'>('all');
   const [period, setPeriod] = useState<Period>(7);
+  const [periodMenu, setPeriodMenu] = useState(false);
   const [viewer, setViewer] = useState<string | null>(null);
 
   const load = useCallback(async () => {
@@ -112,7 +116,7 @@ export default function AdminOcrLogsRoute() {
     );
   }
 
-  const shown = filter === 'failed' ? items.filter(i => !i.ok) : items;
+  const shown = filter === 'failed' ? items.filter(i => !i.ok) : filter === 'success' ? items.filter(i => i.ok) : items;
   const failedCount = items.filter(i => !i.ok).length;
   const bySource = groupRates(items, r => r.source);
   const byPlatform = groupRates(items, r => r.platform ?? '-');
@@ -123,49 +127,74 @@ export default function AdminOcrLogsRoute() {
       <View style={styles.safe}>
         <PageScrollView>
           <ContentContainer fill style={styles.content}>
-          {/* 기간 — 아래 요약과 목록이 모두 이 범위 */}
-          <Tabs
-            tabs={PERIODS.map(d => ({id: String(d), label: t('adminOcrLogs.period', {days: d})}))}
-            selectedId={String(period)}
-            onSelect={id => setPeriod(Number(id) as Period)}
-            fullWidth
-          />
 
-          {items.length > 0 && (
+          {/* 실패만 / 전체 + 오른쪽 기간 피커 — 기간은 화면 전체(지표·목록)에 적용 */}
+          <View style={styles.filterRow}>
+            <View style={styles.filterTabs}>
+            {(
+            <Tabs
+              tabs={[
+                {id: 'all', label: t('adminOcrLogs.all', {count: items.length})},
+                {id: 'success', label: t('adminOcrLogs.successOnly', {count: items.length - failedCount})},
+                {id: 'failed', label: t('adminOcrLogs.failedOnly', {count: failedCount})},
+              ]}
+              selectedId={filter}
+              onSelect={id => setFilter(id as 'all' | 'success' | 'failed')}
+              size="big"
+            />
+            )}
+            </View>
+            <View style={styles.periodWrap}>
+              <Selector
+                label={t('adminOcrLogs.period', {days: period})}
+                showDropdown
+                variant="circle"
+                size="large"
+                onPress={() => setPeriodMenu(v => !v)}
+              />
+              <Menu
+                items={PERIODS.map(d => ({id: String(d), label: t('adminOcrLogs.period', {days: d})}))}
+                selectedId={String(period)}
+                visible={periodMenu}
+                onSelect={id => { setPeriodMenu(false); setPeriod(Number(id) as Period); }}
+                style={styles.periodMenu}
+              />
+            </View>
+          </View>
+
+          {filter === 'all' && items.length > 0 && (
             <>
-              {/* 요약 — 성공률, 그리고 어디·어느 플랫폼에서 많이 실패하는지 */}
-              <Card style={styles.summary}>
-                <ListItem title={t('adminOcrLogs.successRate')} trailingValue={t('adminOcrLogs.successValue', {rate: pct(items.length - failedCount, items.length), ok: items.length - failedCount, total: items.length})} />
-                <ListItem title={t('adminOcrLogs.failRate')} trailingValue={t('adminOcrLogs.rateValue', {rate: pct(failedCount, items.length), failed: failedCount, total: items.length})} />
-              </Card>
-              <SectionHeader title={t('adminOcrLogs.bySource')} />
-              <Card style={styles.summary}>
-                {bySource.map(r => (
-                  <ListItem key={r.key} title={SOURCE_LABEL[r.key] ?? r.key} trailingValue={rateValue(r)} />
+              {/* 지표는 전부 한 줄 카드(넘치면 옆으로 민다): 성공률 · 실패율 · 플랫폼별 · 자리별(실패율 높은 순) */}
+              {/* flexGrow 0 — 가로 스크롤도 기본은 남는 높이를 채우려 늘어나서(빈 화면 가운데용 fill 안이라) 카드가 길게 늘어났다 */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.statScroll} contentContainerStyle={styles.statRow}>
+                <View style={styles.statCard}>
+                  <SummaryCard
+                    title={`${pct(items.length - failedCount, items.length)}%`}
+                    subtitle={[t('adminOcrLogs.successRate'), `${items.length - failedCount}/${items.length}`]}
+                  />
+                </View>
+                <View style={styles.statCard}>
+                  <SummaryCard
+                    title={`${pct(failedCount, items.length)}%`}
+                    subtitle={[t('adminOcrLogs.failRate'), `${failedCount}/${items.length}`]}
+                  />
+                </View>
+                {[...byPlatform.map(r => ({...r, label: r.key})), ...bySource.map(r => ({...r, label: SOURCE_LABEL[r.key] ?? r.key}))].map(r => (
+                  <View key={r.label} style={styles.statCard}>
+                    <SummaryCard
+                      title={`${pct(r.failed, r.total)}%`}
+                      subtitle={[r.label, `${r.failed}/${r.total}`]}
+                    />
+                  </View>
                 ))}
-              </Card>
-              <SectionHeader title={t('adminOcrLogs.byPlatform')} />
-              <Card style={styles.summary}>
-                {byPlatform.map(r => (
-                  <ListItem key={r.key} title={r.key} trailingValue={rateValue(r)} />
-                ))}
-              </Card>
+              </ScrollView>
             </>
           )}
 
-          <Tabs
-            tabs={[
-              {id: 'failed', label: t('adminOcrLogs.failedOnly', {count: failedCount})},
-              {id: 'all', label: t('adminOcrLogs.all', {count: items.length})},
-            ]}
-            selectedId={filter}
-            onSelect={id => setFilter(id as 'all' | 'failed')}
-            fullWidth
-            style={styles.tabs}
-          />
 
+          {/* 기록이 없으면 공통 빈 화면(남은 칸 상하 중앙) — 탭·기간 피커는 그대로, 지표는 숨긴다 */}
           {!loading && shown.length === 0 ? (
-            <EmptyState category="no-recipe" title={t('adminOcrLogs.empty')} />
+            <EmptyState category="no-recipe" title={items.length === 0 ? t('adminOcrLogs.empty') : filter === 'success' ? t('adminOcrLogs.emptySuccess') : t('adminOcrLogs.emptyFailed')} />
           ) : (
             shown.map(row => (
               <Card key={row.id} style={styles.item}>
@@ -186,27 +215,22 @@ export default function AdminOcrLogsRoute() {
                         platform: row.platform ?? '-',
                       })}
                     </Text>
+                    {/* 기존 사진(레시피에 이미 있던 사진)으로 읽었으면 표시 — 없으면 '이미지 없음' */}
+                    {/* 이미지 상태 + 실패 사유를 한 줄에 — 사유가 아래 따로 있으면 카드만 길어졌다 */}
+                    <Text style={styles.noImage} numberOfLines={1}>
+                      {row.fromExisting ? t('adminOcrLogs.existingImage') : !row.imageUrl ? t('adminOcrLogs.noImage') : ''}
+                      {row.error ? <Text style={styles.error}>{`${row.fromExisting || !row.imageUrl ? '  ' : ''}${row.error}`}</Text> : null}
+                    </Text>
                   </View>
+                  {/* 썸네일 — 보여 줄 사진이 있을 때만 오른쪽 정사각. 없으면 비워 둔다. 눌러서 크게 */}
+                  {row.imageUrl ? (
+                    <Pressable onPress={() => setViewer(row.imageUrl!)}>
+                      <Image source={{uri: row.imageUrl}} style={styles.thumb} contentFit="cover" cachePolicy="memory-disk" transition={150} />
+                    </Pressable>
+                  ) : null}
                 </View>
 
-                {row.error ? (
-                  <Text style={styles.error} numberOfLines={2}>{row.error}</Text>
-                ) : null}
 
-                {row.imageUrl ? (
-                  // 무엇을 넣었는지 봐야 왜 실패했는지 안다 — 눌러서 크게
-                  <Pressable onPress={() => setViewer(row.imageUrl!)}>
-                    <Image
-                      source={{uri: row.imageUrl}}
-                      style={styles.thumb}
-                      contentFit="cover"
-                      cachePolicy="memory-disk"
-                      transition={150}
-                    />
-                  </Pressable>
-                ) : (
-                  <Text style={styles.noImage}>{t('adminOcrLogs.noImage')}</Text>
-                )}
               </Card>
             ))
           )}
@@ -236,14 +260,25 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   safe: {flex: 1},
   // 탭·카드 모두 콘텐츠 너비(최대 폭·좌우 여백) 안에
   content: {gap: Spacing.sm},
-  tabs: {marginTop: Spacing.sm},
-  summary: {paddingVertical: Spacing.xs},
+  // 묶음(머리말+카드)은 앞과 더 띄운다 — 기록 카드끼리 간격(8)은 그대로
+  group: {marginTop: Spacing.md},
+  statRow: {flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start'},
+  // 지표 줄과 아래 기록 목록 사이 24(목록 카드끼리 8보다 띄워 묶음이 갈린다)
+  statScroll: {flexGrow: 0, marginBottom: Spacing.md},
+  // 옆으로 미는 지표 카드 폭 — 이름(한번에 쓰기 등)이 한 줄에 들어가게
+  statCard: {width: 160, flexDirection: 'row'},
+  // 탭은 내용 폭만큼(허그), 기간 피커는 오른쪽 끝
+  filterRow: {flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: Spacing.sm, zIndex: 10},
+  filterTabs: {},
+  periodWrap: {zIndex: 10},
+  periodMenu: {position: 'absolute', top: 48, right: 0},
   item: {padding: Spacing.md, gap: Spacing.sm},
-  itemHeader: {flexDirection: 'row', alignItems: 'center', gap: Spacing.sm},
+  // 성공·실패 아이콘과 글 사이 16
+  itemHeader: {flexDirection: 'row', alignItems: 'center', gap: Spacing.md},
   itemInfo: {flex: 1, gap: 2},
   itemTitle: {...Typography.caption.large, color: colors['foreground/on-surface']},
   itemMeta: {...Typography.caption.small, color: colors['foreground/on-surface-muted']},
   error: {...Typography.caption.small, color: colors['custom/red']},
-  thumb: {width: '100%', height: 160, borderRadius: Radius['radius-md'], backgroundColor: colors['fill/faint']},
+  thumb: {width: 56, height: 56, borderRadius: Radius['radius-sm'], backgroundColor: colors['fill/faint']},
   noImage: {...Typography.caption.small, color: colors['foreground/on-surface-muted']},
 });

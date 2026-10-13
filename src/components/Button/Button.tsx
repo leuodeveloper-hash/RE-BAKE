@@ -66,6 +66,8 @@ export function Button({
   const {pressHandlers, animatedStyle} = usePressScale();
   const sizeConfig = SIZE_CONFIG[size];
   const iconOnly = !label && !!Icon && !trailingText && !TrailingIcon;
+  // 아이콘 크기도 버튼 크기를 따라 한 단계씩 — 큰 버튼에 18이면 아이콘만 작아 보였다
+  const iconPx = size === 'small' ? 16 : size === 'large' ? 22 : 18;
   const borderRadius = shape === 'square' ? Radius['radius-md'] : sizeConfig.borderRadius;
 
   const getContainerStyle = (pressed: boolean): ViewStyle => {
@@ -158,7 +160,7 @@ export function Button({
             {loading ? (
               <ActivityIndicator size="small" color={getTextColor()} />
             ) : (
-              Icon && <Icon width={18} height={18} color={getTextColor()} />
+              Icon && <Icon width={iconPx} height={iconPx} color={getTextColor()} />
             )}
             {label ? <Text style={[styles.label, size === 'large' && styles.labelLarge, {color: getTextColor()}]}>{label}</Text> : null}
             {/* 라벨과 구분되게 조금 띄우고 옅게 */}

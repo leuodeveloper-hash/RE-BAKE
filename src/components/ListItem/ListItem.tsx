@@ -1,3 +1,4 @@
+import {AppIcon, type AppIconSize} from '@components/Icon/AppIcon';
 import React from 'react';
 import {Platform, Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {Radius} from '@constants/tokens';
@@ -34,7 +35,8 @@ export type ListItemContentType =
 
 // ---- ListItem Props ----
 
-export type ListItemVariant = 'default' | 'yellow';
+/** destructive = 지우기·삭제 같은 위험 동작(빨강 글자·아이콘) — 메뉴의 destructive와 같은 색 */
+export type ListItemVariant = 'default' | 'yellow' | 'destructive';
 
 export interface ListItemProps {
   /** 가운데 슬롯 — 일반(text) / 커스텀(custom). 아래 title·description·children은 이것의 줄임 표기 */
@@ -77,20 +79,19 @@ function renderSlotElement(
   colors: SemanticColors,
   styles: ReturnType<typeof createStyles>,
   variant: ListItemVariant = 'default',
+  iconSize: AppIconSize = 'sm',
 ) {
   switch (element.type) {
     case 'icon': {
       const Icon = element.icon;
       const iconColor = variant === 'yellow'
         ? colors['custom/yellow']
-        : colors['foreground/on-surface-muted'];
+        : variant === 'destructive'
+          ? colors['foreground/negative']
+          : colors['foreground/on-surface-muted'];
       return (
         <View style={styles.slotContainer}>
-          <Icon
-            width={20}
-            height={20}
-            color={iconColor}
-          />
+          <AppIcon icon={Icon} size={iconSize} color={iconColor} />
         </View>
       );
     }
@@ -192,7 +193,7 @@ export function ListItem({
         <View style={styles.content}>
           {centerSlot.type === 'custom' ? centerSlot.element : (
             <>
-              <Text style={[styles.title, isYellow && styles.titleYellow]} numberOfLines={titleNumberOfLines || undefined}>
+              <Text style={[styles.title, isYellow && styles.titleYellow, resolvedVariant === 'destructive' && {color: colors['foreground/negative']}]} numberOfLines={titleNumberOfLines || undefined}>
                 {centerSlot.title}
               </Text>
               {centerSlot.description ? <Text style={styles.description} numberOfLines={1}>{centerSlot.description}</Text> : null}
@@ -200,7 +201,8 @@ export function ListItem({
           )}
         </View>
         {trailingValue ? <Text style={styles.trailingValue}>{trailingValue}</Text> : null}
-        {trailing && renderSlotElement(trailing, colors, styles, resolvedVariant)}
+        {/* 오른쪽 아이콘(› 등)은 아이콘 크기 단계 한 칸 작게(xs 16) — 왼쪽(sm 20)과 같으면 화살표가 너무 커 보였다 */}
+        {trailing && renderSlotElement(trailing, colors, styles, resolvedVariant, 'xs')}
       </Wrapper>
       {showDivider && (
         <View style={styles.dividerContainer}>

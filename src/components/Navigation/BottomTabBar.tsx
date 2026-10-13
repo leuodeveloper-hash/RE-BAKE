@@ -272,6 +272,8 @@ export function BottomTabBar({
 // 탭 한 칸 폭 — 탭바 너비 = 칸 수 × 이 폭 + 좌우 여백(탭이 줄면 바도 줄어든다).
 // 예전엔 5칸 기준 328로 고정이라 4칸이면 칸만 넓어졌다
 const TAB_SEGMENT_WIDTH = 72;
+/** 탭바 높이 — 위아래 여백 4 + 칸 48 + 4 */
+export const TAB_BAR_HEIGHT = 56;
 const tabBarWidth = (count: number) => count * TAB_SEGMENT_WIDTH + Spacing.xs * 2;
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({

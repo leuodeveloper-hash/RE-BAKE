@@ -1,9 +1,11 @@
 import React, {forwardRef} from 'react';
 import {ScrollView, StyleSheet, type ScrollViewProps} from 'react-native';
 import {usePageContentPadding} from '@components/Navigation/FloatingNavBar';
+import {useTabBarSpace} from '@hooks/useTabBarSpace';
+import {Spacing} from '@constants/spacing';
 
 /**
- * 페이지 본문 스크롤 — 앱바 아래 8, 하단 안전영역 위 8을 여기서만 넣는다.
+ * 페이지 본문 스크롤 — 앱바 아래 8, 탭바(안전영역 포함) 위 8을 여기서만 넣는다.
  *
  * 룰
  * - 앱바가 있는 페이지의 본문 스크롤은 이걸 쓴다(맨 ScrollView + 숫자 여백 금지).
@@ -18,7 +20,9 @@ export const PageScrollView = forwardRef<ScrollView, ScrollViewProps>(function P
   ref,
 ) {
   const pagePadding = usePageContentPadding();
-  return <ScrollView ref={ref} {...rest} contentContainerStyle={[styles.grow, pagePadding, contentContainerStyle]} />;
+  // 아래는 떠 있는 탭바(기기 안전영역 포함) 위 8까지 — 안전영역만 빼면 마지막 내용이 탭바에 가렸다
+  const tabBarSpace = useTabBarSpace();
+  return <ScrollView ref={ref} {...rest} contentContainerStyle={[styles.grow, pagePadding, {paddingBottom: tabBarSpace + Spacing.sm}, contentContainerStyle]} />;
 });
 
 const styles = StyleSheet.create({

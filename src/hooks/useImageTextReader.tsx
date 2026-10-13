@@ -50,16 +50,20 @@ export function useImageTextReader({onText, recipePhotos, onBusyChange}: UseImag
     ...(hasRecipePhoto ? [{id: 'recipe', label: t('recipeEdit.existingPhoto'), icon: IconRecipeFilled}] : []),
   ];
 
+  // 기존 사진(레시피 사진)에서 고른 주소 — 잘라서 읽어도 기록엔 원래 사진으로 남긴다
+  const existingRef = useRef<string | null>(null);
   const read = useCallback(async (uri: string) => {
+    const existing = existingRef.current ?? undefined;
+    existingRef.current = null;
     onBusyChange?.(true);
     try {
       const text = normalizeOcrWhitespace(await recognizeImageText(uri));
       // 관리자 도구의 이미지 인식 기록에 남긴다(이 경로는 기록이 빠져 있었다)
-      void logOcrWithImage({source: 'reader', ok: !!text.trim(), textLength: text.length, uid: auth.currentUser?.uid}, uri);
+      void logOcrWithImage({source: 'reader', ok: !!text.trim(), textLength: text.length, uid: auth.currentUser?.uid}, uri, existing);
       if (!text.trim()) showSnackbar(ocrFailMessage(t, 'recipeEdit.ocrEmpty'), {tone: 'error'});
       else onText(text);
     } catch (e: any) {
-      void logOcrWithImage({source: 'reader', ok: false, textLength: 0, error: String(e?.message ?? e), uid: auth.currentUser?.uid}, uri);
+      void logOcrWithImage({source: 'reader', ok: false, textLength: 0, error: String(e?.message ?? e), uid: auth.currentUser?.uid}, uri, existing);
       showSnackbar(ocrFailMessage(t, 'recipeEdit.ocrEmpty'), {tone: 'error'});
     } finally {
       onBusyChange?.(false);
@@ -68,6 +72,7 @@ export function useImageTextReader({onText, recipePhotos, onBusyChange}: UseImag
 
   const start = useCallback(async (source: string) => {
     await dismissKeyboardAndWait();
+    existingRef.current = null;
     if (source === 'recipe') { setPhotoSheet(true); return; }
     const isCamera = source === 'camera';
     const ok = Platform.OS === 'web' ? true : await ensureImagePermission(isCamera ? 'camera' : 'mediaLibrary', {
@@ -99,6 +104,7 @@ export function useImageTextReader({onText, recipePhotos, onBusyChange}: UseImag
           const uri = pickedRef.current;
           pickedRef.current = null;
           if (!uri) return;
+          existingRef.current = uri;
           prepareRecipeImageForCrop(uri).then(setCropTarget).catch(() => read(uri));
         }}
       />

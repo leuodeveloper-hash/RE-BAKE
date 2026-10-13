@@ -2,7 +2,8 @@ import React from 'react';
 import {SvgProps} from 'react-native-svg';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {Avatar} from '@components/Avatar';
-import {Button} from '@components/Button';
+import {IconButton} from '@components/IconButton';
+import {navPillStyle} from '@components/Navigation';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {triggerHaptic} from '@utils/haptics';
 import type {SemanticColors} from '@constants/tokens';
@@ -23,17 +24,15 @@ export interface ProfileHeaderProps {
   stats?: ProfileStat[];
   /** 아바타·이름을 눌렀을 때 */
   onPress?: () => void;
-  /** 맨 아래 꽉 찬 버튼(예: 프로필 편집 / 로그인) */
-  action?: {label: string; onPress: () => void};
-  /** 프로필 줄 맨 오른쪽 아이콘 버튼(예: 설정 톱니) */
-  iconAction?: {icon: React.FC<SvgProps>; onPress: () => void};
+  /** 프로필 줄 맨 오른쪽 아이콘 버튼들(예: 공유, 설정) — 보조 고스트 아이콘 버튼(48), 붙여서 나란히 */
+  iconActions?: {icon: React.FC<SvgProps>; onPress: () => void}[];
 }
 
 /**
- * 프로필 머리말 — [아바타 · 이름 / @핸들 · 숫자] / 꽉 찬 버튼.
+ * 프로필 머리말 — [아바타 · 이름 / @핸들 · 숫자 · (오른쪽) 아이콘 버튼들].
  * 내 홈 맨 위. 작성자 홈 등 프로필이 필요한 곳은 같은 모양으로 이걸 쓴다.
  */
-export function ProfileHeader({name, handle, avatarSeed, stats, onPress, action, iconAction}: ProfileHeaderProps) {
+export function ProfileHeader({name, handle, avatarSeed, stats, onPress, iconActions}: ProfileHeaderProps) {
   const styles = useThemedStyles(createStyles);
   return (
     <View style={styles.wrap}>
@@ -54,10 +53,16 @@ export function ProfileHeader({name, handle, avatarSeed, stats, onPress, action,
             ))}
           </View>
         </View>
-        {/* 프로필 줄 맨 오른쪽 아이콘 버튼(설정 등) — 외곽선·사각, 정사각 */}
-        {iconAction ? <Button icon={iconAction.icon} label="" variant="outlined" onPress={iconAction.onPress} /> : null}
+        {/* 프로필 줄 맨 오른쪽 아이콘 버튼들(공유·설정) — 고스트 */}
+        {iconActions?.length ? (
+          <View style={styles.iconActions}>
+            {iconActions.map((a, i) => (
+              // 앱바 알약 안 버튼과 같은 크기(40)·간격(2) — 위 앱바 버튼들과 같은 간격으로 붙는다
+              <IconButton key={i} icon={a.icon} variant="ghost-secondary" size="medium" onPress={a.onPress} />
+            ))}
+          </View>
+        ) : null}
       </Pressable>
-      {action ? <Button label={action.label} variant="outlined" shape="square" onPress={action.onPress} style={styles.actionMain} /> : null}
     </View>
   );
 }
@@ -94,8 +99,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flexWrap: 'wrap',
     columnGap: Spacing.sm,
   },
-  actionMain: {
-    alignSelf: 'stretch',
+  // 고스트 버튼은 테두리가 없어 칸 자체가 여백 — 간격을 더 주면 서로 멀어 보였다
+  iconActions: {
+    flexDirection: 'row',
+    gap: navPillStyle.gap,
   },
 
 });

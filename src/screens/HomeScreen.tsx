@@ -11,6 +11,7 @@ import {ProfileHeader} from '@components/ProfileHeader';
 import {shareProfile} from '@utils/shareCookbook';
 import {IconSettings} from '@components/Icon/IconIndex';
 import {useLandingMenu} from '@components/RecipeGroups/groupAxis';
+import {IconShare} from '@components/Icon/IconIndex';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Linking, StyleSheet, Text, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -725,21 +726,19 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
                 {value: publishedIds.size, label: t('home.statPublic')},
               ]}
               onPress={() => (user ? router.push('/account' as any) : openAuthSheet())}
-              // 내 홈도 작성자 홈과 같은 [프로필 공유](편집은 이름·아바타를 눌러 계정 설정으로). 로그인 전이면 로그인
-              action={user
-                ? {
-                  label: t('home.shareProfile'),
+              // 오른쪽 아이콘 버튼: 프로필 공유(로그인 후) · 설정
+              iconActions={[
+                ...(user ? [{
+                  icon: IconShare,
                   onPress: () => shareProfile({
                     handle: isAdmin ? OFFICIAL_AUTHOR_HANDLE : handle || '',
                     name: isAdmin ? OFFICIAL_AUTHOR_DISPLAY_NAME : displayName || handle || '',
                     onCopied: () => showSnackbar(t('groupExpandOverlay.linkCopied')),
-                    onError: m => showSnackbar(m, {tone: 'error'}),
+                    onError: (m: string) => showSnackbar(m, {tone: 'error'}),
                   }),
-                }
-                // 로그인 전엔 버튼 없음 — 바로 위 게스트 배너의 [Sync]가 로그인
-                : undefined}
-              // 설정은 앱바 대신 프로필 버튼 줄 끝 톱니
-              iconAction={{icon: IconSettings, onPress: () => router.push(SETTINGS_ROUTE as any)}}
+                }] : []),
+                {icon: IconSettings, onPress: () => router.push(SETTINGS_ROUTE as any)},
+              ]}
             />
           </View>
         ) : authorProfile ? (
@@ -752,16 +751,16 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
               {value: visibleRecipes.length, label: t('home.statRecipes')},
               {value: availableCookbooks.length, label: t('home.statBooks')},
             ]}
-            // 남의 프로필 — 고칠 수 없으니 [프로필 공유]
-            action={authorProfile.handle ? {
-              label: t('home.shareProfile'),
+            // 남의 프로필 — 공유만(아이콘)
+            iconActions={authorProfile.handle ? [{
+              icon: IconShare,
               onPress: () => shareProfile({
                 handle: authorProfile.handle!,
                 name: authorProfile.name,
                 onCopied: () => showSnackbar(t('groupExpandOverlay.linkCopied')),
                 onError: m => showSnackbar(m, {tone: 'error'}),
               }),
-            } : undefined}
+            }] : undefined}
           />
         ) : homeBanner
   );

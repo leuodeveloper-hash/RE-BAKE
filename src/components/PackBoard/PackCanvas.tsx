@@ -214,7 +214,9 @@ export function PackCanvas({items, entrance, dimExceptId, insetTop = 0, insetBot
       ty.value = insetTop + visibleH / 2 - focusPoint.y * fit;
       tx.value = viewport.w / 2 - focusPoint.x * fit;
     } else {
-      ty.value = insetTop + (visibleH - content.h * fit) / 2;
+      // 보이는 영역보다 크면 가운데 맞춤 대신 위를 insetTop에 맞춘다 — 가운데로 두면 위쪽 팩이
+      // 머리말(프로필) 자리로 올라가 겹쳤다. 처음 배치만 그렇고, 끌어서 움직이는 건 자유
+      ty.value = content.h * fit > visibleH ? insetTop : insetTop + (visibleH - content.h * fit) / 2;
       tx.value = (viewport.w - content.w * fit) / 2;
     }
   }, [viewport, content, scale, tx, ty, fitScale, minScale, insetTop, insetBottom, focusPoint]);

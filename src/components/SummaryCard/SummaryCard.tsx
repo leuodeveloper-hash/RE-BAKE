@@ -32,9 +32,12 @@ export function SummaryCard({icon: Icon, leading, title, subtitle, onPress}: Sum
       style={({pressed}) => [styles.card, pressed && onPress && styles.pressed]}
       onPress={onPress ? () => { triggerHaptic('light'); onPress(); } : undefined}
       disabled={!onPress}>
-      <View style={styles.top}>
-        {leading ?? (Icon ? <Icon width={24} height={24} color={colors['foreground/on-surface-muted']} /> : null)}
-      </View>
+      {/* 아이콘·아바타가 있을 때만 위 칸 — 없는데 자리(24+6)를 남기면 카드만 쓸데없이 높아졌다 */}
+      {leading || Icon ? (
+        <View style={styles.top}>
+          {leading ?? (Icon ? <Icon width={24} height={24} color={colors['foreground/on-surface-muted']} /> : null)}
+        </View>
+      ) : null}
       <Text style={styles.title} numberOfLines={1}>{title}</Text>
       {Array.isArray(subtitle) ? (
         <View style={styles.subtitleRow}>

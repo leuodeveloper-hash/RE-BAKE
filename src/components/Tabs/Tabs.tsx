@@ -39,7 +39,8 @@ export interface TabsProps {
   /** 탭 비활성화 (표시는 하되 터치 불가) */
   disabled?: boolean;
   /** filled 탭 높이 — 'large'면 메뉴 아이템(정렬 등)과 높이 통일 (기본: medium) */
-  size?: 'medium' | 'large';
+  /** big = 한 단계 큰 둥근 탭(칸 40, 전체 44 — 앱바 알약 높이). large는 메뉴 안 탭(네모) */
+  size?: 'medium' | 'large' | 'big';
   /**
    * text variant에서 모든 탭을 가장 긴 레이블 폭으로 통일할지 (기본: true).
    * false면 각 탭이 제 글씨 폭만큼만 차지해 전체 알약이 불필요하게 길어지지 않는다.
@@ -50,6 +51,7 @@ export interface TabsProps {
 const FILLED_TAB_HEIGHT = 32;
 // 트랙 박스 총높이를 메뉴 항목(38)과 맞추기 위해: 탭 34 + 컨테이너 패딩 2*2 = 38
 const FILLED_TAB_HEIGHT_LARGE = 34;
+const FILLED_TAB_HEIGHT_BIG = 40;
 const ICON_SIZE_LARGE = 20;
 const TEXT_TAB_HEIGHT = 40;
 const ICON_SIZE = 16;
@@ -63,7 +65,8 @@ interface TabLayout {
 export function Tabs({tabs, selectedId, onSelect, style, fullWidth, scrollable, trailing, variant = 'filled', disabled, size = 'medium', uniformWidth = true}: TabsProps) {
   const isText = variant === 'text';
   const isLarge = size === 'large';
-  const filledTabHeight = isLarge ? FILLED_TAB_HEIGHT_LARGE : FILLED_TAB_HEIGHT;
+  const isBig = size === 'big';
+  const filledTabHeight = isBig ? FILLED_TAB_HEIGHT_BIG : isLarge ? FILLED_TAB_HEIGHT_LARGE : FILLED_TAB_HEIGHT;
   const iconSize = isLarge ? ICON_SIZE_LARGE : ICON_SIZE;
   // large: 둥근 사각(스퀘어, 메뉴 선택과 동일 radius-md), 기본: 알약(full)
   const filledRadius = isLarge ? Radius['radius-md'] : Radius['radius-full'];

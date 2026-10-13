@@ -9,7 +9,8 @@ import {IconChevronUpDown} from '@components/Icon/IconIndex';
 import {useColors} from '@contexts/ThemeContext';
 
 export type SelectorVariant = 'ghost' | 'filled' | 'outlined' | 'tonal' | 'circle';
-export type SelectorSize = 'medium' | 'small';
+/** large = 한 단계 큰 둥근 필(44) — big 탭과 나란히 */
+export type SelectorSize = 'medium' | 'small' | 'large';
 
 export interface SelectorProps {
   label: string;
@@ -82,11 +83,13 @@ export function Selector({
         baseStyle.minHeight = 40;
         break;
       case 'circle':
-        // 완전 둥근 필(버튼형) — tonal과 동일 톤, radius만 full
+        // 완전 둥근 필(버튼형) — tonal과 동일 톤, radius만 full.
+        // 높이는 채운 탭(Tabs: 32 + 위아래 2)과 같은 36 — 탭 옆에 나란히 놓으면 높이가 맞는다
         baseStyle.backgroundColor = colors['fill/subtle'];
         baseStyle.borderRadius = Radius['radius-full'];
         baseStyle.paddingHorizontal = Spacing.md;
-        baseStyle.minHeight = 40;
+        baseStyle.height = size === 'large' ? 44 : 36;
+        baseStyle.paddingVertical = 0;
         break;
       case 'ghost':
       default:
@@ -152,7 +155,7 @@ export function Selector({
               />
             </View>
           )}
-          <Text style={[styles.label, isSmall && styles.labelSmall, {color: getTextColor()}]} numberOfLines={1}>{label}</Text>
+          <Text style={[styles.label, variant === 'circle' && styles.labelCircle, isSmall && styles.labelSmall, {color: getTextColor()}]} numberOfLines={1}>{label}</Text>
           {showDropdown && (
             <AppIcon
               icon={dropdownIcon ?? IconChevronUpDown}
@@ -173,6 +176,13 @@ const styles = StyleSheet.create({
     fontWeight: Typography.title.medium.fontWeight as '700',
     lineHeight: Typography.title.medium.lineHeight,
     marginTop: FONT_BASELINE_OFFSET,
+  },
+  // 둥근 필(circle)은 채운 탭과 나란히 쓰는 일이 많다 — 탭 글씨(title.small)와 같게
+  labelCircle: {
+    fontFamily: Typography.title.small.fontFamily,
+    fontSize: Typography.title.small.fontSize,
+    fontWeight: Typography.title.small.fontWeight as '600',
+    lineHeight: Typography.title.small.lineHeight,
   },
   labelSmall: {
     fontFamily: Typography.body.medium.fontFamily,

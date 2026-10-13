@@ -1,8 +1,10 @@
+import {EdgeFade} from '@components/Container/ContentMask';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, Dimensions, Easing, FlatList, Pressable, StyleSheet, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {ContentContainer, contentAreaPadding, APPBAR_HEIGHT, TABBAR_BOTTOM_SPACE} from '@components/Container';
+import {useTabBarSpace} from '@hooks/useTabBarSpace';
 import {RecipeCard, RecipeCardLayout} from '@components/Recipe/RecipeCard';
 import {Menu, MenuItemData} from '@components/Menu';
 import {Tabs, type TabItem} from '@components/Tabs';
@@ -355,9 +357,11 @@ export function RecipeListTemplate({
   const [sortId, setSortIdState] = useState('default');
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
   const [listHeight, setListHeight] = useState(0);
+  const tabBarSpace = useTabBarSpace();
   const [listHeaderHeight, setListHeaderHeight] = useState(0);
   // 팩 보기 머리말 높이 — 팩이 그 자리를 피해 배열된다
   const [headerExtraHeight, setHeaderExtraHeight] = useState(0);
+  const colors = useColors();
 
   // AsyncStorage에서 마지막 레이아웃/정렬 복원.
   //
@@ -656,10 +660,9 @@ export function RecipeListTemplate({
               <View style={styles.packEmpty}>{listEmptyComponent}</View>
             ) : (
               <RecipePackView
-                // 앱바(+레시피북 탭)와 하단 탭바 뒤로 팩이 숨지 않게
-                // 떠 있는 머리말 자리는 비워 두고 그 아래에 팩을 배열한다
+                // 떠 있는 머리말 자리는 비워 두고 그 아래부터 팩을 배열한다(막지는 않는다 — 끌면 그 밑으로 지나간다)
                 insetTop={listHeaderExtra && headerExtraHeight ? headerExtraHeight : APPBAR_HEIGHT}
-                insetBottom={TABBAR_BOTTOM_SPACE}
+                insetBottom={tabBarSpace}
                 recipes={loading || !layoutLoaded ? [] : sortedData}
                 lockedRecipeIds={lockedRecipeIds}
                 hero={packHero}
@@ -702,7 +705,7 @@ export function RecipeListTemplate({
               ListEmptyComponent={(loading || !layoutLoaded) && !isRefreshing ? undefined : listEmptyComponent ? (
                 // 빈 상태 = 남은 칸(목록 높이 − 앱바 자리 − 탭바 자리 − 머리말)의 상하 중앙.
                 // flexGrow만으론 웹 목록 칸이 늘지 않아 머리말 밑에 붙었다 — 실제 높이로 잡는다
-                <View style={[styles.emptyFill, {minHeight: Math.max(0, listHeight - APPBAR_HEIGHT - TABBAR_BOTTOM_SPACE - (listHeaderExtra ? listHeaderHeight : 0))}]}>{listEmptyComponent}</View>
+                <View style={[styles.emptyFill, {minHeight: Math.max(0, listHeight - APPBAR_HEIGHT - tabBarSpace - (listHeaderExtra ? listHeaderHeight : 0))}]}>{listEmptyComponent}</View>
               ) : undefined}
               ListFooterComponent={loadingMore ? <SkeletonFooter layout={activeLayout} /> : undefined}
               renderItem={renderItem}

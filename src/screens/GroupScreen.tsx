@@ -1,9 +1,11 @@
 import {shortDate} from '@utils/dateLabel';
 import {getColorVarKey} from '@components/ColorPicker';
 import {cookbookMenuItem} from '@utils/cookbookMenuItem';
-import {APPBAR_HEIGHT, TABBAR_BOTTOM_SPACE} from '@components/Container/ContentContainer';
+import {APPBAR_HEIGHT} from '@components/Container/ContentContainer';
+import {useTabBarSpace} from '@hooks/useTabBarSpace';
 import {useBreadcrumbItemOffset} from '@components/Navigation/Breadcrumb';
 import {useLandingMenu} from '@components/RecipeGroups/groupAxis';
+import {EdgeFade} from '@components/Container/ContentMask';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {useAuth} from '@contexts/AuthContext';
@@ -123,6 +125,8 @@ type ViewMode = 'list' | 'pack';
 export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors, axis, onAxisChange, onComingSoon, onDeleteCookbook, onCookbookPress, onMethodPress, onMethodGuidePress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress, availableAxes = DEFAULT_AXES, axisOverrides, showAddButton = true, bookCarousel = false, addAsOfficial = false, cookbooksAreOfficial = false, onDownloadPdf, onAddRecipeToCookbook, authorBadge, menuHeaderNode, onBack, onSettingsPress, headerExtra}: GroupScreenProps) {
   const styles = useThemedStyles(createStyles);
   const breadcrumbItemOffset = useBreadcrumbItemOffset();
+  // 탭바(안전영역 포함)가 차지하는 아래 공간 — 캐러셀·팩·빈 화면을 그 위 영역 가운데에
+  const tabBarSpace = useTabBarSpace();
   const {user, handle, avatarSeed} = useAuth();
   const {t} = useTranslation();
   const {reviewsOf, reviewOf, saveReview} = useRecipeReviews();
@@ -817,7 +821,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
           {viewMode === 'pack' ? (
             activePacks.length === 0 ? (
               /* 팩이 하나도 없으면 빈 캔버스 대신 공통 빈 상태 — 머리말·탭바 자리를 빼고 그 사이 상하 중앙 */
-              <View style={{flex: 1, paddingTop: headerExtra ? headerExtraHeight : APPBAR_HEIGHT, paddingBottom: TABBAR_BOTTOM_SPACE}}>
+              <View style={{flex: 1, paddingTop: headerExtra ? headerExtraHeight : APPBAR_HEIGHT, paddingBottom: tabBarSpace}}>
               {axis === 'retrospective' && recipes.length === 0 ? (
                 // 회고는 레시피를 만든 뒤에 남긴다 — 레시피가 아예 없으면 만들기부터
                 <EmptyState
@@ -838,12 +842,12 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
               /* 레시피 북·회고 노트 팩뷰: 센터 카드 캐러셀 (하나씩 스와이프, 탭 시 펼침) */
               // 머리말 자리는 비우고 그 아래 남은 높이에 캐러셀
               // 위는 머리말, 아래는 탭바 자리를 빼고 그 사이 가운데에 — 탭바를 안 빼면 아래로 내려가 보였다
-              <View style={{flex: 1, paddingTop: headerExtra ? headerExtraHeight : 0, paddingBottom: TABBAR_BOTTOM_SPACE}}>
+              <View style={{flex: 1, paddingTop: headerExtra ? headerExtraHeight : 0, paddingBottom: tabBarSpace}}>
                 <CookbookCarousel items={activePacks} />
               </View>
             ) : (
               /* 그 외 팩뷰: 흩뿌림 캔버스 + 패닝/핀치 줌 */
-              <PackCanvas items={activePacks} insetTop={headerExtra ? headerExtraHeight : 0} insetBottom={TABBAR_BOTTOM_SPACE} />
+              <PackCanvas items={activePacks} insetTop={headerExtra ? headerExtraHeight : 0} insetBottom={tabBarSpace} />
             )
           ) : (
           <ScrollView

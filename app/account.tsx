@@ -1,4 +1,5 @@
 import {PageScrollView} from '@components/Page';
+import {OFFICIAL_AUTHOR_HANDLE} from '../src/types/author';
 import React, {useCallback, useState} from 'react';
 import {ScrollView, StyleSheet, View} from 'react-native';
 import {useRouter} from 'expo-router';
@@ -29,7 +30,7 @@ export default function AccountRoute() {
   const insets = useSafeAreaInsets();
   const {t} = useTranslation();
   const {showSnackbar} = useSnackbar();
-  const {user, handle, displayName, deleteAccount, updateHandle, updateDisplayName} = useAuth();
+  const {user, handle, displayName, deleteAccount, updateHandle, updateDisplayName, isAdmin} = useAuth();
   // 이름·아이디 고치기 — 어느 칸인지
   const [editing, setEditing] = useState<'name' | 'handle' | null>(null);
   const [draft, setDraft] = useState('');
@@ -74,6 +75,24 @@ export default function AccountRoute() {
   return (
     <View style={styles.container}>
       <PageScrollView>
+        {/* 관리자 정보는 계정 정보와 따로 상자로 — 권한·올릴 때 작성자 */}
+        {isAdmin ? (
+          <ContentContainer style={styles.section}>
+            <Card>
+                {/* 권한 — 관리자는 공식 레시피·레시피북을 올리고 고칠 수 있다 */}
+                <ListItem
+                  title={t('profile.role')}
+                  trailingValue={t('profile.roleAdmin')}
+                  showDivider
+                />
+                <ListItem
+                  title={t('profile.publishAs')}
+                  trailingValue={`@${OFFICIAL_AUTHOR_HANDLE}`}
+                  showDivider={false}
+                />
+            </Card>
+          </ContentContainer>
+        ) : null}
         <ContentContainer style={styles.section}>
           <Card>
             {/* 이름·아이디는 눌러서 고친다, 이메일은 보기만 */}
@@ -96,6 +115,7 @@ export default function AccountRoute() {
               leading={{type: 'icon', icon: IconMailFilled}}
               showDivider={false}
             />
+
           </Card>
         </ContentContainer>
         <ContentContainer style={styles.section}>
@@ -104,6 +124,8 @@ export default function AccountRoute() {
             <ListItem
               title={t('profile.deleteAccount')}
               leading={{type: 'icon', icon: IconTrash}}
+              // 계정 삭제는 되돌릴 수 없다 — 위험 표시(빨강)
+              variant="destructive"
               showDivider={false}
               onPress={() => setDeleteOpen(true)}
             />
