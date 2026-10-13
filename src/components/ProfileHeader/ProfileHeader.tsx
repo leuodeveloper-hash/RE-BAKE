@@ -55,7 +55,7 @@ export function ProfileHeader({name, handle, avatarSeed, stats, onPress, action,
           </View>
         </View>
         {/* 프로필 줄 맨 오른쪽 아이콘 버튼(설정 등) — 외곽선·사각, 정사각 */}
-        {iconAction ? <Button icon={iconAction.icon} label="" variant="outlined" shape="square" onPress={iconAction.onPress} /> : null}
+        {iconAction ? <Button icon={iconAction.icon} label="" variant="outlined" onPress={iconAction.onPress} /> : null}
       </Pressable>
       {action ? <Button label={action.label} variant="outlined" shape="square" onPress={action.onPress} style={styles.actionMain} /> : null}
     </View>

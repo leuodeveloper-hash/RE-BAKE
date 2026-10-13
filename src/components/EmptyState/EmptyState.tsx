@@ -77,11 +77,12 @@ export function EmptyState({category, image, icon, title, subtitle, actionLabel,
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  // 빈 상태 가이드 — 늘 받은 칸의 상하·좌우 중앙. 탭바·앱바 자리는 감싸는 쪽이 빼서 넘긴다
+  // (여기서 아래 여백을 따로 두면 목록 쪽 탭바 여백과 겹쳐 위로 치우쳤다)
   container: {
     flex: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingBottom: 120,
     gap: Spacing.md,
   },
   image: {

@@ -354,6 +354,8 @@ export function RecipeListTemplate({
   const [layout, setLayoutState] = useState<RecipeCardLayout>('grid');
   const [sortId, setSortIdState] = useState('default');
   const [showLayoutMenu, setShowLayoutMenu] = useState(false);
+  const [listHeight, setListHeight] = useState(0);
+  const [listHeaderHeight, setListHeaderHeight] = useState(0);
   // 팩 보기 머리말 높이 — 팩이 그 자리를 피해 배열된다
   const [headerExtraHeight, setHeaderExtraHeight] = useState(0);
 
@@ -674,6 +676,7 @@ export function RecipeListTemplate({
 
             <FlatList
               style={{flex: 1, zIndex: 2}}
+              onLayout={e => setListHeight(e.nativeEvent.layout.height)}
               showsVerticalScrollIndicator={false}
               scrollEnabled={scrollEnabled !== false}
               key={activeLayout}
@@ -692,10 +695,15 @@ export function RecipeListTemplate({
               ListHeaderComponent={
                 <>
                   <RefreshGap height={refreshGapHeight} />
-                  {listHeaderExtra ? <View style={styles.listHeaderInList}>{listHeaderExtra}</View> : null}
+                  {listHeaderExtra ? <View style={styles.listHeaderInList} onLayout={e => setListHeaderHeight(e.nativeEvent.layout.height)}>{listHeaderExtra}</View> : null}
                 </>
               }
-              ListEmptyComponent={(loading || !layoutLoaded) && !isRefreshing ? undefined : listEmptyComponent}
+              // 빈 상태는 남은 높이의 상하 중앙 — 감싸지 않으면 목록 칸이 내용 높이만큼만 잡혀 머리말 바로 아래에 붙었다
+              ListEmptyComponent={(loading || !layoutLoaded) && !isRefreshing ? undefined : listEmptyComponent ? (
+                // 빈 상태 = 남은 칸(목록 높이 − 앱바 자리 − 탭바 자리 − 머리말)의 상하 중앙.
+                // flexGrow만으론 웹 목록 칸이 늘지 않아 머리말 밑에 붙었다 — 실제 높이로 잡는다
+                <View style={[styles.emptyFill, {minHeight: Math.max(0, listHeight - APPBAR_HEIGHT - TABBAR_BOTTOM_SPACE - (listHeaderExtra ? listHeaderHeight : 0))}]}>{listEmptyComponent}</View>
+              ) : undefined}
               ListFooterComponent={loadingMore ? <SkeletonFooter layout={activeLayout} /> : undefined}
               renderItem={renderItem}
             />
@@ -799,6 +807,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   listContentEmpty: {
     flexGrow: 1,
+  },
+  emptyFill: {
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   row: {
     gap: Spacing.md,

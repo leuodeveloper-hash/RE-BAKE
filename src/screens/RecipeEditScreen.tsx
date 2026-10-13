@@ -116,6 +116,7 @@ import {
   IconOpenbookFilled,
   IconWind,
   IconAstriks,
+  IconSquareAsteriskFilled,
   IconCircleAlert,
   IconCircleAlertFilled,
   IconCameraFilled,
@@ -200,6 +201,9 @@ const noOutline: any = {outlineStyle: 'none'};
  * Provider 안에서 AutoGrowInput들이 선택 구간을 자동 등록하므로,
  * 입력칸마다 핸들러를 달 필요가 없다.
  */
+/** 팁이면 숨기는 칸 — 공법·비중·재료·도구 */
+const TIP_HIDDEN_FIELDS = ['method', 'ratio', 'ingredients', 'tools'];
+
 export function RecipeEditScreen(props: RecipeEditScreenProps) {
   return (
     <LinkTargetProvider>
@@ -534,12 +538,13 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const [activeFieldIds, setActiveFieldIds] = useState<string[]>(
     // 새 레시피는 모든 필드를 켠 상태로 시작한다 — 뭘 쓸 수 있는지 바로 보이게.
     // (필요 없는 항목은 필드관리에서 끄면 된다)
-    recipe?.activeFieldIds ?? [
+    (recipe?.activeFieldIds ?? [
       'info', 'photo', 'time', 'ingredients', 'tools', 'steps', 'servings',
       'method', 'ratio', 'cookbook', 'advice', 'review', 'source', 'origin',
+    ]).concat([
       // 제빵 북에서 새로 만들면 반죽 온도·분할 무게도 켜 둔다
       ...(isBreadRecipe({cookbook: recipe?.cookbook ?? initialCookbook ?? '', kind: recipe?.kind}) ? BREAD_FIELDS : []),
-    ],
+    ]).filter((f, i, a) => a.indexOf(f) === i),
   );
   const isFieldActive = (id: string) => activeFieldIds.includes(id);
 
@@ -3160,7 +3165,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 title={t('recipeEdit.kind')}
                 leading={{type: 'custom', element: (
                   <View style={styles.cookbookLeadingSlot}>
-                    <IconSparkleFilled width={20} height={20} color={colors['foreground/on-surface-muted']} />
+                    <IconSquareAsteriskFilled width={20} height={20} color={colors['foreground/on-surface-muted']} />
                   </View>
                 )}}
                 trailing={{type: 'custom', element: (
@@ -3168,7 +3173,14 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                     // 프로필 '테마' 줄과 같은 탭(기본 filled)
                     tabs={[{id: 'recipe', label: t('recipeEdit.kindRecipe')}, {id: 'tip', label: t('recipeEdit.kindTip')}]}
                     selectedId={kind}
-                    onSelect={id => setKind(id as 'recipe' | 'tip')}
+                    onSelect={id => {
+                      const next = id as 'recipe' | 'tip';
+                      setKind(next);
+                      // 팁은 재료·도구·공법·비중이 없다 — 팁으로 바꾸면 그 칸을 숨기고, 레시피로 되돌리면 다시 켠다
+                      setActiveFieldIds(prev => next === 'tip'
+                        ? prev.filter(f => !TIP_HIDDEN_FIELDS.includes(f))
+                        : [...prev, ...TIP_HIDDEN_FIELDS.filter(f => !prev.includes(f))]);
+                    }}
                   />
                 )}}
                 showDivider={false}

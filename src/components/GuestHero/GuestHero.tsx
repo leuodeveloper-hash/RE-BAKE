@@ -38,8 +38,8 @@ export function GuestHero({onLogin, onBrowse}: GuestHeroProps) {
       </GradientText>
       {/* 서브카피 */}
       <Text style={styles.subcopy}>{t('guestHero.subcopy')}</Text>
-      <Button label={t('guestHero.login')} onPress={onLogin} size="medium" style={styles.button} />
-      {onBrowse ? <Button label={t('guestHero.browse')} onPress={onBrowse} size="medium" variant="ghost" /> : null}
+      <Button label={t('guestHero.login')} onPress={onLogin} size="large" style={styles.button} />
+      {onBrowse ? <Button label={t('guestHero.browse')} onPress={onBrowse} size="large" variant="ghost" /> : null}
     </View>
   );
 }

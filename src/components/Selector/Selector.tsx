@@ -143,11 +143,14 @@ export function Selector({
       {({pressed, focused}: {pressed: boolean; focused: boolean}) => (
         <View style={getContainerStyle(pressed || focused)}>
           {leadingIcon && (
-            <AppIcon
-              icon={leadingIcon}
-              size="sm"
-              color={leadingIconColor ?? getIconColor()}
-            />
+            // 앞 아이콘과 이름 사이 8 — 셀렉터 기본 간격(4, 이름·⌃⌄ 밀착)에 4를 더한다
+            <View style={{marginRight: Spacing.xs}}>
+              <AppIcon
+                icon={leadingIcon}
+                size="sm"
+                color={leadingIconColor ?? getIconColor()}
+              />
+            </View>
           )}
           <Text style={[styles.label, isSmall && styles.labelSmall, {color: getTextColor()}]} numberOfLines={1}>{label}</Text>
           {showDropdown && (

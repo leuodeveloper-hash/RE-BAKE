@@ -163,6 +163,8 @@ export {default as IconCornerDownRight} from '../../../assets/icons/corner-down-
 export {default as IconHash} from '../../../assets/icons/hash.svg';
 export {default as IconFace} from '../../../assets/icons/face.svg';
 export {default as IconAstriks} from '../../../assets/icons/astriks.svg';
+export {default as IconSquareAsterisk} from '../../../assets/icons/square-asterisk.svg';
+export {default as IconSquareAsteriskFilled} from '../../../assets/icons/square-asterisk-filled.svg';
 export {default as IconShorts} from '../../../assets/icons/shorts.svg';
 export {default as IconShortsColored} from '../../../assets/icons/shorts_colored.svg';
 export {default as IconAppleColored} from '../../../assets/icons/apple_colored.svg';
@@ -217,6 +219,7 @@ export {default as IconBlockPlus} from '../../../assets/icons/block-plus.svg';
 export {default as IconPlusCircleFilled} from '../../../assets/icons/plus-circle-filled.svg';
 export {default as IconMinusCircleFilled} from '../../../assets/icons/indeterminate-circle-filled.svg';
 export {default as IconLogoSymbol} from '../../../assets/images/logo_symbol.svg';
+export {default as IconLogoBakle} from '../../../assets/icons/logo-bakle.svg';
 export {default as IconLogoBadge} from '../../../assets/images/logo_badge.svg';
 export {default as IconKeyboard} from '../../../assets/icons/keyboard.svg';
 export {default as IconFlow} from '../../../assets/icons/flow.svg';

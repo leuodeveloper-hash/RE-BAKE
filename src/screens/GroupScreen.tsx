@@ -816,8 +816,9 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
 
           {viewMode === 'pack' ? (
             activePacks.length === 0 ? (
-              /* 팩이 하나도 없으면 빈 캔버스 대신 공통 빈 상태 */
-              axis === 'retrospective' && recipes.length === 0 ? (
+              /* 팩이 하나도 없으면 빈 캔버스 대신 공통 빈 상태 — 머리말·탭바 자리를 빼고 그 사이 상하 중앙 */
+              <View style={{flex: 1, paddingTop: headerExtra ? headerExtraHeight : APPBAR_HEIGHT, paddingBottom: TABBAR_BOTTOM_SPACE}}>
+              {axis === 'retrospective' && recipes.length === 0 ? (
                 // 회고는 레시피를 만든 뒤에 남긴다 — 레시피가 아예 없으면 만들기부터
                 <EmptyState
                   category="no-recipe"
@@ -831,7 +832,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                 category="no-recipe"
                 title={axis === 'retrospective' ? t('group.emptyRetro') : axis === 'method' ? t('group.emptyMethods') : t('group.emptyCookbooks')}
               />
-              )
+              )}
+              </View>
             ) : (bookCarousel && axis === 'cookbook') || axis === 'retrospective' ? (
               /* 레시피 북·회고 노트 팩뷰: 센터 카드 캐러셀 (하나씩 스와이프, 탭 시 펼침) */
               // 머리말 자리는 비우고 그 아래 남은 높이에 캐러셀
