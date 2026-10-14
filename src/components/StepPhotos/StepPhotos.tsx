@@ -1,4 +1,5 @@
 import {IconCameraFilled} from '@components/Icon/IconIndex';
+import {Menu, type MenuItemData} from '@components/Menu/Menu';
 import React, {useState} from 'react';
 import {triggerHaptic} from '@utils/haptics';
 import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
@@ -18,6 +19,12 @@ export interface StepPhotosProps {
    * 커서가 있는 칸에서만 넘겨, 칸을 미리 만들어 두고 바로 사진을 넣게 한다.
    */
   onAdd?: () => void;
+  /**
+   * 빈 칸을 누르면 바로 onAdd 대신 이 메뉴(촬영·갤러리 등)를 칸 아래에 띄운다.
+   * 고르면 onAddSelect(id). 하나만 있으면 메뉴 없이 바로.
+   */
+  addMenuItems?: MenuItemData[];
+  onAddSelect?: (id: string) => void;
   /** 정규화된 사진 배열 ({uri, caption?}) */
   photos: StepPhoto[];
   /**
@@ -64,7 +71,10 @@ export function StepPhotos({
   onReplace,
   showArrow = false,
   onAdd,
+  addMenuItems,
+  onAddSelect,
 }: StepPhotosProps) {
+  const [addMenuOpen, setAddMenuOpen] = useState(false);
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const editable = mode === 'edit';
@@ -128,19 +138,51 @@ export function StepPhotos({
           </View>
         );
       })}
-      {onAdd ? (
-        // 빈 썸네일 — 사진과 같은 크기·모서리, 점선 테두리 + 카메라
-        <Pressable
-          onPress={() => { triggerHaptic('light'); onAdd(); }}
-          style={[styles.addSlot, {width: size, height: size}]}>
-          <IconCameraFilled width={20} height={20} color={colors['foreground/on-surface-muted']} />
-        </Pressable>
+      {(onAdd || addMenuItems?.length) ? (
+        // 빈 썸네일 — 사진과 같은 크기·모서리, 점선 테두리 + 카메라. 메뉴가 있으면 눌러서 촬영/갤러리 고르기
+        <View style={[styles.addAnchor, addMenuOpen && styles.addAnchorOpen]}>
+          <Pressable
+            onPress={() => {
+              triggerHaptic('light');
+              if (addMenuItems && addMenuItems.length > 1) setAddMenuOpen(v => !v);
+              else if (addMenuItems?.length === 1) onAddSelect?.(addMenuItems[0].id);
+              else onAdd?.();
+            }}
+            style={[styles.addSlot, {width: size, height: size}]}>
+            <IconCameraFilled width={20} height={20} color={colors['foreground/on-surface-muted']} />
+          </Pressable>
+          {addMenuItems && addMenuItems.length > 1 ? (
+            <Menu
+              items={addMenuItems}
+              visible={addMenuOpen}
+              onSelect={id => { setAddMenuOpen(false); onAddSelect?.(id); }}
+              onClose={() => setAddMenuOpen(false)}
+              style={styles.addMenu}
+            />
+          ) : null}
+        </View>
       ) : null}
     </Pressable>
   );
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  // 빈 칸 메뉴 — 아래 행에 가리지 않게(드롭다운 z-index)
+  addAnchor: {
+    overflow: 'visible',
+  },
+  addAnchorOpen: {
+    zIndex: 1000,
+    elevation: 1000,
+  },
+  addMenu: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    marginTop: Spacing.xs,
+    zIndex: 1000,
+    elevation: 1000,
+  },
   addSlot: {
     borderRadius: Radius['radius-sm'],
     borderWidth: 1,

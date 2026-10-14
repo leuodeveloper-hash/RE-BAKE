@@ -223,6 +223,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const EDIT_MENU_ITEMS = useMemo(() => makeEditMenuItems(t).filter(m => m.id !== 'versions' || !!recipeId), [t, recipeId]);
   const COOKBOOK_SHEET_MENU_ITEMS = useMemo(() => makeCookbookSheetMenuItems(t), [t]);
   const SLASH_MENU_ITEMS = useMemo(() => makeSlashMenuItems(t), [t]);
+  // 사진 빈 칸 메뉴 — 슬래시 메뉴의 촬영·갤러리 항목 그대로
+  const photoSourceItems = useMemo(() => SLASH_MENU_ITEMS.filter(i => i.id === 'camera' || i.id === 'gallery'), [SLASH_MENU_ITEMS]);
   const {setShowCookbookDialog, setCookbookEditTarget, onCookbookCreatedRef} = useAddSheet();
   const {user, isAdmin} = useAuth();
   // 텍스트 채우기(applyMarkdown)는 의존성 없이 고정이라 최신 어드민 여부를 ref로 본다
@@ -3088,7 +3090,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                               mode="edit"
                               onPhotoPress={(pi) => setStepPhotoViewer({groupId: group.id, stepId: step.id, index: pi})}
                               onRemove={(pi) => updateStepPhotos(group.id, step.id, ps => ps.filter((_, i) => i !== pi))}
-                              onAdd={canAdd ? () => handleSlashMenuSelect('camera', {groupId: group.id, stepId: step.id}) : undefined}
+                              // 빈 칸 → 촬영 / 갤러리 메뉴(슬래시 메뉴와 같은 항목)
+                              addMenuItems={canAdd ? photoSourceItems : undefined}
+                              onAddSelect={id => handleSlashMenuSelect(id, {groupId: group.id, stepId: step.id})}
                             />
                           );
                         })()}
