@@ -1862,9 +1862,9 @@ export function CookingMode({
               </GlassContainer>
             ) : (
               <GlassContainer contentStyle={navPillStyle}>
-                {/* 과정 묶음 타이머 — 맨 왼쪽. 지금 과정의 묶음 것만 보이고, 다른 묶음 타이머는 숨긴 채 계속 돈다
+                {/* 과정 묶음 타이머(묶음이 둘 이상일 때만) — 맨 왼쪽. 지금 과정의 묶음 것만 보이고, 다른 묶음 타이머는 숨긴 채 계속 돈다
                     (발효 돌려 두고 다음 묶음으로 넘어가도 멈추지 않게) */}
-                {stepGroups?.map((g, gi) => (
+                {(stepGroups?.length ?? 0) > 1 && stepGroups!.map((g, gi) => (
                   <View key={gi} style={[styles.navTimer, currentCard?.groupIndex !== gi && styles.navTimerHidden]}>
                     <StepTimer duration={g.timer} />
                   </View>

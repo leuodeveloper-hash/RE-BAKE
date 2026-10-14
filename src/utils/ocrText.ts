@@ -117,13 +117,22 @@ export function parseIngredientTable(lines: string[]): ParsedIngredient[] | null
     : (cleaned.slice(0, 4).some(l => TABLE_HEAD.test(l)) && cleaned.slice(0, 4).some(l => TABLE_HEAD_AMOUNT.test(l))
       ? Math.max(...cleaned.slice(0, 4).map((l, i) => (TABLE_HEAD.test(l) || TABLE_HEAD_AMOUNT.test(l) ? i : -1)))
       : -1);
-  if (headLooseIdx < 0) return null;
-  const grams = cleaned.slice(0, headLooseIdx + 1).some(l => /\(\s*g\s*\)|무게|중량/.test(l));
+  // 열 단위로 읽히면 머리가 열마다 따로 끼어 나온다(iOS 글자 인식: '비율(%)', 100, 80 … '재료명', 박력분 … '무게(g)', 800 …).
+  // 그때는 앞 4줄에 머리가 다 없다 — 머리만 있는 줄이 전체에 흩어져 있으면 첫 머리부터 표로 보고, 머리 줄은 건너뛴다
+  const headOnly = (l: string) => l.split(/\s+/).filter(Boolean).every(t => HEAD_WORDS.test(t));
+  const scatteredHead = headLooseIdx < 0
+    && cleaned.some(l => headOnly(l) && TABLE_HEAD.test(l))
+    && cleaned.some(l => headOnly(l) && TABLE_HEAD_AMOUNT.test(l));
+  if (headLooseIdx < 0 && !scatteredHead) return null;
+  const bodyStart = scatteredHead ? cleaned.findIndex(headOnly) : headLooseIdx + 1;
+  const headLines = scatteredHead ? cleaned.filter(headOnly) : cleaned.slice(0, headLooseIdx + 1);
+  const grams = headLines.some(l => /\(\s*g\s*\)|무게|중량/.test(l));
+  const bodyLines = cleaned.slice(bodyStart).filter(l => !headOnly(l));
 
   // 칸 단위로 펼친다. 합계 낱말 자리를 기억해 둔다(줄 단위면 거기서 끝, 열 단위면 그 칸만 뺀다)
   const all: string[] = [];
   let totalAt = -1;
-  for (const line of cleaned.slice(headLooseIdx + 1)) {
+  for (const line of bodyLines) {
     for (const tok of line.split(/\s+/).filter(Boolean)) {
       if (TOTAL_WORD.test(tok)) { if (totalAt < 0) totalAt = all.length; continue; }
       if (HEAD_WORDS.test(tok)) continue;
@@ -160,7 +169,7 @@ export function parseIngredientTable(lines: string[]): ParsedIngredient[] | null
     // 줄 단위(비율 이름 무게 / 비율 이름 무게 …) — 이름 바로 뒤 숫자가 무게
     // 한 줄 = 한 행이면 줄마다 읽는다: 이름 칸 + 숫자 칸들, 무게는 그 줄의 마지막 숫자(비율이 앞이든 뒤든).
     // 칸을 한 줄로 펼쳐 이름 바로 뒤 숫자를 잡으면 '재료명 | 비율 | 무게' 표에서 비율이 분량이 됐다
-    const rows = cleaned.slice(headLooseIdx + 1).map(l => l.split(/\s+/).filter(t => t && !HEAD_WORDS.test(t)));
+    const rows = bodyLines.map(l => l.split(/\s+/).filter(t => t && !HEAD_WORDS.test(t)));
     const rowWise = rows.filter(r => r.some(t => !NUM_CELL.test(t)) && r.some(t => NUM_CELL.test(t)));
     if (rowWise.length >= Math.max(1, Math.floor(names.length / 2))) {
       for (const r of rowWise) {

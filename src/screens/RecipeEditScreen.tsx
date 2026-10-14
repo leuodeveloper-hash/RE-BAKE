@@ -2861,9 +2861,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                       )}
                     </View>
                   )}}>
+                  {/* 묶음이 하나면 타이머 없음 — 타이머는 과정을 묶음으로 나눴을 때만 */}
                   <View style={styles.breadcrumbRow}>
                     <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.stepsLabel')}</Text>
-                    {renderGroupTimer(group)}
                   </View>
                 </ListItem>
               )}

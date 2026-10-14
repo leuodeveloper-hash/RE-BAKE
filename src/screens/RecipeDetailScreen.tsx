@@ -244,6 +244,9 @@ export interface RecipeDetailScreenProps {
   referenceUrl?: string;
   /** 이미 "만들었어요"로 표시된 레시피인지 */
   isMade?: boolean;
+  /** 상단 고정 여부 · 고정/해제 — 목록 오버플로우와 같은 항목 */
+  isPinned?: boolean;
+  onPinChange?: (pinned: boolean) => void;
   /** 이번에 찍힐 우표 순번 */
   stampIndex?: number;
   /** 스탬프를 찍거나(true) 해제(false) — 요리모드 확인 시트와 오버플로우 메뉴가 함께 쓴다 */
@@ -412,6 +415,8 @@ export function RecipeDetailScreen({
   isMade,
   stampIndex,
   onMadeChange,
+  isPinned,
+  onPinChange,
   onFeedback,
   onSaveReview,
   sourceUrl,
@@ -729,6 +734,8 @@ export function RecipeDetailScreen({
       // 목록 오버플로우와 같은 항목 — 상세에서도 찍고 해제할 수 있어야 한다
       showMade: !!onMadeChange,
       isMade,
+      showPin: !!onPinChange,
+      isPinned,
       showRemake: !!onRemake,
       showEdit: !!onEdit,
       showDelete: !!onDelete,
@@ -747,7 +754,7 @@ export function RecipeDetailScreen({
     }
     return items;
   },
-  [onImport, onRemake, onEdit, onDelete, onCookbookChange, onCopyToExplore, onSubmitToExplore, onShare, onFeedback, onMadeChange, isMade, session, compareBaseline, showDiff, t]);
+  [onImport, onRemake, onEdit, onDelete, onCookbookChange, onCopyToExplore, onSubmitToExplore, onShare, onFeedback, onMadeChange, isMade, onPinChange, isPinned, session, compareBaseline, showDiff, t]);
 
   const cookbookSubmenu = useMemo(() => {
     if (!onCookbookChange || !availableCookbooks) return null;
@@ -790,6 +797,10 @@ export function RecipeDetailScreen({
     }
     if (id === 'unmade') {
       onMadeChange?.(false);
+      return;
+    }
+    if (id === 'pin' || id === 'unpin') {
+      onPinChange?.(id === 'pin');
       return;
     }
     if (id === 'compareDiff') {
@@ -1283,8 +1294,8 @@ export function RecipeDetailScreen({
         {isFieldActive('steps') && <View onLayout={(e) => { sectionPositions.current.steps = e.nativeEvent.layout.y; }} />}
         {/* 한번에 보기 — 과정을 번호 붙은 글줄로(팁·주의는 바로 아래 옅게) */}
         {isFieldActive('steps') && bulkView && stepsHasContent && [
-          // 묶음이 하나면 그 타이머를 머리줄에(묶음 이름 줄이 없어서). 여럿이면 각 묶음 이름 옆에
-          renderSectionHeader('step-header-bulk', t('recipeDetail.tabSteps'), 'steps', undefined, true, stepGroups?.length === 1 ? (stepGroups[0].timer ?? '') : undefined),
+          // 타이머는 과정을 묶음으로 나눴을 때만 — 묶음 이름 옆에(아래 줄)
+          renderSectionHeader('step-header-bulk', t('recipeDetail.tabSteps'), 'steps', undefined, true),
           <Animated.View key="step-bulk" style={{opacity: sectionAnims[1]}}>
             <ContentContainer>
               <Card>
@@ -1337,7 +1348,7 @@ export function RecipeDetailScreen({
           stepGroups.flatMap((group, groupIndex) => {
             const groupOffset = stepGroups.slice(0, groupIndex).reduce((sum, g) => sum + g.steps.length, 0);
             return [
-              renderSectionHeader(`step-header-${groupIndex}`, t('recipeDetail.tabSteps'), 'steps', group.title, groupIndex === 0, group.timer ?? ''),
+              renderSectionHeader(`step-header-${groupIndex}`, t('recipeDetail.tabSteps'), 'steps', group.title, groupIndex === 0, stepGroups.length > 1 ? (group.timer ?? '') : undefined),
               <Animated.View key={`step-content-${groupIndex}`} style={{opacity: sectionAnims[1]}}>
                 <ContentContainer>
                   <Card>

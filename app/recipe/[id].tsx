@@ -8,6 +8,7 @@ import {sendRecipeFeedback, type FeedbackKind} from '@utils/recipeFeedback';
 import {useMadeCount} from '@hooks/useMadeCount';
 import {useRecipeReviews} from '@hooks/useRecipeReviews';
 import {useMadeStamps} from '@hooks/useMadeStamps';
+import {useExplorePins} from '@hooks/useExplorePins';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useAddSheet} from '@contexts/AddSheetContext';
@@ -114,6 +115,37 @@ export default function RecipeDetailRoute() {
   const {setMade, madeAtOf} = useMadeStamps();
   const isMyRecipe = recipes.some(r => r.id === id);
   const isExploreRecipe = !isMyRecipe && exploreRecipes.some(r => r.id === id);
+
+  // 핀 — 홈과 같은 규칙: 내 레시피는 레시피 안 pinnedAt, 둘러보기는 계정 핀. 내가 쓴 공식 레시피는 둘을 같은 것으로 본다
+  const {pins: explorePins, togglePin: setExplorePin} = useExplorePins();
+  const myAuthorKeyForPin = isAdmin ? OFFICIAL_AUTHOR_ID : user?.uid;
+  const {ownForPin, exploreIdForPin} = useMemo(() => {
+    if (!recipe) return {ownForPin: undefined, exploreIdForPin: undefined};
+    if (isMyRecipe) {
+      const pub = myAuthorKeyForPin
+        ? exploreRecipes.find(p => p.authorId === myAuthorKeyForPin && (p.sourceRecipeId === id || p.title.trim() === recipe.title.trim()))
+        : undefined;
+      return {ownForPin: recipe, exploreIdForPin: pub?.id};
+    }
+    if (isExploreRecipe) {
+      const mine = recipe.authorId === myAuthorKeyForPin;
+      const own = mine
+        ? recipes.find(r => r.id === recipe.sourceRecipeId || r.title.trim() === recipe.title.trim())
+        : undefined;
+      return {ownForPin: own, exploreIdForPin: id};
+    }
+    return {ownForPin: undefined, exploreIdForPin: undefined};
+  }, [recipe, isMyRecipe, isExploreRecipe, exploreRecipes, recipes, myAuthorKeyForPin, id]);
+  const canPin = !!ownForPin || !!exploreIdForPin;
+  const isPinned = !!ownForPin?.pinnedAt || (!!exploreIdForPin && !!explorePins[exploreIdForPin]);
+  const handlePinChange = useCallback((pinned: boolean) => {
+    if (ownForPin) {
+      const pinnedAt = pinned ? new Date().toISOString() : undefined;
+      setRecipes(prev => prev.map(r => (r.id === ownForPin.id ? {...r, pinnedAt} : r)));
+    }
+    if (exploreIdForPin) setExplorePin(exploreIdForPin, pinned);
+    showSnackbar(t(pinned ? 'home.pinned' : 'home.unpinned'), {tone: 'positive'});
+  }, [ownForPin, exploreIdForPin, setRecipes, setExplorePin, showSnackbar, t]);
 
   // 다른 기기에서 고친 게 있는지 — 서버의 고친 시각(updatedAt)이 지금 보는 것과 다르면 '업데이트됨' 버튼을 띄운다.
   // 열 때와 앱으로 돌아올 때 확인한다(내 레시피는 실시간으로도 받지만, 둘러보기는 한 번 받아 두는 데이터라 여기서 확인)
@@ -641,6 +673,8 @@ const handleDelete = useCallback(async () => {
         activeFieldIds={recipe.activeFieldIds}
         referenceUrl={recipe.referenceUrl}
         isMade={isMade}
+        isPinned={isPinned}
+        onPinChange={canPin ? handlePinChange : undefined}
         stampIndex={madeCount}
         // 팁은 만드는 게 아니라 읽는 정보 — 만들었어요·다시 만들기·회고에서 빠진다
         onMadeChange={recipe?.kind === 'tip' ? undefined : handleMadeChange}
