@@ -187,6 +187,48 @@ function FadeInImage({
   );
 }
 
+// ---- 공통 목록 썸네일 ----
+/**
+ * 목록 행 앞 썸네일 하나 — 레시피·레시피북·공법·사진 고르기·기록 등 모든 목록이 이걸 쓴다.
+ * 보여줄 사진·종이 미리보기가 있으면 레시피 행과 같은 썸네일(라인·그림자), 없으면 아이콘 자리표시.
+ * (목록마다 Image/IconThumbnail을 따로 그려 라인·그림자가 들쭉날쭉했다)
+ */
+export function ListThumbnail({
+  size = 64,
+  imageUrl,
+  paperTitle,
+  paperPreview,
+  icon,
+  iconColor,
+}: {
+  size?: number;
+  imageUrl?: string;
+  paperTitle?: string;
+  paperPreview?: string[];
+  /** 보여줄 게 없을 때 아이콘(없으면 레시피처럼 빈 종이) */
+  icon?: React.FC<SvgProps>;
+  iconColor?: string;
+}) {
+  const colors = useColors();
+  if (icon && !imageUrl && !paperPreview?.length) {
+    return <IconThumbnail size={size} icon={icon} iconColor={iconColor} />;
+  }
+  return (
+    <View style={{width: size, height: size, alignItems: 'center', justifyContent: 'center'}}>
+      {/* 겹침은 팩뷰 전용 — 이미지 있으면 슬롯을 꽉 채운 단일 썸네일, 없으면 미리보기 종이 카드 단독 */}
+      <StackedThumbnail
+        size={size}
+        imageUrl={imageUrl}
+        colors={colors}
+        paperTitle={paperTitle}
+        paperPreview={paperPreview}
+        showPaper={false}
+        fill
+      />
+    </View>
+  );
+}
+
 // ---- 공통 stacked 카드 썸네일 (grid/list/팩뷰 모두 사용) ----
 
 export function StackedThumbnail({
@@ -621,32 +663,15 @@ export function RecipeCard({
             <Text style={styles.leadingNumber}>{leadingNumber}</Text>
           )}
 
-          {/* 썸네일 — 레시피 북 등 placeholderIcon 명시 시엔 원래 Thumbnail, 아니면 stacked */}
-          {PlaceholderIcon !== IconPhoto ? (
-            <IconThumbnail size={isSmall ? 44 : 64} icon={PlaceholderIcon} iconColor={placeholderIconColor}>
-              {hasImage ? (
-                <FadeInImage
-                  source={{uri: imageUrl!}}
-                  style={styles.listImage}
-                  resizeMode="cover"
-                />
-              ) : undefined}
-            </IconThumbnail>
-          ) : (
-            <View style={[styles.listStackedWrapper, {width: isSmall ? 44 : 64, height: isSmall ? 44 : 64}]}>
-              {/* 겹침은 팩뷰 전용 — 이미지 있으면 슬롯을 꽉 채운 단일 썸네일,
-                  없으면 미리보기 종이 카드를 단독(겹침 없이) 표시 */}
-              <StackedThumbnail
-                size={isSmall ? 44 : 64}
-                imageUrl={imageUrl}
-                colors={colors}
-                paperTitle={paperTitle || title}
-                paperPreview={paperPreview}
-                showPaper={false}
-                fill
-              />
-            </View>
-          )}
+          {/* 썸네일 — 공통 목록 썸네일(사진·미리보기면 라인·그림자, 없으면 아이콘) */}
+          <ListThumbnail
+            size={isSmall ? 44 : 64}
+            imageUrl={hasImage ? imageUrl : undefined}
+            paperTitle={paperTitle || title}
+            paperPreview={paperPreview}
+            icon={PlaceholderIcon !== IconPhoto ? PlaceholderIcon : undefined}
+            iconColor={placeholderIconColor}
+          />
 
           {/* 콘텐츠 */}
           <View style={[isSmall ? styles.listContentSmall : styles.listContent, overline ? styles.listContentTight : null]}>

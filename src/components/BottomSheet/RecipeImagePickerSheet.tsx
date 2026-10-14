@@ -6,7 +6,7 @@ import {Image as ExpoImage} from 'expo-image';
 import {BottomSheet, sheetTileWidth} from './BottomSheet';
 import {ListItem} from '@components/ListItem';
 import {SectionHeader} from '@components/SectionHeader';
-import {IconThumbnail} from '@components/Thumbnail';
+import {ListThumbnail} from '@components/Recipe/RecipeCard';
 import {IconButton} from '@components/IconButton';
 import {IconNoteFilled, IconSearch} from '@components/Icon/IconIndex';
 import {TextInput} from '@components/TextInput';
@@ -156,9 +156,8 @@ export function RecipeImagePickerSheet({visible, onClose, myRecipes, exploreReci
                 description={r.cookbook || undefined}
                 leading={{type: 'custom', element: (
                   <View style={styles.thumbSlot}>
-                    <IconThumbnail size={44} icon={IconNoteFilled}>
-                      <ExpoImage source={{uri: recipeImages(r)[0]}} style={styles.image} contentFit="cover" cachePolicy="memory-disk" />
-                    </IconThumbnail>
+                    {/* 공통 목록 썸네일 — 레시피 목록과 같은 라인·그림자 */}
+                    <ListThumbnail size={44} imageUrl={recipeImages(r)[0]} paperTitle={r.title} icon={IconNoteFilled} />
                   </View>
                 )}}
                 trailingValue={recipeImages(r).length > 1 ? String(recipeImages(r).length) : undefined}

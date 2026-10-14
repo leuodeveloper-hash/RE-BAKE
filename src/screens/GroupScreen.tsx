@@ -306,7 +306,9 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
       const cookbookLabel = cookbookSet.size === 1 ? [...cookbookSet][0] : t('group.allCookbooks');
       // 대표 카드 최대 3장 (공통 헬퍼: 이미지 우선 + 종이 미리보기)
       const cards = recipeCoverCards(items);
-      return {method, items, subtitle: [cookbookLabel, t('group.itemCount', {count: items.length})], cards};
+      // 리스트 행 대표 — 레시피 목록 행과 같은 재료(사진 우선, 없으면 종이 미리보기)
+      const cover = items.find(r => r.imageUri) ?? items[0];
+      return {method, items, subtitle: [cookbookLabel, t('group.itemCount', {count: items.length})], cards, cover};
     });
   }, [recipes, exploreRecipes, isAdmin, t]);
 
@@ -931,6 +933,10 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                       title={g.method}
                       cookbook={t('group.recipeCount', {count: g.items.length})}
                       layout="list"
+                      // 대표 썸네일 — 레시피 목록 행과 같게: 사진 있는 레시피 먼저, 없으면 그 레시피 종이 미리보기
+                      imageUrl={g.cover?.imageUri}
+                      paperPreview={g.cover ? recipePreviewParts(g.cover) : undefined}
+                      paperTitle={g.cover?.title}
                       placeholderIcon={IconProcess}
                       placeholderIconColor={colors['custom/lime-var']}
                       onPress={() => onMethodPress?.(g.method)}

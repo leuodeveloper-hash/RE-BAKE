@@ -3,7 +3,6 @@ import React, {useCallback, useEffect, useState} from 'react';
 import {View, Text, ScrollView, StyleSheet, Pressable} from 'react-native';
 import {useRouter} from 'expo-router';
 import {collection, query, orderBy, limit, getDocs, where, Timestamp} from 'firebase/firestore';
-import {Image} from 'expo-image';
 import {db} from '@config/firebase';
 import {Card, ContentContainer} from '@components/Container';
 import {EmptyState} from '@components/EmptyState';
@@ -13,6 +12,7 @@ import {ListItem} from '@components/ListItem';
 import {SectionHeader} from '@components/SectionHeader';
 import {SummaryCard} from '@components/SummaryCard';
 import {Selector} from '@components/Selector';
+import {ListThumbnail} from '@components/Recipe/RecipeCard';
 import {Menu} from '@components/Menu';
 import {PhotoViewer} from '@components/PhotoViewer';
 import {IconClose, IconCircleCheckFilled, IconCircleAlertFilled} from '@components/Icon/IconIndex';
@@ -225,7 +225,8 @@ export default function AdminOcrLogsRoute() {
                   {/* 썸네일 — 보여 줄 사진이 있을 때만 오른쪽 정사각. 없으면 비워 둔다. 눌러서 크게 */}
                   {row.imageUrl ? (
                     <Pressable onPress={() => setViewer(row.imageUrl!)}>
-                      <Image source={{uri: row.imageUrl}} style={styles.thumb} contentFit="cover" cachePolicy="memory-disk" transition={150} />
+                      {/* 공통 목록 썸네일 — 레시피 목록과 같은 라인·그림자 */}
+                      <ListThumbnail size={56} imageUrl={row.imageUrl} />
                     </Pressable>
                   ) : null}
                 </View>
