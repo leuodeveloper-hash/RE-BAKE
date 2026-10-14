@@ -5,13 +5,20 @@ import {useColors} from '@contexts/ThemeContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {triggerHaptic} from '@utils/haptics';
 import type {SemanticColors} from '@constants/tokens';
-import {NOTICE_COLOR, noticeLabelStyle, noticePillStyle, noticeShadow} from '@components/FloatingNotice/FloatingNotice';
-import {IconClockFilled} from '@components/Icon/IconIndex';
+import {Spacing} from '@constants/spacing';
+import {Typography} from '@constants/typography';
+import {noticeLabelStyle, noticePillStyle} from '@components/FloatingNotice/FloatingNotice';
+import {IconPauseFilled, IconPlayFilled} from '@components/Icon/IconIndex';
 import {parseTime, TimeDialog} from '@components/Dialog/TimeDialog';
 
 export interface StepTimerProps {
-  /** 작성자가 정한 기본 시간 — 시간 설정 칸과 같은 형식("1시간 30분", "40분") */
-  duration: string;
+  /** 작성자가 정한 기본 시간 — 시간 설정 칸과 같은 형식("1시간 30분", "40분"). 비어 있으면 재생 아이콘만(누르면 설정) */
+  duration?: string;
+  /**
+   * 편집 모드 — 주면 돌아가지 않고 누르면 시간 설정, 정한 값을 넘긴다(비우면 undefined = 타이머 끄기).
+   * 상세(보기)와 같은 모양을 편집 화면에서도 쓰기 위함.
+   */
+  onChange?: (duration?: string) => void;
 }
 
 /** "1시간 30분" → 초 */
@@ -20,13 +27,13 @@ export function durationSeconds(duration: string): number {
   return ((parseInt(hours, 10) || 0) * 60 + (parseInt(minutes, 10) || 0)) * 60;
 }
 
-/** 남은 초 → "40:00" / "1:05:09" */
+/** 초 → 항상 "00:00:00"(시:분:초) */
 function clock(sec: number): string {
   const h = Math.floor(sec / 3600);
   const m = Math.floor((sec % 3600) / 60);
   const s = sec % 60;
   const pad = (n: number) => String(n).padStart(2, '0');
-  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
+  return `${pad(h)}:${pad(m)}:${pad(s)}`;
 }
 
 type Phase = 'idle' | 'running' | 'paused' | 'done';
@@ -39,7 +46,7 @@ type Phase = 'idle' | 'running' | 'paused' | 'done';
  * 끝나면 '완료'로 바뀌고 진동, 누르면 처음으로.
  * 남은 시간은 끝나는 시각 기준으로 계산해, 화면이 잠깐 멈춰도 밀리지 않는다.
  */
-export function StepTimer({duration: defaultDuration}: StepTimerProps) {
+export function StepTimer({duration: defaultDuration = '', onChange}: StepTimerProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const {t} = useTranslation();
@@ -67,25 +74,29 @@ export function StepTimer({duration: defaultDuration}: StepTimerProps) {
     return () => clearInterval(id);
   }, [phase]);
 
-  if (durationSeconds(defaultDuration) <= 0) return null;
 
+  // 시간이 없으면(작성자가 안 정했고 이번에도 안 정함) — 재생 아이콘만, 누르면 시간 설정
+  const unset = total <= 0;
   const onPress = () => {
     triggerHaptic('light');
+    if (unset || onChange) { setEditing(true); return; }
     if (phase === 'running') { setPhase('paused'); return; }
     if (phase === 'done') { setPhase('idle'); setLeft(total); return; }
     endAt.current = Date.now() + left * 1000;
     setPhase('running');
   };
-  const onLongPress = () => {
+  const onLongPress = onChange ? undefined : () => {
     triggerHaptic('medium');
     setEditing(true);
   };
 
-  // 돌아가는 중·끝남은 블루(업데이트됨 알림과 같은 색), 멈춤·대기는 옅은 바탕
+  // 돌아가는 중·끝남은 오렌지 var, 멈춤·대기는 옅은 바탕
   const active = phase === 'running' || phase === 'done';
-  const blue = NOTICE_COLOR;
+  // 활성(돌아가는 중·끝남) 색 — 오렌지 var
+  const blue = colors['custom/orange-var'] as string;
   const fg = active ? (colors['foreground/on-surface-inverse'] as string) : (colors['foreground/on-surface'] as string);
-  const label = phase === 'idle' ? duration : phase === 'done' ? '완료' : clock(left);
+  // 대기 중에도 '40분'이 아니라 00:40:00 — 시작하면 같은 자리 숫자가 줄어든다
+  const label = phase === 'done' ? '완료' : clock(left);
 
   return (
     <>
@@ -96,13 +107,17 @@ export function StepTimer({duration: defaultDuration}: StepTimerProps) {
       hitSlop={4}
       style={({pressed}) => [
         styles.pill,
+        unset && styles.pillIconOnly,
         active
-          ? {backgroundColor: blue, boxShadow: noticeShadow(blue)} as any
+          ? {backgroundColor: blue}
           : styles.pillIdle,
         pressed && styles.pressed,
       ]}>
-      <IconClockFilled width={16} height={16} color={fg} />
-      <Text style={[styles.label, {color: fg}]} numberOfLines={1}>{label}</Text>
+      {/* 돌아가는 중엔 일시정지(누르면 멈춤), 그 밖엔 재생(누르면 시작·이어서) */}
+      {phase === 'running'
+        ? <IconPauseFilled width={12} height={12} color={fg} />
+        : <IconPlayFilled width={12} height={12} color={active ? fg : (colors['foreground/on-surface-muted'] as string)} />}
+      {!unset && <Text style={[styles.label, {color: fg}]} numberOfLines={1}>{label}</Text>}
     </Pressable>
     <TimeDialog
       visible={editing}
@@ -110,16 +125,25 @@ export function StepTimer({duration: defaultDuration}: StepTimerProps) {
       title={t('recipeEdit.groupTimer')}
       value={duration}
       // 같은 시간으로 확인해도 처음부터(시간이 그대로면 total 효과가 안 돌아 직접 되돌린다)
-      onConfirm={v => { setDuration(v); setPhase('idle'); setLeft(durationSeconds(v)); }}
+      onConfirm={v => { if (onChange) { onChange(v); return; } setDuration(v); setPhase('idle'); setLeft(durationSeconds(v)); }}
       // 비우면 작성자 기본 시간으로
-      onDelete={() => { setDuration(defaultDuration); setPhase('idle'); setLeft(durationSeconds(defaultDuration)); }}
+      onDelete={() => { if (onChange) { onChange(undefined); return; } setDuration(defaultDuration); setPhase('idle'); setLeft(durationSeconds(defaultDuration)); }}
     />
     </>
   );
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
-  pill: noticePillStyle,
+  // 알림 알약보다 두 단계 작게(28) — 묶음 머리줄 안에 들어가므로
+  // 오른쪽을 2 더 — 숫자 끝(글자 여백)이 아이콘 쪽보다 좁아 보여, 눈으로 같아 보이게 보정
+  pill: {...noticePillStyle, height: 28, paddingLeft: Spacing.sm, paddingRight: Spacing.sm + 2},
+  // 아이콘만 — 정사각 원(28)
+  pillIconOnly: {
+    width: 28,
+    paddingLeft: 0,
+    paddingRight: 0,
+    justifyContent: 'center',
+  },
   pillIdle: {
     backgroundColor: colors['fill/normal'],
   },
@@ -129,6 +153,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   label: {
     ...noticeLabelStyle,
+    ...Typography.caption.medium,
+    fontWeight: '600',
     fontVariant: ['tabular-nums'], // 숫자 폭 고정 — 줄어들 때 알약이 흔들리지 않게
   },
 });

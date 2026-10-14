@@ -71,6 +71,7 @@ export {default as IconUnlock} from '../../../assets/icons/unlock.svg';
 export {default as IconUnlockFilled} from '../../../assets/icons/unlock_filled.svg';
 export {default as IconPlay} from '../../../assets/icons/play.svg';
 export {default as IconPlayFilled} from '../../../assets/icons/play_filled.svg';
+export {default as IconPauseFilled} from '../../../assets/icons/pause_filled.svg';
 export {default as IconStop} from '../../../assets/icons/stop.svg';
 export {default as IconStopFilled} from '../../../assets/icons/stop_filled.svg';
 export {default as IconTick} from '../../../assets/icons/tick.svg';

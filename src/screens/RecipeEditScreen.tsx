@@ -67,6 +67,7 @@ import {SkeletonLine} from '@components/SkeletonLine';
 import {useYouTubePlayer} from '@contexts/YouTubePlayerContext';
 import {parseYouTubeVideoId} from '@utils/youtube';
 import {triggerHaptic} from '@utils/haptics';
+import {StepTimer} from '@components/StepTimer';
 import {parseRecipeMarkdown, parseBulkIngredientGroups, parseBulkStepGroups, ingredientGroupsToBulk, stepGroupsToBulk, recipeToMarkdown} from '@utils/recipeMarkdown';
 import {
   bulkTextToIngredients,
@@ -483,8 +484,6 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const [toolRowMenu, setToolRowMenu] = useState<{groupId: string; itemId: string} | null>(null);
   // 과정 헤더 + 버튼 아래 붙는 메뉴 (과정 추가 / 묶음 추가)
   const [stepAddMenu, setStepAddMenu] = useState<string | null>(null);
-  // 과정 묶음 타이머 시간 설정 — 열린 묶음 id
-  const [timerGroupId, setTimerGroupId] = useState<string | null>(null);
   // 한번에 쓰기 작성법 안내 툴팁 (열린 묶음 id)
   const [imageUri, setImageUri] = useState<string | null>(recipe?.imageUri ?? null);
   // 추가 상단 이미지(대표 imageUri 뒤로 최대 2장 — 합쳐서 3장)
@@ -1958,15 +1957,14 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   }, [drag.draggingId, flatIngredients, flatSteps, flatTools]);
 
 
-  // 과정 묶음 타이머 — 묶음 이름 옆. 시간이 있으면 그 시간, 없으면 시계만. 누르면 시간 설정(상세 시간 칸과 같은 창)
+  // 과정 묶음 타이머 — 묶음 이름 옆. 상세와 같은 StepTimer(편집 모드: 누르면 시간 설정, 저장됨)
   const renderGroupTimer = (group: StepGroup) => (
-    <Pressable
-      onPress={() => { triggerHaptic('light'); setTimerGroupId(group.id); }}
-      hitSlop={8}
-      style={styles.groupTimer}>
-      <IconClockFilled width={16} height={16} color={group.timer ? colors['foreground/on-surface'] : colors['foreground/on-surface-muted']} />
-      {!!group.timer && <Text style={styles.breadcrumbPrefix}>{group.timer}</Text>}
-    </Pressable>
+    <View style={styles.groupTimer}>
+      <StepTimer
+        duration={group.timer}
+        onChange={v => setStepGroups(p => p.map(g => g.id === group.id ? {...g, timer: v} : g))}
+      />
+    </View>
   );
 
   return (
@@ -3417,15 +3415,6 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
       />
 
       {/* 시간 다이얼로그 */}
-      {/* 과정 묶음 타이머 시간 — 비우고 확인하면 타이머 끄기 */}
-      <TimeDialog
-        visible={timerGroupId !== null}
-        onClose={() => setTimerGroupId(null)}
-        title={t('recipeEdit.groupTimer')}
-        value={stepGroups.find(g => g.id === timerGroupId)?.timer}
-        onConfirm={v => setStepGroups(p => p.map(g => g.id === timerGroupId ? {...g, timer: v} : g))}
-        onDelete={() => setStepGroups(p => p.map(g => g.id === timerGroupId ? {...g, timer: undefined} : g))}
-      />
       <TimeDialog
         visible={showTimeDialog}
         onClose={() => setShowTimeDialog(false)}

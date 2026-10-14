@@ -888,14 +888,15 @@ export function RecipeDetailScreen({
     breadcrumb?: string,
     // 재료·과정 맨 위 머리엔 편집 옆에 '한번에 보기' 스위치
     withBulkToggle = false,
-    // 과정 묶음 타이머 — 묶음 이름 앞
+    // 과정 묶음 타이머 — 묶음 이름 오른쪽
     timer?: string,
   ) => (
     <View key={key} style={styles.stickyHeader}>
       <ContentContainer>
         <SectionHeader
           title={label}
-          leading={timer ? <StepTimer duration={timer} /> : undefined}
+          // undefined = 타이머 자리 없음(재료 등), '' = 과정이지만 시간 미설정(재생 아이콘만)
+          titleTrailing={timer !== undefined ? <StepTimer duration={timer} /> : undefined}
           breadcrumb={breadcrumb}
           breadcrumbIcon={breadcrumb ? IconChevronRight : undefined}
           actionLabel={onEdit ? t('recipeDetail.edit') : undefined}
@@ -1274,7 +1275,8 @@ export function RecipeDetailScreen({
         {isFieldActive('steps') && <View onLayout={(e) => { sectionPositions.current.steps = e.nativeEvent.layout.y; }} />}
         {/* 한번에 보기 — 과정을 번호 붙은 글줄로(팁·주의는 바로 아래 옅게) */}
         {isFieldActive('steps') && bulkView && stepsHasContent && [
-          renderSectionHeader('step-header-bulk', t('recipeDetail.tabSteps'), 'steps', undefined, true),
+          // 묶음이 하나면 그 타이머를 머리줄에(묶음 이름 줄이 없어서). 여럿이면 각 묶음 이름 옆에
+          renderSectionHeader('step-header-bulk', t('recipeDetail.tabSteps'), 'steps', undefined, true, stepGroups?.length === 1 ? (stepGroups[0].timer ?? '') : undefined),
           <Animated.View key="step-bulk" style={{opacity: sectionAnims[1]}}>
             <ContentContainer>
               <Card>
@@ -1282,7 +1284,12 @@ export function RecipeDetailScreen({
                   <View style={styles.bulkBody}>
                     {(stepGroups?.length ? stepGroups : [{title: '', steps: steps ?? []}]).map((g, gi, arr) => (
                       <View key={gi}>
-                        {arr.length > 1 && g.title ? <Text style={styles.bulkGroupTitle}>{g.title}</Text> : null}
+                        {arr.length > 1 ? (
+                          <View style={styles.bulkGroupTitleRow}>
+                            {g.title ? <Text style={styles.bulkGroupTitle}>{g.title}</Text> : null}
+                            <StepTimer duration={'timer' in g ? g.timer : undefined} />
+                          </View>
+                        ) : null}
                         {g.steps.filter(st => st.description?.trim()).map((st, si) => (
                           <View key={si}>
                             <Text style={styles.bulkText}>{`${si + 1}. `}<RichText inline>{st.description}</RichText></Text>
@@ -1320,7 +1327,7 @@ export function RecipeDetailScreen({
           stepGroups.flatMap((group, groupIndex) => {
             const groupOffset = stepGroups.slice(0, groupIndex).reduce((sum, g) => sum + g.steps.length, 0);
             return [
-              renderSectionHeader(`step-header-${groupIndex}`, t('recipeDetail.tabSteps'), 'steps', group.title, groupIndex === 0, group.timer),
+              renderSectionHeader(`step-header-${groupIndex}`, t('recipeDetail.tabSteps'), 'steps', group.title, groupIndex === 0, group.timer ?? ''),
               <Animated.View key={`step-content-${groupIndex}`} style={{opacity: sectionAnims[1]}}>
                 <ContentContainer>
                   <Card>
@@ -1873,10 +1880,16 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flex: 1,
     gap: Spacing.lg,
   },
+  // 한번에 보기 묶음 이름 줄 — 타이머 + 이름
+  bulkGroupTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+    marginBottom: 2,
+  },
   bulkGroupTitle: {
     ...Typography.caption.medium,
     color: colors['foreground/on-surface-muted'],
-    marginBottom: 2,
   },
   bulkText: {
     ...Typography.body.medium,

@@ -309,9 +309,6 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
     marginTop: FONT_BASELINE_OFFSET,
   },
   groupTimer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
     marginLeft: Spacing.xs,
   },
   breadcrumbPrefix: {

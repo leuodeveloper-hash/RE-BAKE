@@ -38,6 +38,7 @@ import {Snackbar, type SnackbarTone} from '@components/Snackbar';
 import {IconButton} from '@components/IconButton';
 import {Selector} from '@components/Selector';
 import {navPillStyle, RulerSlider, NavPillButton, FloatingNavBar, useAppBarContentTop} from '@components/Navigation';
+import {StepTimer} from '@components/StepTimer';
 import {Menu, MenuItem, type MenuItemData} from '@components/Menu';
 import {SectionHeader} from '@components/SectionHeader';
 import {SearchCommandBar} from '@components/SearchCommandBar';
@@ -111,6 +112,7 @@ interface ProcessStep {
 interface ProcessStepGroup {
   title: string;
   steps: ProcessStep[];
+  timer?: string;
 }
 
 interface IngredientInput {
@@ -1860,6 +1862,13 @@ export function CookingMode({
               </GlassContainer>
             ) : (
               <GlassContainer contentStyle={navPillStyle}>
+                {/* 과정 묶음 타이머 — 맨 왼쪽. 지금 과정의 묶음 것만 보이고, 다른 묶음 타이머는 숨긴 채 계속 돈다
+                    (발효 돌려 두고 다음 묶음으로 넘어가도 멈추지 않게) */}
+                {stepGroups?.map((g, gi) => (
+                  <View key={gi} style={[styles.navTimer, currentCard?.groupIndex !== gi && styles.navTimerHidden]}>
+                    <StepTimer duration={g.timer} />
+                  </View>
+                ))}
                 {referenceUrl && (
                   <IconButton
                     icon={IconArrowTopRight}
@@ -2268,6 +2277,13 @@ export function CookingMode({
 
 const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
+    // 앱바 알약 안 타이머 — 양옆 아이콘 버튼과 띄움
+    navTimer: {
+      marginHorizontal: Spacing.xs,
+    },
+    navTimerHidden: {
+      display: 'none',
+    },
     ingredientGroupHeader: {
       // SectionHeader가 이미 좌우 smd(12)를 갖고 있다 — 여기서 또 주면
       // 이중으로 들어가 라벨만 안쪽으로 밀린다. 타일 쪽을 같은 12로 맞춘다.
