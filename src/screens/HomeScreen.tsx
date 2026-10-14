@@ -35,6 +35,7 @@ import {useAuthSheet} from '@contexts/AuthSheetContext';
 import {useColors} from '@contexts/ThemeContext';
 import {useSubscription} from '@contexts/SubscriptionContext';
 import {useAuth} from '@contexts/AuthContext';
+import {useExplorePins} from '@hooks/useExplorePins';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {GroupScreen} from './GroupScreen';
 import {axisLabel, useAxisMenuItems, type GroupAxis} from '@components/RecipeGroups/groupAxis';
@@ -124,9 +125,13 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
   // 원본이 없는 공개본(둘러보기에 직접 쓴 공식 레시피 등)은 그대로 목록에 넣는다.
   const myAuthorKey = isAdmin ? OFFICIAL_AUTHOR_ID : user?.uid;
   // publishedIds = 공식(둘러보기에 올라간) 레시피 — 공개·비공개 상관없이. 카드 공식 아이콘·'공식' 필터
-  const {homeRecipes, publishedIds} = useMemo(() => {
+  // 핀 — 내가 쓴 공식 레시피는 둘러보기 핀(계정)과 같은 것으로 본다. 어느 쪽에서 고정해도 내 홈에서도 고정
+  const {pins: explorePins, togglePin: setExplorePin} = useExplorePins();
+  const {homeRecipes, publishedIds, exploreIdOf} = useMemo(() => {
     const ids = new Set<string>();
-    if (isAuthorMode || !myAuthorKey) return {homeRecipes: myRecipes, publishedIds: ids};
+    // 홈 카드 id → 둘러보기 공개본 id
+    const pubOf = new Map<string, string>();
+    if (isAuthorMode || !myAuthorKey) return {homeRecipes: myRecipes, publishedIds: ids, exploreIdOf: pubOf};
     const byId = new Map(myRecipes.map(r => [r.id, r]));
     const byTitle = new Map(myRecipes.map(r => [r.title.trim(), r]));
     const orphans: Recipe[] = [];
@@ -136,14 +141,22 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
       const id = own ? own.id : p.id;
       if (!own) orphans.push(p);
       ids.add(id);
+      pubOf.set(id, p.id);
     }
     // 내가 쓴 레시피는 내가 공개하는 이름(관리자=공식 베이키)으로 묶는다.
     // 관리자의 개인 레시피엔 계정 uid가 박혀 있어, 공식 북에 섞이면 "by 베이키 외 1명"으로 보였다
     const mine = user?.uid && myAuthorKey !== user.uid
       ? myRecipes.map(r => (r.authorId === user.uid ? {...r, authorId: myAuthorKey, authorHandle: OFFICIAL_AUTHOR_HANDLE} : r))
       : myRecipes;
-    return {homeRecipes: [...mine, ...orphans], publishedIds: ids};
-  }, [isAuthorMode, myAuthorKey, myRecipes, exploreRecipesAll, user?.uid]);
+    // 공개본이 둘러보기에서 고정돼 있으면 홈 카드도 고정(먼저 고정한 시각 기준)
+    const withPins = [...mine, ...orphans].map(r => {
+      const pubPin = pubOf.has(r.id) ? explorePins[pubOf.get(r.id)!] : undefined;
+      if (!pubPin) return r;
+      const at = r.pinnedAt && r.pinnedAt < pubPin ? r.pinnedAt : pubPin;
+      return {...r, pinnedAt: at};
+    });
+    return {homeRecipes: withPins, publishedIds: ids, exploreIdOf: pubOf};
+  }, [isAuthorMode, myAuthorKey, myRecipes, exploreRecipesAll, user?.uid, explorePins]);
   // 전체 / 개인 / 공개
   const [visibility, setVisibility] = useState<'all' | 'personal' | 'public'>('all');
   // 전체/개인/공식도 마지막 선택을 기억한다
@@ -474,6 +487,9 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
       // pinnedAt에 시각을 남긴다 — 여러 개를 고정했을 때 핀한 순서대로 위에 쌓인다
       const pinnedAt = id === 'pin' ? new Date().toISOString() : undefined;
       setRecipes(prev => prev.map(r => (r.id === recipe.id ? {...r, pinnedAt} : r)));
+      // 공식(둘러보기에 올라간) 레시피면 둘러보기 핀도 같이 — 해제할 때도 양쪽 다
+      const pubId = exploreIdOf.get(recipe.id);
+      if (pubId) setExplorePin(pubId, id === 'pin');
       showSnackbar(t(id === 'pin' ? 'home.pinned' : 'home.unpinned'), {tone: 'positive'});
       return;
     }
@@ -558,7 +574,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
       }));
       setShowPdfPreview(true);
     }
-  }, [router, setRecipes, showSnackbar, canAddRecipe, t, isGuest, openAuthSheet]);
+  }, [router, setRecipes, showSnackbar, canAddRecipe, t, isGuest, openAuthSheet, exploreIdOf, setExplorePin]);
 
   const handleConfirmDelete = useCallback(() => {
     if (!deleteTarget) return;

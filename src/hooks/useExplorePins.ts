@@ -27,9 +27,26 @@ function isPinMap(v: unknown): v is ExplorePins {
  *
  * 시각을 남기는 이유는 홈과 같다: 여러 개를 고정했을 때 먼저 고정한 것이 위.
  */
+// 화면끼리 같은 핀을 본다 — 둘러보기에서 고정하면 내 홈(내가 쓴 공식 레시피)에도 바로 반영.
+// (훅마다 상태를 따로 들면 한쪽에서 바꾼 게 다른 화면엔 앱을 다시 켜야 보였다)
+let sharedPins: ExplorePins = {};
+const listeners = new Set<(p: ExplorePins) => void>();
+function publish(next: ExplorePins) {
+  sharedPins = next;
+  listeners.forEach(l => l(next));
+}
+
 export function useExplorePins() {
   const {user} = useAuth();
-  const [pins, setPins] = useState<ExplorePins>({});
+  const [pins, setPinsLocal] = useState<ExplorePins>(sharedPins);
+  useEffect(() => {
+    listeners.add(setPinsLocal);
+    setPinsLocal(sharedPins);
+    return () => { listeners.delete(setPinsLocal); };
+  }, []);
+  const setPins = useCallback((v: ExplorePins | ((prev: ExplorePins) => ExplorePins)) => {
+    publish(typeof v === 'function' ? (v as (p: ExplorePins) => ExplorePins)(sharedPins) : v);
+  }, []);
   // 로드 전에 저장값을 덮어쓰지 않도록 하는 플래그
   const [loaded, setLoaded] = useState(false);
   // 서버 쓰기는 uid가 있을 때만. 로그아웃 상태의 변경은 캐시에만 남는다.
@@ -75,11 +92,13 @@ export function useExplorePins() {
     return () => { alive = false; };
   }, [user?.uid]);
 
-  const togglePin = useCallback((recipeId: string) => {
+  // pinned를 주면 그 상태로 맞춘다(토글 아님) — 내 홈에서 원본·공개본을 같이 고정/해제할 때
+  const togglePin = useCallback((recipeId: string, pinned?: boolean) => {
     setPins(prev => {
       const next = {...prev};
-      if (next[recipeId]) delete next[recipeId];
-      else next[recipeId] = new Date().toISOString();
+      const want = pinned ?? !next[recipeId];
+      if (!want) delete next[recipeId];
+      else if (!next[recipeId]) next[recipeId] = new Date().toISOString();
 
       AsyncStorage.setItem(CACHE_KEY, JSON.stringify(next)).catch(() => {});
       const uid = uidRef.current;
@@ -91,7 +110,7 @@ export function useExplorePins() {
       }
       return next;
     });
-  }, []);
+  }, [setPins]);
 
   const isPinned = useCallback((recipeId: string) => !!pins[recipeId], [pins]);
 

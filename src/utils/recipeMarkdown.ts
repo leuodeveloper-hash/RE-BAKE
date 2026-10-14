@@ -20,6 +20,7 @@ import type {IngredientGroup, StepGroup, Step} from '../types/recipe';
  *   1. 거품기에 치기        → 과정 한 줄
  *   > 팁: ...               → 바로 앞 과정의 팁
  *   > 주의: ...             → 바로 앞 과정의 주의
+ *   > 타이머: 40분          → 이 과정 묶음의 타이머(묶음 안 어디든)
  */
 export interface ParsedMarkdownRecipe {
   title?: string;
@@ -130,6 +131,13 @@ export function parseRecipeMarkdown(text: string): ParsedMarkdownRecipe {
     const quote = line.match(/^>\s*(.*)$/);
     if (quote) {
       const body = quote[1].trim();
+      // 묶음 타이머 — 과정 앞에 와도 된다(보통 묶음 이름 바로 아래)
+      const timer = body.match(/^(?:타이머|timer)\s*[:：]?\s*(.+)$/i);
+      if (timer && kind === 'step') {
+        if (!stepGroup) pushStepGroup('');
+        stepGroup!.timer = timer[1].trim();
+        continue;
+      }
       const last = stepGroup?.steps[stepGroup.steps.length - 1];
       if (!last) continue;
       const caution = body.match(/^(?:주의|경고|caution|warning)\s*[:：]?\s*(.*)$/i);
@@ -204,9 +212,10 @@ export function ingredientGroupsToBulk(groups: {title?: string; ingredients: {na
 }
 
 /** 과정 묶음들 → 한번에 쓰기 칸 하나(팁·주의는 `> 팁:` / `> 주의:` 줄로) */
-export function stepGroupsToBulk(groups: {title?: string; steps: {description?: string; tip?: string; caution?: string}[]}[]): string {
+export function stepGroupsToBulk(groups: {title?: string; timer?: string; steps: {description?: string; tip?: string; caution?: string}[]}[]): string {
   const withHeading = groups.length > 1;
   return groups.map(g => {
+    const timerLine = g.timer?.trim() ? `> 타이머: ${g.timer.trim()}\n` : '';
     const body = g.steps
       .filter(s => s.description?.trim())
       .map((s, i) => [
@@ -215,7 +224,7 @@ export function stepGroupsToBulk(groups: {title?: string; steps: {description?: 
         s.caution?.trim() ? `> 주의: ${s.caution.trim()}` : '',
       ].filter(Boolean).join('\n'))
       .join('\n');
-    return withHeading ? `## ${g.title || ''}\n${body}`.trim() : body;
+    return withHeading ? `## ${g.title || ''}\n${timerLine}${body}`.trim() : `${timerLine}${body}`;
   }).filter(Boolean).join('\n');
 }
 
@@ -227,7 +236,7 @@ export function recipeToMarkdown(r: {
   title?: string;
   ingredientGroups: {title?: string; ingredients: {name?: string; amount?: string; unit?: string}[]}[];
   tools?: {name?: string}[];
-  stepGroups: {title?: string; steps: {description?: string; tip?: string; caution?: string}[]}[];
+  stepGroups: {title?: string; timer?: string; steps: {description?: string; tip?: string; caution?: string}[]}[];
 }): string {
   const out: string[] = [];
   if (r.title?.trim()) out.push(`# ${r.title.trim()}`);
@@ -255,6 +264,7 @@ export function recipeToMarkdown(r: {
     for (const g of stepGroups) {
       const title = g.title?.trim() ?? '';
       if (title && title !== '과정') out.push(`### ${title}`);
+      if (g.timer?.trim()) out.push(`> 타이머: ${g.timer.trim()}`);
       g.steps.filter(s => s.description?.trim()).forEach((s, i) => {
         out.push(`${i + 1}. ${s.description!.trim()}`);
         if (s.tip?.trim()) out.push(`> 팁: ${s.tip.trim()}`);

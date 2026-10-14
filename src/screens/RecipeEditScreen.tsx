@@ -590,8 +590,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const resolveStepGroups = () => stepGroups.flatMap(g => g.bulkMode
     ? parseBulkStepGroups(g.bulkText, g.title).map((x, xi) => ({
         title: x.title,
-        // 타이머는 묶음의 첫 조각에 — 저장 데이터엔 빈 값을 넣지 않는다
-        ...(xi === 0 && g.timer ? {timer: g.timer} : {}),
+        // 타이머 — 글 안 `> 타이머:` 줄이 우선, 없으면 첫 묶음은 머리줄 타이머. 저장 데이터엔 빈 값을 넣지 않는다
+        ...((() => { const tm = x.timer ?? (xi === 0 ? g.timer : undefined); return tm ? {timer: tm} : {}; })()),
         steps: x.steps.map((st, idx) => ({
           step: idx + 1,
           description: st.description,
@@ -979,6 +979,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                               ? parsed.map((pg, gi) => ({
                                   id: gi === 0 ? group.id : genId(),
                                   title: pg.title,
+                                  timer: pg.timer ?? (gi === 0 ? group.timer : undefined),
                                   steps: pg.steps.map(st => ({
                                     id: genId(),
                                     description: st.description,
@@ -996,11 +997,13 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                               stepGroups.flatMap(g => g.steps).filter(st => st.photos?.length && st.description.trim())
                                 .map(st => [st.description.trim(), st.photos!] as const),
                             );
+                            // 묶음 타이머는 글 안 `> 타이머:` 줄로 — 끄거나 저장할 때 다시 읽는다
                             const merged = stepGroupsToBulk(stepGroups.map(g => ({
                               title: g.title,
+                              timer: g.timer,
                               steps: g.bulkMode ? parseBulkStepGroups(g.bulkText, g.title).flatMap(x => x.steps) : g.steps,
                             })));
-                            setStepGroups([{...stepGroups[0], bulkMode: true, bulkText: merged}]);
+                            setStepGroups([{...stepGroups[0], timer: undefined, bulkMode: true, bulkText: merged}]);
                           }
                         };
 
