@@ -8,7 +8,9 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {noticeLabelStyle, noticePillStyle} from '@components/FloatingNotice/FloatingNotice';
-import {IconPauseFilled, IconPlayFilled} from '@components/Icon/IconIndex';
+import {IconEditFilled, IconPauseFilled, IconPlayFilled, IconRefresh} from '@components/Icon/IconIndex';
+import {Menu} from '@components/Menu/Menu';
+import {View} from 'react-native';
 import {parseTime, TimeDialog} from '@components/Dialog/TimeDialog';
 
 export interface StepTimerProps {
@@ -21,6 +23,8 @@ export interface StepTimerProps {
   onChange?: (duration?: string) => void;
   /** 시간이 없으면 버튼을 숨긴다(설정 창만 둔다) — 헤더 ⋮ 메뉴 '타이머 설정'으로 여는 곳 */
   hideWhenUnset?: boolean;
+  /** 길게 누르기 메뉴 열림/닫힘 — 감싼 쪽이 이 줄을 맨 위 레이어로 올릴 때 */
+  onMenuOpenChange?: (open: boolean) => void;
 }
 
 /** "1시간 30분" → 초 */
@@ -53,7 +57,7 @@ export interface StepTimerHandle {
   openEditor: () => void;
 }
 
-export const StepTimer = forwardRef<StepTimerHandle, StepTimerProps>(function StepTimer({duration: defaultDuration = '', onChange, hideWhenUnset}, ref) {
+export const StepTimer = forwardRef<StepTimerHandle, StepTimerProps>(function StepTimer({duration: defaultDuration = '', onChange, hideWhenUnset, onMenuOpenChange}, ref) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const {t} = useTranslation();
@@ -93,10 +97,14 @@ export const StepTimer = forwardRef<StepTimerHandle, StepTimerProps>(function St
     endAt.current = Date.now() + left * 1000;
     setPhase('running');
   };
-  const onLongPress = onChange ? undefined : () => {
+  // 길게 누르면 메뉴 — 수정(이번에만 시간 바꾸기) · 리셋(처음 시간으로)
+  const [menuOpen, setMenuOpenState] = useState(false);
+  const setMenuOpen = (v: boolean) => { setMenuOpenState(v); onMenuOpenChange?.(v); };
+  const onLongPress = (onChange || unset) ? undefined : () => {
     triggerHaptic('medium');
-    setEditing(true);
+    setMenuOpen(true);
   };
+  const stop = () => { setPhase('idle'); setLeft(total); };
 
   // 돌아가는 중·끝남은 오렌지 var, 멈춤·대기는 옅은 바탕
   const active = phase === 'running' || phase === 'done';
@@ -107,7 +115,7 @@ export const StepTimer = forwardRef<StepTimerHandle, StepTimerProps>(function St
   const label = phase === 'done' ? '완료' : clock(left);
 
   return (
-    <>
+    <View style={[styles.anchor, menuOpen && styles.anchorOpen]}>
     {!(unset && hideWhenUnset) && (
     <Pressable
       onPress={onPress}
@@ -129,6 +137,17 @@ export const StepTimer = forwardRef<StepTimerHandle, StepTimerProps>(function St
       {!unset && <Text style={[styles.label, {color: fg}]} numberOfLines={1}>{label}</Text>}
     </Pressable>
     )}
+    <Menu
+      items={[
+        {id: 'edit', label: t('stepTimer.edit'), icon: IconEditFilled},
+        // 시작 전(처음 시간 그대로)엔 되돌릴 게 없다
+        {id: 'reset', label: t('stepTimer.reset'), icon: IconRefresh, disabled: phase === 'idle' && left === total},
+      ]}
+      visible={menuOpen}
+      onSelect={id => { setMenuOpen(false); if (id === 'edit') setEditing(true); else stop(); }}
+      onClose={() => setMenuOpen(false)}
+      style={styles.menu}
+    />
     <TimeDialog
       visible={editing}
       onClose={() => setEditing(false)}
@@ -139,13 +158,28 @@ export const StepTimer = forwardRef<StepTimerHandle, StepTimerProps>(function St
       // 비우면 작성자 기본 시간으로
       onDelete={() => { if (onChange) { onChange(undefined); return; } setDuration(defaultDuration); setPhase('idle'); setLeft(durationSeconds(defaultDuration)); }}
     />
-    </>
+    </View>
   );
 });
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 알림 알약보다 두 단계 작게(28) — 묶음 머리줄 안에 들어가므로
   // 오른쪽을 2 더 — 숫자 끝(글자 여백)이 아이콘 쪽보다 좁아 보여, 눈으로 같아 보이게 보정
+  anchor: {
+    overflow: 'visible',
+  },
+  anchorOpen: {
+    zIndex: 1000,
+    elevation: 1000,
+  },
+  menu: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    marginTop: Spacing.xs,
+    zIndex: 1000,
+    elevation: 1000,
+  },
   pill: {...noticePillStyle, height: 28, paddingLeft: Spacing.sm, paddingRight: Spacing.sm + 2},
   // 아이콘만 — 정사각 원(28)
   pillIconOnly: {

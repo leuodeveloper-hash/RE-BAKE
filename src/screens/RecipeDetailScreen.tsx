@@ -918,7 +918,7 @@ export function RecipeDetailScreen({
             actionExtra={(hasTimer || withBulkToggle) ? (
               <>
                 {/* 시간 정하기 전엔 버튼 없이(⋮ 메뉴 '타이머 설정'으로) */}
-                {hasTimer && <StepTimer ref={el => { timerRefs.current[key] = el; }} duration={timer} hideWhenUnset />}
+                {hasTimer && <StepTimer ref={el => { timerRefs.current[key] = el; }} duration={timer} hideWhenUnset onMenuOpenChange={open => setMenuHeaderKey(k => (open ? key : k === key ? null : k))} />}
                 {withBulkToggle && <Switch label={t('recipeDetail.bulkView')} value={bulkView} onValueChange={toggleBulkView} />}
               </>
             ) : undefined}

@@ -748,6 +748,8 @@
   "recipeDetail.deleteRecipeTitle": "Delete this recipe?",
   "recipeDetail.deleteSessionDesc": "Only batch {{session}} of '{{title}}' will be deleted.\nOther batches stay, and deleted batches can be restored.",
   "recipeDetail.deleteSessionTitle": "Delete batch {{session}}?",
+  "stepTimer.edit": "Edit",
+  "stepTimer.reset": "Reset",
   "recipeDetail.setTimer": "Set timer",
   "recipeDetail.edit": "Edit",
   "recipeDetail.emptyIngredients": "No ingredients yet",
