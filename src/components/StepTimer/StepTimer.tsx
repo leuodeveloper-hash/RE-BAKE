@@ -1,4 +1,4 @@
-import React, {useEffect, useRef, useState} from 'react';
+import React, {forwardRef, useEffect, useImperativeHandle, useRef, useState} from 'react';
 import {Pressable, StyleSheet, Text} from 'react-native';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
@@ -19,6 +19,8 @@ export interface StepTimerProps {
    * 상세(보기)와 같은 모양을 편집 화면에서도 쓰기 위함.
    */
   onChange?: (duration?: string) => void;
+  /** 시간이 없으면 버튼을 숨긴다(설정 창만 둔다) — 헤더 ⋮ 메뉴 '타이머 설정'으로 여는 곳 */
+  hideWhenUnset?: boolean;
 }
 
 /** "1시간 30분" → 초 */
@@ -46,7 +48,12 @@ type Phase = 'idle' | 'running' | 'paused' | 'done';
  * 끝나면 '완료'로 바뀌고 진동, 누르면 처음으로.
  * 남은 시간은 끝나는 시각 기준으로 계산해, 화면이 잠깐 멈춰도 밀리지 않는다.
  */
-export function StepTimer({duration: defaultDuration = '', onChange}: StepTimerProps) {
+/** 바깥(섹션 헤더 메뉴 '타이머 설정' 등)에서 시간 설정 창 열기 */
+export interface StepTimerHandle {
+  openEditor: () => void;
+}
+
+export const StepTimer = forwardRef<StepTimerHandle, StepTimerProps>(function StepTimer({duration: defaultDuration = '', onChange, hideWhenUnset}, ref) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const {t} = useTranslation();
@@ -54,6 +61,7 @@ export function StepTimer({duration: defaultDuration = '', onChange}: StepTimerP
   const [duration, setDuration] = useState(defaultDuration);
   useEffect(() => { setDuration(defaultDuration); }, [defaultDuration]);
   const [editing, setEditing] = useState(false);
+  useImperativeHandle(ref, () => ({openEditor: () => setEditing(true)}), []);
   const total = durationSeconds(duration);
   const [phase, setPhase] = useState<Phase>('idle');
   const [left, setLeft] = useState(total);
@@ -100,6 +108,7 @@ export function StepTimer({duration: defaultDuration = '', onChange}: StepTimerP
 
   return (
     <>
+    {!(unset && hideWhenUnset) && (
     <Pressable
       onPress={onPress}
       onLongPress={onLongPress}
@@ -119,6 +128,7 @@ export function StepTimer({duration: defaultDuration = '', onChange}: StepTimerP
         : <IconPlayFilled width={12} height={12} color={active ? fg : (colors['foreground/on-surface-muted'] as string)} />}
       {!unset && <Text style={[styles.label, {color: fg}]} numberOfLines={1}>{label}</Text>}
     </Pressable>
+    )}
     <TimeDialog
       visible={editing}
       onClose={() => setEditing(false)}
@@ -131,7 +141,7 @@ export function StepTimer({duration: defaultDuration = '', onChange}: StepTimerP
     />
     </>
   );
-}
+});
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 알림 알약보다 두 단계 작게(28) — 묶음 머리줄 안에 들어가므로

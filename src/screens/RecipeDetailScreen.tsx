@@ -2,7 +2,7 @@ import {NOTE_BLOCK} from '@constants/noteBlock';
 import {linkTextStyle} from '@components/RichText/RichText';
 import {useRecipeLink} from '@contexts/RecipeLinkContext';
 import {findMethod} from '@constants/bakingMethods';
-import {StepTimer} from '@components/StepTimer';
+import {StepTimer, type StepTimerHandle} from '@components/StepTimer';
 import {IconRefresh} from '@components/Icon/IconIndex';
 import {FloatingNotice} from '@components/FloatingNotice';
 import {APPBAR_ITEM_GAP} from '@constants/layout';
@@ -881,31 +881,52 @@ export function RecipeDetailScreen({
   ];
 
   // ---- 섹션 헤더 렌더 (sticky용: ScrollView 직속 자식) ----
+  // 묶음 타이머 — 헤더 ⋮ 메뉴 '타이머 설정'에서 그 타이머의 시간 설정 창을 연다
+  const timerRefs = useRef<Record<string, StepTimerHandle | null>>({});
+  // 메뉴가 열린 헤더 — 그 헤더를 맨 위 레이어로(뒤따르는 헤더·타이머·카드보다 위)
+  const [menuHeaderKey, setMenuHeaderKey] = useState<string | null>(null);
   const renderSectionHeader = (
     key: string,
     label: string,
     sectionId: string,
     breadcrumb?: string,
-    // 재료·과정 맨 위 머리엔 편집 옆에 '한번에 보기' 스위치
+    // 재료·과정 맨 위 머리엔 '한번에 보기' 스위치
     withBulkToggle = false,
-    // 과정 묶음 타이머 — 묶음 이름 오른쪽
+    // 과정 묶음 타이머 — undefined = 자리 없음(재료 등), '' = 과정이지만 시간 미설정(재생 아이콘만)
     timer?: string,
-  ) => (
-    <View key={key} style={styles.stickyHeader}>
-      <ContentContainer>
-        <SectionHeader
-          title={label}
-          // undefined = 타이머 자리 없음(재료 등), '' = 과정이지만 시간 미설정(재생 아이콘만)
-          titleTrailing={timer !== undefined ? <StepTimer duration={timer} /> : undefined}
-          breadcrumb={breadcrumb}
-          breadcrumbIcon={breadcrumb ? IconChevronRight : undefined}
-          actionLabel={onEdit ? t('recipeDetail.edit') : undefined}
-          onAction={onEdit ? () => editWith(sectionId) : undefined}
-          actionExtra={withBulkToggle ? <Switch label={t('recipeDetail.bulkView')} value={bulkView} onValueChange={toggleBulkView} /> : undefined}
-        />
-      </ContentContainer>
-    </View>
-  );
+  ) => {
+    const hasTimer = timer !== undefined;
+    // 편집 글자 버튼 대신 ⋮ 메뉴 — 편집 · 타이머 설정
+    const menuItems = [
+      ...(onEdit ? [{id: 'edit', label: t('recipeDetail.edit'), icon: IconEditFilled}] : []),
+      ...(hasTimer ? [{id: 'timer', label: t('recipeDetail.setTimer'), icon: IconClockFilled}] : []),
+    ];
+    return (
+      <View key={key} style={[styles.stickyHeader, menuHeaderKey === key && styles.stickyHeaderMenuOpen]}>
+        <ContentContainer>
+          <SectionHeader
+            title={label}
+            onMenuOpenChange={open => setMenuHeaderKey(k => (open ? key : k === key ? null : k))}
+            breadcrumb={breadcrumb}
+            breadcrumbIcon={breadcrumb ? IconChevronRight : undefined}
+            menuItems={menuItems}
+            onMenuSelect={id => {
+              if (id === 'edit') editWith(sectionId);
+              else if (id === 'timer') timerRefs.current[key]?.openEditor();
+            }}
+            // 오른쪽 — 타이머(편집 화면처럼 '한번에' 스위치 옆) · 한번에 보기 · ⋮
+            actionExtra={(hasTimer || withBulkToggle) ? (
+              <>
+                {/* 시간 정하기 전엔 버튼 없이(⋮ 메뉴 '타이머 설정'으로) */}
+                {hasTimer && <StepTimer ref={el => { timerRefs.current[key] = el; }} duration={timer} hideWhenUnset />}
+                {withBulkToggle && <Switch label={t('recipeDetail.bulkView')} value={bulkView} onValueChange={toggleBulkView} />}
+              </>
+            ) : undefined}
+          />
+        </ContentContainer>
+      </View>
+    );
+  };
 
   const {openMethod} = useRecipeLink();
   const methodInfo = method ? findMethod(method) : undefined;
@@ -1287,13 +1308,14 @@ export function RecipeDetailScreen({
                         {arr.length > 1 ? (
                           <View style={styles.bulkGroupTitleRow}>
                             {g.title ? <Text style={styles.bulkGroupTitle}>{g.title}</Text> : null}
-                            <StepTimer duration={'timer' in g ? g.timer : undefined} />
+                            <StepTimer duration={'timer' in g ? g.timer : undefined} hideWhenUnset />
                           </View>
                         ) : null}
                         {g.steps.filter(st => st.description?.trim()).map((st, si) => (
                           <View key={si}>
                             <Text style={styles.bulkText}>{`${si + 1}. `}<RichText inline>{st.description}</RichText></Text>
-                            {/* 팁·주의 — 편집처럼 왼쪽 세로 라인 */}
+                            {/* 팁·주의 — 편집처럼 왼쪽 세로 라인. 한 과정에 딸린 한 덩어리라 둘 사이는 좁게(묶음 안 간격만) */}
+                            {(st.tip?.trim() || st.caution?.trim()) ? <View style={styles.bulkNotes}>
                             {st.tip?.trim() ? (
                               <View style={[NOTE_BLOCK, styles.bulkNoteBlock, {borderLeftColor: colors['foreground/on-surface-muted']}]}>
                                 <Text style={styles.bulkNote}><RichText inline>{st.tip}</RichText></Text>
@@ -1304,6 +1326,7 @@ export function RecipeDetailScreen({
                                 <Text style={[styles.bulkNote, styles.bulkCaution]}><RichText inline>{st.caution}</RichText></Text>
                               </View>
                             ) : null}
+                            </View> : null}
                           </View>
                         ))}
                       </View>
@@ -1901,11 +1924,13 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     color: colors['foreground/on-surface-muted'],
   },
   // 라인 블록 — 본문 줄 아래 4, 다음 줄과 8 띄운다. 들여쓰지 않고 본문과 같은 왼쪽에서 시작
-  bulkNoteBlock: {
+  // 팁·주의 묶음 — 과정 줄 바로 아래, 다음 과정과는 띄우고 팁·주의 사이는 좁게
+  bulkNotes: {
     marginTop: Spacing.xs,
-    // 다음 과정 줄과 붙어 보이지 않게
     marginBottom: Spacing.sm,
+    gap: Spacing.xs,
   },
+  bulkNoteBlock: {},
   bulkCaution: {
     color: colors['custom/yellow-var'],
   },
@@ -2081,6 +2106,13 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   stickyHeader: {
     backgroundColor: 'transparent',
     paddingTop: Spacing.sm,
+    // 헤더 ⋮ 메뉴가 아래 카드에 가리지 않게(드롭다운 z-index)
+    zIndex: 10,
+    overflow: 'visible',
+  },
+  stickyHeaderMenuOpen: {
+    zIndex: 1000,
+    elevation: 1000,
   },
 
   // Ingredients

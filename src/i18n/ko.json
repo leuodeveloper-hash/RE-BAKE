@@ -733,6 +733,7 @@
   "recipeDetail.deleteRecipeTitle": "레시피를 삭제할까요?",
   "recipeDetail.deleteSessionDesc": "'{{title}}'의 {{session}}회차만 삭제됩니다.\n다른 회차는 그대로 유지되고, 삭제된 회차는 되돌릴 수 있습니다.",
   "recipeDetail.deleteSessionTitle": "{{session}}회차를 삭제할까요?",
+  "recipeDetail.setTimer": "타이머 설정",
   "recipeDetail.edit": "편집",
   "recipeDetail.emptyIngredients": "아직 등록된 재료가 없습니다",
   "recipeDetail.emptyReview": "아직 작성된 회고가 없습니다",

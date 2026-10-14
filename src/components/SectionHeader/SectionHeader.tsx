@@ -1,4 +1,4 @@
-import React from 'react';
+import React, {useState} from 'react';
 import {Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
@@ -8,6 +8,9 @@ import {Typography} from '@constants/typography';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 import {SvgProps} from 'react-native-svg';
+import {IconButton} from '@components/IconButton';
+import {Menu, type MenuItemData} from '@components/Menu/Menu';
+import {IconEllipsisVertical} from '@components/Icon/IconIndex';
 
 /** 진도 게이지 너비 */
 const PROGRESS_WIDTH = 64;
@@ -44,11 +47,19 @@ export interface SectionHeaderProps {
   style?: ViewStyle;
   /** 타이틀 바로 오른쪽에 붙는 요소 — 과정 묶음 타이머 등 */
   titleTrailing?: React.ReactNode;
+  /** 오른쪽 오버플로우(⋮) 메뉴 — 주면 '편집' 글자 버튼 대신 ⋮ 버튼 + 메뉴(편집·타이머 설정 등) */
+  menuItems?: MenuItemData[];
+  onMenuSelect?: (id: string) => void;
+  /** 메뉴 열림/닫힘 — 감싼 쪽이 이 헤더를 맨 위 레이어로 올릴 때(다음 헤더·타이머에 가리지 않게) */
+  onMenuOpenChange?: (open: boolean) => void;
   /** 오른쪽 액션(편집) 왼쪽에 붙는 요소 — 스위치 등 */
   actionExtra?: React.ReactNode;
 }
 
 export function SectionHeader({
+  menuItems,
+  onMenuSelect,
+  onMenuOpenChange,
   titleTrailing,
   actionExtra,
   title,
@@ -67,10 +78,18 @@ export function SectionHeader({
   const colors = useColors();
 
   const showProgress = !!progress && progress.total > 0;
+  const [menuOpen, setMenuOpenState] = useState(false);
+  const setMenuOpen = (v: boolean | ((p: boolean) => boolean)) => setMenuOpenState(prev => {
+    const next = typeof v === 'function' ? v(prev) : v;
+    if (next !== prev) onMenuOpenChange?.(next);
+    return next;
+  });
+  const hasMenu = !!menuItems?.length;
   const Wrapper = onPress ? Pressable : View;
 
   return (
-    <Wrapper style={[styles.container, style]} onPress={onPress}>
+    // 메뉴가 열리면 아래 콘텐츠보다 위로(드롭다운 z-index)
+    <Wrapper style={[styles.container, menuOpen && styles.containerMenuOpen, style]} onPress={onPress}>
       <View style={styles.leadRow}>
         {LeadingIcon && (
           <LeadingIcon
@@ -107,10 +126,21 @@ export function SectionHeader({
           <IconChevronRight width={16} height={16} color={colors['foreground/on-surface-muted']} />
         )}
       </View>
-      {(actionExtra || (onAction && actionLabel)) ? (
+      {(actionExtra || hasMenu || (onAction && actionLabel)) ? (
         <View style={styles.actionRow}>
           {actionExtra}
-          {onAction && actionLabel ? (
+          {hasMenu ? (
+            <View style={styles.menuAnchor}>
+              <IconButton icon={IconEllipsisVertical} variant="ghost-secondary" size="small" forcePressed={menuOpen} onPress={() => setMenuOpen(v => !v)} />
+              <Menu
+                items={menuItems}
+                visible={menuOpen}
+                onSelect={id => { setMenuOpen(false); onMenuSelect?.(id); }}
+                onClose={() => setMenuOpen(false)}
+                style={styles.menu}
+              />
+            </View>
+          ) : onAction && actionLabel ? (
             <Pressable onPress={onAction} hitSlop={8}>
               <Text style={styles.action}>{actionLabel}</Text>
             </Pressable>
@@ -122,6 +152,24 @@ export function SectionHeader({
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  containerMenuOpen: {
+    zIndex: 1000,
+    elevation: 1000,
+  },
+  menuAnchor: {
+    // ⋮ 버튼은 아이콘 둘레에 누를 자리(여백)가 있어 간격(16)이 더 벌어져 보인다 — 그만큼 당긴다
+    marginLeft: -Spacing.sm,
+    overflow: 'visible',
+    zIndex: 1000,
+  },
+  menu: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    marginTop: Spacing.xs,
+    zIndex: 1000,
+    elevation: 1000,
+  },
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
