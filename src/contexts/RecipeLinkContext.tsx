@@ -1,7 +1,14 @@
 import React, {createContext, useCallback, useContext, useMemo, useState} from 'react';
 import {Linking, StyleSheet, Text, View} from 'react-native';
-import {NavPillButton} from '@components/Navigation/NavPillButton';
-import {IconOpenbook} from '@components/Icon/IconIndex';
+import {NavPillButton, NavPillGroup} from '@components/Navigation/NavPillButton';
+import {IconButton} from '@components/IconButton';
+import {IconEditFilled} from '@components/Icon/IconIndex';
+import {DictionaryTermDialog} from '@components/Dialog/DictionaryTermDialog';
+import {saveDictionaryTerm, deleteDictionaryTerm} from '@hooks/useDictionary';
+import {useAuth} from '@contexts/AuthContext';
+import {useSnackbar} from '@contexts/SnackbarContext';
+import {useTranslation} from '@contexts/LanguageContext';
+import {IconDic} from '@components/Icon/IconIndex';
 import {useRouter} from 'expo-router';
 import {Image as ExpoImage} from 'expo-image';
 import {BottomSheet} from '@components/BottomSheet';
@@ -15,7 +22,7 @@ import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import type {Recipe} from '../types/recipe';
-import type {BakingMethod} from '@constants/bakingMethods';
+import type {BakingMethod, MethodCategory} from '@constants/bakingMethods';
 
 /** 앱 안 레시피 링크 — recipe/{id}, /recipe/{id}, bakle://recipe/{id} */
 export function internalRecipeId(url: string): string | null {
@@ -39,6 +46,8 @@ interface RecipeLinkValue {
   linkKind: (url: string) => RecipeLinkKind;
   /** 공법 이름 열기 — 사전 시트. withViewAll이면 헤더에 '사전 전체 보기'. Provider 밖이면 없다 */
   openMethod?: (method: BakingMethod, opts?: {withViewAll?: boolean}) => void;
+  /** 사전 항목 만들기·고치기(어드민) — term 없으면 새 항목 */
+  openTermEditor?: (term?: BakingMethod | null, category?: MethodCategory) => void;
 }
 
 const RecipeLinkContext = createContext<RecipeLinkValue | null>(null);
@@ -85,6 +94,15 @@ export function RecipeLinkProvider({children}: {children: React.ReactNode}) {
   const openMethod = useCallback((m: BakingMethod, opts?: {withViewAll?: boolean}) => {
     setMethod({m, viewAll: opts?.withViewAll ?? true});
   }, []);
+  // 사전 항목 편집 창(어드민) — 시트·사전 페이지 어디서 열어도 같은 창
+  const {isAdmin} = useAuth();
+  const {showSnackbar} = useSnackbar();
+  const {t} = useTranslation();
+  const [termEditor, setTermEditor] = useState<{term: BakingMethod | null; category?: MethodCategory} | null>(null);
+  const openTermEditor = useCallback((term?: BakingMethod | null, category?: MethodCategory) => {
+    setMethod(null); // 시트 위에 창이 겹치지 않게 시트는 닫는다
+    setTermEditor({term: term ?? null, category});
+  }, []);
   const openDictionary = useCallback(() => {
     if (!method) return;
     const name = method.m.name;
@@ -92,7 +110,10 @@ export function RecipeLinkProvider({children}: {children: React.ReactNode}) {
     router.push(`/method-guide?name=${encodeURIComponent(name)}` as any);
   }, [method, router]);
 
-  const value = useMemo(() => ({openLink, linkKind, openMethod}), [openLink, linkKind, openMethod]);
+  const value = useMemo(
+    () => ({openLink, linkKind, openMethod, openTermEditor: isAdmin ? openTermEditor : undefined}),
+    [openLink, linkKind, openMethod, openTermEditor, isAdmin],
+  );
   return (
     <RecipeLinkContext.Provider value={value}>
       {children}
@@ -101,6 +122,19 @@ export function RecipeLinkProvider({children}: {children: React.ReactNode}) {
         method={method?.m ?? null}
         onClose={() => setMethod(null)}
         onViewAll={method?.viewAll ? openDictionary : undefined}
+        onEdit={isAdmin && method ? () => openTermEditor(method.m) : undefined}
+      />
+      <DictionaryTermDialog
+        visible={!!termEditor}
+        onClose={() => setTermEditor(null)}
+        term={termEditor?.term}
+        initialCategory={termEditor?.category}
+        onSave={v => saveDictionaryTerm(v)
+          .then(() => showSnackbar(t('dictionary.saved'), {tone: 'positive'}))
+          .catch(e => { console.warn('[dictionary] 저장 실패:', e); showSnackbar(t('dictionary.saveFailed')); })}
+        onDelete={id => deleteDictionaryTerm(id)
+          .then(() => showSnackbar(t('dictionary.deleted')))
+          .catch(e => { console.warn('[dictionary] 삭제 실패:', e); showSnackbar(t('dictionary.saveFailed')); })}
       />
     </RecipeLinkContext.Provider>
   );
@@ -165,15 +199,23 @@ function TipSheet({tip, onClose}: {tip: Recipe | null; onClose: () => void}) {
 }
 
 /** 사전 시트 — 공법 이름과 정리된 설명. 본문은 Text(설명 속 공법 이름이 또 링크되지 않게) */
-function MethodSheet({method, onClose, onViewAll}: {method: BakingMethod | null; onClose: () => void; onViewAll?: () => void}) {
+function MethodSheet({method, onClose, onViewAll, onEdit}: {method: BakingMethod | null; onClose: () => void; onViewAll?: () => void; onEdit?: () => void}) {
   const styles = useThemedStyles(createStyles);
+  // 헤더 오른쪽 — 시트 헤더 버튼 룰(떠 있는 알약). 여럿이면 한 알약에 묶는다: 고치기(어드민) · 사전 전체
+  const right = onEdit && onViewAll ? (
+    <NavPillGroup>
+      <IconButton icon={IconEditFilled} variant="ghost-primary" size="medium" onPress={onEdit} />
+      <IconButton icon={IconDic} variant="ghost-primary" size="medium" onPress={onViewAll} />
+    </NavPillGroup>
+  ) : onEdit ? <NavPillButton icon={IconEditFilled} onPress={onEdit} />
+    : onViewAll ? <NavPillButton icon={IconDic} onPress={onViewAll} /> : undefined;
   return (
     <BottomSheet
       visible={!!method}
       onClose={onClose}
       title={method?.name ?? ''}
       headerType="center"
-      headerRight={onViewAll ? <NavPillButton icon={IconOpenbook} onPress={onViewAll} /> : undefined}>
+      headerRight={right}>
       {method && (
         <View style={styles.methodBody}>
           <Text style={styles.text}>{method.description}</Text>

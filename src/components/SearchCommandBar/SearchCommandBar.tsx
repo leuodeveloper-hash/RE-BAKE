@@ -13,6 +13,10 @@ import {IconSearch, IconLockFilled, IconCloseCircleFilled} from '@components/Ico
 import {AppIcon} from '@components/Icon/AppIcon';
 import {MenuItem} from '@components/Menu/MenuItem';
 import {RecipeCard} from '@components/Recipe/RecipeCard';
+import {searchMethods} from '@constants/bakingMethods';
+import {useRecipeLink} from '@contexts/RecipeLinkContext';
+import {useDictionary} from '@hooks/useDictionary';
+import {IconProcess} from '@components/Icon/IconIndex';
 import {EmptyState} from '@components/EmptyState';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
@@ -137,6 +141,10 @@ export function SearchCommandBar({
 
   // 검색어 없을 때만 "최근 본 레시피" 헤더 노출 (레시피 카드 모드일 때만 의미 있음)
   const showRecentHeader = !searchQuery.trim() && filteredItems.length > 0 && activeUseRecipeCards;
+  // 사전 — 검색어가 공법 용어면 결과 맨 위에. 누르면 검색을 닫고 사전 시트
+  const {openMethod} = useRecipeLink();
+  const dictionary = useDictionary();
+  const dictMatches = useMemo(() => (openMethod ? searchMethods(searchQuery) : []), [searchQuery, openMethod, dictionary]);
 
   // 검색어/탭 변경 시 포커스 인덱스 리셋
   useEffect(() => {
@@ -269,8 +277,31 @@ export function SearchCommandBar({
                     ) : undefined}
                   />
                 </View>
-                {filteredItems.length > 0 ? (
+                {filteredItems.length > 0 || dictMatches.length > 0 ? (
                   <ScrollView ref={scrollRef} bounces={false} showsVerticalScrollIndicator>
+                    {dictMatches.length > 0 && (
+                      <>
+                        <Text style={styles.recentHeader}>{t('methodGuide.title')}</Text>
+                        {dictMatches.map(m => (
+                          <RecipeCard
+                            key={`dict-${m.name}`}
+                            title={m.name}
+                            customSubtitle={m.description}
+                            subtitleNumberOfLines={1}
+                            layout="list"
+                            size="small"
+                            placeholderIcon={IconProcess}
+                            placeholderIconColor={colors['custom/lime-var'] as string}
+                            onPress={() => {
+                              onClose();
+                              // 검색 창(Modal)이 닫힌 뒤에 시트 — 겹쳐 뜨면 iOS에서 시트가 안 보인다
+                              setTimeout(() => openMethod?.(m), 300);
+                            }}
+                          />
+                        ))}
+                        {filteredItems.length > 0 && <Text style={styles.recentHeader}>{t('searchCommandBar.recipes')}</Text>}
+                      </>
+                    )}
                     {showRecentHeader && (
                       <Text style={styles.recentHeader}>{t('searchCommandBar.recentSearches')}</Text>
                     )}

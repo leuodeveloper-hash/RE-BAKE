@@ -26,6 +26,7 @@ import {SubscriptionProvider, useSubscription} from '@contexts/SubscriptionConte
 import {PlanSheetProvider, usePlanSheet} from '@contexts/PlanSheetContext';
 import {AuthSheetProvider, useAuthSheet} from '@contexts/AuthSheetContext';
 import {RecipeLinkProvider} from '@contexts/RecipeLinkContext';
+import {useDictionarySync} from '@hooks/useDictionary';
 import {PlanSheet} from '@components/PlanSheet';
 import {AuthSheet} from '@components/AuthSheet';
 import {ExploreRecipeProvider, useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
@@ -922,6 +923,8 @@ export default function RootLayout() {
     'Pretendard-Bold': require('../assets/fonts/Pretendard-Bold.otf'),
   });
   const [showSplash, setShowSplash] = useState(true);
+  // 용어 사전 — 서버(어드민이 고친 항목) 구독, 앱 전체에 한 번
+  useDictionarySync();
   // 리브랜딩 스토리지 키 마이그레이션(옛 bakecycle_* → 새 bakle_*). 다른 store가 새 키를
   // 읽기 전에 끝나야 하므로, 완료 전엔 아래에서 렌더를 막는다(게이트).
   const [keysMigrated, setKeysMigrated] = useState(false);

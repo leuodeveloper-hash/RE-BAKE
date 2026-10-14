@@ -97,6 +97,12 @@ service cloud.firestore {
       allow read, update, delete: if isAdmin();
     }
 
+    // dictionary: 용어 사전(공법 등). 누구나 읽기, 항목 고치기·추가·삭제는 어드민만
+    match /dictionary/{termId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
     // exam_schedules: 누구나 읽기(공개 시험일정), 쓰기는 어드민만
     match /exam_schedules/{docId} {
       allow read: if true;

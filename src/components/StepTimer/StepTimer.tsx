@@ -97,7 +97,7 @@ export const StepTimer = forwardRef<StepTimerHandle, StepTimerProps>(function St
     endAt.current = Date.now() + left * 1000;
     setPhase('running');
   };
-  // 길게 누르면 메뉴 — 수정(이번에만 시간 바꾸기) · 리셋(처음 시간으로)
+  // 길게 누르면 메뉴 — 시간 설정(이번에만 바꾸기) · 리셋(처음 시간으로)
   const [menuOpen, setMenuOpenState] = useState(false);
   const setMenuOpen = (v: boolean) => { setMenuOpenState(v); onMenuOpenChange?.(v); };
   const onLongPress = (onChange || unset) ? undefined : () => {

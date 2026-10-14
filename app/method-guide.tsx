@@ -14,8 +14,9 @@ import {useTranslation} from '@contexts/LanguageContext';
 import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
-import {IconClose, IconProcess} from '@components/Icon/IconIndex';
-import {PASTRY_METHODS, BAKERY_METHODS, type MethodCategory} from '@constants/bakingMethods';
+import {IconAdd, IconClose, IconProcess} from '@components/Icon/IconIndex';
+import {type MethodCategory} from '@constants/bakingMethods';
+import {useDictionary} from '@hooks/useDictionary';
 import {goBackOr} from '@utils/navigation';
 import {useRecipeLink} from '@contexts/RecipeLinkContext';
 
@@ -26,13 +27,15 @@ export default function MethodGuideRoute() {
   const {t} = useTranslation();
   // ?name=시폰법 — 본문 공법 링크로 들어오면 그 공법이 있는 탭을 고르고, 카드까지 내려가 잠깐 강조
   const {name: target} = useLocalSearchParams<{name?: string}>();
+  // 사전 — 기본 용어 + 어드민이 고친·추가한 항목(서버). 바뀌면 바로 다시 그린다
+  const dictionary = useDictionary();
   const [category, setCategory] = useState<MethodCategory>(
-    target && BAKERY_METHODS.some(m => m.name === target) ? 'bakery' : 'pastry',
+    target && dictionary.find(m => m.name === target)?.category === 'bakery' ? 'bakery' : 'pastry',
   );
   const scrollRef = useRef<ScrollView>(null);
   const [categoryMenu, setCategoryMenu] = useState(false);
   // 항목을 누르면 사전 시트(이미 사전이라 '전체 보기' 버튼은 없이)
-  const {openMethod} = useRecipeLink();
+  const {openMethod, openTermEditor} = useRecipeLink();
   const cardY = useRef<Record<string, number>>({});
   const highlight = useRef(new Animated.Value(0)).current;
   const scrolledTo = useRef<string | null>(null);
@@ -52,7 +55,7 @@ export default function MethodGuideRoute() {
     {id: 'bakery', label: t('methodGuide.bakery')},
   ], [t]);
 
-  const methods = category === 'pastry' ? PASTRY_METHODS : BAKERY_METHODS;
+  const methods = dictionary.filter(m => (m.category ?? 'pastry') === category);
 
   return (
     <View style={styles.container}>
@@ -84,11 +87,14 @@ export default function MethodGuideRoute() {
 
             {methods.map((m, i) => (
               <Animated.View
-                key={m.name}
+                key={m.id ?? m.name}
                 onLayout={e => onCardLayout(m.name, e.nativeEvent.layout.y)}
                 style={m.name === target ? [styles.targetCard, {backgroundColor: highlight.interpolate({inputRange: [0, 1], outputRange: ['transparent', colors['fill/accent'] as string]})}] : undefined}>
                 <RecipeCard
+                  key={m.id ?? m.name}
                   onPress={openMethod ? () => openMethod(m, {withViewAll: false}) : undefined}
+                  // 어드민 — ⋮(길게 누르기도 같음)로 바로 고치기
+                  onMenuPress={openTermEditor ? () => openTermEditor(m) : undefined}
                   title={m.name}
                   customSubtitle={m.description}
                   // 링크로 찾아온 공법은 설명 전체를 보여준다
@@ -109,6 +115,8 @@ export default function MethodGuideRoute() {
         left={
           <NavPillButton icon={IconClose} onPress={() => goBackOr(router)} />
         }
+        // 어드민 — 용어 추가(보던 분류로)
+        right={openTermEditor ? <NavPillButton icon={IconAdd} onPress={() => openTermEditor(null, category)} /> : undefined}
       />
     </View>
   );

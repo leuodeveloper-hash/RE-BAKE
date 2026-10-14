@@ -138,6 +138,8 @@ export {default as IconGuidebook} from '../../../assets/icons/guidebook.svg';
 export {default as IconGuidebookFilled} from '../../../assets/icons/guidebook_filled.svg';
 export {default as IconOpenbook} from '../../../assets/icons/openbook.svg';
 export {default as IconOpenbookFilled} from '../../../assets/icons/openbook_filled.svg';
+export {default as IconDic} from '../../../assets/icons/dic.svg';
+export {default as IconDicFilled} from '../../../assets/icons/dic-filled.svg';
 export {default as IconGlobeFilled} from '../../../assets/icons/globe_filled.svg';
 export {default as IconEarthFilled} from '../../../assets/icons/earth_filled.svg';
 export {default as IconCompass} from '../../../assets/icons/compass.svg';

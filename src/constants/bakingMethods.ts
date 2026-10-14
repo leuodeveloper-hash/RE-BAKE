@@ -12,6 +12,9 @@ export interface BakingMethod {
   name: string;
   /** 한 줄 요약 설명 */
   description: string;
+  /** 사전 항목 id — 기본 용어는 이름, 어드민이 추가한 용어는 생성 id */
+  id?: string;
+  category?: MethodCategory;
 }
 
 /** 제과(케이크·구움과자) 공법 — 기존 BAKING_METHODS 10종 */
@@ -41,25 +44,80 @@ export const BAKERY_METHODS: BakingMethod[] = [
   {name: '냉장발효법(저온숙성)', description: '반죽을 냉장고에서 장시간(밤새) 천천히 발효시키는 방법. 풍미가 깊어지고 작업 시간을 유연하게 나눌 수 있다.'},
 ];
 
-export const METHOD_SECTIONS: {category: MethodCategory; methods: BakingMethod[]}[] = [
-  {category: 'pastry', methods: PASTRY_METHODS},
-  {category: 'bakery', methods: BAKERY_METHODS},
+/**
+ * 사전 — 기본 용어(위 목록) 위에 어드민이 고친·추가한·지운 항목(Firestore dictionary)을 덮어쓴 현재 목록.
+ * 항목 하나씩(포스트잇처럼) 고친다. 앱 어디서나 이 목록 하나를 본다(본문 밑줄·검색·사전 페이지).
+ */
+export const BUILTIN_METHODS: BakingMethod[] = [
+  ...PASTRY_METHODS.map(m => ({...m, id: m.name, category: 'pastry' as const})),
+  ...BAKERY_METHODS.map(m => ({...m, id: m.name, category: 'bakery' as const})),
 ];
 
-/** 본문에서 찾는 이름 → 공법. '액종법(풀리시)'처럼 괄호가 있으면 앞·괄호 안 이름 둘 다로 찾는다 */
-const METHOD_BY_TERM = new Map<string, BakingMethod>();
-for (const m of [...PASTRY_METHODS, ...BAKERY_METHODS]) {
-  const match = m.name.match(/^(.+?)\((.+)\)$/);
-  for (const term of match ? [match[1], match[2]] : [m.name]) METHOD_BY_TERM.set(term, m);
+/** 서버 항목 — 기본 용어와 같은 id면 덮어쓰고, deleted면 숨긴다 */
+export interface DictionaryOverride {
+  id: string;
+  name?: string;
+  description?: string;
+  category?: MethodCategory;
+  deleted?: boolean;
+  createdAt?: string;
 }
-// 긴 이름부터 — '비상스트레이트법' 안의 '스트레이트법'이 먼저 잡히지 않게
-const METHOD_TERM_RE = new RegExp(
-  [...METHOD_BY_TERM.keys()].sort((a, b) => b.length - a.length).join('|'),
-  'g',
-);
+
+let current: BakingMethod[] = BUILTIN_METHODS;
+let METHOD_BY_TERM = new Map<string, BakingMethod>();
+let METHOD_TERM_RE: RegExp | null = null;
+let version = 0;
+const listeners = new Set<() => void>();
+
+function rebuild() {
+  METHOD_BY_TERM = new Map();
+  for (const m of current) {
+    // '액종법(풀리시)'처럼 괄호가 있으면 앞·괄호 안 이름 둘 다로 찾는다
+    const match = m.name.match(/^(.+?)\((.+)\)$/);
+    for (const term of match ? [match[1], match[2]] : [m.name]) if (term.trim()) METHOD_BY_TERM.set(term.trim(), m);
+  }
+  const keys = [...METHOD_BY_TERM.keys()]
+    // 긴 이름부터 — '비상스트레이트법' 안의 '스트레이트법'이 먼저 잡히지 않게
+    .sort((a, b) => b.length - a.length)
+    .map(k => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+  METHOD_TERM_RE = keys.length ? new RegExp(keys.join('|'), 'g') : null;
+}
+rebuild();
+
+/** 서버 항목을 반영한다(useDictionarySync가 부른다) */
+export function applyDictionary(overrides: DictionaryOverride[]) {
+  const byId = new Map(overrides.map(o => [o.id, o]));
+  const merged: BakingMethod[] = [];
+  for (const b of BUILTIN_METHODS) {
+    const o = byId.get(b.id!);
+    if (o?.deleted) continue;
+    merged.push(o ? {...b, ...stripUndefined(o)} : b);
+  }
+  // 어드민이 새로 만든 항목(기본 용어에 없는 id) — 만든 순서대로 뒤에
+  overrides
+    .filter(o => !o.deleted && !BUILTIN_METHODS.some(b => b.id === o.id) && o.name?.trim())
+    .sort((a, b) => (a.createdAt ?? '').localeCompare(b.createdAt ?? ''))
+    .forEach(o => merged.push({id: o.id, name: o.name!.trim(), description: o.description ?? '', category: o.category ?? 'pastry'}));
+  current = merged;
+  rebuild();
+  version++;
+  listeners.forEach(l => l());
+}
+
+function stripUndefined<T extends object>(o: T): Partial<T> {
+  return Object.fromEntries(Object.entries(o).filter(([k, v]) => v !== undefined && k !== 'deleted' && k !== 'createdAt')) as Partial<T>;
+}
+
+export function getDictionary(): BakingMethod[] { return current; }
+export function getDictionaryVersion(): number { return version; }
+export function subscribeDictionary(fn: () => void): () => void {
+  listeners.add(fn);
+  return () => { listeners.delete(fn); };
+}
 
 /** 글을 공법 이름 기준으로 나눈다 — method가 있는 조각이 공법 이름 */
 export function splitMethodTerms(text: string): {text: string; method?: BakingMethod}[] {
+  if (!METHOD_TERM_RE) return [{text}];
   const out: {text: string; method?: BakingMethod}[] = [];
   let last = 0;
   for (const m of text.matchAll(METHOD_TERM_RE)) {
@@ -72,7 +130,18 @@ export function splitMethodTerms(text: string): {text: string; method?: BakingMe
   return out;
 }
 
-/** 공법 태그 값('비상스트레이트법' 등)으로 정리된 공법 찾기 */
+/** 공법 태그 값('비상스트레이트법' 등)으로 사전 항목 찾기 */
 export function findMethod(name: string): BakingMethod | undefined {
   return METHOD_BY_TERM.get(name.trim());
+}
+
+/** 검색어에 맞는 사전 항목 — 이름(괄호 속 이름 포함)에 검색어가 들어 있거나, 검색어 안에 이름이 있으면 */
+export function searchMethods(query: string): BakingMethod[] {
+  const q = query.trim();
+  if (!q) return [];
+  const out = new Set<BakingMethod>();
+  for (const [term, m] of METHOD_BY_TERM) {
+    if (term.includes(q) || q.includes(term)) out.add(m);
+  }
+  return [...out];
 }

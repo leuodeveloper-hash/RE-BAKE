@@ -6,6 +6,7 @@ import {useColors} from '@contexts/ThemeContext';
 import {parseRichText, isSecretUrl} from '@utils/richText';
 import {SpoilerText} from '@components/SpoilerText';
 import {splitMethodTerms} from '@constants/bakingMethods';
+import {useDictionary} from '@hooks/useDictionary';
 import type {SemanticColors} from '@constants/tokens';
 
 /**
@@ -41,6 +42,7 @@ export interface RichTextProps {
  */
 export function RichText({children, style, numberOfLines, inline}: RichTextProps) {
   const colors = useColors();
+  useDictionary(); // 사전이 바뀌면 공법 밑줄도 다시
   const segments = parseRichText(children ?? '');
   // 링크 종류별로 연다 — 팁은 바텀시트, 레시피는 앱 안 상세, 그 밖은 브라우저(RecipeLinkContext)
   const {openLink, linkKind, openMethod} = useRecipeLink();

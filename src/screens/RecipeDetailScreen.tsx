@@ -1,7 +1,4 @@
 import {NOTE_BLOCK} from '@constants/noteBlock';
-import {linkTextStyle} from '@components/RichText/RichText';
-import {useRecipeLink} from '@contexts/RecipeLinkContext';
-import {findMethod} from '@constants/bakingMethods';
 import {StepTimer, type StepTimerHandle} from '@components/StepTimer';
 import {IconRefresh} from '@components/Icon/IconIndex';
 import {FloatingNotice} from '@components/FloatingNotice';
@@ -928,8 +925,6 @@ export function RecipeDetailScreen({
     );
   };
 
-  const {openMethod} = useRecipeLink();
-  const methodInfo = method ? findMethod(method) : undefined;
 
   return (
     <Animated.View style={[styles.container, {opacity: pageOpacity}]}>
@@ -1044,18 +1039,10 @@ export function RecipeDetailScreen({
                 {method && isFieldActive('method') && (
                   <>
                     {recipeItems ? (
-                      <View style={styles.heroDescriptionTappable}>
-                        {/* 공법 이름 = 정리된 공법 설명 링크(본문과 같은 점선 밑줄), 돋보기 = 같은 공법 레시피 찾기 */}
-                        <Text
-                          style={[styles.heroDescription, methodInfo && openMethod && linkTextStyle(colors, {onImage: true}), diffOn && diff!.methodChanged && styles.hlChanged, {flexShrink: 1}]}
-                          numberOfLines={1}
-                          onPress={methodInfo && openMethod ? () => openMethod(methodInfo) : () => setSearchFilter('method')}>
-                          {method}
-                        </Text>
-                        <Pressable onPress={() => setSearchFilter('method')} hitSlop={8}>
-                          <IconSearch width={12} height={12} color={colors['foreground/on-surface-inverse']} />
-                        </Pressable>
-                      </View>
+                      <Pressable style={styles.heroDescriptionTappable} onPress={() => setSearchFilter('method')}>
+                        <Text style={[styles.heroDescription, diffOn && diff!.methodChanged && styles.hlChanged, {flexShrink: 1}]} numberOfLines={1}>{method}</Text>
+                        <IconSearch width={12} height={12} color={colors['foreground/on-surface-inverse']} />
+                      </Pressable>
                     ) : (
                       <Text style={[styles.heroDescription, diffOn && diff!.methodChanged && styles.hlChanged]}>{method}</Text>
                     )}
