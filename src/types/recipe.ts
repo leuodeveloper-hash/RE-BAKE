@@ -21,6 +21,8 @@ export interface Step {
 export interface StepGroup {
   title: string;
   steps: Step[];
+  /** 묶음 타이머 — 시간 칸과 같은 형식("1시간 30분", "40분"). 없으면 타이머 버튼 없음 */
+  timer?: string;
 }
 
 export interface ToolGroup {
@@ -72,6 +74,8 @@ export interface Recipe {
   activeFieldIds?: string[];
   reviews?: ReviewData[];
   /** 베이키의 조언 (어드민 전용 입력 필드) */
+  /** 레시피 설명(제목 아래 소개글) */
+  description?: string;
   advice?: string;
   /** 베이키의 조언 사진 (최대 3장) */
   advicePhotos?: string[];

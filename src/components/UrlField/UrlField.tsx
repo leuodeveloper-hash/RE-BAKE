@@ -1,4 +1,5 @@
 import React from 'react';
+import {linkTextStyle} from '@components/RichText/RichText';
 import {Linking, Pressable, StyleSheet, Text, View} from 'react-native';
 import {TextInput} from '@components/TextInput';
 import {IconArrowTopRight} from '@components/Icon/IconIndex';
@@ -91,8 +92,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     fontWeight: Typography.body.medium.fontWeight as '500',
     lineHeight: Typography.body.medium.lineHeight,
     color: colors['foreground/on-surface-muted'],
-    textDecorationLine: 'underline',
-    textDecorationColor: colors['border/normal'],
+    ...linkTextStyle(colors), // 공통 링크 모양(보더 색 점선 밑줄)
   },
 });
 

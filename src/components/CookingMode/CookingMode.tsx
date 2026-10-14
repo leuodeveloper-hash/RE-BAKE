@@ -2131,10 +2131,9 @@ export function CookingMode({
           title={isInitialIngredientSheet ? t('cookingMode.prepareIngredients') : t('cookingMode.ingredients')}
           headerType="center"
           headerRight={
-            <IconButton
+            // 시트 헤더 버튼 룰 — 닫기(X)와 같은 떠 있는 알약
+            <NavPillButton
               icon={ingredientLayout === 'grid' ? IconList : IconLayoutGrid}
-              variant="tonal"
-              size="medium"
               onPress={() => setIngredientLayout(p => (p === 'grid' ? 'list' : 'grid'))}
             />
           }

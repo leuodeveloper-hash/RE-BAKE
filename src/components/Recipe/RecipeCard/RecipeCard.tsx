@@ -546,6 +546,10 @@ export function RecipeCard({
   // 2열(그리드)은 폭이 좁아 작성자·레시피북만 — 공법·비중·회고 수까지 넣으면 줄이 넘친다
   const GRID_META_KEYS = ['kind', 'author', 'cookbook'];
   const hasGridMeta = metaSegments.some(seg => GRID_META_KEYS.includes(seg.key));
+  // 2열 메타 한 줄 맞춤 — 쓸 수 있는 폭과 전부 늘어놓은 폭
+  const [gridMetaWidth, setGridMetaWidth] = useState(0);
+  const [gridMetaFullWidth, setGridMetaFullWidth] = useState(0);
+  const gridMetaFits = gridMetaWidth > 0 && gridMetaFullWidth > 0 && gridMetaFullWidth <= gridMetaWidth;
 
   // 세그먼트 렌더 — textStyle(레이아웃별 서브타이틀 스타일) 위에 링크 여부만 구분.
   //
@@ -838,24 +842,36 @@ export function RecipeCard({
               {made && <View style={[styles.madeDot, {backgroundColor: colors['foreground/on-surface-muted']}]} />}
             </View>
           )}
-          {hasGridMeta && (
-            <View style={styles.gridSubtitleRow}>
+          {hasMeta && (
+            // 메타는 항상 한 줄. 다 들어가면 전부(공법·비중까지), 좁아서 안 들어갈 때만 앞의 2개(작성자·레시피북)까지.
+            // 화면 폭 기준(브레이크포인트)이 아니라 이 카드의 실제 폭으로 잰다 — 열 수에 따라 카드 폭이 달라서.
+            <View style={styles.gridSubtitleRow} onLayout={e => setGridMetaWidth(e.nativeEvent.layout.width)}>
+              {/* 측정용(보이지 않음) — 전부 늘어놓았을 때 폭 */}
+              {/* 넓은 바깥 칸 안에서 재야 글자가 카드 폭에 맞춰 줄바꿈되지 않은 '진짜 한 줄 폭'이 나온다 */}
+              <View style={styles.gridMetaMeasure} pointerEvents="none">
+                <View style={styles.gridMetaMeasureRow} onLayout={e => setGridMetaFullWidth(e.nativeEvent.layout.width)}>
+                  {renderMeta(styles.gridSubtitle, {wrap: true})}
+                </View>
+              </View>
               <View style={styles.gridMetaGroup}>
-                {/* 2열은 작성자·레시피북만, 말줄임 없이 — 좁으면 다음 줄로 넘긴다 */}
-                {renderMeta(styles.gridSubtitle, {wrap: true, keys: GRID_META_KEYS})}
+                {/* 화면에 그리는 쪽은 줄바꿈 없음(numberOfLines 1) — 'SG 0.5~0.6'처럼 조각 안에서 두 줄 되는 일 없게 */}
+                {renderMeta(styles.gridSubtitle, gridMetaFits ? undefined : {limit: 2})}
               </View>
             </View>
           )}
         </View>
 
         {onMenuPress ? (
-          <View ref={menuButtonRef}>
-            <IconButton
-              icon={IconEllipsisVertical}
-              onPress={handleMenuPress}
-              variant="ghost-secondary"
-              size="medium"
-            />
+          // 20 칸 안에 — 버튼(40)은 그대로 누르기 쉽게 두고 자리만 20만 차지한다(메타 줄 폭 확보)
+          <View ref={menuButtonRef} style={styles.gridMenuSlot}>
+            <View style={styles.gridMenuButtonInner}>
+              <IconButton
+                icon={IconEllipsisVertical}
+                onPress={handleMenuPress}
+                variant="ghost-secondary"
+                size="medium"
+              />
+            </View>
           </View>
         ) : null}
       </View>
@@ -863,9 +879,23 @@ export function RecipeCard({
   );
 }
 
+/** 2열 ⋮ 버튼이 차지하는 자리 */
+const GRID_MENU_SLOT = 20;
+
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 메타 조각 앞 아이콘(공식 레시피북) — 글자와 2 간격
   metaIconRow: {flexDirection: 'row', alignItems: 'center', gap: 2},
+  // 2열 ⋮ 버튼 자리 — 20×20. 안의 버튼(40)은 넘쳐 그려지되 자리는 차지하지 않는다
+  gridMenuSlot: {
+    width: GRID_MENU_SLOT,
+    height: GRID_MENU_SLOT,
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'visible',
+  },
+  gridMenuButtonInner: {
+    margin: -(40 - GRID_MENU_SLOT) / 2,
+  },
   // Grid 레이아웃 (새 디자인: 썸네일 + 하단 콘텐츠)
   gridCard: {
     width: '100%',
@@ -1042,6 +1072,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: Spacing.smd,
+    overflow: 'hidden', // 폭 재는 칸(10000)이 밖으로 삐져 웹 가로 스크롤이 생기지 않게
   },
   /** 메타 조각 하나 — 좁아지면 이 조각이 줄어들며 말줄임 처리된다 */
   metaSegment: {
@@ -1052,14 +1083,26 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   gridMetaGroup: {
     flexDirection: 'row',
     alignItems: 'center',
-    // 구분점(·)을 없앴으므로 간격이 구분 역할을 한다.
-    // 조각을 줄여 말줄임하지 않고 다음 줄로 넘긴다(다 잘려 읽을 수 없던 문제).
-    // 가로는 구분용으로 넓게, 세로는 좁게.
+    // 구분점(·)을 없앴으므로 간격이 구분 역할을 한다. 한 줄 고정 — 넘치면 2개까지만 남기고 끝 조각 말줄임
     columnGap: Spacing.smd,
-    rowGap: Spacing.xs,
-    flexWrap: 'wrap',
     flexShrink: 1,
     minWidth: 0,
+    overflow: 'hidden',
+  },
+  // 메타 전체 폭 재기 — 화면엔 안 보이고 줄도 안 바뀐다(폭 제한 없이 늘어놓음)
+  gridMetaMeasure: {
+    position: 'absolute',
+    opacity: 0,
+    left: 0,
+    top: 0,
+    width: 10000, // 폭 제한 없이 — 카드 폭에 맞춰 접히지 않게
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+  },
+  gridMetaMeasureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    columnGap: Spacing.smd,
   },
   gridReviewBadge: {
     flexDirection: 'row',

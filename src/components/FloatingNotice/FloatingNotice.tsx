@@ -6,7 +6,7 @@ import {useColors} from '@contexts/ThemeContext';
 import {triggerHaptic} from '@utils/haptics';
 import {withAlpha} from '@utils/color';
 import type {SemanticColors} from '@constants/tokens';
-import {Radius} from '@constants/tokens';
+import {PrimitiveColors, Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 
@@ -22,12 +22,26 @@ export interface FloatingNoticeProps {
 
 /**
  * 화면 아래쪽에 떠 있는 알림 버튼 — "업데이트됨"처럼 눌러서 바로 처리하는 한 줄 안내.
- * 파란 바탕 + 파란 그림자로 일반 버튼과 구분되게 눈에 띈다. 위치(가운데·아래)는 이 컴포넌트가 정한다.
+ * 블루 바탕 + 같은 색 그림자로 일반 버튼과 구분되게 눈에 띈다. 위치(가운데·아래)는 이 컴포넌트가 정한다.
  */
+/** 알림 알약 공통 — 업데이트됨 알림·과정 타이머가 같은 크기·색을 쓴다 */
+export const NOTICE_COLOR = PrimitiveColors['blue/50'];
+export const noticePillStyle = {
+  flexDirection: 'row' as const,
+  alignItems: 'center' as const,
+  gap: Spacing.xs,
+  height: 36,
+  paddingHorizontal: Spacing.md,
+  borderRadius: Radius['radius-full'],
+};
+export const noticeShadow = (color: string) => `0px 6px 16px -2px ${withAlpha(color, 0.45)}`;
+export const noticeLabelStyle = {...Typography.caption.large, fontWeight: '600' as const};
+
 export function FloatingNotice({label, icon: Icon, onPress, loading, bottom = 110}: FloatingNoticeProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
-  const blue = colors['custom/blue'] as string;
+  // 블루 한 단계 밝게(blue/40 → blue/50) — 기본 블루는 어둡고 무거워 '새 소식' 느낌이 덜했다
+  const blue = NOTICE_COLOR;
   const fg = colors['foreground/on-surface-inverse'] as string;
   return (
     <View pointerEvents="box-none" style={[styles.wrap, {bottom}]}>
@@ -36,7 +50,7 @@ export function FloatingNotice({label, icon: Icon, onPress, loading, bottom = 11
         onPress={() => { triggerHaptic('light'); onPress(); }}
         style={({pressed}) => [
           styles.pill,
-          {backgroundColor: blue, boxShadow: `0px 6px 16px -2px ${withAlpha(blue, 0.45)}`} as any,
+          {backgroundColor: blue, boxShadow: noticeShadow(blue)} as any,
           pressed && styles.pressed,
         ]}>
         {loading
@@ -55,20 +69,10 @@ const createStyles = (_colors: SemanticColors) => StyleSheet.create({
     right: 0,
     alignItems: 'center',
   },
-  pill: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
-    height: 36,
-    paddingHorizontal: Spacing.md,
-    borderRadius: Radius['radius-full'],
-  },
+  pill: noticePillStyle,
   pressed: {
     opacity: 0.85,
     transform: [{scale: 0.97}],
   },
-  label: {
-    ...Typography.caption.large,
-    fontWeight: '600',
-  },
+  label: noticeLabelStyle,
 });

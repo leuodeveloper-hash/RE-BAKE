@@ -52,6 +52,8 @@ export interface StepGroup {
   id: string;
   title: string;
   steps: EditableStep[];
+  /** 묶음 타이머("40분" 등) */
+  timer?: string;
   /** 이 묶음의 "한번에 쓰기" 모드 여부 */
   bulkMode: boolean;
   /** bulkMode일 때의 텍스트(과정 줄바꿈 나열) */
@@ -84,6 +86,7 @@ export interface RecipeEditScreenProps {
     stepGroups: {title: string; steps: {step: number; description: string; tip?: string; caution?: string; photos?: (string | StepPhoto)[]}[]}[];
     activeFieldIds: string[];
     reviews?: ReviewData[];
+    description?: string;
     advice?: string;
     advicePhotos?: string[];
     kind?: 'recipe' | 'tip';
@@ -105,7 +108,7 @@ export interface RecipeEditScreenProps {
     tools?: {name: string}[];
     toolGroups?: {title: string; tools: {name: string}[]}[];
     steps?: {step: number; description: string; tip?: string; caution?: string; photos?: (string | StepPhoto)[]}[];
-    stepGroups?: {title: string; steps: {step: number; description: string; tip?: string; caution?: string; photos?: (string | StepPhoto)[]}[]}[];
+    stepGroups?: {title: string; timer?: string; steps: {step: number; description: string; tip?: string; caution?: string; photos?: (string | StepPhoto)[]}[]}[];
     activeFieldIds?: string[];
     imageUri?: string;
     /** 추가 상단 이미지(대표 뒤로 최대 2장) */
@@ -113,6 +116,7 @@ export interface RecipeEditScreenProps {
     /** 만든 시각 — 회고는 만든 뒤에만 쓸 수 있다 */
     madeAt?: string;
     reviews?: ReviewData[];
+    description?: string;
     advice?: string;
     advicePhotos?: string[];
     kind?: 'recipe' | 'tip';

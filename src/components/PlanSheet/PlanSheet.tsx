@@ -1,4 +1,5 @@
 import React, {useEffect, useMemo, useState} from 'react';
+import {linkTextStyle} from '@components/RichText/RichText';
 import {Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import {useRouter} from 'expo-router';
@@ -279,7 +280,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   planLink: {
     ...Typography.caption.small,
     color: colors['foreground/on-surface-var'],
-    textDecorationLine: 'underline',
+    ...linkTextStyle(colors), // 공통 링크 모양(보더 색 점선 밑줄)
   },
   planSavingsText: {
     ...Typography.caption.small,

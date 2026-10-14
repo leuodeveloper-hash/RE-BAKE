@@ -23,7 +23,10 @@ export interface SheetHeaderProps {
   headerGraphic?: React.ReactNode;
   /** 헤더 레이아웃: 'default' (좌측 정렬) | 'center' (중앙 정렬) */
   headerType?: 'default' | 'center';
-  /** 타이틀 우측 슬롯(예: 레이아웃 전환 버튼). center 모드의 빈 자리를 채운다 */
+  /**
+   * 타이틀 우측 슬롯. 룰: 닫기(X) 버튼과 같은 떠 있는 유리 알약 — NavPillButton(하나) / NavPillGroup(여럿).
+   * tonal·ghost IconButton을 맨몸으로 넣지 않는다(왼쪽 X와 모양이 달라진다). docs/DESIGN_RULES.md '시트 헤더 버튼'
+   */
   headerRight?: React.ReactNode;
   /** 다음 단계 화면일 때 — 타이틀 왼쪽에 뒤로가기 */
   onBack?: () => void;

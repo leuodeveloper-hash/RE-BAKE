@@ -1,4 +1,8 @@
 import {NOTE_BLOCK} from '@constants/noteBlock';
+import {linkTextStyle} from '@components/RichText/RichText';
+import {useRecipeLink} from '@contexts/RecipeLinkContext';
+import {findMethod} from '@constants/bakingMethods';
+import {StepTimer} from '@components/StepTimer';
 import {IconRefresh} from '@components/Icon/IconIndex';
 import {FloatingNotice} from '@components/FloatingNotice';
 import {APPBAR_ITEM_GAP} from '@constants/layout';
@@ -94,6 +98,8 @@ import {
   IconSearch,
   IconSparkle,
   IconFilesFilled,
+  IconPhoto,
+  IconPhoto1,
   IconEyeClosed,
 } from '@components/Icon/IconIndex';
 
@@ -138,6 +144,7 @@ interface ProcessStep {
 interface ProcessStepGroup {
   title: string;
   steps: ProcessStep[];
+  timer?: string;
 }
 
 export interface RecipeDetailScreenProps {
@@ -149,6 +156,8 @@ export interface RecipeDetailScreenProps {
   reviewCount?: number;
   ratio?: string;
   reviews?: ReviewData[];
+  /** 레시피 설명 — 사진 아래 콘텐츠 맨 위 */
+  description?: string;
   advice?: string;
   advicePhotos?: string[];
   imageUri?: string;
@@ -351,6 +360,7 @@ export function RecipeDetailScreen({
   reviewCount = 0,
   ratio,
   reviews,
+  description,
   advice,
   advicePhotos,
   imageUri,
@@ -878,11 +888,14 @@ export function RecipeDetailScreen({
     breadcrumb?: string,
     // 재료·과정 맨 위 머리엔 편집 옆에 '한번에 보기' 스위치
     withBulkToggle = false,
+    // 과정 묶음 타이머 — 묶음 이름 앞
+    timer?: string,
   ) => (
     <View key={key} style={styles.stickyHeader}>
       <ContentContainer>
         <SectionHeader
           title={label}
+          leading={timer ? <StepTimer duration={timer} /> : undefined}
           breadcrumb={breadcrumb}
           breadcrumbIcon={breadcrumb ? IconChevronRight : undefined}
           actionLabel={onEdit ? t('recipeDetail.edit') : undefined}
@@ -892,6 +905,9 @@ export function RecipeDetailScreen({
       </ContentContainer>
     </View>
   );
+
+  const {openMethod} = useRecipeLink();
+  const methodInfo = method ? findMethod(method) : undefined;
 
   return (
     <Animated.View style={[styles.container, {opacity: pageOpacity}]}>
@@ -934,12 +950,6 @@ export function RecipeDetailScreen({
               <View style={[styles.heroTextOverlay, heroFrame]} pointerEvents="none" />
               {/* 여러 장이면 장수 배지 — 롱프레스 뷰어에서 스와이프로 넘길 수 있음을 알린다
                   (배지가 없으면 추가 이미지가 있는지 알 방법이 없다) */}
-              {heroPhotos.length > 1 && (
-                <View style={[styles.heroCountBadge, {right: heroFrame.left + Spacing.sm}]} pointerEvents="none">
-                  <AppIcon icon={IconFilesFilled} size="xs" color={colors['foreground/on-accent']} />
-                  <Text style={styles.heroCountText}>{heroPhotos.length}</Text>
-                </View>
-              )}
               {/* 좌우 페이드는 화면이 이미지 최대폭(1000)보다 넓어 이미지 양옆에 빈 배경이
                   실제로 생길 때만 — 좁은(모바일) 화면에선 이미지가 꽉 차 페이드가 이미지 양옆을
                   갉아먹어 어색하므로 숨긴다. */}
@@ -989,6 +999,10 @@ export function RecipeDetailScreen({
                   <IconEyeClosed width={18} height={18} color={colors['foreground/on-surface-inverse']} />
                 )}
               </View>
+              {/* 레시피 설명 — 제목 바로 아래, 최대 두 줄 */}
+              {!!description?.trim() && (
+                <RichText style={styles.heroSummary} numberOfLines={2}>{description}</RichText>
+              )}
               <View style={styles.heroDescriptionRow}>
                 {authorHandle && (
                   <>
@@ -1008,10 +1022,18 @@ export function RecipeDetailScreen({
                 {method && isFieldActive('method') && (
                   <>
                     {recipeItems ? (
-                      <Pressable style={styles.heroDescriptionTappable} onPress={() => setSearchFilter('method')}>
-                        <Text style={[styles.heroDescription, diffOn && diff!.methodChanged && styles.hlChanged, {flexShrink: 1}]} numberOfLines={1}>{method}</Text>
-                        <IconSearch width={12} height={12} color={colors['foreground/on-surface-inverse']} />
-                      </Pressable>
+                      <View style={styles.heroDescriptionTappable}>
+                        {/* 공법 이름 = 정리된 공법 설명 링크(본문과 같은 점선 밑줄), 돋보기 = 같은 공법 레시피 찾기 */}
+                        <Text
+                          style={[styles.heroDescription, methodInfo && openMethod && linkTextStyle(colors, {onImage: true}), diffOn && diff!.methodChanged && styles.hlChanged, {flexShrink: 1}]}
+                          numberOfLines={1}
+                          onPress={methodInfo && openMethod ? () => openMethod(methodInfo) : () => setSearchFilter('method')}>
+                          {method}
+                        </Text>
+                        <Pressable onPress={() => setSearchFilter('method')} hitSlop={8}>
+                          <IconSearch width={12} height={12} color={colors['foreground/on-surface-inverse']} />
+                        </Pressable>
+                      </View>
                     ) : (
                       <Text style={[styles.heroDescription, diffOn && diff!.methodChanged && styles.hlChanged]}>{method}</Text>
                     )}
@@ -1043,6 +1065,19 @@ export function RecipeDetailScreen({
                   </>
                   );
                 })()}
+                {/* 여러 장이면 장수 — 메타 줄 오른쪽 끝(콘텐츠 오른쪽 끝에 맞춤). 누르면 사진 뷰어 */}
+                {heroPhotos.length > 1 && (
+                  // 다른 메타(리뷰 수·참고 링크)와 같은 모양 — 바탕 없이 12 아이콘 + 메타 글씨
+                  // 누르면 사진 뷰어(롱프레스와 같은 곳) — 첫 장부터
+                  <Pressable
+                    style={[styles.reviewBadge, styles.heroCountBadge]}
+                    hitSlop={8}
+                    onPress={() => { triggerHaptic('light'); openPhotoViewer('hero', 0); }}>
+                    {/* 보조 정보라 한 단계 옅게(inverse-var) */}
+                    <IconPhoto1 width={12} height={12} color={colors['foreground/on-surface-inverse-var']} />
+                    <Text style={[styles.heroDescription, {color: colors['foreground/on-surface-inverse-var']}]}>{heroPhotos.length}</Text>
+                  </Pressable>
+                )}
               </View>
             </ContentContainer>
           </Pressable>
@@ -1285,7 +1320,7 @@ export function RecipeDetailScreen({
           stepGroups.flatMap((group, groupIndex) => {
             const groupOffset = stepGroups.slice(0, groupIndex).reduce((sum, g) => sum + g.steps.length, 0);
             return [
-              renderSectionHeader(`step-header-${groupIndex}`, t('recipeDetail.tabSteps'), 'steps', group.title, groupIndex === 0),
+              renderSectionHeader(`step-header-${groupIndex}`, t('recipeDetail.tabSteps'), 'steps', group.title, groupIndex === 0, group.timer),
               <Animated.View key={`step-content-${groupIndex}`} style={{opacity: sectionAnims[1]}}>
                 <ContentContainer>
                   <Card>
@@ -1918,20 +1953,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     // 가로 위치·폭은 heroFrame — 이미지와 같은 틀이라 이미지 밖 좌우를 덮지 않는다
   },
   heroCountBadge: {
-    position: 'absolute',
-    top: Spacing.sm,
-    right: Spacing.sm,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 2,
-    paddingHorizontal: Spacing.xs,
-    paddingVertical: 2,
-    borderRadius: Radius['radius-full'],
-    backgroundColor: colors['overlay/strong'],
-  },
-  heroCountText: {
-    ...Typography.caption.small,
-    color: colors['foreground/on-accent'],
+    marginLeft: 'auto', // 메타 줄 오른쪽 끝으로
   },
   heroSideGradient: {
     position: 'absolute',
@@ -2028,6 +2050,13 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // Section
   section: {
     paddingTop: Spacing.sm,
+  },
+  heroSummary: {
+    ...Typography.body.medium,
+    color: colors['foreground/on-surface-inverse-var'],
+    textShadowColor: 'rgba(0, 0, 0, 0.25)',
+    textShadowOffset: {width: 0, height: 1},
+    textShadowRadius: 4, // 메타 글씨와 같은 그림자
   },
   sectionCard: {
     paddingTop: Spacing.sm,

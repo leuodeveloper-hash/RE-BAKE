@@ -1,5 +1,7 @@
 import React, {createContext, useCallback, useContext, useMemo, useState} from 'react';
-import {Linking, StyleSheet, View} from 'react-native';
+import {Linking, StyleSheet, Text, View} from 'react-native';
+import {NavPillButton} from '@components/Navigation/NavPillButton';
+import {IconOpenbook} from '@components/Icon/IconIndex';
 import {useRouter} from 'expo-router';
 import {Image as ExpoImage} from 'expo-image';
 import {BottomSheet} from '@components/BottomSheet';
@@ -13,6 +15,7 @@ import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import type {Recipe} from '../types/recipe';
+import type {BakingMethod} from '@constants/bakingMethods';
 
 /** 앱 안 레시피 링크 — recipe/{id}, /recipe/{id}, bakle://recipe/{id} */
 export function internalRecipeId(url: string): string | null {
@@ -34,6 +37,8 @@ interface RecipeLinkValue {
   /** 본문 링크 열기 — 팁은 바텀시트, 레시피는 앱 안 상세(위에 상세), 그 밖은 브라우저 */
   openLink: (url: string) => void;
   linkKind: (url: string) => RecipeLinkKind;
+  /** 공법 이름 열기 — 사전 시트. withViewAll이면 헤더에 '사전 전체 보기'. Provider 밖이면 없다 */
+  openMethod?: (method: BakingMethod, opts?: {withViewAll?: boolean}) => void;
 }
 
 const RecipeLinkContext = createContext<RecipeLinkValue | null>(null);
@@ -75,11 +80,28 @@ export function RecipeLinkProvider({children}: {children: React.ReactNode}) {
     Linking.openURL(withoutSecret(url)).catch(() => { /* 열 수 없는 주소는 무시 */ });
   }, [findTarget, router]);
 
-  const value = useMemo(() => ({openLink, linkKind}), [openLink, linkKind]);
+  // 공법 설명 — 그 자리에서 사전 시트로 보고 닫는다. 헤더 버튼으로 사전 전체(그 공법 위치)로
+  const [method, setMethod] = useState<{m: BakingMethod; viewAll: boolean} | null>(null);
+  const openMethod = useCallback((m: BakingMethod, opts?: {withViewAll?: boolean}) => {
+    setMethod({m, viewAll: opts?.withViewAll ?? true});
+  }, []);
+  const openDictionary = useCallback(() => {
+    if (!method) return;
+    const name = method.m.name;
+    setMethod(null);
+    router.push(`/method-guide?name=${encodeURIComponent(name)}` as any);
+  }, [method, router]);
+
+  const value = useMemo(() => ({openLink, linkKind, openMethod}), [openLink, linkKind, openMethod]);
   return (
     <RecipeLinkContext.Provider value={value}>
       {children}
       <TipSheet tip={tip} onClose={() => setTip(null)} />
+      <MethodSheet
+        method={method?.m ?? null}
+        onClose={() => setMethod(null)}
+        onViewAll={method?.viewAll ? openDictionary : undefined}
+      />
     </RecipeLinkContext.Provider>
   );
 }
@@ -142,7 +164,31 @@ function TipSheet({tip, onClose}: {tip: Recipe | null; onClose: () => void}) {
   );
 }
 
+/** 사전 시트 — 공법 이름과 정리된 설명. 본문은 Text(설명 속 공법 이름이 또 링크되지 않게) */
+function MethodSheet({method, onClose, onViewAll}: {method: BakingMethod | null; onClose: () => void; onViewAll?: () => void}) {
+  const styles = useThemedStyles(createStyles);
+  return (
+    <BottomSheet
+      visible={!!method}
+      onClose={onClose}
+      title={method?.name ?? ''}
+      headerType="center"
+      headerRight={onViewAll ? <NavPillButton icon={IconOpenbook} onPress={onViewAll} /> : undefined}>
+      {method && (
+        <View style={styles.methodBody}>
+          <Text style={styles.text}>{method.description}</Text>
+        </View>
+      )}
+    </BottomSheet>
+  );
+}
+
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  // 사전 시트 — 콘텐츠 상하 8
+  methodBody: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+  },
   body: {
     paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.md,

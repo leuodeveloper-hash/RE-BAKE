@@ -19,10 +19,14 @@ export interface TimeDialogProps {
   onClose: () => void;
   value?: string;
   onConfirm: (formatted: string) => void;
+  /** 비우고 확인하면 지운다 — 주면 빈 값도 받는다(과정 타이머 끄기 등) */
+  onDelete?: () => void;
+  /** 제목 바꾸기 — 기본 '시간' */
+  title?: string;
 }
 
 /** "1시간 30분" → {hours: 1, minutes: 30} */
-function parseTime(value?: string): {hours: string; minutes: string} {
+export function parseTime(value?: string): {hours: string; minutes: string} {
   if (!value) return {hours: '', minutes: ''};
   const hourMatch = value.match(/(\d+)\s*시간/);
   const minMatch = value.match(/(\d+)\s*분/);
@@ -41,7 +45,7 @@ function formatTime(hours: string, minutes: string): string {
   return '';
 }
 
-export function TimeDialog({visible, onClose, value, onConfirm, onScan}: TimeDialogProps) {
+export function TimeDialog({visible, onClose, value, onConfirm, onScan, onDelete, title}: TimeDialogProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const [hours, setHours] = useState('');
@@ -58,6 +62,7 @@ export function TimeDialog({visible, onClose, value, onConfirm, onScan}: TimeDia
   const handleConfirm = () => {
     const formatted = formatTime(hours, minutes);
     if (formatted) onConfirm(formatted);
+    else onDelete?.();
     onClose();
   };
 
@@ -71,7 +76,7 @@ export function TimeDialog({visible, onClose, value, onConfirm, onScan}: TimeDia
       onClose={onClose}
       icon={IconClockTwotone}
       avatarColor="lime"
-      title={t('time.dialogTitle')}
+      title={title ?? t('time.dialogTitle')}
       actions={<>
         <Button label={t('time.cancel')} variant="soft" onPress={onClose} />
         <Button label={t('time.confirm')} variant="filled" onPress={handleConfirm} />

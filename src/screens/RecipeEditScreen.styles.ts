@@ -308,6 +308,12 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
     gap: Spacing.xs,
     marginTop: FONT_BASELINE_OFFSET,
   },
+  groupTimer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+    marginLeft: Spacing.xs,
+  },
   breadcrumbPrefix: {
     fontFamily: Typography.body.medium.fontFamily,
     fontSize: Typography.body.medium.fontSize,

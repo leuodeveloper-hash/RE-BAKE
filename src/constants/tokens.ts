@@ -433,9 +433,9 @@ export const PrimitiveColors = {
   'lime/60': '#729E11',
   'lime/70': '#8CBA31',
   'lime/80': '#AED369',
-  'lime/90': '#C9F082',
-  'lime/94': '#DCF8A5',
-  'lime/96': '#E8FBBF',
+  'lime/90': '#C6E78B',
+  'lime/94': '#DAF2AB',
+  'lime/96': '#E7F8C2',
   'lime/98': '#F5FEDC',
 
   // Green
@@ -450,9 +450,9 @@ export const PrimitiveColors = {
   'green/60': '#21A56B',
   'green/70': '#40C184',
   'green/80': '#75D9A2',
-  'green/90': '#ACEEC1',
-  'green/94': '#C6F7D2',
-  'green/96': '#D8FADD',
+  'green/90': '#B0EAC2',
+  'green/94': '#CBF2D4',
+  'green/96': '#DAF8DF',
   'green/98': '#ECFBEB',
 
   // Light-blue
@@ -464,10 +464,10 @@ export const PrimitiveColors = {
   'light-blue/30': '#004C6C',
   'light-blue/40': '#00658E',
   'light-blue/50': '#007FB1',
-  'light-blue/60': '#009BD6',
-  'light-blue/70': '#3FB5F2',
-  'light-blue/80': '#83CFFF',
-  'light-blue/90': '#C6E7FF',
+  'light-blue/60': '#0B96CB',
+  'light-blue/70': '#4BB1E6',
+  'light-blue/80': '#96CBEC',
+  'light-blue/90': '#CDE3F4',
   'light-blue/94': '#DEF0FF',
   'light-blue/96': '#E9F5FF',
   'light-blue/98': '#F6FAFF',
@@ -578,6 +578,8 @@ export const SemanticColorsLight = {
 
   // Border
   'border/strong': P['neutral/50'],
+  // 사진 위 보더(링크 밑줄 등) — 어두운 사진 위라 라이트/다크 같은 흰색 반투명
+  'border/on-image': 'rgba(255, 255, 255, 0.56)',
   'border/normal': withOpacityV2(P['neutral/50'], 0.24),
   'border/muted': withOpacityV2(P['neutral/50'], 0.10),
   'border/subtle': withOpacityV2(P['neutral/50'], 0.16),
@@ -728,6 +730,8 @@ export const SemanticColorsDark = {
 
   // Border
   'border/strong': P['neutral/50'],
+  // 사진 위 보더(링크 밑줄 등) — 어두운 사진 위라 라이트/다크 같은 흰색 반투명
+  'border/on-image': 'rgba(255, 255, 255, 0.56)',
   'border/normal': withOpacityV2(P['neutral/50'], 0.24),
   'border/muted': withOpacityV2(P['neutral/50'], 0.10),
   'border/subtle': withOpacityV2(P['neutral/50'], 0.16),

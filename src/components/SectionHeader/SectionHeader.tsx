@@ -42,11 +42,14 @@ export interface SectionHeaderProps {
   /** 헤더 전체를 눌러 이동할 때 — 우측에 › 가 붙는다 */
   onPress?: () => void;
   style?: ViewStyle;
+  /** 타이틀 맨 앞에 붙는 요소 — 과정 묶음 타이머 등 */
+  leading?: React.ReactNode;
   /** 오른쪽 액션(편집) 왼쪽에 붙는 요소 — 스위치 등 */
   actionExtra?: React.ReactNode;
 }
 
 export function SectionHeader({
+  leading,
   actionExtra,
   title,
   variant = 'muted',
@@ -69,6 +72,7 @@ export function SectionHeader({
   return (
     <Wrapper style={[styles.container, style]} onPress={onPress}>
       <View style={styles.leadRow}>
+        {leading}
         {LeadingIcon && (
           <LeadingIcon
             width={20}

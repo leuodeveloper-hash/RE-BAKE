@@ -230,6 +230,13 @@ style={{ top: 60, left: 16 }}
 />
 ```
 
+## 🧷 시트 헤더 버튼
+
+- 시트(BottomSheet·Dialog) 헤더 오른쪽 버튼(`headerRight`)은 **왼쪽 닫기(X)와 같은 떠 있는 유리 알약**으로 둔다.
+  - 하나: `NavPillButton`
+  - 여럿: `NavPillGroup` 안에 `IconButton variant="ghost-primary"`로 묶는다(앱바와 같은 방식).
+- `IconButton`을 tonal·ghost 맨몸으로 넣지 않는다. 왼쪽 X와 모양이 달라져 헤더가 어긋나 보인다.
+
 ## 🎬 애니메이션 규칙
 
 ### BlurView (expo-blur) 주의사항

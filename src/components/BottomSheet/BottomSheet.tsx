@@ -63,7 +63,10 @@ export interface BottomSheetProps {
   description?: string;
   headerGraphic?: React.ReactNode;
   headerType?: 'default' | 'center';
-  /** 타이틀 우측 슬롯 — SheetHeader로 그대로 넘긴다 */
+  /**
+   * 타이틀 우측 슬롯. 룰: 닫기(X) 버튼과 같은 떠 있는 유리 알약 — NavPillButton(하나) / NavPillGroup(여럿).
+   * tonal·ghost IconButton을 맨몸으로 넣지 않는다(왼쪽 X와 모양이 달라진다). docs/DESIGN_RULES.md '시트 헤더 버튼'
+   */
   headerRight?: React.ReactNode;
   /**
    * 시트 바로 위(시트 밖)에 띄우는 요소 — 시트는 모서리 때문에 안을 잘라내서, 위로 펼치는 메뉴는 여기 둔다.

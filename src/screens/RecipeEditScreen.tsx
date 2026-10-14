@@ -205,6 +205,8 @@ const noOutline: any = {outlineStyle: 'none'};
 const TIP_HIDDEN_FIELDS = ['method', 'ratio', 'ingredients', 'tools'];
 
 export function RecipeEditScreen(props: RecipeEditScreenProps) {
+
+
   return (
     <LinkTargetProvider>
       <RecipeEditScreenInner {...props} />
@@ -354,7 +356,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const [showTimeDialog, setShowTimeDialog] = useState(false);
   const [showServingsDialog, setShowServingsDialog] = useState(false);
   const [amountDialogTarget, setAmountDialogTarget] = useState<{groupId: string; ingredientId: string} | null>(null);
-  const [description, setDescription] = useState('');
+  // 레시피 설명 — 예전엔 칸만 있고 저장·불러오기가 없어 쓰면 사라졌다
+  const [description, setDescription] = useState(recipe?.description ?? '');
   const [ingredientGroups, setIngredientGroups] = useState<IngredientGroup[]>(() => {
     if (recipe?.ingredientGroups?.length) {
       return recipe.ingredientGroups.map(g => {
@@ -410,6 +413,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
       return recipe.stepGroups.map(g => ({
         id: genId(),
         title: g.title,
+        timer: g.timer,
         steps: g.steps.map(s => ({
           id: genId(),
           description: s.description,
@@ -479,6 +483,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const [toolRowMenu, setToolRowMenu] = useState<{groupId: string; itemId: string} | null>(null);
   // 과정 헤더 + 버튼 아래 붙는 메뉴 (과정 추가 / 묶음 추가)
   const [stepAddMenu, setStepAddMenu] = useState<string | null>(null);
+  // 과정 묶음 타이머 시간 설정 — 열린 묶음 id
+  const [timerGroupId, setTimerGroupId] = useState<string | null>(null);
   // 한번에 쓰기 작성법 안내 툴팁 (열린 묶음 id)
   const [imageUri, setImageUri] = useState<string | null>(recipe?.imageUri ?? null);
   // 추가 상단 이미지(대표 imageUri 뒤로 최대 2장 — 합쳐서 3장)
@@ -583,8 +589,10 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
       }))
     : [{title: g.title, ingredients: resolveGroupIngredients(g)}]);
   const resolveStepGroups = () => stepGroups.flatMap(g => g.bulkMode
-    ? parseBulkStepGroups(g.bulkText, g.title).map(x => ({
+    ? parseBulkStepGroups(g.bulkText, g.title).map((x, xi) => ({
         title: x.title,
+        // 타이머는 묶음의 첫 조각에 — 저장 데이터엔 빈 값을 넣지 않는다
+        ...(xi === 0 && g.timer ? {timer: g.timer} : {}),
         steps: x.steps.map((st, idx) => ({
           step: idx + 1,
           description: st.description,
@@ -593,7 +601,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
           photos: bulkStepPhotosRef.current.get(st.description.trim()),
         })),
       }))
-    : [{title: g.title, steps: resolveGroupSteps(g)}]);
+    : [{title: g.title, ...(g.timer ? {timer: g.timer} : {}), steps: resolveGroupSteps(g)}]);
 
   // 변경 감지: 현재 폼 상태를 저장 데이터 형태로 스냅샷
   const currentSnapshot = useMemo(() => JSON.stringify({
@@ -614,6 +622,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     stepGroups: resolveStepGroups(),
     activeFieldIds,
     reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
+    description: description.trim() || undefined,
     advice: advice || undefined,
     advicePhotos: advicePhotos.length > 0 ? advicePhotos : undefined,
     kind: kind === 'tip' ? 'tip' as const : undefined,
@@ -623,7 +632,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     sourceUrl: sourceUrl || undefined,
     // 비공개 토글도 변경 감지 대상 — 이게 빠지면 비공개만 바꿨을 때 isDirty가 안 잡혀 저장 불가.
     hidden: isExplore ? hidden : undefined,
-  }), [title, cookbook, method, ratio, time, servings, doughTemp, divideWeight, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, advicePhotos, kind, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden]);
+  }), [title, cookbook, method, ratio, time, servings, doughTemp, divideWeight, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, description, advice, advicePhotos, kind, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden]);
   const initialSnapshotRef = useRef(currentSnapshot);
 
   // ── 되돌리기/다시하기 ──────────────────────────────────────
@@ -711,6 +720,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         stepGroups: resolveStepGroups(),
         activeFieldIds,
         reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
+        description: description.trim() || undefined,
         advice: advice || undefined,
         advicePhotos: advicePhotos.length > 0 ? advicePhotos : undefined,
         kind: kind === 'tip' ? 'tip' as const : undefined,
@@ -723,7 +733,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     } finally {
       setSaving(false);
     }
-  }, [title, cookbook, method, ratio, time, servings, doughTemp, divideWeight, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, advice, advicePhotos, kind, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden, onSave]);
+  }, [title, cookbook, method, ratio, time, servings, doughTemp, divideWeight, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, description, advice, advicePhotos, kind, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden, onSave]);
 
   const pickImage = async (source: 'camera' | 'gallery', slot: 'main' | 'extra' = 'main') => {
     if (source === 'camera') {
@@ -1947,6 +1957,18 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     }
   }, [drag.draggingId, flatIngredients, flatSteps, flatTools]);
 
+
+  // 과정 묶음 타이머 — 묶음 이름 옆. 시간이 있으면 그 시간, 없으면 시계만. 누르면 시간 설정(상세 시간 칸과 같은 창)
+  const renderGroupTimer = (group: StepGroup) => (
+    <Pressable
+      onPress={() => { triggerHaptic('light'); setTimerGroupId(group.id); }}
+      hitSlop={8}
+      style={styles.groupTimer}>
+      <IconClockFilled width={16} height={16} color={group.timer ? colors['foreground/on-surface'] : colors['foreground/on-surface-muted']} />
+      {!!group.timer && <Text style={styles.breadcrumbPrefix}>{group.timer}</Text>}
+    </Pressable>
+  );
+
   return (
     <View style={styles.container}>
       <ScrollView
@@ -2805,6 +2827,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                       onChangeText={v => updateStepGroupTitle(group.id, v)}
                       placeholder={t('recipeEdit.groupNamePlaceholder')}
                     />
+                    {renderGroupTimer(group)}
                   </View>
                 </ListItem>
               ) : (
@@ -2839,6 +2862,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   )}}>
                   <View style={styles.breadcrumbRow}>
                     <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.stepsLabel')}</Text>
+                    {renderGroupTimer(group)}
                   </View>
                 </ListItem>
               )}
@@ -3393,6 +3417,15 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
       />
 
       {/* 시간 다이얼로그 */}
+      {/* 과정 묶음 타이머 시간 — 비우고 확인하면 타이머 끄기 */}
+      <TimeDialog
+        visible={timerGroupId !== null}
+        onClose={() => setTimerGroupId(null)}
+        title={t('recipeEdit.groupTimer')}
+        value={stepGroups.find(g => g.id === timerGroupId)?.timer}
+        onConfirm={v => setStepGroups(p => p.map(g => g.id === timerGroupId ? {...g, timer: v} : g))}
+        onDelete={() => setStepGroups(p => p.map(g => g.id === timerGroupId ? {...g, timer: undefined} : g))}
+      />
       <TimeDialog
         visible={showTimeDialog}
         onClose={() => setShowTimeDialog(false)}

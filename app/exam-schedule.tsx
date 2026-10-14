@@ -1,4 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import {linkTextStyle} from '@components/RichText/RichText';
 import {ActivityIndicator, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useRouter} from 'expo-router';
@@ -534,7 +535,7 @@ const createStyles = (colors: SemanticColors) =>
     pickDateText: {
       ...Typography.caption.medium,
       color: colors['foreground/on-surface'],
-      textDecorationLine: 'underline',
+      ...linkTextStyle(colors), // 공통 링크 모양(보더 색 점선 밑줄)
     },
     datesPast: {
       color: colors['foreground/on-surface-disabled'],

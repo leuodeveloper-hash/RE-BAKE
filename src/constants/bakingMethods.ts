@@ -45,3 +45,34 @@ export const METHOD_SECTIONS: {category: MethodCategory; methods: BakingMethod[]
   {category: 'pastry', methods: PASTRY_METHODS},
   {category: 'bakery', methods: BAKERY_METHODS},
 ];
+
+/** 본문에서 찾는 이름 → 공법. '액종법(풀리시)'처럼 괄호가 있으면 앞·괄호 안 이름 둘 다로 찾는다 */
+const METHOD_BY_TERM = new Map<string, BakingMethod>();
+for (const m of [...PASTRY_METHODS, ...BAKERY_METHODS]) {
+  const match = m.name.match(/^(.+?)\((.+)\)$/);
+  for (const term of match ? [match[1], match[2]] : [m.name]) METHOD_BY_TERM.set(term, m);
+}
+// 긴 이름부터 — '비상스트레이트법' 안의 '스트레이트법'이 먼저 잡히지 않게
+const METHOD_TERM_RE = new RegExp(
+  [...METHOD_BY_TERM.keys()].sort((a, b) => b.length - a.length).join('|'),
+  'g',
+);
+
+/** 글을 공법 이름 기준으로 나눈다 — method가 있는 조각이 공법 이름 */
+export function splitMethodTerms(text: string): {text: string; method?: BakingMethod}[] {
+  const out: {text: string; method?: BakingMethod}[] = [];
+  let last = 0;
+  for (const m of text.matchAll(METHOD_TERM_RE)) {
+    const i = m.index ?? 0;
+    if (i > last) out.push({text: text.slice(last, i)});
+    out.push({text: m[0], method: METHOD_BY_TERM.get(m[0])});
+    last = i + m[0].length;
+  }
+  if (last < text.length) out.push({text: text.slice(last)});
+  return out;
+}
+
+/** 공법 태그 값('비상스트레이트법' 등)으로 정리된 공법 찾기 */
+export function findMethod(name: string): BakingMethod | undefined {
+  return METHOD_BY_TERM.get(name.trim());
+}
