@@ -579,7 +579,7 @@ export const SemanticColorsLight = {
   // Border
   'border/strong': P['neutral/50'],
   // 사진 위 보더(링크 밑줄 등) — 어두운 사진 위라 라이트/다크 같은 흰색 반투명
-  'border/on-image': 'rgba(255, 255, 255, 0.56)',
+  'border/on-image': 'rgba(255, 255, 255, 0.88)',
   'border/normal': withOpacityV2(P['neutral/50'], 0.24),
   'border/muted': withOpacityV2(P['neutral/50'], 0.10),
   'border/subtle': withOpacityV2(P['neutral/50'], 0.16),
@@ -731,7 +731,7 @@ export const SemanticColorsDark = {
   // Border
   'border/strong': P['neutral/50'],
   // 사진 위 보더(링크 밑줄 등) — 어두운 사진 위라 라이트/다크 같은 흰색 반투명
-  'border/on-image': 'rgba(255, 255, 255, 0.56)',
+  'border/on-image': 'rgba(255, 255, 255, 0.88)',
   'border/normal': withOpacityV2(P['neutral/50'], 0.24),
   'border/muted': withOpacityV2(P['neutral/50'], 0.10),
   'border/subtle': withOpacityV2(P['neutral/50'], 0.16),
