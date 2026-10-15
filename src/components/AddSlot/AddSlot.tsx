@@ -5,6 +5,7 @@ import {AppIcon} from '@components/Icon/AppIcon';
 import {IconAdd} from '@components/Icon/IconIndex';
 import {useColors} from '@contexts/ThemeContext';
 import {triggerHaptic} from '@utils/haptics';
+import {useCardVariant} from '@components/Container/Card';
 
 export interface AddSlotProps {
   /** 정사각 한 변 */
@@ -25,14 +26,19 @@ export interface AddSlotProps {
  */
 export function AddSlot({size, radius = 8, onPress, iconSize = 'sm', background, style}: AddSlotProps) {
   const colors = useColors();
+  // 옐로우 카드(베이키의 조언 등) 안이면 옐로우 계열 — 회색 칸이 카드에서 튀지 않게
+  const yellow = useCardVariant() === 'yellow';
+  const bg = background ?? (yellow ? colors['custom/yellow-subtle'] : colors['fill/faint']);
+  const line = (yellow ? colors['custom/yellow-var'] : colors['border/normal']) as string;
+  const iconColor = yellow ? colors['custom/yellow'] : colors['foreground/on-surface-muted'];
   const [w, setW] = useState(size);
   return (
     <Pressable
       onPress={onPress ? () => { triggerHaptic('light'); onPress(); } : undefined}
       onLayout={e => setW(e.nativeEvent.layout.width)}
-      style={[styles.slot, {width: size, height: size, borderRadius: radius, backgroundColor: background ?? colors['fill/faint']}, style]}>
-      <DashedBorder width={w} height={size} radius={radius} strokeWidth={1} dash={6} gap={5} color={colors['border/normal'] as string} />
-      <AppIcon icon={IconAdd} size={iconSize} color={colors['foreground/on-surface-muted']} />
+      style={[styles.slot, {width: size, height: size, borderRadius: radius, backgroundColor: bg}, style]}>
+      <DashedBorder width={w} height={size} radius={radius} strokeWidth={1} dash={6} gap={5} color={line} />
+      <AppIcon icon={IconAdd} size={iconSize} color={iconColor} />
     </Pressable>
   );
 }

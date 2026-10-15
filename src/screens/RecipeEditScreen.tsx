@@ -270,6 +270,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const [focusedStep, setFocusedStep] = useState<{groupId: string; stepId: string} | null>(null);
   // 베이키의 조언 칸에 커서가 있는지 — 툴바 [+]로 사진을 넣는다(과정 칸과 같은 방식)
   const [adviceFocused, setAdviceFocused] = useState(false);
+  const [adviceMenuOpen, setAdviceMenuOpen] = useState(false);
   const [adviceChipMenu, setAdviceChipMenu] = useState(false);
   // 링크 대상은 공용 컨텍스트가 관리한다 — 입력칸마다 핸들러를 달 필요 없이
   // AutoGrowInput이 자동 등록한다(LinkTargetProvider로 이 화면을 감싼다).
@@ -2509,7 +2510,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                         setIngRowMenu(null);
                       }}
                       onClose={() => setIngRowMenu(null)}
-                      style={styles.anchoredMenuLeft}
+                      style={styles.rowHandleMenu}
                     />
                     </View>
                   );
@@ -2792,7 +2793,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                         setToolRowMenu(null);
                       }}
                       onClose={() => setToolRowMenu(null)}
-                      style={styles.anchoredMenuLeft}
+                      style={styles.rowHandleMenu}
                     />
                     </View>
                   );
@@ -3170,7 +3171,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                         setStepRowMenu(null);
                       }}
                       onClose={() => setStepRowMenu(null)}
-                      style={styles.anchoredMenuLeft}
+                      style={styles.rowHandleMenu}
                     />
                     </View>
                   );
@@ -3265,9 +3266,10 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         {/* 조언은 모든 레시피에서 사용 — 필드 추가 다이얼로그도 전체에 노출하므로
             여기서 isExplore로 막으면 "추가했는데 안 뜨는" 불일치가 생긴다 */}
         {isFieldActive('advice') && (
-          <View onLayout={e => { sectionPositions.current['advice'] = e.nativeEvent.layout.y; }}>
+          <View style={adviceMenuOpen ? styles.sectionMenuOpen : undefined} onLayout={e => { sectionPositions.current['advice'] = e.nativeEvent.layout.y; }}>
           <ContentContainer style={isFieldActive('cookbook') ? styles.navItemGap : styles.section}>
-            <Card variant="yellow">
+            {/* 사진 메뉴가 열리면 카드 밖으로 보이게 */}
+            <Card variant="yellow" clip={!adviceMenuOpen}>
               <ListItem
                 title={t('recipeEdit.bakeyAdvice')}
                 leading={{type: 'icon', icon: IconLogoSymbol}}
@@ -3283,12 +3285,16 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   onFocus={() => { setFocusedStep(null); setAdviceFocused(true); }}
                   placeholder={t('recipeEdit.bakeyAdvicePlaceholder')}
                 />
-                {advicePhotos.length > 0 && (
+                {/* 사진 — 과정과 같게: 조언 칸에 커서가 있으면 빈 칸(+)이 나오고 눌러서 촬영·갤러리 */}
+                {(advicePhotos.length > 0 || (adviceFocused && advicePhotos.length < 3)) && (
                   <StepPhotos
                     photos={normalizeStepPhotos(advicePhotos)}
                     mode="edit"
                     onPhotoPress={setAdvicePhotoViewer}
                     onRemove={pi => setAdvicePhotos(prev => prev.filter((_, i) => i !== pi))}
+                    addMenuItems={adviceFocused && advicePhotos.length < 3 ? photoSourceItems : undefined}
+                    onAddSelect={id => addAdvicePhotos(id as 'camera' | 'gallery')}
+                    onAddMenuOpenChange={setAdviceMenuOpen}
                   />
                 )}
               </ListItem>

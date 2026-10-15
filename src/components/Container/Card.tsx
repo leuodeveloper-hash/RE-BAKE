@@ -49,7 +49,7 @@ export function Card({children, style, variant = 'default', clip = true, group =
   return (
     <CardVariantContext.Provider value={variant}>
       <CardGroupContext.Provider value={group}>
-        <View style={[styles.card, variant === 'yellow' && styles.cardYellow, group && styles.group, !clip && (group ? styles.noClipGroup : styles.noClip), style]}>
+        <View style={[styles.card, variant === 'yellow' && styles.cardYellow, group && styles.group, !clip && (group || variant === 'yellow' ? styles.noClipGroup : styles.noClip), style]}>
           {children}
         </View>
       </CardGroupContext.Provider>
@@ -88,7 +88,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     overflow: 'visible',
     borderRadius: 0,
   },
-  // 묶음 카드는 풀어도 라운딩 유지 — 바탕이 없어 모서리는 맨 위·아래 항목(CARD_FIRST/LAST)이 그린다
+  // 묶음 카드는 풀어도 라운딩 유지 — 바탕이 없어 모서리는 맨 위·아래 항목(CARD_FIRST/LAST)이 그린다.
+  // 옐로우 카드도 바탕을 카드가 직접 그리므로 라운딩만 남기고 잘라내기만 푼다(메뉴 열릴 때 모서리가 각지지 않게)
   noClipGroup: {
     overflow: 'visible',
   },

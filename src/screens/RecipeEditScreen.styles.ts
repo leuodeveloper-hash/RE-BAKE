@@ -184,6 +184,15 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // top:'100%'는 부모(=버튼을 감싼 relative 래퍼) 높이 기준이므로,
   // 래퍼가 버튼 행과 같아야 위치가 맞는다.
   // 왼쪽 아이콘 버튼 기준
+  // 줄 손잡이(⋮⋮) 메뉴 — 줄 맨 아래가 아니라 손잡이 바로 아래 4.
+  // 한 줄 줄(높이 48)에서 손잡이(28)가 가운데라 손잡이 아래끝 = (48-28)/2 + 28.
+  rowHandleMenu: {
+    position: 'absolute' as const,
+    top: (48 - 28) / 2 + 28 + Spacing.xs,
+    left: Spacing.md,
+    zIndex: 9999,
+    elevation: 24,
+  },
   anchoredMenuLeft: {
     position: 'absolute' as const,
     top: '100%' as any,
