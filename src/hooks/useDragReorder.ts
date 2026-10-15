@@ -1,6 +1,7 @@
 import {useCallback, useRef, useState} from 'react';
 import {Animated, PanResponder, StyleSheet} from 'react-native';
 import {triggerHaptic} from '@utils/haptics';
+import {CARD_GROUP_GAP} from '@components/Container/Card';
 
 export const ROW_HEIGHT = 48;
 
@@ -25,6 +26,8 @@ export function useDragReorder() {
 
   // 아이템별 페이지 Y 좌표 저장
   const itemPageYRef = useRef<Map<string, number>>(new Map());
+  // 아이템 높이 — 가운데끼리 비교한다(윗변끼리 비교하면 내용이 긴 줄은 한참 끌어야 자리가 바뀌었다)
+  const itemHeightRef = useRef<Map<string, number>>(new Map());
   const dragStartPageY = useRef(0);
   const draggedItemOriginalY = useRef(0);
 
@@ -42,9 +45,9 @@ export function useDragReorder() {
   const handleItemLayout = useCallback((id: string) => () => {
     const el = itemViewRefs.current.get(id);
     if (el && typeof el.measureInWindow === 'function') {
-      el.measureInWindow((_x: number, y: number) => {
+      el.measureInWindow((_x: number, y: number, _w: number, h: number) => {
         itemPageYRef.current.set(id, y);
-        console.log(`[DRAG] layout ${id} → y=${y}`);
+        itemHeightRef.current.set(id, h);
       });
     } else {
       console.warn(`[DRAG] no measureInWindow for ${id}, el=`, typeof el, el ? Object.keys(el).slice(0, 5) : 'null');
@@ -79,8 +82,9 @@ export function useDragReorder() {
             if (el && el.measureInWindow) {
               const capturedId = item.id;
               const isDraggedItem = capturedId === callbacksRef.itemId;
-              el.measureInWindow((_x: number, y: number) => {
+              el.measureInWindow((_x: number, y: number, _w: number, h: number) => {
                 itemPageYRef.current.set(capturedId, y);
+                itemHeightRef.current.set(capturedId, h);
                 if (isDraggedItem) {
                   draggedItemOriginalY.current = y;
                 }
@@ -95,14 +99,14 @@ export function useDragReorder() {
           const positions = itemPageYRef.current;
 
           // 아이템의 현재 시각적 위치 기반 계산 (손가락 위치가 아닌 아이템 위치)
-          const currentPageY = draggedItemOriginalY.current + gesture.dy;
+          const currentPageY = draggedItemOriginalY.current + gesture.dy
+            + (itemHeightRef.current.get(callbacksRef.itemId) ?? 0) / 2; // 끄는 줄의 가운데
           let newIdx = fromIdx;
           let minDist = Infinity;
 
-          console.log(`[DRAG] release: from=${fromIdx}, dy=${gesture.dy}, originY=${draggedItemOriginalY.current}, currentPageY=${currentPageY}`);
           for (let i = 0; i < items_.length; i++) {
-            const itemY = positions.get(items_[i].id);
-            console.log(`[DRAG]   item[${i}] id=${items_[i].id} y=${itemY}`);
+            const top = positions.get(items_[i].id);
+            const itemY = top != null ? top + (itemHeightRef.current.get(items_[i].id) ?? 0) / 2 : undefined; // 줄의 가운데
             if (itemY != null) {
               const dist = Math.abs(currentPageY - itemY);
               if (dist < minDist) {
@@ -111,13 +115,12 @@ export function useDragReorder() {
               }
             }
           }
-          console.log(`[DRAG]   → newIdx=${newIdx}, minDist=${minDist}`);
 
           // 위치 정보가 없으면 기존 ROW_HEIGHT 방식 폴백
           if (minDist === Infinity) {
-            const moveBy = Math.round(gesture.dy / ROW_HEIGHT);
+            // 묶음 카드(줄 사이 1px 간격)도 같이 — 줄 한 칸 = 줄 높이 + 간격
+            const moveBy = Math.round(gesture.dy / (ROW_HEIGHT + CARD_GROUP_GAP));
             newIdx = Math.max(0, Math.min(items_.length - 1, fromIdx + moveBy));
-            console.log(`[DRAG]   fallback → newIdx=${newIdx}`);
           }
 
           if (fromIdx !== newIdx) {
@@ -158,6 +161,7 @@ export function useDragReorder() {
     createItemRef,
     handleItemLayout,
     itemPageYRef,
+    itemHeightRef,
     draggedItemOriginalY,
   };
 }

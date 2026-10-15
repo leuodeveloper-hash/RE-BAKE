@@ -8,7 +8,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {noticeLabelStyle, noticePillStyle} from '@components/FloatingNotice/FloatingNotice';
-import {IconEditFilled, IconPauseFilled, IconPlayFilled, IconRefresh} from '@components/Icon/IconIndex';
+import {IconTimerTwotone, IconEditFilled, IconPauseFilled, IconPlayFilled, IconRefresh} from '@components/Icon/IconIndex';
 import {Menu} from '@components/Menu/Menu';
 import {View} from 'react-native';
 import {parseTime, TimeDialog} from '@components/Dialog/TimeDialog';
@@ -152,6 +152,8 @@ export const StepTimer = forwardRef<StepTimerHandle, StepTimerProps>(function St
       visible={editing}
       onClose={() => setEditing(false)}
       title={t('recipeEdit.groupTimer')}
+      icon={IconTimerTwotone}
+      avatarColor="orange"
       value={duration}
       // 같은 시간으로 확인해도 처음부터(시간이 그대로면 total 효과가 안 돌아 직접 되돌린다)
       onConfirm={v => { if (onChange) { onChange(v); return; } setDuration(v); setPhase('idle'); setLeft(durationSeconds(v)); }}

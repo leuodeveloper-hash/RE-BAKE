@@ -1,4 +1,6 @@
 import React, {useEffect, useState} from 'react';
+import type {SvgProps} from 'react-native-svg';
+import type {AvatarColor} from '@components/Avatar/Avatar';
 import {StyleSheet, Text, View} from 'react-native';
 import {Dialog} from './Dialog';
 import {NavPillButton} from '@components/Navigation/NavPillButton';
@@ -23,6 +25,9 @@ export interface TimeDialogProps {
   onDelete?: () => void;
   /** 제목 바꾸기 — 기본 '시간' */
   title?: string;
+  /** 머리 아이콘·색 바꾸기 — 기본 시계(라임). 과정 타이머는 타이머(오렌지) */
+  icon?: React.FC<SvgProps>;
+  avatarColor?: AvatarColor;
 }
 
 /** "1시간 30분" → {hours: 1, minutes: 30} */
@@ -45,7 +50,7 @@ function formatTime(hours: string, minutes: string): string {
   return '';
 }
 
-export function TimeDialog({visible, onClose, value, onConfirm, onScan, onDelete, title}: TimeDialogProps) {
+export function TimeDialog({visible, onClose, value, onConfirm, onScan, onDelete, title, icon, avatarColor}: TimeDialogProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const [hours, setHours] = useState('');
@@ -68,14 +73,16 @@ export function TimeDialog({visible, onClose, value, onConfirm, onScan, onDelete
 
   return (
     <Dialog
+      // 상세 메타데이터 팝업 — 아이콘 헤더
+      headerType="default"
       // 입력 팝업 — 통합 검색처럼 위쪽에(키보드에 안 가리게)
       position="top"
       // 사진에서 읽기 — 헤더 오른쪽(누르면 사진·영역을 골라 이 칸을 채운다)
       headerRight={onScan ? <NavPillButton icon={IconScanText} onPress={onScan} /> : undefined}
       visible={visible}
       onClose={onClose}
-      icon={IconClockTwotone}
-      avatarColor="lime"
+      icon={icon ?? IconClockTwotone}
+      avatarColor={avatarColor ?? 'lime'}
       title={title ?? t('time.dialogTitle')}
       actions={<>
         <Button label={t('time.cancel')} variant="soft" onPress={onClose} />

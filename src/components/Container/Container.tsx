@@ -14,13 +14,14 @@ import {useTheme} from '@contexts/ThemeContext';
  * - subtle: fill/subtle (#0E0E0D 6%), border 없음 — 기본
  * - faint:  fill/faint (3%) + border/muted 1px
  * - glass:  fill/glass-normal (rgba 255 72%) + BACKGROUND_BLUR
+ * - bright: surface/bright — 카드 바탕. 섹션 묶음(Card group)의 항목. 안의 메뉴가 잘리지 않게 클립하지 않는다
  *
  * Figma 정의 기본 radius=16 (radius-lg).
  * Glass intensity 의 BlurView 매핑: Figma blur radius 와 iOS BlurView intensity
  * 단위가 다르므로 시각 동등성을 위해 64를 기본값으로 사용 (기존 GlassContainer 호환).
  */
 
-export type ContainerMaterial = 'subtle' | 'faint' | 'glass';
+export type ContainerMaterial = 'subtle' | 'faint' | 'glass' | 'bright';
 
 export interface ContainerProps {
   children: React.ReactNode;
@@ -32,7 +33,7 @@ export interface ContainerProps {
   intensity?: number;
   /** Glass material 의 inner content View 스타일 (padding/min-size 등) */
   contentStyle?: StyleProp<ViewStyle>;
-  style?: ViewStyle;
+  style?: StyleProp<ViewStyle>;
 }
 
 export function Container({
@@ -69,6 +70,7 @@ export function Container({
         {borderRadius: radius},
         material === 'subtle' && styles.subtle,
         material === 'faint' && styles.faint,
+        material === 'bright' && styles.bright,
         style,
       ]}>
       {children}
@@ -83,6 +85,10 @@ const createStyles = (colors: SemanticColors) =>
     },
     subtle: {
       backgroundColor: colors['fill/subtle'],
+    },
+    bright: {
+      backgroundColor: colors['surface/bright'],
+      overflow: 'visible',
     },
     faint: {
       backgroundColor: colors['fill/faint'],

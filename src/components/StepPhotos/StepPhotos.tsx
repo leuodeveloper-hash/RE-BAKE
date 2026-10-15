@@ -25,6 +25,8 @@ export interface StepPhotosProps {
    */
   addMenuItems?: MenuItemData[];
   onAddSelect?: (id: string) => void;
+  /** 빈 칸 메뉴 열림/닫힘 — 감싼 쪽이 이 줄·카드를 맨 위 레이어로 올릴 때(아래 줄에 가리지 않게) */
+  onAddMenuOpenChange?: (open: boolean) => void;
   /** 정규화된 사진 배열 ({uri, caption?}) */
   photos: StepPhoto[];
   /**
@@ -73,8 +75,14 @@ export function StepPhotos({
   onAdd,
   addMenuItems,
   onAddSelect,
+  onAddMenuOpenChange,
 }: StepPhotosProps) {
-  const [addMenuOpen, setAddMenuOpen] = useState(false);
+  const [addMenuOpen, setAddMenuOpenState] = useState(false);
+  const setAddMenuOpen = (v: boolean | ((p: boolean) => boolean)) => setAddMenuOpenState(prev => {
+    const next = typeof v === 'function' ? v(prev) : v;
+    if (next !== prev) onAddMenuOpenChange?.(next);
+    return next;
+  });
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const editable = mode === 'edit';

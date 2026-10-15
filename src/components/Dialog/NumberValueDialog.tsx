@@ -49,6 +49,8 @@ export function NumberValueDialog({visible, onClose, title, icon, avatarColor = 
   };
   return (
     <Dialog
+      // 상세 메타데이터 팝업 — 아이콘 헤더
+      headerType="default"
       // 입력 팝업 — 통합 검색처럼 위쪽에(키보드에 안 가리게)
       position="top"
       // 사진에서 읽기 — 헤더 오른쪽(누르면 사진·영역을 골라 이 칸을 채운다)

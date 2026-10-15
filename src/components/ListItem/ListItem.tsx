@@ -11,7 +11,7 @@ import {Checkbox} from '@components/Checkbox/Checkbox';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {triggerHaptic} from '@utils/haptics';
 import {useColors} from '@contexts/ThemeContext';
-import {useCardVariant} from '@components/Container/Card';
+import {CardItem, useCardVariant, useInCardGroup} from '@components/Container/Card';
 
 // ---- Leading/Trailing 슬롯 타입 ----
 
@@ -159,6 +159,9 @@ export function ListItem({
   const colors = useColors();
   const styles = useThemedStyles(createStyles);
   const cardVariant = useCardVariant();
+  // 묶음 카드 안 — 선 대신 자기 바탕을 갖고, 줄 사이는 카드가 1px 띄운다
+  const inGroup = useInCardGroup();
+  const Root = inGroup ? CardItem : View;
   const resolvedVariant = variant ?? cardVariant;
   const multiline = titleNumberOfLines === 0;
   // 롱프레스만 있어도 Pressable이어야 한다(탭 없이 롱프레스만 쓰는 행 대응)
@@ -187,7 +190,8 @@ export function ListItem({
     : {style: [styles.stateLayer, multiline && styles.stateLayerTop, padding != null && {paddingHorizontal: padding, paddingVertical: padding}, disabled && styles.disabled]};
 
   return (
-    <View style={style}>
+    // 묶음 카드 안이면 공통 Container(bright) 항목 안에 넣는다
+    <Root style={style}>
       <Wrapper {...(wrapperProps as any)}>
         {leading && renderSlotElement(leading, colors, styles, resolvedVariant)}
         <View style={styles.content}>
@@ -204,12 +208,12 @@ export function ListItem({
         {/* 오른쪽 아이콘(› 등)은 아이콘 크기 단계 한 칸 작게(xs 16) — 왼쪽(sm 20)과 같으면 화살표가 너무 커 보였다 */}
         {trailing && renderSlotElement(trailing, colors, styles, resolvedVariant, 'xs')}
       </Wrapper>
-      {showDivider && (
+      {showDivider && !inGroup && (
         <View style={styles.dividerContainer}>
           <View style={[styles.divider, isYellow && styles.dividerYellow]} />
         </View>
       )}
-    </View>
+    </Root>
   );
 }
 

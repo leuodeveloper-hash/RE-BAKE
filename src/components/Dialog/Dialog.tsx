@@ -147,6 +147,7 @@ export function Dialog({
     }
   }, [visible, backdropOpacity, scale, contentOpacity]);
 
+  const effectiveHeaderType = headerType ?? 'center';
   const handleBackdropPress = () => {
     if (enableBackdropDismiss) onClose();
   };
@@ -204,11 +205,16 @@ export function Dialog({
             </View>
           </>
         ) : (icon || title || showCloseButton) && (
-          // 팝업 머리도 공통 시트 헤더(라벨 가운데, 왼쪽 닫기) — 아이콘·그래픽은 쓰지 않는다
+          // 팝업 머리 = 공통 시트 헤더 두 종류.
+          //  - 일반 헤더(기본): 라벨 가운데 · 왼쪽 X
+          //  - 아이콘 헤더(headerType="default"): 아이콘(동그란 색 바탕) · 왼쪽 정렬 제목·설명 · 오른쪽 X — 상세 메타데이터(시간·분량·반죽 온도·분할 무게) 팝업
           <SheetHeader
             title={title ?? ''}
             description={description}
-            headerType="center"
+            icon={icon}
+            avatarColor={avatarColor}
+            headerGraphic={headerGraphic}
+            headerType={effectiveHeaderType}
             headerRight={headerRight}
             onClose={showCloseButton ? onClose : undefined}
           />
@@ -216,7 +222,7 @@ export function Dialog({
 
         {/* Content */}
         {/* 라벨 가운데 헤더(앱바형)면 헤더 아래·버튼 위 여백을 8로 — 기본 20은 미리보기처럼 큰 내용에서 휑했다 */}
-        {children && <View style={[styles.content, styles.contentCompact]}>{children}</View>}
+        {children && <View style={[styles.content, effectiveHeaderType === 'center' && styles.contentCompact]}>{children}</View>}
 
         {/* Actions */}
         {actions && (

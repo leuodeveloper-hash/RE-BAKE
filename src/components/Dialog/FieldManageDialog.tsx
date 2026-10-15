@@ -25,7 +25,7 @@ import {
   IconWind,
   IconLogoSymbol,
   IconLink,
-  IconImport, IconFireFilled, IconSplitFilled} from '@components/Icon/IconIndex';
+  IconImport, IconDoughTempFilled, IconSplitFilled} from '@components/Icon/IconIndex';
 
 // 필드 정의
 interface FieldDef {
@@ -44,7 +44,7 @@ const makeAllFields = (t: (key: string) => string): FieldDef[] => [
   {id: 'tools', label: t('fieldManage.tools'), icon: IconToolCaseFilled, fixed: false},
   {id: 'steps', label: t('fieldManage.steps'), icon: IconFlow, fixed: false},
   {id: 'servings', label: t('fieldManage.servings'), icon: IconUserFilled, fixed: false},
-  {id: 'doughTemp', label: t('fieldManage.doughTemp'), icon: IconFireFilled, fixed: false},
+  {id: 'doughTemp', label: t('fieldManage.doughTemp'), icon: IconDoughTempFilled, fixed: false},
   {id: 'divideWeight', label: t('fieldManage.divideWeight'), icon: IconSplitFilled, fixed: false},
   {id: 'method', label: t('fieldManage.method'), icon: IconOpenbookFilled, fixed: false},
   {id: 'ratio', label: t('fieldManage.ratio'), icon: IconWind, fixed: false},

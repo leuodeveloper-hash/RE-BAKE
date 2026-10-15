@@ -24,6 +24,16 @@ export function withBreadFields(ids: string[] | undefined): string[] | null {
   return missing.length ? [...base, ...missing] : null;
 }
 
+/**
+ * 실제로 켜진 칸 — 편집·상세가 같은 규칙을 쓴다. 제빵 레시피는 저장된 목록에 없어도 반죽 온도·분할 무게를 켠다.
+ * (편집만 이 규칙을 써서, 상세에선 값이 있어도 두 칸이 안 보였다)
+ * ids가 없으면(예전 레시피) undefined 그대로 — 상세는 '전부 켜짐'으로 본다.
+ */
+export function effectiveActiveFields(ids: string[] | undefined, r: Pick<Recipe, 'cookbook' | 'kind'>): string[] | undefined {
+  if (!ids || !isBreadRecipe(r)) return ids;
+  return withBreadFields(ids) ?? ids;
+}
+
 const FLAG = 'bread_fields_migrated_v1';
 
 /**

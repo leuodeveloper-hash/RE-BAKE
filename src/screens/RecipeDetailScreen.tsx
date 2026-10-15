@@ -1,5 +1,6 @@
 import {NOTE_BLOCK} from '@constants/noteBlock';
 import {StepTimer, type StepTimerHandle} from '@components/StepTimer';
+import {effectiveActiveFields} from '@utils/breadFieldsMigration';
 import {IconRefresh} from '@components/Icon/IconIndex';
 import {FloatingNotice} from '@components/FloatingNotice';
 import {APPBAR_ITEM_GAP} from '@constants/layout';
@@ -78,8 +79,9 @@ import {
   IconEllipsisVertical,
   IconClockFilled,
   IconUsersRoundFilled,
-  IconFireFilled,
+  IconDoughTempFilled,
   IconSplitFilled,
+  IconSplitTwotone, IconDoughTempTwotone,
   IconArrowDownToLine,
   IconChevronLeft,
   IconChevronRight,
@@ -454,7 +456,9 @@ export function RecipeDetailScreen({
   const diffOn = showDiff && !!diff;
 
   // 필드 활성 여부 헬퍼
-  const isFieldActive = (id: string) => !activeFieldIds || activeFieldIds.includes(id);
+  // 켜진 칸 — 편집 화면과 같은 규칙(제빵 레시피는 반죽 온도·분할 무게 항상 켜짐)
+  const effectiveFields = effectiveActiveFields(activeFieldIds, {cookbook, kind: isTip ? 'tip' : 'recipe'});
+  const isFieldActive = (id: string) => !effectiveFields || effectiveFields.includes(id);
 
   // toolGroups 우선, 없으면 tools를 단일 그룹으로 래핑
   const resolvedToolGroups: ToolGroupInput[] = useMemo(() => {
@@ -884,7 +888,7 @@ export function RecipeDetailScreen({
     // 필드 관리에서 끈 칸은 값이 있어도 숨긴다
     ...(time && isFieldActive('time') ? [{icon: IconClockFilled, label: time, onPress: canEdit ? () => setShowTimeDialog(true) : undefined}] : []),
     ...(servings && isFieldActive('servings') ? [{icon: IconUsersRoundFilled, label: servings, onPress: canEdit ? () => setShowServingsDialog(true) : undefined}] : []),
-    ...(doughTemp && isFieldActive('doughTemp') ? [{icon: IconFireFilled, label: doughTemp, onPress: canEdit ? () => setNumberDialog('doughTemp') : undefined}] : []),
+    ...(doughTemp && isFieldActive('doughTemp') ? [{icon: IconDoughTempFilled, label: doughTemp, onPress: canEdit ? () => setNumberDialog('doughTemp') : undefined}] : []),
     ...(divideWeight && isFieldActive('divideWeight') ? [{icon: IconSplitFilled, label: divideWeight, onPress: canEdit ? () => setNumberDialog('divideWeight') : undefined}] : []),
   ];
 
@@ -1031,6 +1035,8 @@ export function RecipeDetailScreen({
               {!!description?.trim() && (
                 <RichText style={styles.heroSummary} numberOfLines={2}>{description}</RichText>
               )}
+              {/* 메타 + 사진 장수 — 메타만 줄바꿈되고, 사진 장수는 오른쪽 끝(마지막 줄 높이)에 붙어 있는다 */}
+              <View style={styles.heroMetaLine}>
               <View style={styles.heroDescriptionRow}>
                 {authorHandle && (
                   <>
@@ -1085,7 +1091,8 @@ export function RecipeDetailScreen({
                   </>
                   );
                 })()}
-                {/* 여러 장이면 장수 — 메타 줄 오른쪽 끝(콘텐츠 오른쪽 끝에 맞춤). 누르면 사진 뷰어 */}
+              </View>
+                {/* 여러 장이면 장수 — 메타 묶음 밖 오른쪽 끝(콘텐츠 오른쪽 끝에 맞춤). 누르면 사진 뷰어 */}
                 {heroPhotos.length > 1 && (
                   // 다른 메타(리뷰 수·참고 링크)와 같은 모양 — 바탕 없이 12 아이콘 + 메타 글씨
                   // 누르면 사진 뷰어(롱프레스와 같은 곳) — 첫 장부터
@@ -1735,7 +1742,7 @@ export function RecipeDetailScreen({
         visible={numberDialog !== null}
         onClose={() => setNumberDialog(null)}
         title={numberDialog === 'divideWeight' ? t('recipeEdit.divideWeight') : t('recipeEdit.doughTemp')}
-        icon={numberDialog === 'divideWeight' ? IconSplitFilled : IconFireFilled}
+        icon={numberDialog === 'divideWeight' ? IconSplitTwotone : IconDoughTempTwotone}
         value={numberDialog === 'divideWeight' ? divideWeight : doughTemp}
         suffix={numberDialog === 'divideWeight' ? 'g' : '°C'}
         onConfirm={v => onUpdate?.(numberDialog === 'divideWeight' ? {divideWeight: v} : {doughTemp: v})}
@@ -1989,7 +1996,13 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     // 가로 위치·폭은 heroFrame — 이미지와 같은 틀이라 이미지 밖 좌우를 덮지 않는다
   },
   heroCountBadge: {
-    marginLeft: 'auto', // 메타 줄 오른쪽 끝으로
+    marginLeft: Spacing.smd,
+  },
+  // 메타 묶음(줄바꿈) + 사진 장수(오른쪽 끝 고정)
+  heroMetaLine: {
+    alignSelf: 'stretch',
+    flexDirection: 'row',
+    alignItems: 'flex-end',
   },
   heroSideGradient: {
     position: 'absolute',
@@ -2058,6 +2071,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     minWidth: 0,
   },
   heroDescriptionRow: {
+    // flex:1(기준 폭 0)이면 감싼 줄 폭이 정해지지 않은 곳에서 폭 0이 돼 메타가 통째로 안 보였다 — 글자 폭 기준으로 늘고 줄게
+    flexGrow: 1,
+    flexShrink: 1,
+    minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
     flexWrap: 'wrap',

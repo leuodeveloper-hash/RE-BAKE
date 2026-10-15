@@ -15,7 +15,7 @@ export interface DragHandleProps {
   color?: string;
   /** 탭 — 행 단위 메뉴(묶음 나누기 등) 트리거 */
   onPress?: () => void;
-  /** 롱프레스 — onPress와 같은 메뉴를 여는 보조 경로 */
+  /** 롱프레스 동작 — 기본은 없음(롱프레스는 끌어 옮기기 시작이라 메뉴를 띄우지 않는다) */
   onLongPress?: () => void;
 }
 
@@ -33,7 +33,8 @@ export function DragHandle({responder, enabled = true, size = 20, color, onPress
   return (
     <View {...(responder ? responder.panHandlers : {})} style={dragStyles.handle}>
       {onPress || onLongPress ? (
-        <Pressable onPress={onPress} onLongPress={onLongPress ?? onPress} delayLongPress={300} hitSlop={6}>
+        // 롱프레스(꾹 눌러 끌기)엔 메뉴를 띄우지 않는다 — onLongPress를 주면 onPress도 안 불린다
+        <Pressable onPress={onPress} onLongPress={onLongPress ?? (() => {})} delayLongPress={300} hitSlop={6}>
           {icon}
         </Pressable>
       ) : icon}
