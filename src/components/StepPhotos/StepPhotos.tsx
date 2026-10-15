@@ -1,4 +1,4 @@
-import {IconCameraFilled} from '@components/Icon/IconIndex';
+import {AddSlot} from '@components/AddSlot';
 import {Menu, type MenuItemData} from '@components/Menu/Menu';
 import React, {useState} from 'react';
 import {triggerHaptic} from '@utils/haptics';
@@ -147,18 +147,18 @@ export function StepPhotos({
         );
       })}
       {(onAdd || addMenuItems?.length) ? (
-        // 빈 썸네일 — 사진과 같은 크기·모서리, 점선 테두리 + 카메라. 메뉴가 있으면 눌러서 촬영/갤러리 고르기
+        // 빈 썸네일 — 사진과 같은 크기·모서리, 점선 테두리 + 더하기(+). 메뉴가 있으면 눌러서 촬영/갤러리 고르기
         <View style={[styles.addAnchor, addMenuOpen && styles.addAnchorOpen]}>
-          <Pressable
+          {/* 공통 더하기 칸(점선 + +) — 요리모드 사진 추가 카드와 같은 컴포넌트 */}
+          <AddSlot
+            size={size}
+            radius={Radius['radius-sm']}
             onPress={() => {
-              triggerHaptic('light');
               if (addMenuItems && addMenuItems.length > 1) setAddMenuOpen(v => !v);
               else if (addMenuItems?.length === 1) onAddSelect?.(addMenuItems[0].id);
               else onAdd?.();
             }}
-            style={[styles.addSlot, {width: size, height: size}]}>
-            <IconCameraFilled width={20} height={20} color={colors['foreground/on-surface-muted']} />
-          </Pressable>
+          />
           {addMenuItems && addMenuItems.length > 1 ? (
             <Menu
               items={addMenuItems}
@@ -190,15 +190,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     marginTop: Spacing.xs,
     zIndex: 1000,
     elevation: 1000,
-  },
-  addSlot: {
-    borderRadius: Radius['radius-sm'],
-    borderWidth: 1,
-    borderStyle: 'dashed',
-    borderColor: colors['border/muted'],
-    backgroundColor: colors['fill/faint'],
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   container: {
     flexDirection: 'row',

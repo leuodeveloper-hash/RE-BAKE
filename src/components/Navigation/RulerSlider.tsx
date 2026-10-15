@@ -30,6 +30,8 @@ export interface RulerSliderProps {
   selectedId?: string;
   /** 항목 선택 시 콜백 */
   onSelect?: (id: string) => void;
+  /** 끄는 중 눈금이 바뀔 때마다(손 떼기 전) — 미리보기를 바로 바꿀 때 */
+  onLiveChange?: (id: string) => void;
   /**
    * 중앙 라벨 탭 시 콜백. 지정하면 라벨이 탭 가능해짐.
    * 슬라이더 축 전환(예: 회차 ↔ 같은 태그/그룹 항목)에 사용.
@@ -61,6 +63,7 @@ export function RulerSlider({
   items,
   selectedId,
   onSelect,
+  onLiveChange,
   onLabelPress,
 }: RulerSliderProps) {
   const styles = useThemedStyles(createStyles);
@@ -171,6 +174,7 @@ export function RulerSlider({
         if (live !== liveIndexRef.current) {
           setLive(live);
           Haptics.selectionAsync();
+          onLiveChange?.(items[live].id);
         }
       },
       onPanResponderRelease: (_, g) => {

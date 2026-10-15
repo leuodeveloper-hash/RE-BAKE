@@ -97,7 +97,7 @@ export function PasteRecipeSheet({visible, onClose, onApply, initialText, loadin
       floating={
         <>
           <FloatingPanel visible={rulesOpen} anchor={rulesAnchor}>
-            <ShortcutList rows={writingRuleRows(['title', 'meta', 'section', 'subgroup', 'ingredient', 'step', 'tip', 'caution'], t)} />
+            <ShortcutList rows={writingRuleRows(['title', 'meta', 'section', 'subgroup', 'ingredient', 'step', 'tip', 'caution', 'timer'], t)} />
           </FloatingPanel>
           {/* 이미지로 읽기 메뉴 — 헤더 알약 바로 아래, 오른쪽 끝 맞춤(메뉴처럼) */}
           {scanMenuOpen && readImageItems && onReadImage ? (

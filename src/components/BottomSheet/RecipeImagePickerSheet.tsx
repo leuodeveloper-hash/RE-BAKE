@@ -1,7 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {IconPhoto} from '@components/Icon/IconIndex';
 import React, {useEffect, useMemo, useState} from 'react';
-import {Pressable, StyleSheet, View, useWindowDimensions} from 'react-native';
+import {Pressable, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {Image as ExpoImage} from 'expo-image';
 import {BottomSheet, sheetTileWidth} from './BottomSheet';
 import {ListItem} from '@components/ListItem';
@@ -18,6 +18,7 @@ import {useTranslation} from '@contexts/LanguageContext';
 import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
+import {Typography} from '@constants/typography';
 import type {Recipe} from '../../types/recipe';
 
 export interface RecipeImagePickerSheetProps {
@@ -99,9 +100,9 @@ export function RecipeImagePickerSheet({visible, onClose, myRecipes, exploreReci
     return items.length ? [{key: 'recent', title: t('recipeImagePicker.recent'), items}] : [];
   }, [myRecipes, exploreRecipes, query, recentIds, t]);
 
-  // 사진 칸 3열 — 다른 시트 칸과 같은 방식(숫자 폭)
+  // 사진 칸 4열 정사각 — 3열 세로형(1:1.3)은 칸이 커서 몇 장만 보였다
   const {width: windowWidth} = useWindowDimensions();
-  const cellW = sheetTileWidth(windowWidth, 3, GRID_PADDING, GRID_GAP);
+  const cellW = sheetTileWidth(windowWidth, 4, GRID_PADDING, GRID_GAP);
 
   return (
     <BottomSheet
@@ -115,17 +116,16 @@ export function RecipeImagePickerSheet({visible, onClose, myRecipes, exploreReci
       onBack={recipe && !fixedRecipe ? () => setPicked(null) : undefined}>
       {recipe ? (
         <>
-        {onGallery ? (
-          <ListItem
-            title={t('recipeEdit.chooseFromGallery')}
-            leading={{type: 'icon', icon: IconPhoto}}
-            onPress={onGallery}
-            showDivider={false}
-          />
-        ) : null}
         <View style={styles.grid}>
+          {/* 맨 앞 칸 = 갤러리(사진 칸과 같은 크기) */}
+          {onGallery ? (
+            <Pressable style={[styles.cell, styles.galleryCell, {width: cellW, height: cellW}]} onPress={onGallery}>
+              <IconPhoto width={24} height={24} color={colors['foreground/on-surface-muted']} />
+              <Text style={styles.galleryLabel} numberOfLines={1}>{t('recipeEdit.chooseFromGallery')}</Text>
+            </Pressable>
+          ) : null}
           {images.map(uri => (
-            <Pressable key={uri} style={[styles.cell, {width: cellW, height: cellW * 1.3}]} onPress={() => onPick(uri)}>
+            <Pressable key={uri} style={[styles.cell, {width: cellW, height: cellW}]} onPress={() => onPick(uri)}>
               <ExpoImage source={{uri}} style={styles.image} contentFit="cover" cachePolicy="memory-disk" transition={150} />
             </Pressable>
           ))}
@@ -190,6 +190,15 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     backgroundColor: colors['fill/subtle'],
     flexGrow: 0,
     flexShrink: 0,
+  },
+  galleryCell: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: Spacing.xs,
+  },
+  galleryLabel: {
+    ...Typography.caption.medium,
+    color: colors['foreground/on-surface-muted'],
   },
   image: {
     width: '100%',

@@ -64,7 +64,8 @@ export function CardItem({children, style}: {children: React.ReactNode; style?: 
   // 공통 Container의 bright(surface/bright) 재질 — 모서리는 바깥 묶음 카드가 준다
   return (
     <Container material="bright" borderRadius={0} style={[variant === 'yellow' && styles.itemYellow, style]}>
-      {children}
+      {/* 항목 안은 이미 바탕이 있다 — 안의 목록 줄이 컨테이너를 또 만들어 모서리(CARD_FIRST/LAST)를 덮지 않게 */}
+      <CardGroupContext.Provider value={false}>{children}</CardGroupContext.Provider>
     </Container>
   );
 }

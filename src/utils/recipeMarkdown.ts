@@ -208,7 +208,8 @@ export function ingredientGroupsToBulk(groups: {title?: string; ingredients: {na
       .filter(Boolean)
       .join(', ');
     return withHeading ? `## ${g.title || ''}\n${line}`.trim() : line;
-  }).filter(Boolean).join('\n');
+  // 묶음(## 이름)끼리는 빈 줄 하나 더 — 덩어리가 눈에 들어오게(읽을 땐 빈 줄을 무시한다)
+  }).filter(Boolean).join(withHeading ? '\n\n' : '\n');
 }
 
 /** 과정 묶음들 → 한번에 쓰기 칸 하나(팁·주의는 `> 팁:` / `> 주의:` 줄로) */
@@ -225,7 +226,8 @@ export function stepGroupsToBulk(groups: {title?: string; timer?: string; steps:
       ].filter(Boolean).join('\n'))
       .join('\n');
     return withHeading ? `## ${g.title || ''}\n${timerLine}${body}`.trim() : `${timerLine}${body}`;
-  }).filter(Boolean).join('\n');
+  // 묶음(## 이름)끼리는 빈 줄 하나 더 — 덩어리가 눈에 들어오게(읽을 땐 빈 줄을 무시한다)
+  }).filter(Boolean).join(withHeading ? '\n\n' : '\n');
 }
 
 /**

@@ -41,6 +41,16 @@ export interface EditorTheme {
   fontSize: number;
   lineHeight: number;
   fontFamily: string;
+  /** 굵기 — 앱 글자와 같게(Medium 500 등). 없으면 폰트 이름(Pretendard-Medium)에서 읽는다 */
+  fontWeight?: number;
+}
+
+/** 폰트 이름 → 굵기(Pretendard-Medium → 500) */
+function weightOf(fontFamily: string): number {
+  if (/Bold/i.test(fontFamily) && !/SemiBold/i.test(fontFamily)) return 700;
+  if (/SemiBold/i.test(fontFamily)) return 600;
+  if (/Medium/i.test(fontFamily)) return 500;
+  return 400;
 }
 
 /** 초기값을 마크다운 → HTML로 변환 (문서에 직접 심어 브릿지 없이도 글자가 보이게) */
@@ -68,6 +78,7 @@ export function buildEditorHtml(theme: EditorTheme, placeholder: string, initial
      하나라도 잡히면 Pretendard로 그린다(시스템 서체로 빠지지 않게). */
   @font-face {
     font-family: 'BakleText';
+    font-weight: ${theme.fontWeight ?? weightOf(theme.fontFamily)};
     src: local('${theme.fontFamily}'),
          url('file:///android_asset/fonts/${theme.fontFamily}.otf') format('opentype'),
          url('https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/woff2/${theme.fontFamily}.woff2') format('woff2');
@@ -78,8 +89,11 @@ export function buildEditorHtml(theme: EditorTheme, placeholder: string, initial
     /* RN 폰트명(Pretendard-Regular 등)은 웹뷰에 등록돼 있지 않다. iOS WKWebView는
        없는 폰트를 만나면 글자를 못 그리고 높이도 어긋난다(칸이 빈 채 늘어남).
        반드시 시스템 폰트 폴백을 함께 준다. */
-    font-family: 'BakleText', '${theme.fontFamily}', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', Roboto, sans-serif;
+    /* 'Pretendard'(iOS에 등록된 폰트 이름) + 굵기 — 웹뷰는 등록 폰트를 파일 이름(Pretendard-Medium)이 아니라
+       이름+굵기로 찾는다. 굵기를 안 주면 400(Regular)으로 그려 앱 글자(Medium)보다 얇아 보였다 */
+    font-family: 'BakleText', 'Pretendard', '${theme.fontFamily}', -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Segoe UI', Roboto, sans-serif;
     font-size: ${theme.fontSize}px;
+    font-weight: ${theme.fontWeight ?? weightOf(theme.fontFamily)};
     line-height: ${theme.lineHeight}px;
     letter-spacing: -0.25px;
     color: ${theme.text};

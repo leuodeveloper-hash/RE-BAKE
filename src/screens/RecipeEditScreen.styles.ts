@@ -293,6 +293,11 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
 
   // Drag area & indicator
+  // 섹션 안 메뉴가 열렸을 때 — 다음 섹션보다 위 레이어
+  sectionMenuOpen: {
+    zIndex: 9999,
+    elevation: 9999,
+  },
   dragArea: {
     position: 'relative',
   },
@@ -307,6 +312,14 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
     alignItems: 'center',
     gap: Spacing.xs,
     marginTop: FONT_BASELINE_OFFSET,
+    // 묶음 이름 입력칸이 있을 때·없을 때 같은 높이 — 글자 한 줄 높이에 고정(입력칸 기준으로 늘어나 내려앉지 않게)
+    height: Typography.body.medium.lineHeight,
+  },
+  // 머리줄 묶음 이름 입력 — 옆 '과정' 글자와 같은 한 줄 높이. 줄 기준선 보정은 줄(breadcrumbRow)이 이미 했으니 또 주지 않는다
+  breadcrumbInput: {
+    marginTop: 0,
+    height: Typography.body.medium.lineHeight,
+    paddingVertical: 0,
   },
   groupTimer: {
     marginLeft: Spacing.xs,

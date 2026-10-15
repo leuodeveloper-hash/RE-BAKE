@@ -44,7 +44,7 @@ import {SectionHeader} from '@components/SectionHeader';
 import {SearchCommandBar} from '@components/SearchCommandBar';
 import {Button} from '@components/Button';
 import {EditableChip} from '@components/EditableChip/EditableChip';
-import {DashedBorder} from '@components/DashedBorder/DashedBorder';
+import {AddSlot} from '@components/AddSlot';
 import {RichText} from '@components/RichText/RichText';
 import {StepPhotos} from '@components/StepPhotos';
 import {PhotoCaptionArrow} from '@components/StepPhotos/PhotoCaptionArrow';
@@ -1531,25 +1531,16 @@ export function CookingMode({
               justifyContent: isNarrow ? 'flex-start' : (photos.length % 2 === 0 ? 'flex-start' : 'flex-end'),
               zIndex: photos.length,
             }]}>
-            <Pressable
+            {/* 공통 더하기 칸(점선 + +) — 과정 사진 빈 칸과 같은 컴포넌트 */}
+            <AddSlot
+              size={photoW}
+              radius={16}
+              iconSize="md"
+              // 요리모드 배경이 surface/dim이라 한 단계 어두운 바탕
+              background={colors['surface/container-high'] as string}
               onPress={onAdd}
-              style={[styles.emptyPack, {
-                width: photoW,
-                height: photoW,
-                transform: [{rotate: `${tilts[photos.length] ?? 4.16}deg`}],
-              }]}>
-              <DashedBorder
-                width={photoW}
-                radius={16}
-                strokeWidth={1}
-                dash={8}
-                gap={6}
-                color={colors['border/normal']}
-              />
-              <View style={styles.addCircle}>
-                <AppIcon icon={IconAdd} size="md" color={colors['foreground/on-surface-muted']} />
-              </View>
-            </Pressable>
+              style={{transform: [{rotate: `${tilts[photos.length] ?? 4.16}deg`}]}}
+            />
           </View>
         ) : null}
       </View>

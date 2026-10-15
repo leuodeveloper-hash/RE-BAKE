@@ -1996,7 +1996,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     <View style={styles.container}>
       <ScrollView
         ref={scrollViewRef}
-        style={styles.scrollView}
+        // 웹: 브라우저 스크롤 고정(scroll anchoring) 끔 — 커서를 옮겨 줄 높이가 바뀌면(사진 칸 등)
+        // 브라우저가 스스로 스크롤을 옮겨, 커서만 옮겼는데 화면이 밀려 내려갔다
+        style={[styles.scrollView, Platform.OS === 'web' && ({overflowAnchor: 'none'} as any)]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
@@ -2235,14 +2237,15 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         )}
 
         {/* 재료 Groups */}
-        {isFieldActive('ingredients') && <View onLayout={e => { sectionPositions.current['ingredients'] = e.nativeEvent.layout.y; }}>
+        {/* 섹션 안 메뉴가 열리면 섹션 통째로 다음 섹션보다 위로(다음 박스에 메뉴가 가리지 않게) */}
+        {isFieldActive('ingredients') && <View style={(ingGroupMenu || ingAddMenu || ingRowMenu || ingredientGroups.some(g => g.id === bulkScanMenu)) ? styles.sectionMenuOpen : undefined} onLayout={e => { sectionPositions.current['ingredients'] = e.nativeEvent.layout.y; }}>
         {ingredientGroups.map((group, groupIndex) => {
           const ingGroupHasDragging = drag.draggingId !== null && group.ingredients.some(i => i.id === drag.draggingId);
           return (
-          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(ingGroupMenu === group.id || ingAddMenu === group.id || ingRowMenu?.groupId === group.id ? {zIndex: 9999} : ingGroupHasDragging ? {zIndex: 100} : undefined)}}>
+          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(ingGroupMenu === group.id || ingAddMenu === group.id || ingRowMenu?.groupId === group.id || bulkScanMenu === group.id ? {zIndex: 9999} : ingGroupHasDragging ? {zIndex: 100} : undefined)}}>
             {/* 섹션 묶음(과정과 같은 구조) — 끌 때는 잘라내기 유지, 메뉴 열 때만 푼다 */}
             <Card group style={ingGroupMenu === group.id || ingAddMenu === group.id
-              || ingRowMenu?.groupId === group.id
+              || ingRowMenu?.groupId === group.id || bulkScanMenu === group.id
               ? {overflow: 'visible'} : undefined}>
               {/* Group Header — 메뉴가 헤더 바로 아래에 붙도록 relative 래퍼로 감싼다 */}
               <View style={{position: 'relative', zIndex: (ingGroupMenu === group.id || ingAddMenu === group.id || bulkScanMenu === group.id) ? 9999 : undefined}}>
@@ -2264,8 +2267,11 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   <View style={styles.breadcrumbRow}>
                     <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.ingredientsLabel')}</Text>
                     <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
-                    <AutoGrowInput
-                      style={[styles.cardFieldInput, noOutline]}
+                    <TextInput
+                      // 묶음 이름 — 한 줄 입력(여러 줄 입력은 아이폰에서 안쪽 여백으로 키가 커져 머리줄이 내려앉았다)
+                      style="ghost"
+                      bare
+                      inputStyle={[styles.cardFieldInput, styles.breadcrumbInput, noOutline]}
                       value={group.title}
                       onChangeText={v => updateIngredientGroupTitle(group.id, v)}
                       placeholder={t('recipeEdit.groupNamePlaceholder')}
@@ -2533,14 +2539,14 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         </View>}
 
         {/* 도구 Groups */}
-        <View onLayout={e => { sectionPositions.current['tools'] = e.nativeEvent.layout.y; }}>
+        <View style={(toolGroupMenu || toolAddMenu || toolRowMenu || toolGroups.some(g => g.id === bulkScanMenu)) ? styles.sectionMenuOpen : undefined} onLayout={e => { sectionPositions.current['tools'] = e.nativeEvent.layout.y; }}>
         {toolGroups.map((group, groupIndex) => {
           const toolGroupHasDragging = drag.draggingId !== null && group.tools.some(t => t.id === drag.draggingId);
           return (
-          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(toolGroupMenu === group.id || toolAddMenu === group.id || toolRowMenu?.groupId === group.id ? {zIndex: 9999} : toolGroupHasDragging ? {zIndex: 100} : undefined)}}>
+          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(toolGroupMenu === group.id || toolAddMenu === group.id || toolRowMenu?.groupId === group.id || bulkScanMenu === group.id ? {zIndex: 9999} : toolGroupHasDragging ? {zIndex: 100} : undefined)}}>
             {/* 섹션 묶음(과정과 같은 구조) — 끌 때는 잘라내기 유지, 메뉴 열 때만 푼다 */}
             <Card group style={toolGroupMenu === group.id || toolAddMenu === group.id
-              || toolRowMenu?.groupId === group.id
+              || toolRowMenu?.groupId === group.id || bulkScanMenu === group.id
               ? {overflow: 'visible'} : undefined}>
               {/* Group Header — 메뉴가 헤더 바로 아래에 붙도록 relative 래퍼로 감싼다 */}
               <View style={{position: 'relative', zIndex: (toolGroupMenu === group.id || toolAddMenu === group.id || bulkScanMenu === group.id) ? 9999 : undefined}}>
@@ -2554,8 +2560,11 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   <View style={styles.breadcrumbRow}>
                     <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.toolsLabel')}</Text>
                     <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
-                    <AutoGrowInput
-                      style={[styles.cardFieldInput, noOutline]}
+                    <TextInput
+                      // 묶음 이름 — 한 줄 입력(여러 줄 입력은 아이폰에서 안쪽 여백으로 키가 커져 머리줄이 내려앉았다)
+                      style="ghost"
+                      bare
+                      inputStyle={[styles.cardFieldInput, styles.breadcrumbInput, noOutline]}
                       value={group.title}
                       onChangeText={v => updateToolGroupTitle(group.id, v)}
                       placeholder={t('recipeEdit.groupNamePlaceholder')}
@@ -2812,16 +2821,16 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         {/* 과정 Groups */}
         {/* 과정도 필드 관리에서 끌 수 있다(필수는 제목뿐) */}
         {isFieldActive('steps') && (
-        <View onLayout={e => { sectionPositions.current['steps'] = e.nativeEvent.layout.y; }}>
+        <View style={(stepAddMenu || stepGroupMenu || stepRowMenu || stepPhotoMenu || stepGroups.some(g => g.id === bulkScanMenu)) ? styles.sectionMenuOpen : undefined} onLayout={e => { sectionPositions.current['steps'] = e.nativeEvent.layout.y; }}>
         {stepGroups.map((group, groupIndex) => {
           const groupHasDragging = drag.draggingId !== null && group.steps.some(s => s.id === drag.draggingId);
           return (
-          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(stepAddMenu === group.id || stepGroupMenu === group.id || stepRowMenu?.groupId === group.id || stepPhotoMenu?.groupId === group.id ? {zIndex: 9999} : groupHasDragging ? {zIndex: 100} : undefined)}}>
+          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(stepAddMenu === group.id || stepGroupMenu === group.id || stepRowMenu?.groupId === group.id || stepPhotoMenu?.groupId === group.id || bulkScanMenu === group.id ? {zIndex: 9999} : groupHasDragging ? {zIndex: 100} : undefined)}}>
             {/* 섹션 묶음 — 머리·과정 줄·버튼 줄이 각자 바탕을 갖고 1px 간격으로 나뉜다(선 없음) */}
             {/* 끌어 옮기는 동안엔 잘라내기를 풀지 않는다 — 풀면 모서리 라운딩이 순간 사라져 카드가 살짝 움직여 보였다.
                 (메뉴는 카드 밖으로 나와야 해서 메뉴가 열릴 때만 푼다) */}
             <Card group style={stepAddMenu === group.id || stepGroupMenu === group.id
-              || stepRowMenu?.groupId === group.id || stepPhotoMenu?.groupId === group.id
+              || stepRowMenu?.groupId === group.id || stepPhotoMenu?.groupId === group.id || bulkScanMenu === group.id
               ? {overflow: 'visible'} : undefined}>
               {/* Group Header — editable when 2+ groups, non-first gets minus button */}
               {/* 묶음 헤더 박스 롱프레스 → 위/아래 이동 메뉴 (묶음 2개 이상일 때만 의미) */}
@@ -2851,8 +2860,11 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   <View style={styles.breadcrumbRow}>
                     <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.stepsLabel')}</Text>
                     <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
-                    <AutoGrowInput
-                      style={[styles.cardFieldInput, noOutline]}
+                    <TextInput
+                      // 묶음 이름 — 한 줄 입력(여러 줄 입력은 아이폰에서 안쪽 여백으로 키가 커져 머리줄이 내려앉았다)
+                      style="ghost"
+                      bare
+                      inputStyle={[styles.cardFieldInput, styles.breadcrumbInput, noOutline]}
                       value={group.title}
                       onChangeText={v => updateStepGroupTitle(group.id, v)}
                       placeholder={t('recipeEdit.groupNamePlaceholder')}
@@ -3724,7 +3736,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         );
       })()}
 
-      {/* 과정 사진 다시 고르기 — 이 레시피의 모든 사진(대표·과정)에서. 갤러리도 위에 */}
+      {/* 과정 사진 고르기 — 첫 칸은 갤러리, 그 뒤로 이 레시피의 모든 사진(대표·과정) */}
       <RecipeImagePickerSheet
         visible={!!stepPhotoRemap}
         onClose={() => setStepPhotoRemap(null)}
@@ -3735,10 +3747,13 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         })()}
         // 고르면 시트를 닫고, 다 닫힌 뒤 바꾼다(창이 겹치지 않게)
         onPick={uri => { remapPickedRef.current = uri; setStepPhotoRemap(null); }}
+        // 첫 칸 = 갤러리 — 레시피 사진에 없으면 바로 갤러리에서
         onGallery={async () => {
           const target = stepPhotoRemap;
           setStepPhotoRemap(null);
           if (!target) return;
+          // 시트가 닫힌 뒤 갤러리(iOS는 창이 겹치면 피커가 안 뜬다)
+          await new Promise(res => setTimeout(res, 350));
           const ok = await ensureImagePermission('mediaLibrary', {
             deniedMessage: t('recipeEdit.photoPermissionNeeded'),
             showSnackbar,

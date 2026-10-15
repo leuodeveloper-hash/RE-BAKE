@@ -1,5 +1,6 @@
 import {NOTE_BLOCK} from '@constants/noteBlock';
 import {StepTimer, type StepTimerHandle} from '@components/StepTimer';
+import {IngredientScaleSheet} from '@components/BottomSheet/IngredientScaleSheet';
 import {effectiveActiveFields} from '@utils/breadFieldsMigration';
 import {IconRefresh} from '@components/Icon/IconIndex';
 import {FloatingNotice} from '@components/FloatingNotice';
@@ -81,6 +82,7 @@ import {
   IconUsersRoundFilled,
   IconDoughTempFilled,
   IconSplitFilled,
+  IconScaleFilled,
   IconSplitTwotone, IconDoughTempTwotone,
   IconArrowDownToLine,
   IconChevronLeft,
@@ -895,6 +897,8 @@ export function RecipeDetailScreen({
   // ---- 섹션 헤더 렌더 (sticky용: ScrollView 직속 자식) ----
   // 묶음 타이머 — 헤더 ⋮ 메뉴 '타이머 설정'에서 그 타이머의 시간 설정 창을 연다
   const timerRefs = useRef<Record<string, StepTimerHandle | null>>({});
+  // 재료 비율 조정 시트 — 보기용(원래 분량은 그대로)
+  const [showScaleSheet, setShowScaleSheet] = useState(false);
   // 메뉴가 열린 헤더 — 그 헤더를 맨 위 레이어로(뒤따르는 헤더·타이머·카드보다 위)
   const [menuHeaderKey, setMenuHeaderKey] = useState<string | null>(null);
   const renderSectionHeader = (
@@ -913,6 +917,10 @@ export function RecipeDetailScreen({
       ...(onEdit ? [{id: 'edit', label: t('recipeDetail.edit'), icon: IconEditFilled}] : []),
       ...(hasTimer ? [{id: 'timer', label: t('recipeDetail.setTimer'), icon: IconClockFilled}] : []),
     ];
+    // 재료 비율 조정 — 재료 맨 위 머리줄 아이콘 버튼(누르면 시트)
+    const scaleBadge = sectionId === 'ingredients' && withBulkToggle && ingredientsHasContent
+      ? <IconButton icon={IconScaleFilled} variant="ghost-secondary" size="small" onPress={() => setShowScaleSheet(true)} />
+      : null;
     return (
       <View key={key} style={[styles.stickyHeader, menuHeaderKey === key && styles.stickyHeaderMenuOpen]}>
         <ContentContainer>
@@ -927,8 +935,9 @@ export function RecipeDetailScreen({
               else if (id === 'timer') timerRefs.current[key]?.openEditor();
             }}
             // 오른쪽 — 타이머(편집 화면처럼 '한번에' 스위치 옆) · 한번에 보기 · ⋮
-            actionExtra={(hasTimer || withBulkToggle) ? (
+            actionExtra={(hasTimer || withBulkToggle || scaleBadge) ? (
               <>
+                {scaleBadge}
                 {/* 시간 정하기 전엔 버튼 없이(⋮ 메뉴 '타이머 설정'으로) */}
                 {hasTimer && <StepTimer ref={el => { timerRefs.current[key] = el; }} duration={timer} hideWhenUnset onMenuOpenChange={open => setMenuHeaderKey(k => (open ? key : k === key ? null : k))} />}
                 {withBulkToggle && <Switch label={t('recipeDetail.bulkView')} value={bulkView} onValueChange={toggleBulkView} />}
@@ -1727,6 +1736,13 @@ export function RecipeDetailScreen({
           steps,
           stepGroups,
         }}
+      />
+
+      {/* 재료 비율 조정 — 눈금 슬라이더로 배율, 시트 안에서만 바뀐 분량(원래 분량 유지) */}
+      <IngredientScaleSheet
+        visible={showScaleSheet}
+        onClose={() => setShowScaleSheet(false)}
+        groups={ingredientGroups}
       />
 
       {/* 시간 다이얼로그 */}
