@@ -4,6 +4,7 @@ import {Image as ExpoImage} from 'expo-image';
 import {Dialog} from '@components/Dialog/Dialog';
 import {Avatar} from '@components/Avatar';
 import {AppIcon} from '@components/Icon/AppIcon';
+import {IconButton} from '@components/IconButton/IconButton';
 import {IconArrowDownToLine, IconLink, IconLogoBakle, IconShare} from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
@@ -151,12 +152,10 @@ export function ShareRecipeSheet({visible, onClose, recipe, linkable}: ShareReci
         {/* 동작 — 동그란 버튼 + 아래 글자 */}
         <View style={styles.actions}>
           {actions.map(a => (
-            <Pressable key={a.key} style={styles.action} onPress={a.onPress}>
-              <View style={[styles.actionCircle, {borderColor: colors['border/normal']}]}>
-                <AppIcon icon={a.icon} size="sm" color={colors['foreground/on-surface']} />
-              </View>
+            <View key={a.key} style={styles.action}>
+              <IconButton icon={a.icon} variant="tonal" size="large" onPress={a.onPress} />
               <Text style={styles.actionLabel}>{a.label}</Text>
-            </Pressable>
+            </View>
           ))}
         </View>
       </View>
@@ -200,13 +199,5 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   by: {...Typography.body.medium, color: 'rgba(255,255,255,0.72)'},
   actions: {flexDirection: 'row', justifyContent: 'center', gap: Spacing.lg},
   action: {alignItems: 'center', gap: Spacing.xs},
-  actionCircle: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   actionLabel: {...Typography.caption.medium, color: colors['foreground/on-surface-muted']},
 });
