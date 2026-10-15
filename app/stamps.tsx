@@ -1,4 +1,5 @@
 import {PageScrollView} from '@components/Page';
+import {sessionKey} from '@utils/session';
 import {shortDate} from '@utils/dateLabel';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, Easing, InteractionManager, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
@@ -204,11 +205,16 @@ export default function StampsRoute() {
       });
     };
     for (const r of [...recipes, ...exploreRecipes]) {
-      const madeAt = madeAtOf(r);
-      if (!madeAt) continue;
-      // 내 레시피 자체로도, 원본(가져온 출처)으로도 센다
-      bump(r.remakeGroupId ?? r.id, madeAt);
-      if (r.sourceId) bump(r.sourceId, madeAt);
+      // 회차마다 스탬프 — 지난 회차 기록(그 회차 id) + 지금 회차. 레시피는 하나라 레시피 id로 모아 센다
+      const times = [
+        ...(r.sessions ?? []).map(x => madeAtOf({id: x.id})),
+        madeAtOf(r),
+      ].filter((x): x is string => !!x);
+      for (const madeAt of times) {
+        // 내 레시피 자체로도, 원본(가져온 출처)으로도 센다
+        bump(r.remakeGroupId ?? r.id, madeAt);
+        if (r.sourceId) bump(r.sourceId, madeAt);
+      }
     }
     return byRecipeId;
   }, [recipes, exploreRecipes, madeAtOf]);
@@ -223,7 +229,7 @@ export default function StampsRoute() {
 
   const handleSaveReview = useCallback((review: {evaluation: string; improvement: string}) => {
     if (!reviewTarget) return;
-    saveReview(reviewTarget.id, review);
+    saveReview(sessionKey(reviewTarget), review);
   }, [reviewTarget, saveReview]);
 
   const slotFor = useCallback((r: Recipe): StampSlot => {
@@ -326,7 +332,7 @@ export default function StampsRoute() {
     // 해제했으면 권유도 사라져야 한다 — 찍지도 않은 것에 회고를 권할 이유가 없다.
     // 스탬프는 계정에 보관한다(madeAtOf) — Recipe.madeAt만 보면 늘 비어 권유가 안 떴다
     if (!r || !madeAtOf(r)) return undefined;
-    const rv = reviewOf(r.id);
+    const rv = reviewOf(sessionKey(r));
     const hasReview = !!(rv?.evaluation?.trim() || rv?.improvement?.trim());
     return hasReview ? undefined : r;
   }, [just, recipes, exploreRecipes, reviewOf, madeAtOf]);
@@ -383,7 +389,7 @@ export default function StampsRoute() {
       <ReviewDialog
         visible={!!reviewTarget}
         onClose={() => setReviewTarget(null)}
-        value={reviewTarget ? reviewOf(reviewTarget.id) : undefined}
+        value={reviewTarget ? reviewOf(sessionKey(reviewTarget)) : undefined}
         onConfirm={handleSaveReview}
       />
 

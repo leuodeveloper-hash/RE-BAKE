@@ -64,8 +64,9 @@ export function getRecipeMenuItems(options: RecipeMenuOptions): MenuItemData[] {
   }
   if (options.showImport) items.push({id: 'save', label: t('recipeMenuItems.copyToMyRecipes'), icon: IconFilesFilled});
   if (options.showRemake) {
-    const {total} = parseSession(options.session);
-    items.push({id: 'remake', label: t('recipeMenuItems.remakeCount', {count: total + 1}), icon: IconHash});
+    // 다음 회차 번호 = 지금 회차 + 1(회차는 레시피 하나 안 기록 — session엔 지금 회차가 'N회차'로 온다)
+    const {current} = parseSession(options.session);
+    items.push({id: 'remake', label: t('recipeMenuItems.remakeCount', {count: current + 1}), icon: IconHash});
   }
   if (options.showEdit) items.push({id: 'edit', label: t('recipeMenuItems.edit'), icon: IconEdit});
   if (options.showCookbook) items.push({id: 'cookbook', label: t('recipeMenuItems.recipeBook'), icon: IconBookFilled});

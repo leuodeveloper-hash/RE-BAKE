@@ -3,6 +3,7 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, Dimensions, Easing, FlatList, Pressable, StyleSheet, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {PackHeaderFloat} from '@components/PackBoard/PackHeaderFloat';
 import {ContentContainer, contentAreaPadding, APPBAR_HEIGHT, TABBAR_BOTTOM_SPACE} from '@components/Container';
 import {useTabBarSpace} from '@hooks/useTabBarSpace';
 import {RecipeCard, RecipeCardLayout} from '@components/Recipe/RecipeCard';
@@ -19,7 +20,7 @@ import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import type {Recipe} from '../../../types/recipe';
 import {recipePreviewParts} from '@utils/recipePreview';
-import {parseSession} from '@utils/session';
+import {parseSession, sessionCount} from '@utils/session';
 import {recipeToPdfData} from '@utils/generateRecipeHtml';
 import {
   IconLayoutGrid,
@@ -617,7 +618,8 @@ export function RecipeListTemplate({
         specificGravity={item.specificGravity}
         // reviewCount는 리메이크 그룹 합계(호출부가 계산) — 없으면 이 레시피 것
         reviewCount={Math.max(item.reviewCount ?? 0, reviewsOf(item).length)}
-        sessionCount={parseSession(item.session).total}
+        // 회차 수 = 지난 회차 기록 + 지금(레시피 하나 안)
+        sessionCount={sessionCount(item)}
         imageUrl={item.imageUri}
         layout={activeLayout}
         locked={isLocked}
@@ -654,6 +656,8 @@ export function RecipeListTemplate({
         {activeLayout === 'pack' ? (
           // 팩뷰: 콘텐츠 너비(maxWidth 800)·패딩 제약 밖에서 전체 너비로 로밍
           <View style={styles.packFull}>
+            {/* 머리말(프로필 등) — 팩 보드 칸 안에 띄운다(공통 PackHeaderFloat) */}
+            {listHeaderExtra ? <PackHeaderFloat onHeight={setHeaderExtraHeight}>{listHeaderExtra}</PackHeaderFloat> : null}
             <PullIndicator progress={pullProgress} isRefreshing={isRefreshing} refreshStripProgress={refreshStripProgress} refreshOpacity={refreshOpacity} />
             {!loading && layoutLoaded && sortedData.length === 0 && listEmptyComponent ? (
               // 팩뷰에서도 레시피가 없으면 빈 상태 표시 (FlatList 경로와 동일)
@@ -717,11 +721,6 @@ export function RecipeListTemplate({
         {/* 머리말(프로필·배너)은 자리를 차지하지 않는다.
             팩 보기: 앱바 아래에 떠 있다(팩 캔버스는 화면 전체). 목록 보기: 목록 맨 위에 붙어 같이 스크롤.
             둘 다 앱바 아래 같은 위치에서 시작해 보기를 바꿔도 튀지 않는다. */}
-        {listHeaderExtra && activeLayout === 'pack' ? (
-          <View style={styles.headerExtraFloat} pointerEvents="box-none" onLayout={e => setHeaderExtraHeight(e.nativeEvent.layout.height)}>
-            <ContentContainer style={styles.listHeaderExtra}>{listHeaderExtra}</ContentContainer>
-          </View>
-        ) : null}
       </SafeAreaView>
 
       {renderAppBar(helpers)}

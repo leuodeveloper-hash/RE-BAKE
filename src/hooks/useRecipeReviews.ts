@@ -146,14 +146,29 @@ function useRecipeReviewsState() {
    * 회고를 계정으로 옮기기 전에 쓰인 것들이 레시피에 남아 있다. 읽는 쪽이 한 곳만
    * 보면 그중 절반이 사라져 보이므로, 세는 것도 보여주는 것도 이 함수를 쓴다.
    */
-  const reviewsOf = useCallback((recipe?: {id: string; reviews?: ReviewData[]}): ReviewData[] => {
-    if (!recipe) return [];
-    const own = (recipe.reviews ?? []).filter(rv => rv.evaluation?.trim() || rv.improvement?.trim() || rv.photos?.length);
-    const mine = reviews[recipe.id];
+  // 회고는 회차마다 — 키는 회차 id(지금 회차는 sessionId, 없으면 레시피 id). 지난 회차는 그 기록의 id
+  const pick = useCallback((key: string, legacy?: ReviewData[]): ReviewData[] => {
+    const own = (legacy ?? []).filter(rv => rv.evaluation?.trim() || rv.improvement?.trim() || rv.photos?.length);
+    const mine = reviews[key];
     return mine ? [...own, mine] : own;
   }, [reviews]);
 
-  return {reviews, saveReview, reviewOf, reviewsOf, loaded};
+  /** 지금(마지막) 회차의 회고 */
+  const reviewsOf = useCallback((recipe?: {id: string; sessionId?: string; reviews?: ReviewData[]}): ReviewData[] => {
+    if (!recipe) return [];
+    return pick(recipe.sessionId ?? recipe.id, recipe.reviews);
+  }, [pick]);
+
+  /** 지난 회차 하나의 회고 */
+  const sessionReviewsOf = useCallback((session: {id: string; reviews?: ReviewData[]}): ReviewData[] => pick(session.id, session.reviews), [pick]);
+
+  /** 레시피의 모든 회차 회고(지난 회차 + 지금) — 회고 수 합계 등 */
+  const allReviewsOf = useCallback((recipe?: {id: string; sessionId?: string; reviews?: ReviewData[]; sessions?: {id: string; reviews?: ReviewData[]}[]}): ReviewData[] => {
+    if (!recipe) return [];
+    return [...(recipe.sessions ?? []).flatMap(sessionReviewsOf), ...reviewsOf(recipe)];
+  }, [reviewsOf, sessionReviewsOf]);
+
+  return {reviews, saveReview, reviewOf, reviewsOf, sessionReviewsOf, allReviewsOf, loaded};
 }
 
 /**

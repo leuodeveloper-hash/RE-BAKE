@@ -1,3 +1,4 @@
+import {Spacing} from '@constants/spacing';
 import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {TABLET_BREAKPOINT} from '@constants/breakpoints';
 import {LayoutChangeEvent, Platform, StyleSheet, View, type ViewStyle} from 'react-native';
@@ -52,6 +53,8 @@ export function PackCanvas({items, entrance, dimExceptId, insetTop = 0, insetBot
   const [content, setContent] = useState({w: 0, h: 0});
   // 처음 화면 가운데에 둘 지점(랜딩 카드 중심) — 없으면 보드 가운데
   const [focusPoint, setFocusPoint] = useState<{x: number; y: number} | null>(null);
+  // 팩 덩어리 위·아래 끝 — 처음 배치를 덩어리 기준으로
+  const [mass, setMass] = useState<{top: number; bottom: number} | null>(null);
 
   // 보드 높이 = 뷰포트 높이(세로는 창에 맞춰 채움). 항목이 많으면 가로로 길어지고,
   // 넘치는 가로는 좌우 스와이프(팬)/핀치로 로밍.
@@ -189,7 +192,7 @@ export function PackCanvas({items, entrance, dimExceptId, insetTop = 0, insetBot
   const lastFitKey = useRef('');
   useEffect(() => {
     if (viewport.w <= 0 || content.w <= 0) return;
-    const key = `${Math.round(viewport.w)}x${Math.round(viewport.h)}|${Math.round(content.w)}x${Math.round(content.h)}|${focusPoint ? `${Math.round(focusPoint.x)},${Math.round(focusPoint.y)}` : ''}`;
+    const key = `${Math.round(viewport.w)}x${Math.round(viewport.h)}|${Math.round(content.w)}x${Math.round(content.h)}|${focusPoint ? `${Math.round(focusPoint.x)},${Math.round(focusPoint.y)}` : ''}|${mass ? `${Math.round(mass.top)},${Math.round(mass.bottom)}` : ''}`;
     if (lastFitKey.current === key) return;
     lastFitKey.current = key;
     // 진입 배율은 줄이지 않는다 — 세로에 맞춰 축소하면 팩이 작아져 뭉쳐 보인다.
@@ -216,17 +219,19 @@ export function PackCanvas({items, entrance, dimExceptId, insetTop = 0, insetBot
     } else {
       // 보이는 영역보다 크면 가운데 맞춤 대신 위를 insetTop에 맞춘다 — 가운데로 두면 위쪽 팩이
       // 머리말(프로필) 자리로 올라가 겹쳤다. 처음 배치만 그렇고, 끌어서 움직이는 건 자유
-      // 보드는 끌 여유를 위해 화면의 1.3배로 만들고 팩 덩어리를 그 가운데로 민다(PackBoard) —
-      // 그래서 보드 위끝을 머리말에 맞추면 위쪽 여유만큼 빈 띠가 생겨 팩이 내려앉아 보였다.
-      // 여유를 둔 보드면 가운데 맞춤(= 팩 덩어리가 보이는 영역 가운데). 팩이 많아 보드가 그보다 크면
-      // 덩어리 자체가 커서 위를 맞춘다(가운데로 두면 위쪽 팩이 머리말 뒤로 숨는다).
-      const padded = content.h <= boardHeight * 1.3 + 1;
-      ty.value = padded || content.h * fit <= visibleH
-        ? insetTop + (visibleH - content.h * fit) / 2
-        : insetTop;
+      // 팩 덩어리(실제 위·아래 끝) 기준 — 보이는 영역보다 작으면 가운데, 크면 위끝을 머리말 바로 아래에.
+      // 보드는 끌 여유로 화면보다 크게 만들어 위에 빈 공간이 있어, 보드 기준으로 맞추면 위가 많이 떴다
+      if (mass) {
+        const mh = (mass.bottom - mass.top) * fit;
+        ty.value = mh <= visibleH
+          ? insetTop + (visibleH - mh) / 2 - mass.top * fit
+          : insetTop + Spacing.sm - mass.top * fit;
+      } else {
+        ty.value = insetTop + (visibleH - content.h * fit) / 2;
+      }
       tx.value = (viewport.w - content.w * fit) / 2;
     }
-  }, [viewport, content, scale, tx, ty, fitScale, minScale, insetTop, insetBottom, focusPoint]);
+  }, [viewport, content, scale, tx, ty, fitScale, minScale, insetTop, insetBottom, focusPoint, mass]);
 
   return (
     <View style={styles.viewport} onLayout={handleViewportLayout}>
@@ -256,7 +261,7 @@ export function PackCanvas({items, entrance, dimExceptId, insetTop = 0, insetBot
           ]}
           pointerEvents="box-none">
           <View onLayout={handleContentLayout}>
-            {boardHeight > 0 && <PackBoard items={guardedItems} height={boardHeight} boardWidth={viewport.w} entrance={entrance} dimExceptId={dimExceptId} onFocusPoint={setFocusPoint} />}
+            {boardHeight > 0 && <PackBoard items={guardedItems} height={boardHeight} boardWidth={viewport.w} entrance={entrance} dimExceptId={dimExceptId} onFocusPoint={setFocusPoint} onMassBounds={setMass} />}
           </View>
         </Animated.View>
       </GestureDetector>

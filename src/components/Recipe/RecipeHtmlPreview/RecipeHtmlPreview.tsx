@@ -3,7 +3,11 @@ import {Platform, StyleProp, ViewStyle} from 'react-native';
 import {RecipePdfData, generateRecipeHtml} from '@utils/generateRecipeHtml';
 
 /** HTML 소스의 기본 가로 폭 (생성된 HTML 본문 너비) */
-const HTML_SOURCE_WIDTH = 600;
+// 미리보기 문서 폭 = A4 폭(210mm ≈ 794px) + 둘레 회색 여백(16×2) — 실제 인쇄와 같은 폭으로 그려야
+// 글씨 크기·줄바꿈이 종이 대비 같은 비율로 보인다(600px로 그리면 글씨가 종이에 비해 커 보였다)
+const A4_PX = 794;
+const PAPER_GAP = 16;
+const HTML_SOURCE_WIDTH = A4_PX + PAPER_GAP * 2;
 
 let NativeWebView: React.ComponentType<any> | null = null;
 if (Platform.OS !== 'web') {
@@ -40,7 +44,8 @@ export function RecipeHtmlPreview({data, html: htmlProp, width, height, scrollEn
     // 종이 비율(A4)은 '최소' 높이 — min-height:0이면 높이가 A4로 고정돼, 긴 레시피 글이 종이 밖으로
     // 흘러나와 다음 장 글자 위에 겹쳤다. min-height:auto면 내용만큼 늘어난다.
     const paper = scrollEnabled
-      ? 'body { background: #e9eaec !important; padding: 16px !important; } .recipe-page { background: #fff !important; padding: 28px 24px !important; margin: 0 auto 16px !important; border-radius: 8px; min-height: auto !important; aspect-ratio: auto 210 / 297; }'
+      // 종이 안쪽 여백은 인쇄와 같은 14mm(PDF 문서 값 그대로) — 미리보기만 따로 덮어쓰면 비율이 달라졌다
+      ? `body { background: #e9eaec !important; padding: ${PAPER_GAP}px !important; } .recipe-page { background: #fff !important; width: ${A4_PX}px !important; max-width: none !important; margin: 0 auto ${PAPER_GAP}px !important; border-radius: 8px; min-height: auto !important; aspect-ratio: auto 210 / 297; }`
       : '';
     // 아이폰(WKWebView)은 CSS zoom을 걸면 글자 줄 높이 계산이 틀어지고, 작은 글씨를 시스템이
     // 멋대로 키워(text autosizing) 줄이 서로 겹쳐 보였다.

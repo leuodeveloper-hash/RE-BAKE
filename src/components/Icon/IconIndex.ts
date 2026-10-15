@@ -43,6 +43,7 @@ export {default as IconDoughTemp} from '../../../assets/icons/dough-temp.svg';
 export {default as IconDoughTempFilled} from '../../../assets/icons/dough-temp-filled.svg';
 export {default as IconDoughTempTwotone} from '../../../assets/icons/dough-temp-twotone.svg';
 export {default as IconTimer} from '../../../assets/icons/timer.svg';
+export {default as IconTitle} from '../../../assets/icons/title.svg';
 export {default as IconTimerTwotone} from '../../../assets/icons/timer-twotone.svg';
 export {default as IconRecipe} from '../../../assets/icons/recipe.svg';
 export {default as IconRecipeFilled} from '../../../assets/icons/recipe_filled.svg';

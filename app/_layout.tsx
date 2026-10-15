@@ -27,6 +27,7 @@ import {PlanSheetProvider, usePlanSheet} from '@contexts/PlanSheetContext';
 import {AuthSheetProvider, useAuthSheet} from '@contexts/AuthSheetContext';
 import {RecipeLinkProvider} from '@contexts/RecipeLinkContext';
 import {useDictionarySync} from '@hooks/useDictionary';
+import {mergeRemakeGroups} from '@utils/sessionMigration';
 import {PlanSheet} from '@components/PlanSheet';
 import {AuthSheet} from '@components/AuthSheet';
 import {ExploreRecipeProvider, useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
@@ -380,6 +381,13 @@ function NavigationContent() {
       AsyncStorage.setItem('bread_fields_personal_v1', '1').catch(() => {});
     }).catch(() => {});
   }, [recipes.length, setRecipes]);
+
+  // 회차 구조 바꾸기 — 예전 회차 복사본(remakeGroupId 묶음)을 레시피 하나 + 지난 회차 기록으로 합친다.
+  // 묶음이 있을 때만 바뀌고(몇 번 돌려도 같다), 저장은 평소처럼 목록 저장이 서버까지 맞춘다(남는 복사본 문서는 지워진다)
+  useEffect(() => {
+    if (recipes.length === 0 || !recipes.some(r => r.remakeGroupId)) return;
+    setRecipes(prev => mergeRemakeGroups(prev) ?? prev);
+  }, [recipes, setRecipes]);
 
   // 기존 데이터 마이그레이션(어드민 1회): explore_recipes 레거시 category → cookbook 필드 정리.
   useEffect(() => {

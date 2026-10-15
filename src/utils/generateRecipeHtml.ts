@@ -1,5 +1,9 @@
 import {hasFlour, flourTotal, bakersPercentOf} from './bakersPercentage';
 import {stripRichText} from './richText';
+import {SemanticColorsLight} from '@constants/tokens';
+
+/** 옅은 글자 색(하위 섹션·팁·주의·부제·메타 등 공통) — 앱의 var 글자색(on-surface-var)과 같게. PDF는 늘 흰 종이라 라이트 값 */
+const LABEL_VAR = SemanticColorsLight['foreground/on-surface-var'] as string;
 /**
  * 레시피 데이터를 PDF용 HTML 문서로 변환
  */
@@ -33,6 +37,15 @@ export interface RecipePdfData {
   reviewCount?: number;
   time?: string;
   servings?: string;
+  /** 제빵 칸 — 반죽 온도·분할 무게 */
+  doughTemp?: string;
+  divideWeight?: string;
+  /** 비중 */
+  specificGravity?: string;
+  /** 레시피 설명(제목 아래) */
+  description?: string;
+  /** 베이키의 조언 — 맨 아래 */
+  advice?: string;
   session?: string;
   ingredientGroups: PdfIngredientGroup[];
   tools: {name: string}[];
@@ -60,6 +73,9 @@ function buildMetaHtml(data: RecipePdfData): string {
   const items: string[] = [];
   if (data.time) items.push(`시간 ${escapeHtml(data.time)}`);
   if (data.servings) items.push(`분량 ${escapeHtml(data.servings)}`);
+  if (data.doughTemp) items.push(`반죽 온도 ${escapeHtml(data.doughTemp)}`);
+  if (data.divideWeight) items.push(`분할 무게 ${escapeHtml(data.divideWeight)}`);
+  if (data.specificGravity) items.push(`비중 ${escapeHtml(data.specificGravity)}`);
 
   if (items.length === 0) return '';
 
@@ -115,8 +131,8 @@ function buildStepsHtml(steps: PdfStep[]): string {
         <div class="step-number">${step.step}.</div>
         <div class="step-content">
           <div class="step-desc">${escapeHtml(stripRichText(step.description, {maskSecret: true}))}</div>
-          ${step.tip ? `<div class="step-tip">${escapeHtml(step.tip)}</div>` : ''}
-          ${step.caution ? `<div class="step-caution">${escapeHtml(step.caution)}</div>` : ''}
+          ${step.tip ? `<div class="step-tip">* ${escapeHtml(step.tip)}</div>` : ''}
+          ${step.caution ? `<div class="step-caution">! ${escapeHtml(step.caution)}</div>` : ''}
         </div>
       </div>`,
     )
@@ -178,20 +194,22 @@ const PDF_CSS = `
       width: 210mm;
       max-width: 100%;
       margin: 0 auto 24px;
-      padding: 20mm 16mm;
+      padding: 14mm 14mm;
       box-shadow: 0 1px 4px rgba(0,0,0,0.16);
     }
     .recipe-page:last-child { margin-bottom: 0; }
   }
-  .header { margin-bottom: 16px; }
-  /* A4 한 장 기준 — 본문 14px에 맞춘 위계. 26px은 종이에서 과하게 컸다. */
-  .title { font-size: 20px; font-weight: 700; line-height: 1.3; margin-bottom: 5px; letter-spacing: -0.01em; }
-  .subtitle { font-size: 13px; color: #6b6f76; }
-  .meta-row { font-size: 13px; color: #4a4d52; margin-bottom: 24px; text-align: right; }
+  .header { margin-bottom: 10px; }
+  .description { font-size: 12px; line-height: 1.5; color: ${LABEL_VAR}; margin: -4px 0 8px; white-space: pre-wrap; }
+  /* 옅은 글자(부제·메타·설명·하위 섹션·팁·주의·비율)는 모두 같은 색 LABEL_VAR 하나 */
+  /* A4 한 장 기준 — 레시피 하나가 거의 한 장에 들어가게 본문 12px(≈9pt)·좁은 줄 간격. 14px은 종이에서 컸다. */
+  .title { font-size: 18px; font-weight: 700; line-height: 1.3; margin-bottom: 5px; letter-spacing: -0.01em; }
+  .subtitle { font-size: 12px; color: ${LABEL_VAR}; }
+  .meta-row { font-size: 12px; color: ${LABEL_VAR}; margin-bottom: 12px; text-align: right; }
   .meta-sep { color: #cfd2d6; margin: 0 6px; }
   .section-title {
-    font-size: 13px; font-weight: 700; color: #1a1a1a;
-    margin: 28px 0 4px;
+    font-size: 12px; font-weight: 700; color: #1a1a1a;
+    margin: 28px 0 6px;
     display: flex; align-items: center; gap: 5px;
   }
   /* 한 섹션 안의 묶음 — 라벨('재료 › 가루')은 그대로, 묶음 사이는 섹션 간격 대신 선으로 */
@@ -199,20 +217,35 @@ const PDF_CSS = `
   .group + .group .group-label { margin-top: 12px; }
   .chevron { color: #a9adb3; font-weight: 400; }
   .card { display: block; }
-  .ingredient-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 7px 0; border-bottom: 1px solid #eef0f2; }
+  .ingredient-row { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; padding: 3px 0; border-bottom: 1px solid #eef0f2; }
   .ingredient-row:last-child { border-bottom: none; }
-  .ingredient-pct { font-size: 12px; font-weight: 500; color: #9aa0a6; text-align: right; flex-shrink: 0; }
-  .ingredient-name { font-size: 14px; color: #1a1a1a; }
-  .tools-text { padding: 8px 0; font-size: 14px; color: #1a1a1a; line-height: 1.6; }
+  .ingredient-pct { font-size: 11px; font-weight: 500; color: ${LABEL_VAR}; text-align: right; flex-shrink: 0; }
+  .ingredient-name { font-size: 13px; color: #1a1a1a; }
+  .tools-text { padding: 4px 0; font-size: 13px; color: #1a1a1a; line-height: 1.6; }
+  /* 한번에 보기 레이아웃 */
+  .bulk { padding: 4px 0; }
+  /* 하위 섹션(묶음 이름) — 굵게, 색은 옅게 */
+  .bulk-group { margin-top: 10px; margin-bottom: 4px; font-size: 11px; font-weight: 700; color: ${LABEL_VAR}; }
+  .bulk-group:first-child { margin-top: 0; }
+  .bulk-text { font-size: 13px; color: #1a1a1a; line-height: 1.6; }
+  /* 과정 줄 사이 — 한 과정씩 떨어져 보이게 */
+  .bulk-step + .bulk-step, .step-tip + .bulk-step, .step-caution + .bulk-step { margin-top: 10px; }
   /* 과정은 번호 붙은 글줄 — 문단처럼 붙여 쓴다(줄 사이 선·큰 간격 없이) */
-  .step-row { display: flex; gap: 6px; padding: 3px 0; }
+  .step-row { display: flex; gap: 6px; padding: 2px 0; }
   /* 번호는 원 없이 글줄 그대로 '1.' */
-  .step-number { min-width: 18px; font-size: 14px; font-weight: 600; line-height: 1.6; flex-shrink: 0; color: #1a1a1a; }
+  .step-number { min-width: 16px; font-size: 13px; font-weight: 600; line-height: 1.6; flex-shrink: 0; color: #1a1a1a; }
   .step-content { flex: 1; min-width: 0; }
-  .step-desc { font-size: 14px; line-height: 1.6; color: #1a1a1a; }
-  .step-tip { margin-top: 6px; font-size: 12px; line-height: 1.5; color: #6b6f76; padding-left: 10px; border-left: 2px solid #e3e5e8; }
-  .step-caution { margin-top: 6px; font-size: 12px; line-height: 1.5; color: #9a6a00; padding-left: 10px; border-left: 2px solid #e6c17a; }
-  @media print { body { padding: 24px 20px; } }
+  .step-desc { font-size: 13px; line-height: 1.55; color: #1a1a1a; }
+  /* 팁·주의는 같은 색 한 가지(구분은 내용으로). 옆 선 = 글줄 높이 — 줄 높이를 글자에 붙여(1.3) 선이 글보다 위아래로 길게 나오지 않게 */
+  .step-tip { margin-top: 3px; font-size: 11.5px; line-height: 1.3; padding-top: 0; padding-bottom: 0; color: ${LABEL_VAR}; padding-left: 0; }
+  .step-caution { margin-top: 3px; font-size: 11.5px; line-height: 1.3; padding-top: 0; padding-bottom: 0; color: ${LABEL_VAR}; padding-left: 0; }
+  /* 인쇄 여백은 종이 칸(14mm) 하나만 — 브라우저 기본 여백·본문 여백·칸 여백이 세 겹으로 쌓여 바깥이 넓었다.
+     @page 여백 0이면 브라우저가 찍던 날짜·URL·쪽수 줄도 사라진다. */
+  @page { size: A4; margin: 0; }
+  @media print {
+    body { padding: 0; margin: 0; }
+    .recipe-page { padding: 14mm; max-width: none; }
+  }
 `;
 
 function pdfDocument(inner: string): string {
@@ -229,7 +262,7 @@ ${inner}
 </html>`;
 }
 
-export function generateRecipeListHtml(recipes: RecipePdfData[]): string {
+export function generateRecipeListHtml(recipes: RecipePdfData[], layout: RecipePdfLayout = 'card'): string {
   const recipeSections = recipes
     .map(data => {
       const subtitle = buildSubtitle(data);
@@ -239,10 +272,12 @@ export function generateRecipeListHtml(recipes: RecipePdfData[]): string {
         <div class="title">${escapeHtml(data.title)}</div>
         ${subtitle ? `<div class="subtitle">${escapeHtml(subtitle)}</div>` : ''}
       </div>
+      ${data.description?.trim() ? `<div class="description">${escapeHtml(stripRichText(data.description, {maskSecret: true}))}</div>` : ''}
       ${buildMetaHtml(data)}
-      ${data.ingredientGroups.length > 0 ? buildIngredientsHtml(data) : ''}
+      ${layout === 'bulk' ? buildBulkHtml(data) : `${data.ingredientGroups.length > 0 ? buildIngredientsHtml(data) : ''}
       ${buildToolsHtml(data)}
-      ${buildProcessHtml(data)}
+      ${buildProcessHtml(data)}`}
+      ${data.advice?.trim() ? `<div class="section"><div class="section-title">베이키의 조언</div><div class="bulk"><div class="bulk-text">${escapeHtml(stripRichText(data.advice, {maskSecret: true}))}</div></div></div>` : ''}
     </div>`;
     })
     .join('');
@@ -258,6 +293,11 @@ export function recipeToPdfData(recipe: {
   reviewCount?: number;
   time?: string;
   servings?: string;
+  doughTemp?: string;
+  divideWeight?: string;
+  specificGravity?: string;
+  description?: string;
+  advice?: string;
   session?: string;
   ingredientGroups?: PdfIngredientGroup[];
   tools?: {name: string}[];
@@ -275,6 +315,11 @@ export function recipeToPdfData(recipe: {
     reviewCount: recipe.reviewCount,
     time: recipe.time,
     servings: recipe.servings,
+    doughTemp: recipe.doughTemp,
+    divideWeight: recipe.divideWeight,
+    specificGravity: recipe.specificGravity,
+    description: recipe.description,
+    advice: recipe.advice,
     session: recipe.session,
     ingredientGroups: recipe.ingredientGroups ?? [],
     tools,
@@ -283,17 +328,46 @@ export function recipeToPdfData(recipe: {
   };
 }
 
-export function generateRecipeHtml(data: RecipePdfData): string {
-  const subtitle = buildSubtitle(data);
+/** PDF 레이아웃 — card: 줄마다 나눈 기본, bulk: 상세 '한번에 보기'처럼 글줄로(재료 쉼표, 과정 번호줄) */
+export type RecipePdfLayout = 'card' | 'bulk';
 
-  const inner = `
-  <div class="header">
-    <div class="title">${escapeHtml(data.title)}</div>
-    ${subtitle ? `<div class="subtitle">${escapeHtml(subtitle)}</div>` : ''}
-  </div>
-  ${buildMetaHtml(data)}
-  ${data.ingredientGroups.length > 0 ? buildIngredientsHtml(data) : ''}
-  ${buildToolsHtml(data)}
-  ${buildProcessHtml(data)}`;
-  return pdfDocument(inner);
+/** 한번에 보기 — 재료는 '이름 분량, …' 한 줄, 도구도 한 줄, 과정은 '1. …' 줄과 팁·주의 옅은 줄. 묶음은 작은 이름 줄 */
+function buildBulkHtml(data: RecipePdfData): string {
+  const amt = (a?: string) => (a && /\d/.test(a) ? ` ${escapeHtml(a)}` : '');
+  const out: string[] = [];
+  const ing = data.ingredientGroups.filter(g => g.ingredients.length > 0);
+  if (ing.length) {
+    out.push('<div class="section"><div class="section-title">재료</div><div class="bulk">');
+    for (const g of ing) {
+      if (ing.length > 1 && g.title) out.push(`<div class="bulk-group">${escapeHtml(g.title)}</div>`);
+      out.push(`<div class="bulk-text">${g.ingredients.map(i => `${escapeHtml(stripRichText(i.name, {maskSecret: true}))}${amt(i.amount)}`).join(', ')}</div>`);
+    }
+    out.push('</div></div>');
+  }
+  if (data.tools && data.tools.length) {
+    out.push(`<div class="section"><div class="section-title">도구</div><div class="bulk"><div class="bulk-text">${data.tools.map(t => escapeHtml(t.name)).join(', ')}</div></div></div>`);
+  }
+  const groups = data.stepGroups && data.stepGroups.length ? data.stepGroups : (data.steps ? [{title: '', steps: data.steps}] : []);
+  const sg = groups.filter(g => g.steps.length > 0);
+  if (sg.length) {
+    out.push('<div class="section"><div class="section-title">과정</div><div class="bulk">');
+    for (const g of sg) {
+      if (sg.length > 1 && g.title) out.push(`<div class="bulk-group">${escapeHtml(g.title)}</div>`);
+      g.steps.filter(st => st.description?.trim()).forEach((st, i) => {
+        out.push(`<div class="bulk-text bulk-step">${i + 1}. ${escapeHtml(stripRichText(st.description, {maskSecret: true}))}</div>`);
+        if (st.tip) out.push(`<div class="step-tip">* ${escapeHtml(st.tip)}</div>`);
+        if (st.caution) out.push(`<div class="step-caution">! ${escapeHtml(st.caution)}</div>`);
+      });
+    }
+    out.push('</div></div>');
+  }
+  return out.join('');
+}
+
+/**
+ * 레시피 하나 PDF — 여러 레시피와 같은 함수로 만든다(종이 한 장 칸·페이지 나눔·레이아웃이 한 곳에서 관리).
+ * 따로 만들던 때는 종이 칸이 없어 상세 미리보기만 페이지로 안 보였다.
+ */
+export function generateRecipeHtml(data: RecipePdfData, layout: RecipePdfLayout = 'card'): string {
+  return generateRecipeListHtml([data], layout);
 }

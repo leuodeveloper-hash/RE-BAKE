@@ -1,4 +1,5 @@
 import {SETTINGS_ROUTE} from '@utils/navigation';
+import {sessionKey, recordNewSession, currentSessionNumber} from '@utils/session';
 import {OFFICIAL_AUTHOR_ID, OFFICIAL_AUTHOR_HANDLE, OFFICIAL_AUTHOR_DISPLAY_NAME} from '../types/author';
 import {cookbookColorOf} from '@contexts/RecipeContext';
 import {getCookbookColorKey} from '@components/ColorPicker';
@@ -43,7 +44,7 @@ import {crumbAxisOf} from '@hooks/useCrumbAxis';
 import {useAddSheet} from '@contexts/AddSheetContext';
 import {IconAdd} from '@components/Icon/IconIndex';
 import {Spacing} from '@constants/spacing';
-import {generateRecipeListHtml, generateRecipeHtml} from '@utils/generateRecipeHtml';
+import {generateRecipeListHtml, type RecipePdfData} from '@utils/generateRecipeHtml';
 import {parseSession, formatSession} from '@utils/session';
 import {getRecipeMenuItems} from '@utils/recipeMenuItems';
 import {useMadeCount} from '@hooks/useMadeCount';
@@ -73,7 +74,7 @@ const makeMoreMenuItems = (t: (key: string) => string) => [
 const getDefaultCardMenuItems = (recipe: Recipe, t: (key: string, params?: Record<string, unknown>) => string, isMadeOf: (r: Recipe) => boolean) =>
   getRecipeMenuItems({
     t,
-    session: recipe.session,
+    session: `${currentSessionNumber(recipe)}회차`,
     showPin: true,
     isPinned: !!recipe.pinnedAt,
     showMade: true,
@@ -259,7 +260,10 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
   const [crumbMenu, setCrumbMenu] = useState<'axis' | 'item' | null>(null);
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
-  const [pdfHtml, setPdfHtml] = useState('');
+  // 전체 PDF(여러 레시피) — 데이터로 넘겨 레이아웃을 고른다
+  const [pdfList, setPdfList] = useState<RecipePdfData[] | null>(null);
+  // 레시피 하나 PDF — 데이터(레이아웃 고르기 가능). 전체 PDF는 pdfHtml
+  const [pdfData, setPdfData] = useState<RecipePdfData | null>(null);
   const [cookbookSheetRecipe, setCookbookSheetRecipe] = useState<Recipe | null>(null);
   const [madeSheetRecipe, setMadeSheetRecipe] = useState<Recipe | null>(null);
   // 문의는 메일 앱을 열지 않고 앱 안에서 받는다(주소 비노출)
@@ -386,37 +390,12 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
     }
   };
 
-  // 리메이크 그룹에서 최신 회차만 표시 + 그룹 전체 회고 합산
-  const visibleRecipes = useMemo(() => {
-    const latestByGroup = new Map<string, Recipe>();
-    const reviewsByGroup = new Map<string, number>();
-    const standalone: Recipe[] = [];
-    for (const r of recipes) {
-      if (!r.remakeGroupId) {
-        standalone.push(r);
-        continue;
-      }
-      // 그룹 전체 회고 합산
-      const prev = reviewsByGroup.get(r.remakeGroupId) ?? 0;
-      reviewsByGroup.set(r.remakeGroupId, prev + reviewsOf(r).length);
-      // 최신 회차 추적
-      const existing = latestByGroup.get(r.remakeGroupId);
-      if (!existing) {
-        latestByGroup.set(r.remakeGroupId, r);
-      } else {
-        const existNum = parseInt(existing.session?.match(/(\d+)/)?.[1] ?? '0', 10);
-        const rNum = parseInt(r.session?.match(/(\d+)/)?.[1] ?? '0', 10);
-        if (rNum > existNum) latestByGroup.set(r.remakeGroupId, r);
-      }
-    }
-    // 최신 회차에 그룹 전체 회고 수 반영
-    const result: Recipe[] = [...standalone];
-    for (const [groupId, recipe] of latestByGroup) {
-      const totalReviews = reviewsByGroup.get(groupId) ?? 0;
-      result.push({...recipe, reviewCount: totalReviews});
-    }
-    return result;
-  }, [recipes, reviewsOf]);
+  // 레시피는 하나(회차는 그 안 기록) — 회고 수는 모든 회차 합계
+  const {allReviewsOf} = useRecipeReviews();
+  const visibleRecipes = useMemo(
+    () => recipes.map(r => (r.sessions?.length ? {...r, reviewCount: allReviewsOf(r).length} : r)),
+    [recipes, allReviewsOf],
+  );
 
   const filteredRecipes = useMemo(() => {
     let result = visibleRecipes;
@@ -446,13 +425,19 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
         reviewCount: r.reviewCount,
         time: r.time,
         servings: r.servings,
+        specificGravity: r.specificGravity,
+        description: r.description,
+        advice: r.advice,
+        doughTemp: r.doughTemp,
+        divideWeight: r.divideWeight,
         session: r.session,
         ingredientGroups: r.ingredientGroups ?? [],
         tools: r.tools ?? [],
         steps: r.steps,
         stepGroups: r.stepGroups,
       }));
-      setPdfHtml(generateRecipeListHtml(pdfData));
+      setPdfData(null);
+      setPdfList(pdfData);
       setShowPdfPreview(true);
     } else if (id === 'deleteAll') {
       setShowDeleteAllDialog(true);
@@ -473,12 +458,12 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
     const target = madeSheetRecipe;
     if (!target) return;
     // 스탬프는 계정에 보관한다 — 공식/내 레시피 경로를 하나로 둔다
-    setMade(target.id, true);
+    setMade(sessionKey(target), true);
     router.push(`/stamps?just=${encodeURIComponent(target.id)}` as any);
     showSnackbar(t('home.marked'), {
       tone: 'positive',
       label: t('home.undo'),
-      onPress: () => setMade(target.id, false),
+      onPress: () => setMade(sessionKey(target), false),
     });
   }, [madeSheetRecipe, setMade, router, showSnackbar, t]);
 
@@ -494,10 +479,10 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
       return;
     }
     if (id === 'unmade') {
-      setMade(recipe.id, false);
+      setMade(sessionKey(recipe), false);
       showSnackbar(t('home.unmarked'), {
         label: t('home.undo'),
-        onPress: () => setMade(recipe.id, true),
+        onPress: () => setMade(sessionKey(recipe), true),
       });
       return;
     }
@@ -517,61 +502,35 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
       return;
     }
     if (id === 'remake') {
-      if (!canAddRecipe()) {
-        showSnackbar(t('home.maxRecipesLimit'), {tone: 'error'});
-        return;
-      }
-      const {total} = parseSession(recipe.session);
-      if (total >= 5) {
-        showSnackbar(t('home.maxRemakeLimit'), {tone: 'error'});
-        return;
-      }
-      const newTotal = total + 1;
-      const groupId = recipe.remakeGroupId || recipe.id;
-      const newId = `remake_${Date.now()}`;
-      const newRecipe: Recipe = {
-        ...recipe,
-        id: newId,
-        session: formatSession(newTotal, newTotal),
-        remakeGroupId: groupId,
-        reviews: [],
-        reviewCount: 0,
-        createdAt: new Date().toISOString(),
-      };
-      setRecipes(prev => [
-        ...prev.map(r => {
-          if (r.id === recipe.id && !r.remakeGroupId) {
-            const {current} = parseSession(r.session);
-            return {...r, remakeGroupId: groupId, session: formatSession(current, newTotal)};
-          }
-          if (r.remakeGroupId === groupId) {
-            const {current} = parseSession(r.session);
-            return {...r, session: formatSession(current, newTotal)};
-          }
-          return r;
-        }),
-        newRecipe,
-      ]);
+      // 새 회차 만들기 — 레시피는 하나. 지금 내용을 지난 회차 기록으로 넘기고 다음 번호로(최근 5개만 남는다)
+      setRecipes(prev => prev.map(r => (r.id === recipe.id ? recordNewSession(r) : r)));
       showSnackbar(t('home.newSessionAdded'), {tone: 'positive'});
-      router.push(`/recipe/${newId}` as any);
+      router.push(`/recipe/${recipe.id}` as any);
     } else if (id === 'edit') {
       router.push(`/recipe/edit/${recipe.id}`);
     } else if (id === 'delete') {
       setDeleteTarget(recipe);
     } else if (id === 'download') {
-      setPdfHtml(generateRecipeHtml({
+      // 레시피 하나 — 데이터로 넘겨 미리보기에서 기본/한번에 보기 레이아웃을 고를 수 있게(상세와 같다)
+      setPdfList(null);
+      setPdfData({
         title: recipe.title,
         cookbook: recipe.cookbook,
         method: recipe.method,
         reviewCount: recipe.reviewCount,
         time: recipe.time,
         servings: recipe.servings,
+        specificGravity: recipe.specificGravity,
+        description: recipe.description,
+        advice: recipe.advice,
+        doughTemp: recipe.doughTemp,
+        divideWeight: recipe.divideWeight,
         session: recipe.session,
         ingredientGroups: recipe.ingredientGroups ?? [],
         tools: recipe.tools ?? [],
         steps: recipe.steps,
         stepGroups: recipe.stepGroups,
-      }));
+      });
       setShowPdfPreview(true);
     }
   }, [router, setRecipes, showSnackbar, canAddRecipe, t, isGuest, openAuthSheet, exploreIdOf, setExplorePin]);
@@ -994,8 +953,9 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
       <PdfPreviewDialog
         visible={showPdfPreview}
         onClose={() => setShowPdfPreview(false)}
-        html={pdfHtml}
-        filename={t('home.allCookbooksFilename')}
+        data={pdfData ?? undefined}
+        dataList={pdfData ? undefined : pdfList ?? undefined}
+        filename={pdfData ? pdfData.title : t('home.allCookbooksFilename')}
       />
 
       {/* 만들었어요 확인 바텀시트 — 요리모드와 같은 시트를 쓴다 */}

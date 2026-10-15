@@ -89,9 +89,10 @@ function useMadeStampsState() {
 
   /** 레시피 자체(madeAt)와 계정 보관분을 합쳐 본다 */
   const madeAtOf = useCallback(
-    (recipe?: {id: string; madeAt?: string}): string | undefined => {
+    (recipe?: {id: string; sessionId?: string; madeAt?: string}): string | undefined => {
       if (!recipe) return undefined;
-      return stamps[recipe.id] ?? recipe.madeAt;
+      // 스탬프도 회차마다 — 지금 회차 id(없으면 레시피 id)
+      return stamps[recipe.sessionId ?? recipe.id] ?? recipe.madeAt;
     },
     [stamps],
   );

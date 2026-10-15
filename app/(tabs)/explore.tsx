@@ -7,7 +7,7 @@ import {doc, updateDoc, deleteField, deleteDoc} from 'firebase/firestore';
 import {ExploreScreen} from '@screens/ExploreScreen';
 import {PlanSheet} from '@components/PlanSheet';
 import {PdfPreviewDialog} from '@components/Dialog';
-import {generateRecipeListHtml} from '@utils/generateRecipeHtml';
+import {generateRecipeListHtml, type RecipePdfData} from '@utils/generateRecipeHtml';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useColors} from '@contexts/ThemeContext';
@@ -35,7 +35,8 @@ export function ExploreRouteBase({landing = false}: {landing?: boolean}) {
   const isFreeUser = !isAdmin && !isPro;
   const [showPlanSheet, setShowPlanSheet] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
-  const [pdfHtml, setPdfHtml] = useState('');
+  // 여러 레시피 PDF — 데이터로 넘겨 미리보기에서 레이아웃(기본/한번에 보기)을 고른다
+  const [pdfList, setPdfList] = useState<RecipePdfData[]>([]);
 
   const prevOnlineRef = useRef(isOnline);
   useEffect(() => {
@@ -145,13 +146,18 @@ export function ExploreRouteBase({landing = false}: {landing?: boolean}) {
       reviewCount: r.reviewCount,
       time: r.time,
       servings: r.servings,
+      specificGravity: r.specificGravity,
+      description: r.description,
+      advice: r.advice,
+      doughTemp: r.doughTemp,
+      divideWeight: r.divideWeight,
       session: r.session,
       ingredientGroups: r.ingredientGroups ?? [],
       tools: r.tools ?? [],
       steps: r.steps,
       stepGroups: r.stepGroups,
     }));
-    setPdfHtml(generateRecipeListHtml(pdfData));
+    setPdfList(pdfData);
     setShowPdfPreview(true);
   }, [exploreRecipes, showSnackbar, t]);
 
@@ -201,7 +207,7 @@ export function ExploreRouteBase({landing = false}: {landing?: boolean}) {
       <PdfPreviewDialog
         visible={showPdfPreview}
         onClose={() => setShowPdfPreview(false)}
-        html={pdfHtml}
+        dataList={pdfList}
         filename={t('explore.officialCookbook')}
       />
     </View>

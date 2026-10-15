@@ -32,6 +32,26 @@ export interface ToolGroup {
 
 import type {ReviewData} from '../components/Dialog/ReviewDialog';
 
+/** 지난 회차 한 개 — 그때의 재료·과정 등. id는 회고·스탬프 키(옮겨 온 회차는 예전 레시피 문서 id 그대로) */
+export interface RecipeSession {
+  id: string;
+  number: number;
+  createdAt: string;
+  ingredientGroups?: IngredientGroup[];
+  tools?: {name: string}[];
+  toolGroups?: ToolGroup[];
+  steps?: Step[];
+  stepGroups?: StepGroup[];
+  method?: string;
+  specificGravity?: string;
+  time?: string;
+  servings?: string;
+  doughTemp?: string;
+  divideWeight?: string;
+  /** (예전 데이터) 레시피 문서 안에 있던 회고 — 옮길 때 같이 가져온다 */
+  reviews?: ReviewData[];
+}
+
 export interface Recipe {
   id: string;
   title: string;
@@ -89,8 +109,17 @@ export interface Recipe {
   referenceUrl?: string;
   /** 원본 링크 URL — 외부 사이트(만개의레시피 등)에서 가져온 레시피의 출처 */
   sourceUrl?: string;
-  /** 다시 만들기 회차 그룹 식별자 */
+  /** (예전 구조) 다시 만들기 회차 그룹 식별자 — 회차가 복사본 레시피였던 때. 이제는 sessions로 옮긴다 */
   remakeGroupId?: string;
+  /**
+   * 지난 회차 기록(오래된 것부터). 레시피는 하나 — "새 회차 기록하기"를 누를 때만 지금 내용을 여기로 넘긴다.
+   * 지금 보이는 내용이 마지막 회차. 지난 회차 + 지금 회차를 합쳐 최근 MAX_SESSIONS개만 남는다.
+   */
+  sessions?: RecipeSession[];
+  /** 지금(마지막) 회차 id — 회고·스탬프가 회차별로 붙는 키. 없으면 레시피 id */
+  sessionId?: string;
+  /** 지금(마지막) 회차 번호(1부터) */
+  sessionNumber?: number;
   /** 생성 시각 (ISO 문자열) */
   createdAt?: string;
   /** 마지막으로 고친 시각 (ISO) — 다른 기기의 새 내용을 옛 내용으로 덮어쓰지 않게 비교한다 */

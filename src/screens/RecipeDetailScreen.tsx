@@ -241,6 +241,10 @@ export interface RecipeDetailScreenProps {
   /** 쿠킹모드 레시피 전환용 */
   recipeItems?: {id: string; label: string; iconColor?: string; imageUrl?: string; searchableTexts?: string[]}[];
   currentRecipeId?: string;
+  /** 보고 있는 회차 id(회차 눈금의 선택) — 지난 회차 기록 id 또는 지금 회차 id */
+  currentSessionId?: string;
+  /** 지난 회차를 보는 중 — 삭제는 그 회차 기록만 */
+  viewingPastSession?: boolean;
   onRecipeSelect?: (id: string) => void;
   /** 내 레시피를 둘러보기에 복사 (어드민 전용) */
   onCopyToExplore?: () => void;
@@ -415,6 +419,8 @@ export function RecipeDetailScreen({
   onSubscribe,
   recipeItems,
   currentRecipeId,
+  currentSessionId,
+  viewingPastSession,
   onRecipeSelect,
   onCopyToExplore,
   onSubmitToExplore,
@@ -510,7 +516,7 @@ export function RecipeDetailScreen({
   const hasMultipleSessions = sessionItems && sessionItems.length > 1;
   // 회차(시리즈)에서 생긴 레시피면 현재 회차 번호(1-based)를 타이틀 옆에 #N으로 표시
   const sessionNumber = hasMultipleSessions
-    ? sessionItems!.findIndex(i => i.id === currentRecipeId) + 1
+    ? sessionItems!.findIndex(i => i.id === currentSessionId) + 1
     : 0;
   // 상단 nav 탭은 항상 가로 Tabs로 고정 (너비에 따른 형태 전환 비활성화)
   const useCompactTabs = false;
@@ -1768,6 +1774,11 @@ export function RecipeDetailScreen({
           reviewCount,
           time,
           servings,
+          doughTemp,
+          divideWeight,
+          specificGravity: ratio,
+          description,
+          advice,
           session,
           ingredientGroups,
           tools: resolvedToolGroups.flatMap(g => g.tools),
@@ -1867,7 +1878,7 @@ export function RecipeDetailScreen({
           pointerEvents="box-none">
           <RulerSlider
             items={sessionItems!}
-            selectedId={currentRecipeId}
+            selectedId={currentSessionId}
             onSelect={id => onSessionSelect?.(id)}
           />
         </View>
@@ -1899,8 +1910,9 @@ export function RecipeDetailScreen({
         onClose={() => setShowDeleteDialog(false)}
         icon={IconTrashTwotone}
         avatarColor="red"
-        title={parseSession(session).total > 1 ? t('recipeDetail.deleteSessionTitle', {session: parseSession(session).current}) : t('recipeDetail.deleteRecipeTitle')}
-        description={parseSession(session).total > 1
+        // 지난 회차를 보고 있으면 그 회차 기록만 지운다 — 레시피 전체가 아니라는 걸 알린다
+        title={viewingPastSession ? t('recipeDetail.deleteSessionTitle', {session: parseSession(session).current}) : t('recipeDetail.deleteRecipeTitle')}
+        description={viewingPastSession
           ? t('recipeDetail.deleteSessionDesc', {title: title ?? '', session: parseSession(session).current})
           : t('recipeDetail.deleteRecipeDesc', {title: title ?? ''})}
         actions={

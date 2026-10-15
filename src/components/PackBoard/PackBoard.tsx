@@ -23,6 +23,8 @@ export interface PackBoardProps {
   dimExceptId?: string;
   /** 처음 화면 가운데에 둘 지점(보드 좌표) — custom(랜딩 카드)이 있으면 그 중심을 알려준다 */
   onFocusPoint?: (p: {x: number; y: number} | null) => void;
+  /** 팩 덩어리의 실제 위·아래 끝(보드 좌표) — 캔버스가 처음 배치를 덩어리 기준으로 맞춘다 */
+  onMassBounds?: (b: {top: number; bottom: number}) => void;
 }
 
 // 스택 + 라벨 + 여백. 팩(202)과 차이가 클수록 보드가 길어지고, 화면보다
@@ -49,7 +51,7 @@ function seeded(seed: number): number {
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 }
 
-export function PackBoard({items, height, boardWidth, entrance = false, dimExceptId, onFocusPoint}: PackBoardProps) {
+export function PackBoard({items, height, boardWidth, entrance = false, dimExceptId, onFocusPoint, onMassBounds}: PackBoardProps) {
   const intro = useRef(new Animated.Value(entrance ? 0 : 1)).current;
 
   const {placed, width, contentHeight} = useMemo(() => {
@@ -204,6 +206,10 @@ export function PackBoard({items, height, boardWidth, entrance = false, dimExcep
     };
   }, [placed]);
   React.useEffect(() => { onFocusPoint?.(focus); }, [focus, onFocusPoint]);
+  // 팩 덩어리 위·아래 끝 — 흔들림(jitter)·회전 탓에 보드 가운데와 덩어리 가운데가 어긋나 실제로 잰다
+  const massTop = placed.length ? Math.min(...placed.map(p => p.top)) : 0;
+  const massBottom = placed.length ? Math.max(...placed.map(p => p.top + (p.item.customSize?.h ?? PACK_HEIGHT))) : 0;
+  React.useEffect(() => { onMassBounds?.({top: massTop, bottom: massBottom}); }, [massTop, massBottom, onMassBounds]);
 
   // 등장 애니메이션 (부드럽게: 적은 튀어나옴 + 완만한 스태거)
   React.useEffect(() => {

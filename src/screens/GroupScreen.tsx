@@ -1,4 +1,5 @@
 import {shortDate} from '@utils/dateLabel';
+import {sessionKey} from '@utils/session';
 import {getColorVarKey} from '@components/ColorPicker';
 import {cookbookMenuItem} from '@utils/cookbookMenuItem';
 import {APPBAR_HEIGHT} from '@components/Container/ContentContainer';
@@ -12,6 +13,7 @@ import {useAuth} from '@contexts/AuthContext';
 import {Dimensions, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {SafeAreaView} from 'react-native-safe-area-context';
+import {PackHeaderFloat} from '@components/PackBoard/PackHeaderFloat';
 import {AppBar} from '@components/Navigation';
 import {Breadcrumb} from '@components/Navigation/Breadcrumb';
 import {ContentContainer, GlassContainer} from '@components/Container';
@@ -1065,9 +1067,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
           {/* 머리말은 자리를 차지하지 않는다 — 팩 보기는 앱바 아래에 떠 있고, 목록 보기는 목록 맨 위에서 같이 스크롤.
               둘 다 앱바 아래 같은 위치에서 시작한다(홈 '레시피' 보기와 같다) */}
           {viewMode === 'pack' && headerExtra ? (
-            <View style={styles.headerExtraFloat} pointerEvents="box-none" onLayout={e => setHeaderExtraHeight(e.nativeEvent.layout.height)}>
-              <ContentContainer style={styles.packHeaderExtra}>{headerExtra}</ContentContainer>
-            </View>
+            <PackHeaderFloat onHeight={setHeaderExtraHeight}>{headerExtra}</PackHeaderFloat>
           ) : null}
         </View>
       </SafeAreaView>
@@ -1137,8 +1137,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         visible={!!writeTarget}
         onClose={() => setWriteTarget(null)}
         // 이미 쓴 회고면 그 내용으로 채워 수정
-        value={writeTarget ? reviewOf(writeTarget.id) : undefined}
-        onConfirm={review => { if (writeTarget) saveReview(writeTarget.id, review); }}
+        value={writeTarget ? reviewOf(sessionKey(writeTarget)) : undefined}
+        onConfirm={review => { if (writeTarget) saveReview(sessionKey(writeTarget), review); }}
       />
 
       {/* 회고 노트 바텀시트 */}

@@ -12,6 +12,8 @@ import {useTranslation} from '@contexts/LanguageContext';
 import {
   RecipePdfData,
   generateRecipeHtml,
+  generateRecipeListHtml,
+  type RecipePdfLayout,
 } from '@utils/generateRecipeHtml';
 
 export interface PdfPreviewDialogProps {
@@ -21,6 +23,8 @@ export interface PdfPreviewDialogProps {
   data?: RecipePdfData;
   /** 직접 전달하는 HTML (data 대신 사용) */
   html?: string;
+  /** 여러 레시피 한 파일(레시피북 전체 등) — 주면 레이아웃(기본/한번에 보기)을 고를 수 있다 */
+  dataList?: RecipePdfData[];
   /** 파일명 (html 직접 전달 시 사용, 기본값: 'recipes') */
   filename?: string;
   /** 내보내기 완료 — 등급별 사용 횟수를 세는 데 쓴다 */
@@ -48,17 +52,20 @@ export function PdfPreviewDialog({
   html: htmlProp,
   filename: filenameProp,
   onExported,
+  dataList,
 }: PdfPreviewDialogProps) {
+  // PDF는 '한번에 보기' 레이아웃 하나로 — 글줄이라 레시피 하나가 종이 한 장에 들어간다
+  const layout: RecipePdfLayout = 'bulk';
   const styles = useThemedStyles(createStyles);
   const {height: windowHeight} = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const pvH = previewHeight(windowHeight, insets.top, insets.bottom);
   const {t} = useTranslation();
-  const html = htmlProp ?? (data ? generateRecipeHtml(data) : '');
+  const html = dataList ? generateRecipeListHtml(dataList, layout) : htmlProp ?? (data ? generateRecipeHtml(data, layout) : '');
   const pdfFilename = filenameProp ?? data?.title ?? 'recipes';
 
-  const handleDownload = useCallback(async () => {
-    if (Platform.OS === 'web') {
+  // 웹 인쇄 창 — 다운로드(PDF로 저장)·프린트가 같은 창을 쓴다
+  const webPrint = useCallback(async () => {
       const titleHtml = html.replace(
         '<head>',
         `<head><title>${pdfFilename}</title>`,
@@ -97,6 +104,23 @@ export function PdfPreviewDialog({
       // 인쇄 대화상자 닫힌 후 복원
       document.title = originalTitle;
       setTimeout(() => document.body.removeChild(printFrame), 1000);
+  }, [html, pdfFilename]);
+
+  // 바로 프린트 — 앱은 기기 인쇄 창(AirPrint 등), 웹은 브라우저 인쇄 창
+  const handlePrint = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      await webPrint();
+    } else {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const Print = require('expo-print');
+      await Print.printAsync({html});
+    }
+    onExported?.();
+  }, [html, webPrint, onExported]);
+
+  const handleDownload = useCallback(async () => {
+    if (Platform.OS === 'web') {
+      await webPrint();
     } else {
       // eslint-disable-next-line @typescript-eslint/no-var-requires
       const Print = require('expo-print');
@@ -111,7 +135,7 @@ export function PdfPreviewDialog({
     }
     onExported?.();
     onClose();
-  }, [html, pdfFilename, onClose, onExported]);
+  }, [html, pdfFilename, onClose, onExported, webPrint]);
 
   return (
     <Dialog
@@ -122,15 +146,15 @@ export function PdfPreviewDialog({
       showCloseButton
       actions={
         <>
-          <Button label={t('pdfPreview.cancel')} variant="soft" onPress={onClose} />
+          {/* 닫기는 위 X — 이 자리는 바로 프린트 */}
+          <Button label={t('pdfPreview.print')} variant="soft" onPress={handlePrint} />
           <Button label={t('pdfPreview.download')} variant="filled" onPress={handleDownload} />
         </>
       }>
       <View style={[styles.previewContainer, {height: pvH}]}>
-        {visible && (data || htmlProp) ? (
+        {visible && html ? (
           <RecipeHtmlPreview
-            data={data}
-            html={htmlProp}
+            html={html}
             width={CONTENT_WIDTH}
             height={pvH}
             scrollEnabled

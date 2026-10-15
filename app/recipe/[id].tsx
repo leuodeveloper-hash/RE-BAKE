@@ -9,6 +9,7 @@ import {useMadeCount} from '@hooks/useMadeCount';
 import {useRecipeReviews} from '@hooks/useRecipeReviews';
 import {useMadeStamps} from '@hooks/useMadeStamps';
 import {useExplorePins} from '@hooks/useExplorePins';
+import {recordNewSession, sessionKey, currentSessionNumber} from '@utils/session';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useAddSheet} from '@contexts/AddSheetContext';
@@ -70,6 +71,14 @@ export default function RecipeDetailRoute() {
   useEffect(() => { if (routeId) setId(routeId); }, [routeId]);
 
   const recipe = findRecipeById(id) ?? exploreRecipes.find(r => r.id === id) ?? getSharedRecipe(id);
+  // 보고 있는 지난 회차(null = 지금 회차). 지난 회차는 보기만 — 편집은 지금 회차만
+  const [viewSessionId, setViewSessionId] = useState<string | null>(null);
+  useEffect(() => { setViewSessionId(null); }, [id]);
+  const viewedSession = viewSessionId ? recipe?.sessions?.find(x => x.id === viewSessionId) : undefined;
+  // 화면에 보일 회차 내용 — 지난 회차면 그 기록, 아니면 레시피 그대로
+  const shown = viewedSession ? {...recipe, ...viewedSession} : recipe;
+  // 스탬프도 회차마다 — 보고 있는 회차 기준
+  const madeKey = viewedSession ? viewedSession.id : recipe ? sessionKey(recipe) : id;
 
   // 마지막으로 본 레시피 저장 → 앱 재시작 시 이 화면으로 복귀 (_layout에서 사용).
   // + 위젯 "본 것 제외" 순환용 seen 기록. 실제 존재하는 레시피일 때만.
@@ -111,7 +120,7 @@ export default function RecipeDetailRoute() {
   }, [recipe, id, findRecipeById, exploreRecipes, router]);
 
   const madeCount = useMadeCount();
-  const {reviewsOf} = useRecipeReviews();
+  const {reviewsOf, sessionReviewsOf} = useRecipeReviews();
   const {setMade, madeAtOf} = useMadeStamps();
   const isMyRecipe = recipes.some(r => r.id === id);
   const isExploreRecipe = !isMyRecipe && exploreRecipes.some(r => r.id === id);
@@ -253,32 +262,17 @@ export default function RecipeDetailRoute() {
 const handleDelete = useCallback(async () => {
     if (!recipe) return;
     if (isMyRecipe) {
-      const groupId = recipe.remakeGroupId;
-      setRecipes(prev => {
-        const filtered = prev.filter(r => r.id !== id);
-        if (!groupId) return filtered;
-        const remaining = filtered.filter(r => r.remakeGroupId === groupId || r.id === groupId);
-        const newTotal = remaining.length;
-        if (newTotal <= 1) {
-          return filtered.map(r => {
-            if (r.remakeGroupId === groupId || r.id === groupId) {
-              const {current} = parseSession(r.session);
-              return {...r, remakeGroupId: undefined, session: formatSession(current, 1)};
-            }
-            return r;
-          });
-        }
-        return filtered.map(r => {
-          if (r.remakeGroupId === groupId || r.id === groupId) {
-            const {current} = parseSession(r.session);
-            return {...r, session: formatSession(current, newTotal)};
-          }
-          return r;
-        });
-      });
-      const {current, total} = parseSession(recipe.session);
-      const sessionLabel = total > 1 ? ` ${t('id.sessionLabel', {current})}` : '';
-      showSnackbar(t('id.recipeDeleted', {title: recipe.title, sessionLabel}), {icon: IconTrashFilled});
+      // 지난 회차를 보고 있으면 그 회차 기록만 지운다(레시피는 하나). 아니면 레시피 전체
+      if (viewedSession) {
+        setRecipes(prev => prev.map(r => r.id === id
+          ? {...r, sessions: (r.sessions ?? []).filter(x => x.id !== viewedSession.id), updatedAt: new Date().toISOString()}
+          : r));
+        setViewSessionId(null);
+        showSnackbar(t('id.recipeDeleted', {title: recipe.title, sessionLabel: ` ${t('id.sessionLabel', {current: viewedSession.number})}`}), {icon: IconTrashFilled});
+        return;
+      }
+      setRecipes(prev => prev.filter(r => r.id !== id));
+      showSnackbar(t('id.recipeDeleted', {title: recipe.title, sessionLabel: ''}), {icon: IconTrashFilled});
     } else if (isExploreRecipe && isAdmin) {
       try {
         await updateDoc(doc(db, 'explore_recipes', id!), {
@@ -345,85 +339,37 @@ const handleDelete = useCallback(async () => {
   }, [recipe, setRecipes, showSnackbar, router, t, user, handle, displayName, avatarSeed, openAuthSheet]);
   importRef.current = handleImport;
 
+  // 새 회차 만들기 — 레시피는 하나. 지금 내용을 지난 회차 기록으로 넘기고 다음 번호 회차로 이어서 고친다(최근 5개만)
   const handleRemake = useCallback(() => {
     if (!recipe) return;
-
-    const {total} = parseSession(recipe.session);
-    const newTotal = total + 1;
-    const groupId = recipe.remakeGroupId || recipe.id;
-
-    const newId = `remake_${Date.now()}`;
-    const newRecipe = {
-      ...recipe,
-      id: newId,
-      session: formatSession(newTotal, newTotal),
-      remakeGroupId: groupId,
-      reviews: [] as {evaluation: string; improvement: string}[],
-      reviewCount: 0,
-      createdAt: new Date().toISOString(),
-      // 회차를 만들면 내 콘텐츠가 된다 — 작성자를 나로 박제(복사본 원본 작성자 → 나로 교체).
-      // 단 원본 출처(sourceId/sourceHandle/sourceAuthorId)는 spread로 유지 → "원본: @작성자" 계속 표시.
-      authorId: user?.uid,
-      authorHandle: handle ?? undefined,
-      authorDisplayName: displayName ?? undefined,
-      authorAvatarSeed: avatarSeed != null ? String(avatarSeed) : undefined,
-    };
-
-    setRecipes(prev => [
-      ...prev.map(r => {
-        if (r.id === recipe.id && !r.remakeGroupId) {
-          const {current} = parseSession(r.session);
-          return {...r, remakeGroupId: groupId, session: formatSession(current, newTotal)};
-        }
-        if (r.remakeGroupId === groupId) {
-          const {current} = parseSession(r.session);
-          return {...r, session: formatSession(current, newTotal)};
-        }
-        return r;
-      }),
-      newRecipe,
-    ]);
-
+    setRecipes(prev => prev.map(r => (r.id === recipe.id ? recordNewSession(r) : r)));
+    setViewSessionId(null);
     showSnackbar(t('id.sessionAdded'), {tone: 'positive'});
-    router.push(`/recipe/${newId}` as any);
-  }, [recipe, setRecipes, showSnackbar, router, t, user, handle, displayName, avatarSeed]);
+  }, [recipe, setRecipes, showSnackbar, t]);
 
+  // 회차 넘기기 — 지난 회차 기록 + 지금 회차. 회차가 하나면 안 보인다
   const sessionItems = useMemo(() => {
-    if (!recipe?.remakeGroupId) return [];
-    const group = sortSessionGroup(
-      recipes.filter(r => r.remakeGroupId === recipe.remakeGroupId || r.id === recipe.remakeGroupId),
-    );
-    if (group.length < 2) return [];
-    // #번호 = session 문자열이 아니라 정렬된 배열 위치(1-based)
-    return group.map((r, i) => ({id: r.id, label: t('id.sessionLabel', {current: i + 1})}));
-  }, [recipe, recipes, t]);
+    if (!recipe?.sessions?.length) return [];
+    return [
+      ...recipe.sessions.map(x => ({id: x.id, label: t('id.sessionLabel', {current: x.number})})),
+      {id: sessionKey(recipe), label: t('id.sessionLabel', {current: currentSessionNumber(recipe)})},
+    ];
+  }, [recipe, t]);
 
   const sessionReviews = useMemo(() => {
-    if (!recipe?.remakeGroupId) return undefined;
-    const group = recipes
-      .filter(r => r.remakeGroupId === recipe.remakeGroupId || r.id === recipe.remakeGroupId)
-      .sort((a, b) => parseSession(a.session).current - parseSession(b.session).current);
-    if (group.length < 2) return undefined;
-    // 계정에 보관한 회고까지 합친다 — 회차별 화면에서도 스탬프 시트에서 쓴 것이 보여야 한다
-    const items = group
-      .map(r => ({
-        id: r.id,
-        label: t('id.sessionLabel', {current: parseSession(r.session).current}),
-        reviews: reviewsOf(r),
-      }))
-      .filter(x => x.reviews.length > 0);
+    if (!recipe?.sessions?.length) return undefined;
+    // 회차별 회고 — 지난 회차 기록 + 지금 회차(계정에 회차 id로 보관한 것까지)
+    const items = [
+      ...recipe.sessions.map(x => ({id: x.id, label: t('id.sessionLabel', {current: x.number}), reviews: sessionReviewsOf(x)})),
+      {id: sessionKey(recipe), label: t('id.sessionLabel', {current: currentSessionNumber(recipe)}), reviews: reviewsOf(recipe)},
+    ].filter(x => x.reviews.length > 0);
     return items.length > 0 ? items : undefined;
-  }, [recipe, recipes, reviewsOf, t]);
+  }, [recipe, reviewsOf, sessionReviewsOf, t]);
 
-  // 2회차+ 이면 1회차 원본 데이터를 비교 기준으로 전달 (1회차 자신을 볼 땐 null)
+  // 1회차(가장 오래된 기록)와 비교 — 그 회차 자신을 볼 땐 없음
   const compareBaseline = useMemo(() => {
-    if (!recipe?.remakeGroupId) return null;
-    const group = recipes
-      .filter(r => r.remakeGroupId === recipe.remakeGroupId || r.id === recipe.remakeGroupId)
-      .sort((a, b) => parseSession(a.session).current - parseSession(b.session).current);
-    if (group.length < 2) return null;
-    const first = group[0];
-    if (first.id === recipe.id) return null;
+    const first = recipe?.sessions?.[0];
+    if (!first || viewedSession?.id === first.id) return null;
     return {
       ingredientGroups: first.ingredientGroups,
       steps: first.steps,
@@ -431,12 +377,12 @@ const handleDelete = useCallback(async () => {
       method: first.method,
       specificGravity: first.specificGravity,
     };
-  }, [recipe, recipes]);
+  }, [recipe, viewedSession]);
 
-  // 회차 전환은 화면 이동 없이 제자리에서 (리마운트 X → 눈금 플립 유지, 히스토리 안 꼬임)
-  const handleSessionSelect = useCallback((recipeId: string) => {
-    setId(recipeId);
-  }, []);
+  // 회차 전환은 제자리에서 — 지난 회차를 고르면 그 기록을 보기만(편집은 지금 회차만)
+  const handleSessionSelect = useCallback((sid: string) => {
+    setViewSessionId(recipe && sid === sessionKey(recipe) ? null : sid);
+  }, [recipe]);
 
   const handleCookbookChange = useCallback((newCookbook: string) => {
     if (!isMyRecipe) return;
@@ -596,21 +542,21 @@ const handleDelete = useCallback(async () => {
    */
   const handleMadeChange = useCallback((made: boolean) => {
     if (!user) { openAuthSheet(); return; }
-    setMade(id, made);
+    setMade(madeKey, made);
     if (made) {
-      router.push(`/stamps?just=${encodeURIComponent(id)}` as any);
+      router.push(`/stamps?just=${encodeURIComponent(madeKey)}` as any);
       showSnackbar(t('home.marked'), {
         tone: 'positive',
         label: t('home.undo'),
-        onPress: () => setMade(id, false),
+        onPress: () => setMade(madeKey, false),
       });
     } else {
       showSnackbar(t('home.unmarked'), {
         label: t('home.undo'),
-        onPress: () => setMade(id, true),
+        onPress: () => setMade(madeKey, true),
       });
     }
-  }, [id, setMade, router, user, openAuthSheet, showSnackbar, t]);
+  }, [id, setMade, router, user, openAuthSheet, showSnackbar, t, madeKey]);
 
   // 의견은 공식(둘러보기) 레시피에만 — 내 레시피는 직접 고치면 된다
   const handleFeedback = useCallback(async (kind: string, message: string) => {
@@ -635,7 +581,7 @@ const handleDelete = useCallback(async () => {
 
   // 내 목록에 있으면 복사본이어도 편집 가능(원본 출처는 sourceId 등으로 계속 표시된다).
   // 기존엔 복사본을 막아 탭·롱프레스가 아무 반응 없이 먹통이었다.
-  const isMade = !!madeAtOf(recipe);
+  const isMade = !!madeAtOf(recipe ? {id: madeKey, madeAt: viewedSession ? undefined : recipe.madeAt} : undefined);
   const canEdit = isMyRecipe || (isExploreRecipe && isAdmin);
   const canDelete = isMyRecipe || (isExploreRecipe && isAdmin);
 
@@ -651,25 +597,25 @@ const handleDelete = useCallback(async () => {
         title={recipe.title}
         hidden={recipe.hidden}
         cookbook={recipe.cookbook}
-        method={recipe.method}
-        ratio={recipe.specificGravity}
+        method={shown?.method}
+        ratio={shown?.specificGravity}
         reviewCount={recipe.reviewCount}
         // 계정에 보관한 회고까지 합쳐서 넘긴다 — 한쪽만 보면 절반이 사라져 보인다
-        reviews={reviewsOf(recipe)}
+        reviews={viewedSession ? sessionReviewsOf(viewedSession) : reviewsOf(recipe)}
         description={recipe.description}
         advice={recipe.advice}
         imageUri={recipe.imageUri}
         imageUris={recipe.imageUris}
-        time={recipe.time}
-        servings={recipe.servings}
-        doughTemp={recipe.doughTemp}
-        divideWeight={recipe.divideWeight}
-        session={recipe.session}
-        ingredientGroups={recipe.ingredientGroups}
-        tools={recipe.tools}
-        toolGroups={recipe.toolGroups}
-        steps={recipe.steps}
-        stepGroups={recipe.stepGroups}
+        time={shown?.time}
+        servings={shown?.servings}
+        doughTemp={shown?.doughTemp}
+        divideWeight={shown?.divideWeight}
+        session={sessionItems.length ? t('id.sessionLabel', {current: viewedSession?.number ?? currentSessionNumber(recipe)}) : undefined}
+        ingredientGroups={shown?.ingredientGroups}
+        tools={shown?.tools}
+        toolGroups={shown?.toolGroups}
+        steps={shown?.steps}
+        stepGroups={shown?.stepGroups}
         activeFieldIds={recipe.activeFieldIds}
         referenceUrl={recipe.referenceUrl}
         isMade={isMade}
@@ -683,22 +629,25 @@ const handleDelete = useCallback(async () => {
         // 회고는 스탬프북에서 — 스탬프가 붙은 뒤 회고 시트가 뜬다(두 번 묻지 않게)
         onBack={handleBack}
         onComingSoon={handleComingSoon}
-        onEdit={canEdit ? handleEdit : undefined}
+        // 지난 회차는 보기만 — 편집·바로 고치기는 지금 회차에서
+        onEdit={canEdit && !viewedSession ? handleEdit : undefined}
         // 아래로 당겨 새로고침 — 내 레시피·둘러보기 둘 다 서버에서 다시
         onRefresh={async () => { await Promise.all([reloadRecipes(), exploreReload()]); setUpdateAvailable(false); }}
         updateAvailable={updateAvailable}
         onDownloadPhoto={handleDownloadPhoto}
         onDelete={canDelete ? handleDelete : undefined}
-        onRemake={isMyRecipe && recipe?.kind !== 'tip' ? handleRemake : undefined}
+        onRemake={isMyRecipe && recipe?.kind !== 'tip' && !viewedSession ? handleRemake : undefined}
         onImport={!isMyRecipe && !alreadyImported ? handleImport : undefined}
         onCookbookChange={isMyRecipe ? handleCookbookChange : undefined}
         availableCookbooks={availableCookbooks}
         cookbookColors={cookbookColors}
         sessionItems={sessionItems}
+        currentSessionId={viewSessionId ?? (recipe ? sessionKey(recipe) : undefined)}
+        viewingPastSession={!!viewedSession}
         sessionReviews={sessionReviews}
         compareBaseline={compareBaseline}
         onSessionSelect={handleSessionSelect}
-        onUpdate={canEdit ? (data) => {
+        onUpdate={canEdit && !viewedSession ? (data) => {
           if (isMyRecipe) {
             setRecipes(prev => prev.map(r => r.id === id ? {...r, ...data} : r));
           } else if (isExploreRecipe && isAdmin) {
