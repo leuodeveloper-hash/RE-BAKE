@@ -70,6 +70,8 @@ export function ProfileHeader({name, handle, avatarSeed, stats, onPress, iconAct
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   wrap: {
     gap: Spacing.md,
+    // 위아래 숨 쉴 여백 — 앱바·목록과 붙어 보이지 않게
+    paddingVertical: Spacing.sm,
   },
   identity: {
     flexDirection: 'row',

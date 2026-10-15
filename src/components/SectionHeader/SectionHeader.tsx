@@ -9,7 +9,7 @@ import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 import {SvgProps} from 'react-native-svg';
 import {IconButton} from '@components/IconButton';
-import {Menu, type MenuItemData} from '@components/Menu/Menu';
+import {Menu, type MenuItemData, type MenuSection} from '@components/Menu/Menu';
 import {IconEllipsisVertical} from '@components/Icon/IconIndex';
 
 /** 진도 게이지 너비 */
@@ -50,16 +50,22 @@ export interface SectionHeaderProps {
   /** 오른쪽 오버플로우(⋮) 메뉴 — 주면 '편집' 글자 버튼 대신 ⋮ 버튼 + 메뉴(편집·타이머 설정 등) */
   menuItems?: MenuItemData[];
   onMenuSelect?: (id: string) => void;
+  /** 메뉴 항목 위에 붙는 묶음(레이블 + 컨트롤 등) — 예: 재료 '비율 조절' 슬라이더. 항목(편집 등)은 그 아래 */
+  menuExtraSections?: MenuSection[];
   /** 메뉴 열림/닫힘 — 감싼 쪽이 이 헤더를 맨 위 레이어로 올릴 때(다음 헤더·타이머에 가리지 않게) */
   onMenuOpenChange?: (open: boolean) => void;
+  /** 메뉴 열림을 바깥에서 정할 때(제어) — 주면 이 값을 따르고 바뀔 땐 onMenuOpenChange로 알린다 */
+  menuOpen?: boolean;
   /** 오른쪽 액션(편집) 왼쪽에 붙는 요소 — 스위치 등 */
   actionExtra?: React.ReactNode;
 }
 
 export function SectionHeader({
   menuItems,
+  menuExtraSections,
   onMenuSelect,
   onMenuOpenChange,
+  menuOpen: menuOpenProp,
   titleTrailing,
   actionExtra,
   title,
@@ -78,13 +84,17 @@ export function SectionHeader({
   const colors = useColors();
 
   const showProgress = !!progress && progress.total > 0;
-  const [menuOpen, setMenuOpenState] = useState(false);
-  const setMenuOpen = (v: boolean | ((p: boolean) => boolean)) => setMenuOpenState(prev => {
-    const next = typeof v === 'function' ? v(prev) : v;
-    if (next !== prev) onMenuOpenChange?.(next);
-    return next;
-  });
-  const hasMenu = !!menuItems?.length;
+  const [menuOpenState, setMenuOpenState] = useState(false);
+  // 바깥에서 열고 닫을 수 있다(menuOpen을 주면 그 값을 따른다 — 예: 배수 글자를 눌러 메뉴 열기)
+  const menuOpen = menuOpenProp ?? menuOpenState;
+  const setMenuOpen = (v: boolean | ((p: boolean) => boolean)) => {
+    const next = typeof v === 'function' ? v(menuOpen) : v;
+    if (next === menuOpen) return;
+    if (menuOpenProp === undefined) setMenuOpenState(next);
+    onMenuOpenChange?.(next);
+  };
+  // 항목이 없어도(편집 권한 없음) 비율 조절 같은 묶음이 있으면 ⋮ 메뉴를 둔다
+  const hasMenu = !!menuItems?.length || !!menuExtraSections?.length;
   const Wrapper = onPress ? Pressable : View;
 
   return (
@@ -133,7 +143,8 @@ export function SectionHeader({
             <View style={styles.menuAnchor}>
               <IconButton icon={IconEllipsisVertical} variant="ghost-secondary" size="small" forcePressed={menuOpen} onPress={() => setMenuOpen(v => !v)} />
               <Menu
-                items={menuItems}
+                // 묶음(비율 조절 등)이 위, 항목(편집 등)은 아래
+                sections={[...(menuExtraSections ?? []), ...(menuItems?.length ? [{items: menuItems, dividerBefore: !!menuExtraSections?.length}] : [])]}
                 visible={menuOpen}
                 onSelect={id => { setMenuOpen(false); onMenuSelect?.(id); }}
                 onClose={() => setMenuOpen(false)}

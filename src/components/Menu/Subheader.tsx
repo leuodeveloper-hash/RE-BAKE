@@ -7,14 +7,17 @@ import {useThemedStyles} from '@hooks/useThemedStyles';
 
 export interface SubheaderProps {
   title: string;
+  /** 오른쪽 끝 값(예: ×0.75) — 소제목과 같은 줄 */
+  trailing?: string;
   style?: ViewStyle;
 }
 
-export function Subheader({title, style}: SubheaderProps) {
+export function Subheader({title, trailing, style}: SubheaderProps) {
   const styles = useThemedStyles(createStyles);
   return (
     <View style={[styles.header, style]}>
       <Text style={styles.headerText}>{title}</Text>
+      {trailing ? <Text style={[styles.headerText, styles.trailing]}>{trailing}</Text> : null}
     </View>
   );
 }
@@ -23,7 +26,13 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   header: {
     height: 40,
     paddingHorizontal: Spacing.sm,
-    justifyContent: 'center',
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  trailing: {
+    color: colors['foreground/on-surface'],
+    fontVariant: ['tabular-nums'],
   },
   headerText: {
     fontFamily: Typography.caption.large.fontFamily,

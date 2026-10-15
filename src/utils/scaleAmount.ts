@@ -29,3 +29,6 @@ export function scaleAmount(amount: string, factor: number): string {
 
 /** 배율 표시 — 0.5 → "×0.5" */
 export const scaleLabel = (factor: number) => `×${Math.round(factor * 100) / 100}`;
+
+/** 보기용 분량 — 숫자가 없으면(단위만 'g' 등) 비운다. 그람을 안 쓴 재료에 'g'만 덩그러니 보이지 않게 */
+export const displayAmount = (amount?: string) => (amount && /\d/.test(amount) ? amount : '');

@@ -68,7 +68,7 @@ import {useYouTubePlayer} from '@contexts/YouTubePlayerContext';
 import {parseYouTubeVideoId} from '@utils/youtube';
 import {triggerHaptic} from '@utils/haptics';
 import {StepTimer} from '@components/StepTimer';
-import {parseRecipeMarkdown, parseBulkIngredientGroups, parseBulkStepGroups, ingredientGroupsToBulk, stepGroupsToBulk, recipeToMarkdown} from '@utils/recipeMarkdown';
+import {parseRecipeMarkdown, parseBulkIngredientGroups, parseBulkStepGroups, parseBulkToolGroups, toolGroupsToBulk, ingredientGroupsToBulk, stepGroupsToBulk, recipeToMarkdown} from '@utils/recipeMarkdown';
 import {
   bulkTextToIngredients,
   bulkTextToToolNames,
@@ -557,6 +557,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     ]).concat([
       // 제빵 북에서 새로 만들면 반죽 온도·분할 무게도 켜 둔다
       ...(isBreadRecipe({cookbook: recipe?.cookbook ?? initialCookbook ?? '', kind: recipe?.kind}) ? BREAD_FIELDS : []),
+      // 이미 설명이 있으면 설명 칸을 켜 둔다(기본 꺼짐이라 숨어 버리지 않게)
+      ...(recipe?.description?.trim() ? ['description'] : []),
     ]).filter((f, i, a) => a.indexOf(f) === i),
   );
   const isFieldActive = (id: string) => activeFieldIds.includes(id);
@@ -567,6 +569,11 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     g.bulkMode
       ? bulkTextToToolNames(g.bulkText).map(name => ({name}))
       : g.tools.filter(t => t.name.trim()).map(t => ({name: t.name}));
+
+  /** 도구 묶음 전체 → 저장용. 한번에 쓰기 칸은 `## 이름` 줄로 묶음이 나뉜다(재료·과정과 같은 규칙) */
+  const resolveToolGroups = () => toolGroups.flatMap(g => g.bulkMode
+    ? parseBulkToolGroups(g.bulkText, g.title)
+    : [{title: g.title, tools: resolveGroupTools(g)}]);
 
   /** 과정 묶음 → 저장용 설명 배열. bulkMode면 bulkText 파싱, 아니면 개별 폼. */
   const resolveGroupSteps = (g: StepGroup) =>
@@ -622,14 +629,12 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     divideWeight: divideWeight || undefined,
     session: session || undefined,
     ingredientGroups: resolveIngredientGroups(),
-    toolGroups: toolGroups.map(g => ({
-      title: g.title,
-      tools: resolveGroupTools(g),
-    })),
+    toolGroups: resolveToolGroups(),
     stepGroups: resolveStepGroups(),
     activeFieldIds,
     reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
-    description: description.trim() || undefined,
+    // 비우면 빈 글자로 저장 — 칸을 빼면 서버의 기존 설명이 그대로 남았다(합쳐 저장)
+    description: description.trim(),
     advice: advice || undefined,
     advicePhotos: advicePhotos.length > 0 ? advicePhotos : undefined,
     kind: kind === 'tip' ? 'tip' as const : undefined,
@@ -723,11 +728,12 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         divideWeight: divideWeight || undefined,
         session: session || undefined,
         ingredientGroups: resolveIngredientGroups(),
-        toolGroups: toolGroups.map(g => ({title: g.title, tools: resolveGroupTools(g)})),
+        toolGroups: resolveToolGroups(),
         stepGroups: resolveStepGroups(),
         activeFieldIds,
         reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
-        description: description.trim() || undefined,
+        // 비우면 빈 글자로 저장 — 칸을 빼면 서버의 기존 설명이 그대로 남았다(합쳐 저장)
+        description: description.trim(),
         advice: advice || undefined,
         advicePhotos: advicePhotos.length > 0 ? advicePhotos : undefined,
         kind: kind === 'tip' ? 'tip' as const : undefined,
@@ -976,6 +982,28 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                             setIngredientGroups([{...ingredientGroups[0], bulkMode: true, bulkText: merged}]);
                           }
                         };
+
+  /** 도구 한번에 쓰기 켜기/끄기 — 재료와 같게 묶음 전체 단위(묶음은 `## 이름` 줄) */
+  const toggleToolBulk = (group: EditableToolGroup, v: boolean) => {
+    if (!v) {
+      const parsed = parseBulkToolGroups(group.bulkText, group.title);
+      setToolGroups(parsed.length > 0
+        ? parsed.map((pg, gi) => ({
+            id: gi === 0 ? group.id : genId(),
+            title: pg.title,
+            tools: pg.tools.map(tl => ({id: genId(), name: tl.name})),
+            bulkMode: false,
+            bulkText: '',
+          }))
+        : [{...group, bulkMode: false, tools: [{id: genId(), name: ''}]}]);
+    } else {
+      const merged = toolGroupsToBulk(toolGroups.map(g => ({
+        title: g.title,
+        tools: g.bulkMode ? parseBulkToolGroups(g.bulkText, g.title).flatMap(x => x.tools) : g.tools,
+      })));
+      setToolGroups([{...toolGroups[0], bulkMode: true, bulkText: merged}]);
+    }
+  };
 
   /** 과정 한번에 쓰기 켜기/끄기 — 과정 묶음 전체 단위(첫 묶음 머리 스위치 하나) */
   const toggleStepBulk = (group: StepGroup, v: boolean) => {
@@ -2092,6 +2120,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 </View>
               </>
             )}
+            {/* 설명 — 칸 관리에서 켰을 때만(기본 꺼짐) */}
+            {isFieldActive('description') && (<>
             <View style={styles.dividerFull} />
             <View style={styles.descriptionContainer}>
               <AutoGrowInput
@@ -2101,6 +2131,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 onChangeText={setDescription}
               />
             </View>
+            </>)}
           </Card>
         </ContentContainer>
         </View>
@@ -2557,7 +2588,15 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   style={CARD_FIRST}
                   leading={{type: 'iconButton', icon: IconToolCaseFilled,
                     onPress: () => setToolGroupMenu(group.id), variant: 'ghost-secondary'}}
-                  trailing={{type: 'iconButton', icon: IconPlusCircleFilled, onPress: () => addTool(group.id), variant: 'ghost-secondary'}}>
+                  // 재료와 같게 — 첫 묶음 머리엔 한번에 쓰기 스위치 + 추가, 나머지는 추가만
+                  trailing={groupIndex === 0 ? {type: 'custom', element: (
+                    <View style={styles.toolHeaderTrailing}>
+                      <Switch label={t('recipeEdit.bulkWrite')} value={false} onValueChange={(v) => toggleToolBulk(group, v)} />
+                      <View style={styles.headerAddSlot}>
+                        <IconButton icon={IconPlusCircleFilled} onPress={() => addTool(group.id)} variant="ghost-secondary" size="medium" />
+                      </View>
+                    </View>
+                  )} : {type: 'iconButton', icon: IconPlusCircleFilled, onPress: () => addTool(group.id), variant: 'ghost-secondary'}}>
                   <View style={styles.breadcrumbRow}>
                     <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.toolsLabel')}</Text>
                     <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
@@ -2579,24 +2618,11 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   leading={{type: 'iconButton', icon: IconToolCaseFilled, onPress: () => setToolAddMenu(group.id), variant: 'ghost-secondary'}}
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
-                      {/* 묶음마다 개별 "한번에 쓰기" 토글 (재료와 동일) */}
+                      {/* 한번에 쓰기 — 묶음 전체를 칸 하나로(재료와 동일) */}
                       <Switch
                         label={t('recipeEdit.bulkWrite')}
                         value={group.bulkMode}
-                        onValueChange={(v) => {
-                          if (!v) {
-                            // bulk → 폼: 이 묶음의 bulkText를 파싱해 개별 도구로
-                            const names = bulkTextToToolNames(group.bulkText);
-                            setToolGroups(p => p.map(g => g.id === group.id
-                              ? {...g, bulkMode: false, tools: names.map(name => ({id: genId(), name}))}
-                              : g));
-                          } else {
-                            // 폼 → bulk: 이 묶음 도구를 bulkText로
-                            setToolGroups(p => p.map(g => g.id === group.id
-                              ? {...g, bulkMode: true, bulkText: toolsToBulkText(group.tools)}
-                              : g));
-                          }
-                        }}
+                        onValueChange={(v) => toggleToolBulk(group, v)}
                       />
                       {/* 한번에 쓰기 중엔 + 대신 사진 인식 — 촬영·갤러리·레시피 사진 → 영역 선택 → 이 칸에 */}
                       <View style={styles.headerAddSlot}>

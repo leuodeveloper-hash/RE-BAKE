@@ -1,0 +1,1 @@
+export {DotSlider} from './DotSlider';

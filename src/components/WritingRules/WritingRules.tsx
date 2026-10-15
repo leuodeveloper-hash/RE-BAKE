@@ -33,7 +33,7 @@ export const WRITING_RULES: Record<'recipe' | 'ingredients' | 'tools' | 'steps',
   // 팁·주의는 따로 — 한 칸에 묶으면 두 표시 뒤에 설명이 한꺼번에 붙어 무엇이 무엇인지 헷갈렸다
   recipe: ['title', 'meta', 'section', 'subgroup', 'ingredient', 'step', 'tip', 'caution', 'timer'],
   ingredients: ['group', 'ingredientComma'],
-  tools: ['toolComma'],
+  tools: ['group', 'toolComma'],
   steps: ['group', 'step', 'tip', 'caution', 'timer'],
 };
 

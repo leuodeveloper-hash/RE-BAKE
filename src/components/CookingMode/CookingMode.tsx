@@ -45,6 +45,7 @@ import {SearchCommandBar} from '@components/SearchCommandBar';
 import {Button} from '@components/Button';
 import {EditableChip} from '@components/EditableChip/EditableChip';
 import {AddSlot} from '@components/AddSlot';
+import {displayAmount} from '@utils/scaleAmount';
 import {RichText} from '@components/RichText/RichText';
 import {StepPhotos} from '@components/StepPhotos';
 import {PhotoCaptionArrow} from '@components/StepPhotos/PhotoCaptionArrow';
@@ -1590,7 +1591,7 @@ export function CookingMode({
                   return (
                     <Pressable key={ing.name} onPress={() => toggleIngredient(ing.name)}>
                       <Text style={[styles.viewIngredientText, cookingBodyFont, checked && styles.ingredientChecked]}>
-                        {ing.name} {ing.amount}{!isLast ? ', ' : ''}
+                        {ing.name}{displayAmount(ing.amount) ? ` ${displayAmount(ing.amount)}` : ''}{!isLast ? ', ' : ''}
                       </Text>
                     </Pressable>
                   );
@@ -1735,7 +1736,7 @@ export function CookingMode({
             <Pressable style={styles.ingredientsSection} onPress={() => setShowIngredientPicker(true)}>
               {(item.editIngredients ?? []).length > 0 ? (
                 <Text style={styles.ingredientsText}>
-                  {(item.editIngredients ?? []).map(ing => `${ing.name} ${ing.amount}`).join(', ')}
+                  {(item.editIngredients ?? []).map(ing => [ing.name, displayAmount(ing.amount)].filter(Boolean).join(' ')).join(', ')}
                 </Text>
               ) : (
                 <Text style={styles.ingredientEmpty}>{t('cookingMode.selectStepIngredients')}</Text>
@@ -1752,7 +1753,7 @@ export function CookingMode({
                     onPress={() => toggleIngredient(ing.name)}
                   >
                     <Text style={[styles.ingredientsText, checked && styles.ingredientChecked]}>
-                      {ing.name} {ing.amount}{!isLast ? ', ' : ''}
+                      {ing.name}{displayAmount(ing.amount) ? ` ${displayAmount(ing.amount)}` : ''}{!isLast ? ', ' : ''}
                     </Text>
                   </Pressable>
                 );
@@ -2116,7 +2117,7 @@ export function CookingMode({
                   id={`${gIdx}-${ing.name}`}
                   label={ing.name}
                   checked={isSelected}
-                  trailingText={ing.amount}
+                  trailingText={displayAmount(ing.amount)}
                   onPress={() => card && toggleCardIngredient(card.globalIndex, ing)}
                 />
               );
@@ -2171,7 +2172,7 @@ export function CookingMode({
                       id={`list-${gIdx}-${ing.name}`}
                       label={ing.name}
                       checked={checked}
-                      trailingText={ing.amount}
+                      trailingText={displayAmount(ing.amount)}
                       onPress={() => toggleIngredient(ing.name)}
                     />
                   ) : (
@@ -2180,7 +2181,7 @@ export function CookingMode({
                     <View key={`list-${gIdx}-${ing.name}`} style={[styles.ingredientTile, {width: tileWidth}]}>
                       <OptionTile
                         label={ing.name}
-                        sublabel={ing.amount}
+                        sublabel={displayAmount(ing.amount)}
                         selected={checked}
                         onPress={() => toggleIngredient(ing.name)}
                         selectedStyle="outline"

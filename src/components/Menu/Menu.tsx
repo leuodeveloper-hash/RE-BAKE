@@ -48,6 +48,10 @@ export interface MenuSection {
   selectedId?: string;
   /** items 대신 임의 요소를 섹션 본문으로 렌더 (예: 아이콘 탭) */
   content?: React.ReactNode;
+  /** 소제목 오른쪽 끝 값(예: ×0.75) */
+  titleTrailing?: string;
+  /** 이 묶음 위에 구분선 — 성격이 다른 묶음 사이(예: 비율 조절 ↔ 편집) */
+  dividerBefore?: boolean;
 }
 
 export interface MenuProps {
@@ -224,7 +228,8 @@ export function Menu({
           {sections ? (
             sections.map((section, idx) => (
               <React.Fragment key={idx}>
-                {section.title && <Subheader title={section.title} />}
+                {section.dividerBefore && idx > 0 ? <View style={[styles.sectionDivider, {backgroundColor: colors['border/muted']}]} /> : null}
+                {section.title && <Subheader title={section.title} trailing={section.titleTrailing} />}
                 {section.content ?? section.items?.map(item => (
                   <MenuItem
                     key={item.id}
@@ -282,6 +287,12 @@ const {width: SCREEN_W, height: SCREEN_H} = Dimensions.get('window');
 const BACKDROP_SPREAD = Math.round(Math.sqrt(SCREEN_W * SCREEN_W + SCREEN_H * SCREEN_H));
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  // 묶음 사이 구분선 — 메뉴 좌우 안쪽 끝까지, 위아래 4
+  sectionDivider: {
+    height: StyleSheet.hairlineWidth,
+    marginVertical: Spacing.xs,
+    marginHorizontal: Spacing.sm,
+  },
   // 하위 목록 상단 — 뒤로가기 + 제목
   subHeader: {
     flexDirection: 'row',

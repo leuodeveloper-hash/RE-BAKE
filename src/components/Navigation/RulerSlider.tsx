@@ -32,6 +32,8 @@ export interface RulerSliderProps {
   onSelect?: (id: string) => void;
   /** 끄는 중 눈금이 바뀔 때마다(손 떼기 전) — 미리보기를 바로 바꿀 때 */
   onLiveChange?: (id: string) => void;
+  /** 담긴 곳 폭을 꽉 채운다(바텀시트 등) — 눈금도 그 폭만큼 넓게 */
+  fullWidth?: boolean;
   /**
    * 중앙 라벨 탭 시 콜백. 지정하면 라벨이 탭 가능해짐.
    * 슬라이더 축 전환(예: 회차 ↔ 같은 태그/그룹 항목)에 사용.
@@ -64,6 +66,7 @@ export function RulerSlider({
   selectedId,
   onSelect,
   onLiveChange,
+  fullWidth = false,
   onLabelPress,
 }: RulerSliderProps) {
   const styles = useThemedStyles(createStyles);
@@ -188,11 +191,17 @@ export function RulerSlider({
     }),
   ).current;
 
+  // 꽉 채울 때 눈금 보이는 폭 = 가운데 칸 폭. 양옆을 채울 장식 눈금(E)을 앞뒤로 더 그린다
+  // (앞쪽 PAD는 위치 계산에 쓰여 그대로 두고, 늘어난 만큼 줄을 왼쪽으로 민다)
+  const [centerW, setCenterW] = useState(RULER_W);
+  const vw = fullWidth ? centerW : RULER_W;
+  const extra = fullWidth ? Math.max(0, Math.ceil(vw / 2 / SPACING) - PAD + 1) : 0;
+
   const atStart = liveIndex <= 0;
   const atEnd = liveIndex >= count - 1;
 
   return (
-    <GlassContainer borderRadius="full" intensity={80} contentStyle={styles.pill}>
+    <GlassContainer borderRadius="full" intensity={80} style={fullWidth ? styles.fullWrap : undefined} contentStyle={[styles.pill, fullWidth && styles.pillFull]}>
       <IconButton
         icon={IconChevronLeft}
         variant={atStart ? 'ghost' : 'tonal'}
@@ -201,7 +210,7 @@ export function RulerSlider({
         onPress={() => commitRef.current(committedIndex.current - 1)}
       />
 
-      <View style={styles.center} {...pan.panHandlers}>
+      <View style={styles.center} {...pan.panHandlers} onLayout={fullWidth ? e => setCenterW(e.nativeEvent.layout.width) : undefined}>
         {onLabelPress ? (
           <Pressable onPress={onLabelPress} hitSlop={8}>
             <Animated.View style={labelAnimStyle}>
@@ -217,14 +226,14 @@ export function RulerSlider({
             </Text>
           </Animated.View>
         )}
-        <View style={styles.rulerViewport}>
+        <View style={[styles.rulerViewport, fullWidth && {width: vw, marginLeft: -vw / 2}]}>
           <Animated.View
-            style={[styles.rulerRow, {transform: [{translateX}]}]}>
+            style={[styles.rulerRow, fullWidth && {left: vw / 2 - TICK_W / 2 - extra * SPACING}, {transform: [{translateX}]}]}>
             {Array.from({
-              length: PAD + (count - 1) * TICKS_PER_ITEM + 1 + PAD,
+              length: extra + PAD + (count - 1) * TICKS_PER_ITEM + 1 + PAD + extra,
             }).map((_, slot) => {
               // 항목 0의 눈금을 기준으로 한 오프셋. 짝수=긴 눈금(항목 자리), 홀수=짧은 눈금(사이 교차)
-              const fromFirstItem = slot - PAD;
+              const fromFirstItem = slot - PAD - extra;
               const isLong = fromFirstItem % 2 === 0;
               const itemIdx = isLong ? fromFirstItem / TICKS_PER_ITEM : -1;
               const isItem = itemIdx >= 0 && itemIdx < count;
@@ -278,6 +287,14 @@ const createStyles = (colors: SemanticColors) =>
     },
     // 콘텐츠 행 높이 = 아이콘 버튼(40). 라벨은 이 안에서 상하좌우 정중앙,
     // 눈금은 바닥에 절대배치되는 오버레이 (Figma 구조 매칭).
+    fullWrap: {
+      alignSelf: 'stretch',
+    },
+    // 꽉 채우기 — 기본 알약 폭(328) 제한을 푼다(undefined로는 앞의 값이 안 지워져 그대로 328이었다)
+    pillFull: {
+      width: '100%',
+      maxWidth: '100%',
+    },
     center: {
       flex: 1,
       height: 40,

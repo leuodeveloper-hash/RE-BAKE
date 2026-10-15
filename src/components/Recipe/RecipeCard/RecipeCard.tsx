@@ -1203,8 +1203,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     padding: Spacing.sm,
     borderRadius: Radius['radius-lg'],
   },
+  // 누른 줄·메뉴 연 줄 바탕 — 페이지 바탕(회색) 위라 state/pressed(8%)는 진하고 faint(3%)는 안 보여 subtle(6%)
   listContainerPressed: {
-    backgroundColor: colors['state/pressed'],
+    backgroundColor: colors['fill/subtle'],
   },
   listStackedWrapper: {
     alignItems: 'center',

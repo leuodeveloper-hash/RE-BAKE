@@ -276,3 +276,32 @@ export function recipeToMarkdown(r: {
   }
   return out.join('\n').trim();
 }
+
+/**
+ * 도구 한번에 쓰기 칸 → 묶음들. 재료·과정과 같은 규칙: `##`(또는 `###`) 줄이 묶음 이름, 나머지 줄은 쉼표로 나눈 도구.
+ * 묶음 이름 줄이 없으면 묶음 하나(fallbackTitle).
+ */
+export function parseBulkToolGroups(text: string, fallbackTitle: string): {title: string; tools: {name: string}[]}[] {
+  const groups: {title: string; tools: {name: string}[]}[] = [];
+  let cur: {title: string; tools: {name: string}[]} | null = null;
+  for (const raw of (text ?? '').split(/\r?\n/)) {
+    const line = raw.trim();
+    if (!line) continue;
+    const h = line.match(/^#{1,6}\s*(.+)$/);
+    if (h) { cur = {title: h[1].trim(), tools: []}; groups.push(cur); continue; }
+    if (!cur) { cur = {title: fallbackTitle, tools: []}; groups.push(cur); }
+    for (const name of line.replace(/^[-*·]\s*/, '').split(/[,、]/).map(x => x.replace(/\s+/g, ' ').trim()).filter(Boolean)) {
+      cur.tools.push({name});
+    }
+  }
+  return groups.filter(g => g.tools.length > 0);
+}
+
+/** 도구 묶음들 → 한번에 쓰기 칸 하나(묶음이 둘 이상이면 `## 이름` 줄, 묶음 사이 빈 줄) */
+export function toolGroupsToBulk(groups: {title?: string; tools: {name?: string}[]}[]): string {
+  const withHeading = groups.length > 1;
+  return groups.map(g => {
+    const line = g.tools.map(t => (t.name ?? '').trim()).filter(Boolean).join(', ');
+    return withHeading ? `## ${g.title || ''}\n${line}`.trim() : line;
+  }).filter(Boolean).join(withHeading ? '\n\n' : '\n');
+}

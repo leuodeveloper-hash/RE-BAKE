@@ -584,7 +584,7 @@ export function RecipeListTemplate({
     // 스켈레톤
     if (item.id.startsWith('__skeleton_')) {
       return (
-        <View style={activeLayout === 'grid' ? styles.gridCardContainer : activeLayout === 'photoList' ? styles.photoListCardContainer : styles.listCardContainer}>
+        <View style={activeLayout === 'grid' ? styles.gridCardContainer : activeLayout === 'photoList' ? styles.photoListCardContainer : activeLayout === 'list' ? styles.listCardFlush : styles.listCardContainer}>
           <SkeletonCard layout={activeLayout} />
         </View>
       );
@@ -636,7 +636,7 @@ export function RecipeListTemplate({
     );
 
     return (
-      <View style={activeLayout === 'grid' ? styles.gridCardContainer : activeLayout === 'photoList' ? styles.photoListCardContainer : styles.listCardContainer}>
+      <View style={activeLayout === 'grid' ? styles.gridCardContainer : activeLayout === 'photoList' ? styles.photoListCardContainer : activeLayout === 'list' ? styles.listCardFlush : styles.listCardContainer}>
         {isNew ? (
           <CardEntrance delay={(index % PAGE_SIZE) * STAGGER_DELAY}>
             {card}
@@ -688,6 +688,8 @@ export function RecipeListTemplate({
               keyExtractor={item => item.id}
               contentContainerStyle={[
                 styles.listContent,
+                // 리스트뷰는 페이지 좌우 여백 없이 — 줄(8+8)·머리말(16)이 각자 여백을 가져 왼쪽 시작점이 16으로 맞는다
+                activeLayout === 'list' && styles.listContentFlush,
                 !loading && data.length === 0 && styles.listContentEmpty,
               ]}
               columnWrapperStyle={activeLayout === 'grid' ? styles.row : undefined}
@@ -698,7 +700,7 @@ export function RecipeListTemplate({
               ListHeaderComponent={
                 <>
                   <RefreshGap height={refreshGapHeight} />
-                  {listHeaderExtra ? <View style={styles.listHeaderInList} onLayout={e => setListHeaderHeight(e.nativeEvent.layout.height)}>{listHeaderExtra}</View> : null}
+                  {listHeaderExtra ? <View style={[styles.listHeaderInList, activeLayout === 'list' && styles.listHeaderFlush]} onLayout={e => setListHeaderHeight(e.nativeEvent.layout.height)}>{listHeaderExtra}</View> : null}
                 </>
               }
               // 빈 상태는 남은 높이의 상하 중앙 — 감싸지 않으면 목록 칸이 내용 높이만큼만 잡혀 머리말 바로 아래에 붙었다
@@ -805,6 +807,17 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     ...contentAreaPadding,
   },
   // 상단 줄(탭)이 이미 앱바 아래 여백을 잡았으면 리스트는 붙어서 시작한다
+  listContentFlush: {
+    paddingHorizontal: 0,
+  },
+  // 리스트뷰 머리말(프로필 등) — 페이지 여백이 없으니 직접 16
+  listHeaderFlush: {
+    paddingHorizontal: Spacing.md,
+  },
+  // 리스트뷰 줄 — 줄 안쪽 8 + 여기 8 = 16(머리말과 같은 시작점)
+  listCardFlush: {
+    paddingHorizontal: Spacing.sm,
+  },
   listContentUnderHeader: {
     paddingTop: 0,
   },

@@ -1,6 +1,10 @@
 import {NOTE_BLOCK} from '@constants/noteBlock';
 import {StepTimer, type StepTimerHandle} from '@components/StepTimer';
-import {IngredientScaleSheet} from '@components/BottomSheet/IngredientScaleSheet';
+import {scaleAmount, scaleLabel} from '@utils/scaleAmount';
+import {DotSlider} from '@components/DotSlider';
+
+/** 재료 비율 조정 눈금 — ×1이 한가운데(줄이기 3칸 · 늘리기 3칸) */
+const SCALE_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3];
 import {effectiveActiveFields} from '@utils/breadFieldsMigration';
 import {IconRefresh} from '@components/Icon/IconIndex';
 import {FloatingNotice} from '@components/FloatingNotice';
@@ -82,8 +86,8 @@ import {
   IconUsersRoundFilled,
   IconDoughTempFilled,
   IconSplitFilled,
-  IconScaleFilled,
-  IconSplitTwotone, IconDoughTempTwotone,
+  IconSplitTwotone,
+  IconTimer, IconDoughTempTwotone,
   IconArrowDownToLine,
   IconChevronLeft,
   IconChevronRight,
@@ -897,10 +901,16 @@ export function RecipeDetailScreen({
   // ---- 섹션 헤더 렌더 (sticky용: ScrollView 직속 자식) ----
   // 묶음 타이머 — 헤더 ⋮ 메뉴 '타이머 설정'에서 그 타이머의 시간 설정 창을 연다
   const timerRefs = useRef<Record<string, StepTimerHandle | null>>({});
+  // 분량이 배율로 바뀌었는지(1배·숫자 없는 분량은 그대로)
+  const scaleChanged = (amount: string) => ingScale !== 1 && scaleAmount(amount, ingScale) !== amount;
   // 재료 비율 조정 시트 — 보기용(원래 분량은 그대로)
-  const [showScaleSheet, setShowScaleSheet] = useState(false);
+  // 재료 비율 — 보기용 배율(저장 안 함). 1이면 원래 분량. 바뀐 분량은 목록에서 오렌지
+  const [ingScale, setIngScale] = useState(1);
+  const scaleItems = useMemo(() => SCALE_STEPS.map(v => ({id: String(v), label: scaleLabel(v)})), []);
   // 메뉴가 열린 헤더 — 그 헤더를 맨 위 레이어로(뒤따르는 헤더·타이머·카드보다 위)
   const [menuHeaderKey, setMenuHeaderKey] = useState<string | null>(null);
+  // ⋮ 메뉴가 열린 헤더(제어) — 타이머 메뉴(menuHeaderKey)와 따로 둔다
+  const [headerMenuKey, setHeaderMenuKey] = useState<string | null>(null);
   const renderSectionHeader = (
     key: string,
     label: string,
@@ -915,18 +925,32 @@ export function RecipeDetailScreen({
     // 편집 글자 버튼 대신 ⋮ 메뉴 — 편집 · 타이머 설정
     const menuItems = [
       ...(onEdit ? [{id: 'edit', label: t('recipeDetail.edit'), icon: IconEditFilled}] : []),
-      ...(hasTimer ? [{id: 'timer', label: t('recipeDetail.setTimer'), icon: IconClockFilled}] : []),
+      ...(hasTimer ? [{id: 'timer', label: t('recipeDetail.setTimer'), icon: IconTimer}] : []),
     ];
     // 재료 비율 조정 — 재료 맨 위 머리줄 아이콘 버튼(누르면 시트)
-    const scaleBadge = sectionId === 'ingredients' && withBulkToggle && ingredientsHasContent
-      ? <IconButton icon={IconScaleFilled} variant="ghost-secondary" size="small" onPress={() => setShowScaleSheet(true)} />
-      : null;
+    // 재료 비율 조절 — 첫 재료 묶음 머리줄 ⋮ 메뉴 안, '편집' 아래에 레이블 + 점 슬라이더
+    const scaleSections = sectionId === 'ingredients' && withBulkToggle && ingredientsHasContent ? [{
+      // 메뉴의 다른 묶음(정렬·구분)과 같은 형식 — 회색 소제목 + 아래 컨트롤. 배율은 소제목 줄 오른쪽 끝
+      title: t('ingredientScale.label'),
+      titleTrailing: scaleLabel(ingScale),
+      content: (
+        <View style={styles.scaleControl}>
+          <DotSlider
+            items={scaleItems}
+            selectedId={String(ingScale)}
+            onChange={id => setIngScale(parseFloat(id))}
+            showLabel={false}
+          />
+        </View>
+      ),
+    }] : undefined;
     return (
-      <View key={key} style={[styles.stickyHeader, menuHeaderKey === key && styles.stickyHeaderMenuOpen]}>
+      <View key={key} style={[styles.stickyHeader, (menuHeaderKey === key || headerMenuKey === key) && styles.stickyHeaderMenuOpen]}>
         <ContentContainer>
           <SectionHeader
             title={label}
-            onMenuOpenChange={open => setMenuHeaderKey(k => (open ? key : k === key ? null : k))}
+            menuOpen={headerMenuKey === key}
+            onMenuOpenChange={open => setHeaderMenuKey(k => (open ? key : k === key ? null : k))}
             breadcrumb={breadcrumb}
             breadcrumbIcon={breadcrumb ? IconChevronRight : undefined}
             menuItems={menuItems}
@@ -935,9 +959,16 @@ export function RecipeDetailScreen({
               else if (id === 'timer') timerRefs.current[key]?.openEditor();
             }}
             // 오른쪽 — 타이머(편집 화면처럼 '한번에' 스위치 옆) · 한번에 보기 · ⋮
-            actionExtra={(hasTimer || withBulkToggle || scaleBadge) ? (
+            menuExtraSections={scaleSections}
+            actionExtra={(hasTimer || withBulkToggle) ? (
               <>
-                {scaleBadge}
+                {/* 비율 조절 중이면 한번에 보기 왼쪽에 배수(오렌지) — 목록 분량이 바뀌어 있다는 표시 */}
+                {sectionId === 'ingredients' && withBulkToggle && ingScale !== 1 ? (
+                  // 눌러도 메뉴(비율 조절)가 열린다
+                  <Pressable hitSlop={8} onPress={() => { triggerHaptic('light'); setHeaderMenuKey(key); }}>
+                    <Text style={styles.scaleBadge}>{scaleLabel(ingScale)}</Text>
+                  </Pressable>
+                ) : null}
                 {/* 시간 정하기 전엔 버튼 없이(⋮ 메뉴 '타이머 설정'으로) */}
                 {hasTimer && <StepTimer ref={el => { timerRefs.current[key] = el; }} duration={timer} hideWhenUnset onMenuOpenChange={open => setMenuHeaderKey(k => (open ? key : k === key ? null : k))} />}
                 {withBulkToggle && <Switch label={t('recipeDetail.bulkView')} value={bulkView} onValueChange={toggleBulkView} />}
@@ -1040,10 +1071,6 @@ export function RecipeDetailScreen({
                   <IconEyeClosed width={18} height={18} color={colors['foreground/on-surface-inverse']} />
                 )}
               </View>
-              {/* 레시피 설명 — 제목 바로 아래, 최대 두 줄 */}
-              {!!description?.trim() && (
-                <RichText style={styles.heroSummary} numberOfLines={2}>{description}</RichText>
-              )}
               {/* 메타 + 사진 장수 — 메타만 줄바꿈되고, 사진 장수는 오른쪽 끝(마지막 줄 높이)에 붙어 있는다 */}
               <View style={styles.heroMetaLine}>
               <View style={styles.heroDescriptionRow}>
@@ -1141,6 +1168,15 @@ export function RecipeDetailScreen({
           </ContentContainer>
         </Animated.View>
 
+        {/* 레시피 설명 — 사진 위에 두면 제목·메타와 겹쳐 지저분해 보여 본문 맨 위로. 최대 두 줄 */}
+        {!!description?.trim() && (
+          <Animated.View style={{opacity: sectionAnims[0]}}>
+            <ContentContainer style={styles.descriptionSection}>
+              <RichText style={styles.descriptionText} numberOfLines={2}>{description}</RichText>
+            </ContentContainer>
+          </Animated.View>
+        )}
+
         {/* 원본 출처 — 한 줄. URL 있으면 URL, 없고 작성자만 있으면 from @작성자. 참고 링크(referenceUrl)와는 별개 필드 */}
         {(sourceHandle || sourceUrl) && (
           <Animated.View style={{opacity: sectionAnims[0]}}>
@@ -1175,7 +1211,7 @@ export function RecipeDetailScreen({
                           {g.ingredients.map((ing, ii) => (
                             <React.Fragment key={ii}>
                               {ii > 0 ? ', ' : ''}
-                              <RichText inline>{ing.name}</RichText>{ing.amount ? ` ${ing.amount}` : ''}
+                              <RichText inline>{ing.name}</RichText>{/\d/.test(ing.amount ?? '') ? ' ' : ''}{/\d/.test(ing.amount ?? '') ? <Text style={scaleChanged(ing.amount) ? styles.scaledAmount : undefined}>{scaleAmount(ing.amount, ingScale)}</Text> : null}
                             </React.Fragment>
                           ))}
                         </Text>
@@ -1223,7 +1259,7 @@ export function RecipeDetailScreen({
                                 d?.status === 'added' && styles.hlAdded,
                                 d?.status === 'changed' && styles.hlChanged,
                               ]}>
-                              <RichText inline>{ingredient.name}</RichText>{/\d/.test(ingredient.amount) ? ` ${ingredient.amount}` : ''}
+                              <RichText inline>{ingredient.name}</RichText>{/\d/.test(ingredient.amount) ? ' ' : ''}{/\d/.test(ingredient.amount) ? <Text style={scaleChanged(ingredient.amount) ? styles.scaledAmount : undefined}>{scaleAmount(ingredient.amount, ingScale)}</Text> : null}
                             </Text>
                             {d?.status === 'changed' && d.prevAmount ? (
                               <Text style={styles.prevAmount}> {d.prevAmount}</Text>
@@ -1271,40 +1307,42 @@ export function RecipeDetailScreen({
           </Animated.View>
         )}
 
-        {/* Tools Section */}
-        {renderSectionHeader('tools-header', t('recipeDetail.tools'), 'tools')}
-        <Animated.View style={{opacity: sectionAnims[0]}}>
-          <ContentContainer>
-            <Card>
-              {!toolsHasContent ? (
-                <EmptyState variant="simple" title={t('recipeDetail.emptyTools')} />
-              ) : resolvedToolGroups.length > 1 ? (
-                resolvedToolGroups.map((group, gIdx) => (
-                  <React.Fragment key={gIdx}>
-                    {group.title ? (
-                      <ListItem
-                        title={group.title}
-                        leading={{type: 'icon', icon: IconToolCaseFilled}}
-                        showDivider={false}
-                      />
-                    ) : null}
+        {/* Tools Section — 재료·과정과 같게 묶음마다 머리줄(도구 › 묶음 이름) + 카드 */}
+        {!toolsHasContent || resolvedToolGroups.length <= 1 ? (
+          <>
+            {renderSectionHeader('tools-header', t('recipeDetail.tools'), 'tools')}
+            <Animated.View style={{opacity: sectionAnims[0]}}>
+              <ContentContainer>
+                <Card>
+                  {!toolsHasContent ? (
+                    <EmptyState variant="simple" title={t('recipeDetail.emptyTools')} />
+                  ) : (
                     <View style={styles.toolsContainer}>
                       <Text style={styles.toolsText}>
-                        {group.tools.map(t => t.name).join(', ')}
+                        {resolvedToolGroups[0]?.tools.map(tl => tl.name).join(', ')}
                       </Text>
                     </View>
-                  </React.Fragment>
-                ))
-              ) : (
-                <View style={styles.toolsContainer}>
-                  <Text style={styles.toolsText}>
-                    {resolvedToolGroups[0]?.tools.map(t => t.name).join(', ')}
-                  </Text>
-                </View>
-              )}
-            </Card>
-          </ContentContainer>
-        </Animated.View>
+                  )}
+                </Card>
+              </ContentContainer>
+            </Animated.View>
+          </>
+        ) : (
+          resolvedToolGroups.flatMap((group, gIdx) => [
+            renderSectionHeader(`tools-header-${gIdx}`, t('recipeDetail.tools'), 'tools', group.title || undefined),
+            <Animated.View key={`tools-content-${gIdx}`} style={{opacity: sectionAnims[0]}}>
+              <ContentContainer>
+                <Card>
+                  <View style={styles.toolsContainer}>
+                    <Text style={styles.toolsText}>
+                      {group.tools.map(tl => tl.name).join(', ')}
+                    </Text>
+                  </View>
+                </Card>
+              </ContentContainer>
+            </Animated.View>,
+          ])
+        )}
 
         {/* Process Section */}
         {isFieldActive('steps') && <View onLayout={(e) => { sectionPositions.current.steps = e.nativeEvent.layout.y; }} />}
@@ -1738,12 +1776,6 @@ export function RecipeDetailScreen({
         }}
       />
 
-      {/* 재료 비율 조정 — 눈금 슬라이더로 배율, 시트 안에서만 바뀐 분량(원래 분량 유지) */}
-      <IngredientScaleSheet
-        visible={showScaleSheet}
-        onClose={() => setShowScaleSheet(false)}
-        groups={ingredientGroups}
-      />
 
       {/* 시간 다이얼로그 */}
       <TimeDialog
@@ -2120,12 +2152,13 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   section: {
     paddingTop: Spacing.sm,
   },
-  heroSummary: {
+  descriptionSection: {
+    paddingTop: Spacing.md,
+  },
+  descriptionText: {
     ...Typography.body.medium,
-    color: colors['foreground/on-surface-inverse-var'],
-    textShadowColor: 'rgba(0, 0, 0, 0.25)',
-    textShadowOffset: {width: 0, height: 1},
-    textShadowRadius: 4, // 메타 글씨와 같은 그림자
+    color: colors['foreground/on-surface-var'],
+    paddingHorizontal: Spacing.smd,
   },
   sectionCard: {
     paddingTop: Spacing.sm,
@@ -2133,6 +2166,21 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   sectionGap: {
     paddingTop: Spacing.sm,
+  },
+  // 메뉴 안 컨트롤 — 구분 탭처럼 좌우는 메뉴 안쪽 여백만, 아래 4
+  scaleControl: {
+    width: 232,
+    paddingHorizontal: Spacing.xs,
+    paddingTop: Spacing.xs,
+    paddingBottom: Spacing.sm,
+  },
+  scaledAmount: {
+    color: colors['custom/orange'],
+  },
+  scaleBadge: {
+    ...Typography.caption.large,
+    color: colors['custom/orange'],
+    fontVariant: ['tabular-nums'],
   },
   stickyHeader: {
     backgroundColor: 'transparent',
