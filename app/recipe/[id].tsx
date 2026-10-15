@@ -9,6 +9,7 @@ import {useMadeCount} from '@hooks/useMadeCount';
 import {useRecipeReviews} from '@hooks/useRecipeReviews';
 import {useMadeStamps} from '@hooks/useMadeStamps';
 import {useExplorePins} from '@hooks/useExplorePins';
+import {ShareRecipeSheet} from '@components/BottomSheet/ShareRecipeSheet';
 import {recordNewSession, sessionKey, currentSessionNumber} from '@utils/session';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
@@ -392,15 +393,12 @@ const handleDelete = useCallback(async () => {
     showSnackbar(t('id.cookbookChanged', {cookbook: newCookbook || t('id.noCookbook')}));
   }, [id, isMyRecipe, setRecipes, showSnackbar, t]);
 
+  // 공유 — 카드(커버 사진 + 레시피명·작성자) 창. 링크는 둘러보기(공개) 레시피만
+  const [shareOpen, setShareOpen] = useState(false);
   const handleShare = useCallback(() => {
     if (!recipe) return;
-    shareRecipe({
-      id,
-      title: recipe.title,
-      onCopied: () => showSnackbar(t('id.linkCopied'), {tone: 'positive'}),
-      onError: msg => showSnackbar(msg),
-    });
-  }, [recipe, id, showSnackbar, t]);
+    setShareOpen(true);
+  }, [recipe]);
 
   const handleUnlock = useCallback(() => {
     if (Platform.OS === 'web') {
@@ -755,7 +753,8 @@ const handleDelete = useCallback(async () => {
         onCopyToExplore={isMyRecipe && isAdmin ? () => setShowExploreCookbookSheet(true) : undefined}
         onSubmitToExplore={isMyRecipe && !isAdmin && user ? runSubmitToExplore : undefined}
         showDeleteConfirm={isMyRecipe || (isExploreRecipe && isAdmin)}
-        onShare={isExploreRecipe ? handleShare : undefined}
+        // 내 레시피도 카드로 공유(이미지) — 링크는 공개 레시피만
+        onShare={recipe?.kind !== 'tip' || isExploreRecipe ? handleShare : undefined}
         sourceUrl={recipe.sourceUrl}
         sourceHandle={recipe.sourceHandle}
         onSourcePress={recipe.sourceAuthorId ? () => router.push(`/u/${resolveAuthorHandle(recipe.sourceAuthorId, recipe.sourceHandle) ?? recipe.sourceAuthorId}` as any) : undefined}
@@ -785,6 +784,14 @@ const handleDelete = useCallback(async () => {
           };
         })()}
       />
+      {recipe ? (
+        <ShareRecipeSheet
+          visible={shareOpen}
+          onClose={() => setShareOpen(false)}
+          recipe={{id, title: recipe.title, imageUri: recipe.imageUri, authorHandle: recipe.authorHandle ?? handle ?? undefined, authorAvatarSeed: recipe.authorAvatarSeed ?? avatarSeed ?? undefined}}
+          linkable={isExploreRecipe}
+        />
+      ) : null}
       {isAdmin && (
         <CookbookSelectSheet
           visible={showExploreCookbookSheet}

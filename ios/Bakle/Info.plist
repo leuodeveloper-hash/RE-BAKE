@@ -67,6 +67,8 @@
     <string>레시피 사진을 촬영하고 텍스트를 자동 인식하기 위해 카메라를 사용합니다.</string>
     <key>NSMicrophoneUsageDescription</key>
     <string>음성 입력을 위해 마이크를 사용합니다.</string>
+    <key>NSPhotoLibraryAddUsageDescription</key>
+    <string>레시피 공유 카드를 사진첩에 저장합니다.</string>
     <key>NSPhotoLibraryUsageDescription</key>
     <string>레시피 이미지를 추가하기 위해 사진 라이브러리에 접근합니다.</string>
     <key>NSSpeechRecognitionUsageDescription</key>
