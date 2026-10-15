@@ -216,7 +216,14 @@ export function PackCanvas({items, entrance, dimExceptId, insetTop = 0, insetBot
     } else {
       // 보이는 영역보다 크면 가운데 맞춤 대신 위를 insetTop에 맞춘다 — 가운데로 두면 위쪽 팩이
       // 머리말(프로필) 자리로 올라가 겹쳤다. 처음 배치만 그렇고, 끌어서 움직이는 건 자유
-      ty.value = content.h * fit > visibleH ? insetTop : insetTop + (visibleH - content.h * fit) / 2;
+      // 보드는 끌 여유를 위해 화면의 1.3배로 만들고 팩 덩어리를 그 가운데로 민다(PackBoard) —
+      // 그래서 보드 위끝을 머리말에 맞추면 위쪽 여유만큼 빈 띠가 생겨 팩이 내려앉아 보였다.
+      // 여유를 둔 보드면 가운데 맞춤(= 팩 덩어리가 보이는 영역 가운데). 팩이 많아 보드가 그보다 크면
+      // 덩어리 자체가 커서 위를 맞춘다(가운데로 두면 위쪽 팩이 머리말 뒤로 숨는다).
+      const padded = content.h <= boardHeight * 1.3 + 1;
+      ty.value = padded || content.h * fit <= visibleH
+        ? insetTop + (visibleH - content.h * fit) / 2
+        : insetTop;
       tx.value = (viewport.w - content.w * fit) / 2;
     }
   }, [viewport, content, scale, tx, ty, fitScale, minScale, insetTop, insetBottom, focusPoint]);

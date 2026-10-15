@@ -1192,9 +1192,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   listWrapper: {
     position: 'relative',
   },
+  // 줄과 줄 사이 — 회색 페이지 바탕 위라 border/muted(10%)는 거의 안 보여 한 단계 진하게
   listDivider: {
     height: StyleSheet.hairlineWidth,
-    backgroundColor: colors['border/muted'],
+    backgroundColor: colors['border/normal'],
     marginLeft: 64 + Spacing.sm + Spacing.md,
   },
   listContainer: {
