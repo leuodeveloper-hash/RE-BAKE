@@ -567,7 +567,7 @@ export function RecipeDetailScreen({
   const viewerIsHero = viewerIndex !== null && allPhotos[viewerIndex]?.src === 'hero';
 
   /** 상단 사진 고르기 — 편집 화면과 같은 옵션(원본 비율). 촬영/갤러리 */
-  const pickHeroPhoto = useCallback(async (source: PhotoSource): Promise<string | null> => {
+  const pickHeroPhoto = useCallback(async (source: PhotoSource, room = 1): Promise<string[]> => {
     const isCamera = source === 'camera';
     const ok = await ensureImagePermission(isCamera ? 'camera' : 'mediaLibrary', {
       deniedMessage: t(isCamera ? 'recipeEdit.cameraPermissionNeeded' : 'recipeEdit.photoPermissionNeeded'),
@@ -577,16 +577,19 @@ export function RecipeDetailScreen({
       settingsConfirmLabel: t('permission.openSettings'),
       settingsCancelLabel: t('permission.cancel'),
     });
-    if (!ok) return null;
+    if (!ok) return [];
+    // 갤러리는 남은 칸만큼 한번에 여러 장(여러 장일 땐 자르기 없음)
+    const multi = !isCamera && room > 1;
     const options: ImagePicker.ImagePickerOptions = {
       // 정사각으로 자르지 않는다. 자르기 화면은 안드로이드만(자유 비율) — iOS 자르기는 정사각만 돼서 끈다
-      mediaTypes: ['images'], allowsEditing: Platform.OS === 'android', quality: 0.8, base64: Platform.OS === 'web',
+      mediaTypes: ['images'], allowsEditing: Platform.OS === 'android' && !multi, quality: 0.8, base64: Platform.OS === 'web',
+      ...(multi ? {allowsMultipleSelection: true, selectionLimit: room} : {}),
     };
     const result = isCamera
       ? await ImagePicker.launchCameraAsync(options)
       : await ImagePicker.launchImageLibraryAsync(options);
-    if (result.canceled || !result.assets[0]) return null;
-    return getPersistentUri(result.assets[0].uri, result.assets[0].base64);
+    if (result.canceled) return [];
+    return Promise.all(result.assets.slice(0, room).map(a => getPersistentUri(a.uri, a.base64)));
   }, [showSnackbar, t]);
 
   /** 상단 사진 목록(대표 + 추가분)을 통째로 바꿔 저장한다 */
@@ -599,9 +602,9 @@ export function RecipeDetailScreen({
       showSnackbar(t('recipeDetail.heroPhotoMax', {count: MAX_HERO_PHOTOS}));
       return;
     }
-    const uri = await pickHeroPhoto(source);
-    if (!uri) return;
-    const next = [...heroUris, uri].slice(0, MAX_HERO_PHOTOS);
+    const uris = await pickHeroPhoto(source, MAX_HERO_PHOTOS - heroUris.length);
+    if (uris.length === 0) return;
+    const next = [...heroUris, ...uris].slice(0, MAX_HERO_PHOTOS);
     saveHeroPhotos(next);
     setViewerIndex(next.length - 1);
   }, [pickHeroPhoto, heroUris, saveHeroPhotos, showSnackbar, t]);

@@ -770,28 +770,33 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
       });
       if (!ok) return;
     }
+    // 갤러리는 남은 칸만큼 한번에 여러 장 — 대표가 비어 있으면 첫 장이 대표, 나머지는 추가분
+    const fillMain = slot === 'main' && !imageUri;
+    const room = slot === 'extra' ? MAX_EXTRA_HERO - imageUris.length : fillMain ? MAX_HERO_PHOTOS - imageUris.length : 1;
+    const multi = source === 'gallery' && room > 1;
     const options: ImagePicker.ImagePickerOptions = {
-      // 정사각으로 자르지 않는다. 자르기 화면은 안드로이드만(자유 비율) — iOS 자르기는 정사각만 돼서 끈다
-      allowsEditing: Platform.OS === 'android',
+      // 정사각으로 자르지 않는다. 자르기 화면은 안드로이드만(자유 비율) — iOS 자르기는 정사각만 돼서 끈다. 여러 장 고를 땐 자르기 없음
+      allowsEditing: Platform.OS === 'android' && !multi,
       quality: 0.8,
       base64: Platform.OS === 'web',
+      ...(multi ? {allowsMultipleSelection: true, selectionLimit: room} : {}),
     };
     const result =
       source === 'camera'
         ? await ImagePicker.launchCameraAsync(options)
         : await ImagePicker.launchImageLibraryAsync(options);
-    if (!result.canceled && result.assets[0]) {
-      const uri = await getPersistentUri(result.assets[0].uri, result.assets[0].base64);
-      if (slot === 'extra') {
-        // 추가분은 뒤에 붙이고, 올린 직후 뷰어로 바로 확인시킨다
-        setImageUris(prev => {
-          const next = [...prev, uri].slice(0, MAX_EXTRA_HERO);
-          setHeroViewerIndex((imageUri ? 1 : 0) + next.length - 1);
-          return next;
-        });
-      } else {
-        setImageUri(uri);
-      }
+    if (result.canceled || result.assets.length === 0) return;
+    const uris = await Promise.all(result.assets.slice(0, Math.max(1, room)).map(a => getPersistentUri(a.uri, a.base64)));
+    if (slot === 'extra') {
+      // 추가분은 뒤에 붙이고, 올린 직후 뷰어로 바로 확인시킨다
+      setImageUris(prev => {
+        const next = [...prev, ...uris].slice(0, MAX_EXTRA_HERO);
+        setHeroViewerIndex((imageUri ? 1 : 0) + next.length - 1);
+        return next;
+      });
+    } else {
+      setImageUri(uris[0]);
+      if (uris.length > 1) setImageUris(prev => [...prev, ...uris.slice(1)].slice(0, MAX_EXTRA_HERO));
     }
   };
 

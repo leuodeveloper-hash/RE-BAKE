@@ -63,20 +63,12 @@ export async function uploadImageTo(uri: string, path: string): Promise<string> 
     const base64 = uri.split(',')[1];
     const contentType = uri.match(/data:(.*?);/)?.[1] || 'image/jpeg';
     await uploadString(storageRef, base64, 'base64', {contentType});
-  } else if (Platform.OS === 'web') {
-    // 웹: blob: URL → fetch → uploadBytes
+  } else {
+    // 웹(blob:)·네이티브(file:) 모두 fetch → Blob → uploadBytes.
+    // 네이티브에서 base64 uploadString은 RN이 ArrayBuffer로 Blob을 못 만들어 아이폰 업로드가 실패했다.
     const response = await fetch(uri);
     const blob = await response.blob();
-    await uploadBytes(storageRef, blob);
-  } else {
-    // 네이티브: expo-file-system base64 → uploadString.
-    // SDK 54 기본 진입점(새 API)의 readAsStringAsync는 예외를 던져 아이폰·안드로이드 업로드가
-    // 전부 실패하고 로컬 경로만 남았다 — 기존 API(/legacy)를 쓴다.
-    const FileSystem = require('expo-file-system/legacy');
-    const base64 = await FileSystem.readAsStringAsync(uri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    await uploadString(storageRef, base64, 'base64', {contentType: 'image/jpeg'});
+    await uploadBytes(storageRef, blob, {contentType: blob.type || 'image/jpeg'});
   }
 
   return getDownloadURL(storageRef);

@@ -1288,8 +1288,9 @@ export function CookingMode({
     // 낙관적: 화면(flatCards)에 즉시 반영 → 저장(onUpdate) 전에 바로 보임.
     setPhotoOverrides(prev => ({...prev, [`${card.groupIndex}:${card.stepIndex}`]: photos}));
     if (stepGroups && stepGroups.length > 0) {
+      // 묶음의 다른 값(타이머 등)은 그대로 둔다
       onUpdate({stepGroups: stepGroups.map((g, gIdx) => ({
-        title: g.title,
+        ...g,
         steps: g.steps.map((s, sIdx) => (gIdx === card.groupIndex && sIdx === card.stepIndex) ? {...s, photos} : s),
       }))});
       return true;
@@ -1303,6 +1304,8 @@ export function CookingMode({
 
   // 보기 모드에서 사진 바로 등록 (편집 진입 없이 원본 데이터 갱신)
   const addStepPhoto = useCallback(async (card: CookingCard) => {
+    try {
+    await dismissKeyboardAndWait();
     const permOk = await ensureImagePermission('mediaLibrary', {
       deniedMessage: t('cookingMode.photoPermission'),
       showSnackbar,
@@ -1338,6 +1341,10 @@ export function CookingMode({
     const newPhotos = [...(card.photos ?? []), {uri}].slice(0, MAX_PHOTOS);
     const ok = commitStepPhotos(card, newPhotos);
     showSnackbar(ok ? t('cookingMode.photoAdded') : t('cookingMode.photoAddFailed'), {tone: ok ? 'positive' : 'error'});
+    } catch (e) {
+      console.warn('[CookingMode] 과정 사진 추가 실패', e);
+      showSnackbar(t('cookingMode.photoAddFailed'), {tone: 'error'});
+    }
   }, [commitStepPhotos, showSnackbar, t]);
 
   // 보기 모드에서 기존 사진 탭 → 교체 (onUpdate 경로로 실제 반영/저장)
