@@ -1388,6 +1388,15 @@ export function RecipeDetailScreen({
                               </View>
                             ) : null}
                             </View> : null}
+                            {st.photos && st.photos.length > 0 ? (
+                              <View style={styles.bulkPhotos}>
+                                <StepPhotos
+                                  photos={normalizeStepPhotos(st.photos)}
+                                  mode="view"
+                                  onPhotoPress={i => openPhotoViewer(st.photos, i)}
+                                />
+                              </View>
+                            ) : null}
                           </View>
                         ))}
                       </View>
@@ -1993,6 +2002,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   // 라인 블록 — 본문 줄 아래 4, 다음 줄과 8 띄운다. 들여쓰지 않고 본문과 같은 왼쪽에서 시작
   // 팁·주의 묶음 — 과정 줄 바로 아래, 다음 과정과는 띄우고 팁·주의 사이는 좁게
+  bulkPhotos: {
+    marginTop: Spacing.xs,
+  },
   bulkNotes: {
     marginTop: Spacing.xs,
     marginBottom: Spacing.sm,
