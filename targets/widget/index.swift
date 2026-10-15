@@ -378,7 +378,8 @@ struct BakleWidgetEntryView: View {
 
     if let targetDate,
        let days = daysUntil(targetDate, from: entry.date) {
-      let prefix = regPending ? "접수" : exam.label
+      // 접수 전에도 무슨 시험인지 — "접수"만 쓰면 어떤 시험 접수인지 알 수 없었다
+      let prefix = regPending ? (exam.label.isEmpty ? "접수" : "\(exam.label) 접수") : exam.label
       // 라벨(작게) 위, D-day(크게) 아래. 36pt는 캡슐 배경에 어울리지 않아
       // 배경 없이 이미지 위에 바로 얹고, 가독성은 그림자로 확보한다.
       VStack(alignment: .leading, spacing: -2) {
