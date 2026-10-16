@@ -6,8 +6,9 @@ import {Spacing} from '@constants/spacing';
 import {triggerHaptic} from '@utils/haptics';
 
 /** 썸네일 한 칸 — 손톱만 하게 */
-const THUMB = 36;
-const GAP = Spacing.xs;
+const THUMB = 44;
+// 가운데 테두리(양옆 3)가 이웃 썸네일에 닿지 않게 넉넉히
+const GAP = Spacing.smd;
 const STEP = THUMB + GAP;
 
 export interface ThumbnailSliderProps {
@@ -19,7 +20,7 @@ export interface ThumbnailSliderProps {
 
 /**
  * 썸네일 슬라이더(사진 뷰어 아래) — 숫자·눈금 대신 사진으로.
- * 지금 장은 늘 가운데, 흰 테두리로 표시. 줄을 끌면 가운데 오는 썸네일로 바로 넘어가고(한 칸씩 딱 멈춤),
+ * 가운데에 흰 테두리가 고정돼 있고 썸네일이 그 밑으로 지나간다. 줄을 끌면 가운데 오는 썸네일로 바로 넘어가고(한 칸씩 딱 멈춤),
  * 썸네일을 누르면 그 장으로 간다. 검정 배경 뷰어 전용 색(흰 테두리).
  */
 export function ThumbnailSlider({uris, index, onSelect}: ThumbnailSliderProps) {
@@ -109,17 +110,22 @@ export function ThumbnailSlider({uris, index, onSelect}: ThumbnailSliderProps) {
             key={`${uri}-${i}`}
             onPress={() => { if (i !== index) { triggerHaptic('light'); onSelect(i); } }}
             hitSlop={4}
-            style={[styles.thumb, i === index ? styles.active : styles.inactive]}>
+            style={[styles.thumb, i !== index && styles.inactive]}>
             <ExpoImage source={{uri}} style={StyleSheet.absoluteFill} contentFit="cover" cachePolicy="memory-disk" />
           </Pressable>
         ))}
       </ScrollView>
+      {/* 가운데 고정 테두리 — 썸네일이 이 밑으로 지나간다(눈금 슬라이더의 가운데 선처럼) */}
+      <View pointerEvents="none" style={styles.centerFrameWrap}>
+        <View style={styles.centerFrame} />
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrap: {alignSelf: 'stretch'},
+  // 가로 줄(row) 안에 들어가도 폭을 끝까지 — 안 그러면 폭이 썸네일 줄 길이만큼만 잡혀 가운데가 안 맞았다
+  wrap: {flex: 1, alignSelf: 'stretch'},
   row: {
     alignItems: 'center',
     gap: GAP,
@@ -130,8 +136,18 @@ const styles = StyleSheet.create({
     height: THUMB,
     borderRadius: Radius['radius-sm'],
     overflow: 'hidden',
-    borderWidth: 2,
   },
-  active: {borderColor: '#FFFFFF', opacity: 1},
-  inactive: {borderColor: 'transparent', opacity: 0.45},
+  inactive: {opacity: 0.45},
+  centerFrameWrap: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  centerFrame: {
+    width: THUMB + 6,
+    height: THUMB + 6,
+    borderRadius: Radius['radius-sm'] + 3,
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
+  },
 });
