@@ -3,7 +3,7 @@ import {StyleSheet, type StyleProp, type ViewStyle} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import {useColors} from '@contexts/ThemeContext';
 import {EDGE_FADE_ALPHAS, EDGE_FADE_LOCATIONS} from '@constants/fade';
-import {withOpacity} from '@constants/tokens';
+import {colorAlpha, colorRgb} from '@utils/color';
 import {APPBAR_HEIGHT, TABBAR_BOTTOM_SPACE} from './ContentContainer';
 
 export interface ContentMaskProps {
@@ -36,7 +36,10 @@ export function EdgeFade({position, height, color, style}: EdgeFadeProps) {
     ? EDGE_FADE_LOCATIONS
     : EDGE_FADE_LOCATIONS.map(l => 1 - l).reverse()) as unknown as [number, number, ...number[]];
   const alphas = position === 'top' ? [...EDGE_FADE_ALPHAS] : [...EDGE_FADE_ALPHAS].reverse();
-  const colorStops = alphas.map(a => withOpacity(surfaceDim, a)) as unknown as [string, string, ...string[]];
+  // 색이 rgba(반투명)여도 되게 — hex만 읽으면 rgba 색은 NaN이 돼 안드로이드에서 검게 칠해졌다(상세 앱바)
+  const [r, g, b] = colorRgb(surfaceDim);
+  const base = colorAlpha(surfaceDim);
+  const colorStops = alphas.map(a => `rgba(${r}, ${g}, ${b}, ${a * base})`) as unknown as [string, string, ...string[]];
 
   // 웹·앱 같은 그라디언트 하나(블러 없음). style을 주면 위치·크기는 그쪽이 정한다
   return (

@@ -2012,7 +2012,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   bulkNoteBlock: {},
   bulkCaution: {
-    color: colors['custom/yellow-on-container'],
+    color: colors['custom/yellow'],
   },
   container: {
     flex: 1,

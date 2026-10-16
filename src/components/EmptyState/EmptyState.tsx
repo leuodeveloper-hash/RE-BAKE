@@ -85,13 +85,14 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     justifyContent: 'center',
     gap: Spacing.md,
   },
+  // 높이까지 숫자로 — 안드로이드는 width+aspectRatio만 주면 원본 크기(두 배)로 그렸다
   image: {
     width: 120,
-    aspectRatio: IMAGE_RATIO,
+    height: Math.round(120 / IMAGE_RATIO),
   },
   smallImage: {
     width: 60,
-    aspectRatio: IMAGE_RATIO,
+    height: Math.round(60 / IMAGE_RATIO),
   },
   iconColor: {
     color: colors['foreground/on-surface-muted'],

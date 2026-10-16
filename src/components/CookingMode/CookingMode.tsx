@@ -1587,7 +1587,7 @@ export function CookingMode({
             ) : null}
             {item.caution ? (
               <View style={[styles.noteBlock, {borderLeftColor: colors['custom/yellow-var']}]}>
-                <RichText style={[styles.noteInlineText, cookingBodyFont, {color: colors['custom/yellow-on-container'], marginTop: 0}]}>{item.caution}</RichText>
+                <RichText style={[styles.noteInlineText, cookingBodyFont, {color: colors['custom/yellow'], marginTop: 0}]}>{item.caution}</RichText>
               </View>
             ) : null}
             {item.matchedIngredients.length > 0 ? (

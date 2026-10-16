@@ -48,7 +48,12 @@ const VELOCITY_THRESHOLD = 800;
  */
 // 웹은 안전영역이 없어 16(화면 끝에 너무 붙지 않게)
 export const sheetBottomInset = (safeBottom: number) =>
-  Platform.OS === 'web' ? Spacing.md : Math.max(Spacing.sm, safeBottom);
+  Platform.OS === 'web'
+    ? Spacing.md
+    // 안드로이드는 화면 끝까지 그려서 안전영역 = 시스템 내비게이션 바 — 딱 붙으면 가려져 보여 8 더 띄운다
+    : Platform.OS === 'android'
+      ? safeBottom + Spacing.sm
+      : Math.max(Spacing.sm, safeBottom);
 
 export interface BottomSheetProps {
   visible: boolean;
