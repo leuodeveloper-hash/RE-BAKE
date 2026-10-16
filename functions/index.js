@@ -366,3 +366,76 @@ export const restoreRecipesAt = onCall(
     return {restored, minutesAgo};
   },
 );
+
+// ---------------------------------------------------------------------------
+// 사진 보정(어드민 전용) — 올린 사진을 커버 사진 톤앤매너로 다시 그린다(OpenAI 이미지 편집).
+// 프롬프트는 Firestore config/photoStyle.prompt에서 고칠 수 있다(없으면 기본 템플릿).
+// 키는 비밀값 OPENAI_API_KEY — 앱·코드에 두지 않는다.
+// ---------------------------------------------------------------------------
+const OPENAI_API_KEY = defineSecret('OPENAI_API_KEY');
+const DEFAULT_PHOTO_STYLE_PROMPT = [
+  'Retouch this baking photo into a clean editorial cookbook cover shot.',
+  'Keep the exact same baked goods: same shape, size, color, texture, quantity and arrangement. Do not add or remove food.',
+  'Soft warm natural window light, gentle shadows, true-to-life colors, slightly bright and airy.',
+  'Simple tidy background in warm cream or light neutral tones, remove clutter and distracting objects.',
+  'Subject centered, sharp focus, high detail, no text, no watermark, photorealistic.',
+].join(' ');
+
+export const restylePhoto = onCall(
+  {region: 'asia-northeast3', memory: '1GiB', timeoutSeconds: 180, secrets: [OPENAI_API_KEY]},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) throw new HttpsError('unauthenticated', 'LOGIN_REQUIRED');
+    const db = getFirestore();
+    if (!(await db.collection('admin').doc(uid).get()).exists) throw new HttpsError('permission-denied', 'ADMIN_ONLY');
+
+    // 사진 — 앱이 줄여 보낸 JPEG base64, 또는 이미 올라간 주소
+    const {imageBase64, imageUrl} = req.data ?? {};
+    let bytes;
+    if (typeof imageBase64 === 'string' && imageBase64) {
+      bytes = Buffer.from(imageBase64.replace(/^data:image\/\w+;base64,/, ''), 'base64');
+    } else if (typeof imageUrl === 'string' && /^https:\/\//.test(imageUrl)) {
+      const r = await fetch(imageUrl);
+      if (!r.ok) throw new HttpsError('invalid-argument', 'IMAGE_FETCH_FAILED');
+      bytes = Buffer.from(await r.arrayBuffer());
+    } else {
+      throw new HttpsError('invalid-argument', 'IMAGE_REQUIRED');
+    }
+    if (bytes.length > 8 * 1024 * 1024) throw new HttpsError('invalid-argument', 'IMAGE_TOO_LARGE');
+
+    const style = (await db.doc('config/photoStyle').get()).data();
+    const prompt = (typeof style?.prompt === 'string' && style.prompt.trim()) || DEFAULT_PHOTO_STYLE_PROMPT;
+
+    const form = new FormData();
+    form.append('model', 'gpt-image-1');
+    form.append('prompt', prompt);
+    form.append('image', new Blob([bytes], {type: 'image/jpeg'}), 'photo.jpg');
+    form.append('size', 'auto');
+    form.append('quality', 'medium');
+    form.append('output_format', 'jpeg');
+    form.append('output_compression', '80');
+    const res = await fetch('https://api.openai.com/v1/images/edits', {
+      method: 'POST',
+      headers: {Authorization: `Bearer ${OPENAI_API_KEY.value()}`},
+      body: form,
+    });
+    const json = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      console.error('[restylePhoto] openai', res.status, json?.error?.message);
+      throw new HttpsError('internal', `OPENAI_${res.status}: ${json?.error?.message ?? ''}`.slice(0, 300));
+    }
+    const b64 = json?.data?.[0]?.b64_json;
+    if (!b64) throw new HttpsError('internal', 'NO_IMAGE');
+
+    // 결과를 Storage에 — 앱 업로드와 같은 경로(recipe_images), 공개 다운로드 주소로 돌려준다
+    const token = crypto.randomUUID();
+    const path = `recipe_images/restyled_${uid}_${Date.now()}.jpg`;
+    const bucket = getStorage().bucket();
+    await bucket.file(path).save(Buffer.from(b64, 'base64'), {
+      contentType: 'image/jpeg',
+      metadata: {metadata: {firebaseStorageDownloadTokens: token}},
+    });
+    const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(path)}?alt=media&token=${token}`;
+    return {url};
+  },
+);

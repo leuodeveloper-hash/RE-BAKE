@@ -9,6 +9,8 @@ import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
   Animated,
+  Dimensions,
+  Keyboard,
   Image,
   Platform,
   Pressable,
@@ -270,6 +272,36 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const [ocrBulkGroupId, setOcrBulkGroupId] = useState<string | null>(null);
   // 포커스된 과정(step) — 툴바 + 로 팁/주의/사진 추가 대상
   const [focusedStep, setFocusedStep] = useState<{groupId: string; stepId: string} | null>(null);
+  // 스크롤 위치 — 커서 줄 아래 사진 칸까지 툴바 위로 올릴 때 쓴다
+  const scrollYRef = useRef(0);
+  /**
+   * 커서가 있는 과정 줄(아래 사진 등록 칸 포함)이 키보드+입력 툴바에 가리면 그만큼 올린다.
+   * 시스템은 입력칸만 키보드 위로 올려, 포커스로 새로 생긴 사진 칸이 툴바 뒤에 숨었다.
+   */
+  const ensureRowVisible = useCallback((node: any) => {
+    if (!node?.measureInWindow) return;
+    requestAnimationFrame(() => {
+      node.measureInWindow((_x: number, y: number, _w: number, h: number) => {
+        const winH = Dimensions.get('window').height;
+        const kb = Keyboard.metrics();
+        const kbTop = kb && kb.height > 0 ? kb.screenY : winH;
+        const visibleBottom = kbTop - KEYBOARD_TOOLBAR_HEIGHT - Spacing.sm;
+        const over = y + h - visibleBottom;
+        if (over > 0) scrollViewRef.current?.scrollTo({y: scrollYRef.current + over, animated: true});
+      });
+    });
+  }, []);
+  // 줄 노드 — 키보드가 다 올라온 뒤(포커스보다 늦다) 커서 줄을 한 번 더 맞춘다
+  const stepRowNodes = useRef<Record<string, any>>({});
+  const focusedStepIdRef = useRef<string | null>(null);
+  focusedStepIdRef.current = focusedStep?.stepId ?? null;
+  useEffect(() => {
+    const sub = Keyboard.addListener('keyboardDidShow', () => {
+      const id = focusedStepIdRef.current;
+      if (id) ensureRowVisible(stepRowNodes.current[id]);
+    });
+    return () => sub.remove();
+  }, [ensureRowVisible]);
   // 베이키의 조언 칸에 커서가 있는지 — 툴바 [+]로 사진을 넣는다(과정 칸과 같은 방식)
   const [adviceFocused, setAdviceFocused] = useState(false);
   const [adviceMenuOpen, setAdviceMenuOpen] = useState(false);
@@ -2077,6 +2109,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         // 포커스된 입력이 키보드 바로 위에 딱 붙지 않도록 여유를 준다.
         // (기본 0이면 커서 줄이 키보드에 닿아 답답하고, 다음 줄이 안 보인다)
         keyboardDismissMode="none"
+        scrollEventThrottle={16}
+        onScroll={e => { scrollYRef.current = e.nativeEvent.contentOffset.y; }}
         scrollEnabled={drag.scrollEnabled}>
         {/* Spacer for nav bar */}
         <View style={{height: scrollTopGap}} />
@@ -3075,6 +3109,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                         // 화면 기준 y를 기록해 둔다(과정 섹션 시작 + 행의 상대 y).
                         const sectionY = sectionPositions.current['steps'] ?? 0;
                         stepRowY.current[step.id] = sectionY + e.nativeEvent.layout.y;
+                        // 커서 줄이면(포커스로 사진 칸이 생겨 높이가 바뀐 때) 툴바 위로
+                        stepRowNodes.current[step.id] = e.currentTarget;
+                        if (focusedStep?.stepId === step.id) ensureRowVisible(e.currentTarget);
                       }}
                       style={
                         stepRowMenu?.stepId === step.id || stepPhotoMenu?.stepId === step.id
@@ -3775,6 +3812,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         index={advicePhotoViewer !== null && advicePhotos.length > 0 ? Math.min(advicePhotoViewer, advicePhotos.length - 1) : null}
         onIndexChange={setAdvicePhotoViewer}
         onClose={() => setAdvicePhotoViewer(null)}
+        onRestyled={(pi, uri) => setAdvicePhotos(prev => prev.map((u, i) => (i === pi ? uri : u)))}
         onDelete={() => {
           const pi = advicePhotoViewer;
           setAdvicePhotoViewer(null);
@@ -3794,6 +3832,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
             onClose={() => setStepPhotoViewer(null)}
             onCaptionChange={(pi, caption) =>
               updateStepPhotos(groupId, stepId, ps => ps.map((p, i) => (i === pi ? {...p, caption: caption || undefined} : p)))}
+            onRestyled={(pi, uri) => updateStepPhotos(groupId, stepId, ps => ps.map((p, i) => (i === pi ? {...p, uri} : p)))}
             onDelete={() => {
               const pi = stepPhotoViewer.index;
               setStepPhotoViewer(null);
@@ -3856,6 +3895,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         index={heroViewerIndex}
         onIndexChange={setHeroViewerIndex}
         onClose={() => setHeroViewerIndex(null)}
+        // 대표(0번)면 대표, 아니면 추가분 그 자리
+        onRestyled={(idx, uri) => { if (idx === 0) setImageUri(uri); else setImageUris(prev => prev.map((u, i) => (i === idx - 1 ? uri : u))); }}
         onReplace={() => {
           const idx = heroViewerIndex;
           if (idx === null) return;

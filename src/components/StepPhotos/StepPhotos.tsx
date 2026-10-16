@@ -2,7 +2,7 @@ import {AddSlot} from '@components/AddSlot';
 import {Menu, type MenuItemData} from '@components/Menu/Menu';
 import React, {useState} from 'react';
 import {triggerHaptic} from '@utils/haptics';
-import {Image, Pressable, StyleSheet, Text, View} from 'react-native';
+import {ActivityIndicator, Image, Pressable, StyleSheet, Text, View} from 'react-native';
 import {IconClose} from '@components/Icon/IconIndex';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
@@ -12,6 +12,18 @@ import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 import type {StepPhoto} from '../../types/recipe';
 import {PhotoCaptionArrow} from './PhotoCaptionArrow';
+import {useUploadingUri} from '@hooks/useUploadingUri';
+
+/** 올라가는 중(압축·업로드)이면 썸네일 위에 로딩 */
+function UploadingOverlay({uri, radius}: {uri: string; radius: number}) {
+  const busy = useUploadingUri(uri);
+  if (!busy) return null;
+  return (
+    <View pointerEvents="none" style={[StyleSheet.absoluteFill, {borderRadius: radius, backgroundColor: 'rgba(0,0,0,0.35)', alignItems: 'center', justifyContent: 'center'}]}>
+      <ActivityIndicator color="#FFFFFF" />
+    </View>
+  );
+}
 
 export interface StepPhotosProps {
   /**
@@ -126,6 +138,7 @@ export function StepPhotos({
                   style={{width: side, height: side, borderRadius: Radius['radius-sm']}}
                   resizeMode="cover"
                 />
+                <UploadingOverlay uri={photo.uri} radius={Radius['radius-sm']} />
               </Pressable>
               {editable && manage && onRemove ? (
                 <Pressable style={styles.removeButton} onPress={() => onRemove(i)} hitSlop={8}>

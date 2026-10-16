@@ -7,7 +7,10 @@ import {Selector} from '@components/Selector';
 import {BottomActionBar} from '@components/BottomActionBar';
 import {GlassContainer} from '@components/Container';
 import {IconButton} from '@components/IconButton';
-import {IconClose, IconChoose, IconTrash, IconArrowDownToLine, IconAdd} from '@components/Icon/IconIndex';
+import {IconClose, IconChoose, IconTrash, IconArrowDownToLine, IconAdd, IconSparkle} from '@components/Icon/IconIndex';
+import {useAuth} from '@contexts/AuthContext';
+import {useSnackbar} from '@contexts/SnackbarContext';
+import {restylePhoto} from '@utils/photoRestyle';
 import {ForceDarkTheme} from '@contexts/ThemeContext';
 import {Menu} from '@components/Menu';
 import {photoSourceMenuItems, type PhotoSource} from '@utils/photoSourceMenu';
@@ -43,6 +46,11 @@ export interface PhotoViewerProps {
    * 썸네일 아래 칸은 좁아 설명은 여기서 넓게 쓴다. 입력을 마치거나 넘기면 저장.
    */
   onCaptionChange?: (index: number, caption: string) => void;
+  /**
+   * 사진 보정 결과를 그 자리에 넣는다 — 주면(어드민만) 위에 보정 버튼이 생긴다.
+   * 보정은 서버가 커버 사진 톤으로 다시 그린다(utils/photoRestyle).
+   */
+  onRestyled?: (index: number, uri: string) => void;
 }
 
 /** 설명 최대 길이 — 요리모드 카드에 2줄로 들어가는 정도 */
@@ -68,7 +76,12 @@ export function PhotoViewer({
   onAdd,
   onDownload,
   onCaptionChange,
+  onRestyled,
 }: PhotoViewerProps) {
+  const {isAdmin} = useAuth();
+  const {showSnackbar} = useSnackbar();
+  const canRestyle = isAdmin && !!onRestyled;
+  const [restyling, setRestyling] = useState(false);
   const {width: containerWidth, height: windowHeight} = useWindowDimensions();
   // 사진 영역 높이 — 화면의 74%(예전 imageFrame과 같은 비율). 스크롤 안이라 퍼센트 대신 숫자로 준다
   const pageHeight = Math.round(windowHeight * 0.74);
@@ -112,7 +125,25 @@ export function PhotoViewer({
   const [showSectionMenu, setShowSectionMenu] = useState(false);
   const jumpTo = (i: number) => { commitCaption(); onIndexChange(i); };
   const canEdit = !!onReplace || !!onDelete || !!onAdd;
-  const hasRightActions = canEdit || !!onDownload;
+  const hasRightActions = canEdit || !!onDownload || canRestyle;
+  // 보정 — 몇십 초 걸린다. 그동안 버튼이 로딩, 끝나면 그 자리 사진이 바뀐다
+  const runRestyle = async () => {
+    if (index === null || restyling || !onRestyled) return;
+    const at = index;
+    const src = photos[at]?.uri;
+    if (!src) return;
+    setRestyling(true);
+    try {
+      const url = await restylePhoto(src);
+      onRestyled(at, url);
+      showSnackbar(t('photoViewer.restyled'), {tone: 'positive'});
+    } catch (e: any) {
+      console.warn('[PhotoViewer] 보정 실패:', e);
+      showSnackbar(`${t('photoViewer.restyleFailed')}${e?.message ? ` (${String(e.message).slice(0, 60)})` : ''}`, {tone: 'error'});
+    } finally {
+      setRestyling(false);
+    }
+  };
 
 
   const close = useCallback(() => {
@@ -180,14 +211,16 @@ export function PhotoViewer({
             {total > 1 && (
               <View style={styles.bottomNav}>
                 <BottomActionBar background="#000000" showTopMask={false}>
-                  <ThumbnailSlider uris={photos.map(p => p.uri)} index={index} onSelect={jumpTo} />
+                  <View style={styles.sliderCol}>
+                    <ThumbnailSlider uris={photos.map(p => p.uri)} index={index} onSelect={jumpTo} />
+                    {/* 몇 번째 장인지 — 썸네일 아래 */}
+                    <Text style={styles.counter}>{`${index + 1}/${total}`}</Text>
+                  </View>
                 </BottomActionBar>
               </View>
             )}
             <FloatingNavBar
               tintColor="#000000"
-              // 헤더 가운데 — 몇 번째 장인지
-              title={total > 1 ? `${index + 1}/${total}` : undefined}
               // 왼쪽 — 닫기, 구획이 둘 이상이면 그 옆에 구획 고르기(요리모드와 같은 2뎁스, 사이 4)
               left={
                 <View style={styles.topLeft}>
@@ -215,6 +248,9 @@ export function PhotoViewer({
               ) : undefined}
               right={hasRightActions ? (
                 <GlassContainer contentStyle={navPillStyle}>
+                  {canRestyle && (
+                    <IconButton icon={IconSparkle} onPress={runRestyle} variant="ghost-primary" size="medium" loading={restyling} disabled={restyling} />
+                  )}
                   {onAdd && (
                     <IconButton icon={IconAdd} onPress={() => setShowAddMenu(v => !v)} variant="ghost-primary" size="medium" forcePressed={showAddMenu} />
                   )}
@@ -262,6 +298,15 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 2,
+  },
+  sliderCol: {
+    flex: 1,
+    alignItems: 'center',
+  },
+  counter: {
+    ...Typography.caption.medium,
+    color: 'rgba(255,255,255,0.72)',
+    fontVariant: ['tabular-nums'],
   },
   bottomNav: {
     position: 'absolute',

@@ -1,4 +1,6 @@
 {
+  "photoViewer.restyled": "Retouched to cover style",
+  "photoViewer.restyleFailed": "Couldn't retouch",
   "addGroup": "Add group",
   "addItem": "Add item",
   "addTitle": "Add",

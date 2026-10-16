@@ -71,6 +71,57 @@ export async function getPersistentUri(uri: string, base64?: string | null): Pro
   return uri;
 }
 
+// ---- 올라가는 중인 사진 — 썸네일에 로딩을 띄운다(useUploadingUri) ----
+const uploading = new Set<string>();
+const uploadListeners = new Set<() => void>();
+const notifyUploads = () => uploadListeners.forEach(l => l());
+export function isUploadingUri(uri: string): boolean { return uploading.has(uri); }
+export function subscribeUploads(l: () => void): () => void {
+  uploadListeners.add(l);
+  return () => { uploadListeners.delete(l); };
+}
+
+/** 업로드 사진 긴 변 최대(px) — 화면·뷰어에서 충분히 선명하고 용량은 수백 KB */
+const UPLOAD_MAX_EDGE = 1600;
+/** 한 장 최대 용량 — Storage 규칙(storage.rules)과 같은 값 */
+const UPLOAD_MAX_BYTES = 1024 * 1024;
+/** 용량을 넘으면 차례로 — [긴 변, JPEG 품질] */
+const COMPRESS_STEPS: [number, number][] = [[UPLOAD_MAX_EDGE, 0.75], [1280, 0.7], [1024, 0.6]];
+
+/**
+ * 올리기 전 압축 — 긴 변을 UPLOAD_MAX_EDGE로 줄이고 JPEG로 다시 저장한다(작으면 크기는 그대로, 품질만).
+ * 원본은 절대 올리지 않는다 — 압축이 안 되면 업로드를 멈추고 에러를 낸다(사진은 기기에 남아 다음 저장 때 다시 시도).
+ */
+async function compressForUpload(uri: string): Promise<string> {
+  try {
+    const {ImageManipulator, SaveFormat} = require('expo-image-manipulator');
+    const original = await ImageManipulator.manipulate(uri).renderAsync();
+    const web = Platform.OS === 'web';
+    // 용량 제한 — 넘으면 크기·품질을 한 단계씩 낮춰 다시. 끝까지 넘으면 올리지 않는다
+    for (const [edge, quality] of COMPRESS_STEPS) {
+      const long = Math.max(original.width, original.height);
+      const image = long > edge
+        ? await ImageManipulator.manipulate(uri)
+          .resize(original.width >= original.height ? {width: edge} : {height: edge})
+          .renderAsync()
+        : original;
+      const out = await image.saveAsync({compress: quality, format: SaveFormat.JPEG, base64: web});
+      const bytes = web ? Math.floor((out.base64?.length ?? 0) * 3 / 4) : await fileSize(out.uri);
+      if (bytes > 0 && bytes < UPLOAD_MAX_BYTES) return web ? `data:image/jpeg;base64,${out.base64}` : out.uri;
+    }
+  } catch (e) {
+    console.warn('[imageUpload] 압축 실패 — 원본은 올리지 않는다:', e);
+    throw new Error('image/compress-failed');
+  }
+  throw new Error('image/too-large');
+}
+
+async function fileSize(uri: string): Promise<number> {
+  const FileSystem = require('expo-file-system/legacy');
+  const info = await FileSystem.getInfoAsync(uri);
+  return info.exists ? (info.size ?? 0) : 0;
+}
+
 /**
  * 레시피 이미지를 Firebase Storage에 업로드하고 다운로드 URL을 반환.
  * @param uri 로컬 이미지 URI (file://, data:, blob:)
@@ -84,8 +135,21 @@ export async function uploadRecipeImage(uri: string, recipeId: string): Promise<
  * 임의 경로로 이미지를 올린다 — 레시피 사진 외의 용도(OCR 로그 등).
  * 웹(data:/blob:)과 네이티브(file:)가 올리는 방식이 달라 한 곳에 모은다.
  */
-export async function uploadImageTo(uri: string, path: string): Promise<string> {
+export async function uploadImageTo(rawUri: string, path: string): Promise<string> {
   const storageRef = ref(storage, path);
+  uploading.add(rawUri);
+  notifyUploads();
+  try {
+    return await uploadCompressed(rawUri, storageRef, path);
+  } finally {
+    uploading.delete(rawUri);
+    notifyUploads();
+  }
+}
+
+async function uploadCompressed(rawUri: string, storageRef: ReturnType<typeof ref>, path: string): Promise<string> {
+  // 폰 원본(수 MB)을 그대로 올리면 느리고 실패도 잦다 — 올리기 전에 줄인다
+  const uri = await compressForUpload(rawUri);
 
   if (uri.startsWith('data:')) {
     // data: URL → base64 추출 → uploadString

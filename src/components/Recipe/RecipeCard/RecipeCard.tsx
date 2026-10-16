@@ -482,8 +482,6 @@ export interface RecipeCardProps {
   size?: 'default' | 'small';
   /** list 레이아웃 썸네일 앞 번호 */
   leadingNumber?: number;
-  /** 팁(실기 준비물 등) — 메타 줄 맨 앞에 '팁'. 같은 레시피북 안에서도 레시피와 구분된다 */
-  isTip?: boolean;
   /** list 레이아웃 오른쪽 버튼(예: 회고 노트의 '회고 쓰기') — 메뉴 버튼 대신 */
   trailingAction?: {label: string; onPress: () => void};
   /** list 레이아웃 제목 위 오버라인(작은 회색 글씨) — 회고 노트에서 요리명 */
@@ -555,7 +553,6 @@ export function RecipeCard({
   overline,
   overlineIcon: OverlineIcon,
   trailingAction,
-  isTip = false,
   subtitleSize = 'medium',
   subtitleNumberOfLines = 1,
   subtitleIcon: SubtitleIcon,
@@ -577,8 +574,6 @@ export function RecipeCard({
   // 메타 줄 세그먼트: 각 항목이 자기 링크로 이동(핸들→작성자, 레시피북→북, 공법→공법).
   // 색은 전부 동일(muted). 링크 여부와 무관하게 톤 통일.
   const metaSegments: {key: string; text: string; onPress?: () => void; icon?: boolean}[] = [];
-  // 팁은 맨 앞에 — 같은 레시피북 안에서도, 어느 보기(2열 포함)에서도 구분되게
-  if (isTip) metaSegments.push({key: 'kind', text: t('recipeEdit.kindTip')});
   if (authorHandle) metaSegments.push({key: 'author', text: `@${authorHandle}`, onPress: onAuthorPress});
   // 공개(공식) 레시피면 레시피북 이름 앞에 작은 공식 레시피북 아이콘
   if (cookbook) metaSegments.push({key: 'cookbook', text: cookbook, onPress: onCookbookPress, icon: !!published});

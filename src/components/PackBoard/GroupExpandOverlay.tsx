@@ -331,7 +331,6 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
                 cookbook={r.cookbook}
                 method={r.method}
                 reviewCount={Math.max(r.reviewCount ?? 0, reviewsOf(r).length)}
-                isTip={r.kind === 'tip'}
                 imageUrl={r.imageUri}
                 layout="list"
                 onPress={() => onRecipePress?.(r.id)}

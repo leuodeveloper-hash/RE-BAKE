@@ -1,4 +1,6 @@
 {
+  "photoViewer.restyled": "커버 톤으로 보정했어요",
+  "photoViewer.restyleFailed": "보정하지 못했어요",
   "addGroup": "묶음 추가",
   "addItem": "갈래 추가",
   "addTitle": "추가하기",
