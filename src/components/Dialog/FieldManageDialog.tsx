@@ -11,7 +11,6 @@ import {
   IconPlusCircleFilled,
   IconMinusCircleFilled,
   IconBookFilled,
-  IconBookTwotone,
   IconExprolerBookFilled,
   IconPenTipFilled,
   IconDescription, IconTitleFilled,
@@ -123,8 +122,8 @@ export function FieldManageDialog({
     <Dialog
       visible={visible}
       onClose={onClose}
-      icon={IconBookTwotone}
-      avatarColor="brown"
+      // 머리는 공통 시트 헤더(라벨 가운데 · 닫기) — 큰 아이콘 머리가 긴 목록 위에서 자리를 많이 먹었다
+      headerType="center"
       title={t('fieldManage.title')}
       surface="dim"
       actions={
