@@ -14,7 +14,7 @@ import {
   IconBookTwotone,
   IconExprolerBookFilled,
   IconPenTipFilled,
-  IconDescription, IconTitle,
+  IconDescription, IconTitleFilled,
   IconClockFilled,
   IconLeafFilled,
   IconOpenbookFilled,
@@ -37,7 +37,7 @@ interface FieldDef {
 
 const makeAllFields = (t: (key: string) => string): FieldDef[] => [
   // 고정은 레시피 정보(제목)뿐 — 나머지는 다 끌 수 있다
-  {id: 'info', label: t('fieldManage.recipeInfo'), icon: IconTitle, fixed: true},
+  {id: 'info', label: t('fieldManage.recipeInfo'), icon: IconTitleFilled, fixed: true},
   // 설명 — 기본 꺼짐. 켜면 제목 카드 안(제목 아래)에 칸이 나오고, 상세에선 제목 아래 두 줄
   {id: 'description', label: t('fieldManage.description'), icon: IconDescription, fixed: false},
   {id: 'photo', label: t('fieldManage.photo'), icon: IconPhoto, fixed: false},
