@@ -394,7 +394,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   // 행을 하나씩 추가하는 폼보다 쉼표로 이어 쓰는 편이 빠르다(새 레시피는 원래 그랬고,
   // 기존 레시피 편집만 폼으로 열려 방식이 갈렸다).
   const [toolGroups, setToolGroups] = useState<EditableToolGroup[]>(() => {
-    if (recipe?.toolGroups) {
+    // 빈 목록([])으로 저장된 것은 없는 것으로 본다 — 그대로 쓰면 묶음이 0개라 도구 칸이 통째로 사라졌다
+    if (recipe?.toolGroups?.length) {
       return recipe.toolGroups.map(g => {
         const tools = g.tools.map(t => ({id: genId(), name: t.name}));
         return {
@@ -406,7 +407,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         };
       });
     }
-    if (recipe?.tools) {
+    if (recipe?.tools?.length) {
       const tools = recipe.tools.map(t => ({id: genId(), name: t.name}));
       return [{id: genId(), title: '도구', tools, bulkMode: true, bulkText: toolsToBulkText(tools)}];
     }
@@ -415,7 +416,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   // 과정 한번에 쓰기 동안 사진을 맡아 둔다(칸엔 글만 쓰므로) — 설명 → 사진
   const bulkStepPhotosRef = useRef<Map<string, StepPhoto[]>>(new Map());
   const [stepGroups, setStepGroups] = useState<StepGroup[]>(() => {
-    if (recipe?.stepGroups) {
+    if (recipe?.stepGroups?.length) {
       return recipe.stepGroups.map(g => ({
         id: genId(),
         title: g.title,
