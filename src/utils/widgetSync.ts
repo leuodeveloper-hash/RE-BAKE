@@ -66,24 +66,8 @@ export function syncTodayRecipeToWidget(candidates: Recipe[]): Promise<void> {
   return syncChain;
 }
 
-async function runWidgetSync(candidates: Recipe[]): Promise<void> {
-  if (Platform.OS !== 'ios') return;
-  if (candidates.length === 0) return;
-
-  const container = Paths.appleSharedContainers?.[APP_GROUP];
-  if (!container) return;
-
-  const dir = new Directory(container, 'widget');
-  try {
-    if (!dir.exists) dir.create({intermediates: true});
-  } catch {
-    return;
-  }
-
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
-
-  // "본 것 제외" 순환: seen(위젯 탭해서 열어본 레시피) 목록을 읽어 안 본 것부터 순서대로.
+/** 위젯 후보 순서 — 사진 있는 것 중 안 본 것부터(다 봤으면 처음부터). 아이폰·안드로이드 공용 */
+async function widgetRotation(candidates: Recipe[]): Promise<{pool: Recipe[]; unseen: Recipe[]}> {
   let seen: string[] = [];
   try {
     const raw = await AsyncStorage.getItem('widget_seen_ids');
@@ -100,6 +84,50 @@ async function runWidgetSync(candidates: Recipe[]): Promise<void> {
     unseen = pool;
     try { await AsyncStorage.removeItem('widget_seen_ids'); } catch { /* 무시 */ }
   }
+  return {pool, unseen};
+}
+
+/** 안드로이드 — 사진은 원격 주소 그대로(위젯 라이브러리가 받아 그린다). 레시피북 고르기는 아직 없다 */
+async function runAndroidWidgetSync(candidates: Recipe[]): Promise<void> {
+  const {unseen} = await widgetRotation(candidates);
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+  const sets = Array.from({length: DAYS_AHEAD}, (_, offset) => {
+    const day = new Date(startOfDay);
+    day.setDate(day.getDate() + offset);
+    const r = unseen[offset % unseen.length];
+    return {seed: dateSeed(day), id: r.id, title: r.title, imageUrl: r.imageUri?.startsWith('http') ? r.imageUri : ''};
+  });
+  try {
+    const {saveAndroidDailySets} = require('../widgets/android/androidWidgetData');
+    const {refreshAndroidWidget} = require('../widgets/android/widgetTaskHandler');
+    await saveAndroidDailySets(sets);
+    await refreshAndroidWidget();
+  } catch (e) {
+    console.warn('[widgetSync] 안드로이드 위젯 동기화 실패:', e);
+  }
+}
+
+async function runWidgetSync(candidates: Recipe[]): Promise<void> {
+  if (candidates.length === 0) return;
+  if (Platform.OS === 'android') return runAndroidWidgetSync(candidates);
+  if (Platform.OS !== 'ios') return;
+
+  const container = Paths.appleSharedContainers?.[APP_GROUP];
+  if (!container) return;
+
+  const dir = new Directory(container, 'widget');
+  try {
+    if (!dir.exists) dir.create({intermediates: true});
+  } catch {
+    return;
+  }
+
+  const startOfDay = new Date();
+  startOfDay.setHours(0, 0, 0, 0);
+
+  // "본 것 제외" 순환 — 안 본 것부터
+  const {pool, unseen} = await widgetRotation(candidates);
 
   // 앞으로 DAYS_AHEAD일: 안 본 것을 순서대로 각 날짜에 배정(오늘=unseen[0], 내일=unseen[1]...).
   // 이미지는 그 레시피 것 다운로드. seed는 날짜 기준(위젯이 그날 엔트리를 찾는 키).

@@ -504,12 +504,14 @@ export function RecipeDetailScreen({
    * 해보지 않은 것에 회고만 남는 상태를 막고, 찍은 김에 이어서 쓰게 한다.
    */
   const handleWriteReview = useCallback(() => {
-    if (!isMade && onMadeChange) {
+    // 이미 쓴 회고를 고치는 거면 바로 편집 — 스탬프 없는 예전 회고에서 '만들었어요' 확인이 떴다
+    const hasReview = (reviews ?? []).some(rv => rv.evaluation?.trim() || rv.improvement?.trim());
+    if (!isMade && onMadeChange && !hasReview) {
       setShowMadeSheet(true);
       return;
     }
     onEdit?.('review');
-  }, [isMade, onMadeChange, onEdit]);
+  }, [isMade, onMadeChange, onEdit, reviews]);
   const [showCookingMode, setShowCookingMode] = useState(initialCookingMode ?? false);
   const [cookingModeInitialIndex, setCookingModeInitialIndex] = useState(0);
   const [cookingModeShowIngredients, setCookingModeShowIngredients] = useState(false);

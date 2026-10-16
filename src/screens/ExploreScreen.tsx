@@ -425,6 +425,9 @@ export function ExploreScreen({
             category="network-error"
             title={t('explore.networkErrorTitle')}
             subtitle={t('explore.networkErrorSubtitle')}
+            actionLabel={onRefresh ? t('explore.reconnect') : undefined}
+            onAction={onRefresh}
+            actionVariant="soft"
           />
         ) : selectedCategory && selectedCategory !== '__all__' ? (
           <EmptyState

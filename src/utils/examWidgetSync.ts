@@ -52,7 +52,7 @@ interface ExamWidgetData {
  * 위젯은 홈 화면에서 D-day를 계속 보여주므로 "며칠 남았는지"를 항상 알 수 있다.
  */
 export async function syncExamWidget(): Promise<void> {
-  if (Platform.OS !== 'ios') return;
+  if (Platform.OS !== 'ios' && Platform.OS !== 'android') return;
 
   try {
     // 위젯은 알림 설정과 무관하다 — 홈 화면에 올려 둔 것을 고른 사람이
@@ -101,6 +101,20 @@ export async function syncExamWidget(): Promise<void> {
       }
     }
 
+    // 급한 쪽(먼저 오는 일정) — 예전 단일 키·안드로이드 위젯이 쓴다
+    const legacy = [byDiscipline.pastry, byDiscipline.baking]
+      .filter(Boolean)
+      .sort((a, b) => nextMomentOf(a!) - nextMomentOf(b!))[0] ?? null;
+
+    // 안드로이드는 종목 고르기가 아직 없어 급한 쪽 하나만
+    if (Platform.OS === 'android') {
+      const {saveAndroidWidgetExam} = require('../widgets/android/androidWidgetData');
+      const {refreshAndroidWidget} = require('../widgets/android/widgetTaskHandler');
+      await saveAndroidWidgetExam(legacy);
+      await refreshAndroidWidget();
+      return;
+    }
+
     const WidgetStorage = require('../../modules/widget-storage').default;
     for (const discipline of WIDGET_DISCIPLINES) {
       const payload = byDiscipline[discipline];
@@ -108,10 +122,6 @@ export async function syncExamWidget(): Promise<void> {
       WidgetStorage.setString(storageKey(discipline), payload ? JSON.stringify(payload) : '', APP_GROUP);
     }
     // 예전 단일 키도 계속 채운다 — 업데이트 전에 설치해 둔 위젯이 빈 화면이 되면 안 된다.
-    // 급한 쪽(먼저 오는 일정)을 넣는다.
-    const legacy = [byDiscipline.pastry, byDiscipline.baking]
-      .filter(Boolean)
-      .sort((a, b) => nextMomentOf(a!) - nextMomentOf(b!))[0] ?? null;
     WidgetStorage.setString('upcomingExam', legacy ? JSON.stringify(legacy) : '', APP_GROUP);
     // 내 D-day 목록도 함께 — 위젯 편집에서 고를 수 있게(다른 기기에서 바꾼 것도 앱을 열면 반영)
     const ddays = await loadCustomDdays();

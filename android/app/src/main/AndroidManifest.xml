@@ -35,6 +35,7 @@
     <meta-data android:name="expo.modules.updates.EXPO_RUNTIME_VERSION" android:value="@string/expo_runtime_version"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_CHECK_ON_LAUNCH" android:value="ALWAYS"/>
     <meta-data android:name="expo.modules.updates.EXPO_UPDATES_LAUNCH_WAIT_MS" android:value="0"/>
+    <service android:name="com.reactnativeandroidwidget.RNWidgetCollectionService" android:permission="android.permission.BIND_REMOTEVIEWS"/>
     <activity android:name=".MainActivity" android:configChanges="keyboard|keyboardHidden|orientation|screenSize|screenLayout|uiMode|locale|layoutDirection" android:launchMode="singleTask" android:windowSoftInputMode="adjustResize" android:theme="@style/Theme.App.SplashScreen" android:exported="true" android:screenOrientation="portrait">
       <intent-filter>
         <action android:name="android.intent.action.MAIN"/>
@@ -49,5 +50,12 @@
         <data android:scheme="exp+bakle"/>
       </intent-filter>
     </activity>
+    <receiver android:name=".widget.BakleWidget" android:exported="false" android:label="오늘의 레시피">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>
+        <action android:name="com.bakle.app.WIDGET_CLICK"/>
+      </intent-filter>
+      <meta-data android:name="android.appwidget.provider" android:resource="@xml/widgetprovider_baklewidget"/>
+    </receiver>
   </application>
 </manifest>

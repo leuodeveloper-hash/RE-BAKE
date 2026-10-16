@@ -331,7 +331,7 @@ function NavigationContent() {
     })();
   }, [recipes, exploreRecipesAll, router]);
 
-  // 오늘의 레시피를 iOS 위젯에 동기화(iOS 전용, 그 외 no-op).
+  // 오늘의 레시피를 홈 화면 위젯에 동기화(아이폰·안드로이드, 웹은 no-op).
   // exploreRecipesAll은 이미 권한 반영됨(어드민이면 hidden 포함).
   useEffect(() => {
     if (exploreRecipesAll.length === 0) return;

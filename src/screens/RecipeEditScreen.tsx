@@ -3,6 +3,8 @@ import {focusAt} from '@utils/focusAt';
 import {ocrFailMessage} from '@utils/ocrFailMessage';
 import {BREAD_FIELDS, isBreadRecipe} from '@utils/breadFieldsMigration';
 import {RecipeImagePickerSheet} from '@components/BottomSheet/RecipeImagePickerSheet';
+import {useRecipeReviews} from '@hooks/useRecipeReviews';
+import {sessionKey} from '@utils/session';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   ActivityIndicator,
@@ -454,7 +456,15 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const cookbookItemLayouts = useRef<Record<string, {y: number; height: number}>>({});
   const [localCookbooks, setLocalCookbooks] = useState<string[]>([]);
   const [fieldManageVisible, setFieldManageVisible] = useState(false);
-  const [reviews, setReviews] = useState<ReviewData[]>(recipe?.reviews ?? []);
+  // 회고는 계정에 회차별로 둔다(useRecipeReviews) — 레시피 안의 reviews는 예전 데이터.
+  // 편집 칸은 지금 회차의 계정 회고를 먼저 보여주고, 저장도 거기로 한다(예전엔 레시피 안만 고쳐 계정 회고가 안 바뀌었다)
+  const {reviewOf, saveReview} = useRecipeReviews();
+  // 넘어오는 recipe는 실제 Recipe라 회차 id(sessionId)가 들어 있다
+  const reviewKey = recipeId ? sessionKey({id: recipeId, sessionId: (recipe as {sessionId?: string} | undefined)?.sessionId}) : null;
+  const [reviews, setReviews] = useState<ReviewData[]>(() => {
+    const mine = reviewKey ? reviewOf(reviewKey) : undefined;
+    return mine ? [mine] : (recipe?.reviews ?? []);
+  });
   const [advice, setAdvice] = useState(recipe?.advice ?? '');
   // 베이키의 조언 사진 — 과정 사진처럼 넣는다(요리모드와 같은 데이터)
   const [advicePhotos, setAdvicePhotos] = useState<string[]>(recipe?.advicePhotos ?? []);
@@ -717,6 +727,11 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     }
     setSaving(true);
     try {
+      // 회고 — 계정에 지금 회차 것으로(비우면 지운다). 사진은 그대로 둔다
+      if (reviewKey) {
+        const last = reviews[reviews.length - 1];
+        saveReview(reviewKey, {evaluation: last?.evaluation?.trim() ?? '', improvement: last?.improvement?.trim() ?? ''});
+      }
       await onSave?.({
         title: title.trim(),
         cookbook: cookbook || undefined,
@@ -731,7 +746,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         toolGroups: resolveToolGroups(),
         stepGroups: resolveStepGroups(),
         activeFieldIds,
-        reviews: reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined,
+        // 있는 레시피는 계정 회고로 저장하고 레시피 안 예전 회고는 비운다(두 곳에 남으면 지워도 다시 보인다)
+        reviews: reviewKey ? [] : (reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined),
         // 비우면 빈 글자로 저장 — 칸을 빼면 서버의 기존 설명이 그대로 남았다(합쳐 저장)
         description: description.trim(),
         advice: advice || undefined,
@@ -746,7 +762,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     } finally {
       setSaving(false);
     }
-  }, [title, cookbook, method, ratio, time, servings, doughTemp, divideWeight, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, description, advice, advicePhotos, kind, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden, onSave]);
+  }, [title, cookbook, method, ratio, time, servings, doughTemp, divideWeight, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, description, advice, advicePhotos, kind, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden, onSave, reviewKey, saveReview]);
 
   const pickImage = async (source: 'camera' | 'gallery', slot: 'main' | 'extra' = 'main') => {
     if (source === 'camera') {

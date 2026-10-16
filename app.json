@@ -131,6 +131,31 @@
         {
           "appleTeamId": "LAQFXSQ5VJ"
         }
+      ],
+      [
+        "react-native-android-widget",
+        {
+          "fonts": [
+            "./targets/widget/fonts/Pretendard-Regular.otf",
+            "./targets/widget/fonts/Pretendard-Medium.otf",
+            "./targets/widget/fonts/Pretendard-Bold.otf"
+          ],
+          "widgets": [
+            {
+              "name": "BakleWidget",
+              "label": "오늘의 레시피",
+              "description": "매일 새로운 오늘의 레시피와 시험 D-day를 보여드려요.",
+              "minWidth": "110dp",
+              "minHeight": "110dp",
+              "targetCellWidth": 2,
+              "targetCellHeight": 2,
+              "maxResizeWidth": "420dp",
+              "maxResizeHeight": "420dp",
+              "resizeMode": "horizontal|vertical",
+              "updatePeriodMillis": 1800000
+            }
+          ]
+        }
       ]
     ],
     "owner": "leuokim"

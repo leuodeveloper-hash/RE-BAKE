@@ -5,4 +5,5 @@
   <string name="expo_splash_screen_resize_mode" translatable="false">contain</string>
   <string name="expo_splash_screen_status_bar_translucent" translatable="false">false</string>
   <string name="expo_runtime_version">1.0.0</string>
+  <string name="widget_baklewidget_description" translatable="false">매일 새로운 오늘의 레시피와 시험 D-day를 보여드려요.</string>
 </resources>
