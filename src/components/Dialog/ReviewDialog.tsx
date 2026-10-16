@@ -21,6 +21,8 @@ export interface ReviewData {
   improvement: string;
   /** 회고 사진 URI (최대 3장) */
   photos?: string[];
+  /** 지운 표시 — 레시피 안에 남은 예전 회고까지 가린다(계정 쪽에만 둔다) */
+  deleted?: boolean;
 }
 
 export interface ReviewDialogProps {

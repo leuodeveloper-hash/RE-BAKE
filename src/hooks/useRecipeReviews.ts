@@ -106,7 +106,8 @@ function useRecipeReviewsState() {
       };
       const next = {...prev};
       const empty = !review.evaluation?.trim() && !review.improvement?.trim() && photos.length === 0;
-      if (empty) delete next[recipeId];
+      // 지우면 지운 표시를 남긴다 — 그냥 빼면 레시피 안에 남은 예전 회고가 다시 보여 "안 지워졌다"
+      if (empty) next[recipeId] = {evaluation: '', improvement: '', deleted: true};
       else next[recipeId] = review;
       saved = empty ? undefined : review;
       if (!empty) track('review_written', {has_photo: photos.length > 0});
@@ -138,7 +139,9 @@ function useRecipeReviewsState() {
     })();
   }, [persist]);
 
-  const reviewOf = useCallback((recipeId: string) => reviews[recipeId], [reviews]);
+  const reviewOf = useCallback((recipeId: string) => (reviews[recipeId]?.deleted ? undefined : reviews[recipeId]), [reviews]);
+  /** 실제 회고 수(지운 표시 제외) */
+  const accountReviewCount = Object.values(reviews).filter(rv => !rv.deleted).length;
 
   /**
    * 레시피 하나의 회고 전부 — 계정(여기)과 레시피 자체(Recipe.reviews)를 합친다.
@@ -150,6 +153,7 @@ function useRecipeReviewsState() {
   const pick = useCallback((key: string, legacy?: ReviewData[]): ReviewData[] => {
     const own = (legacy ?? []).filter(rv => rv.evaluation?.trim() || rv.improvement?.trim() || rv.photos?.length);
     const mine = reviews[key];
+    if (mine?.deleted) return [];
     return mine ? [...own, mine] : own;
   }, [reviews]);
 
@@ -168,7 +172,7 @@ function useRecipeReviewsState() {
     return [...(recipe.sessions ?? []).flatMap(sessionReviewsOf), ...reviewsOf(recipe)];
   }, [reviewsOf, sessionReviewsOf]);
 
-  return {reviews, saveReview, reviewOf, reviewsOf, sessionReviewsOf, allReviewsOf, loaded};
+  return {reviews, accountReviewCount, saveReview, reviewOf, reviewsOf, sessionReviewsOf, allReviewsOf, loaded};
 }
 
 /**

@@ -56,14 +56,14 @@ export default function ProfileRoute() {
 
   // 회고는 계정에 저장된다(레시피 id별 하나) — 내 레시피만 돌며 세면
   // 둘러보기 레시피에 쓴 회고가 빠진다. 계정 회고는 전부, 예전 방식(레시피 안) 회고는 더한다.
-  const {reviews} = useRecipeReviews();
+  const {accountReviewCount} = useRecipeReviews();
   const reviewCount = useMemo(() => {
     const legacy = recipes.reduce(
       (sum, r) => sum + (r.reviews ?? []).filter(rv => rv.evaluation?.trim() || rv.improvement?.trim()).length,
       0,
     );
-    return legacy + Object.keys(reviews).length;
-  }, [recipes, reviews]);
+    return legacy + accountReviewCount;
+  }, [recipes, accountReviewCount]);
 
   const handleBack = useCallback(() => {
     router.navigate('/recipes' as any);

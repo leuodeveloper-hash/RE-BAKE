@@ -60,7 +60,7 @@ export function ReviewLogSheet({
   const colors = useColors();
   const {t} = useTranslation();
   // 회고는 계정에 저장된다 — 레시피의 reviews만 세면 새 회고가 빠진다
-  const {reviewsOf} = useRecipeReviews();
+  const {reviewsOf, allReviewsOf} = useRecipeReviews();
 
   // 모드: selectedRecipeProp 있으면 detail로 시작
   const [mode, setMode] = useState<'list' | 'detail'>(selectedRecipeProp ? 'detail' : 'list');
@@ -90,11 +90,11 @@ export function ReviewLogSheet({
     }
     const stats = new Map<string, {totalReviews: number; totalSessions: number}>();
     for (const [key, group] of groupMap) {
-      const totalReviews = group.reduce((sum, r) => sum + reviewsOf(r).length, 0);
+      const totalReviews = group.reduce((sum, r) => sum + allReviewsOf(r).length, 0);
       stats.set(key, {totalReviews, totalSessions: group.length});
     }
     return stats;
-  }, [allRecipes, reviewsOf]);
+  }, [allRecipes, allReviewsOf]);
 
   // --- Depth 2: 세션별 회고 계산 ---
 
@@ -242,7 +242,7 @@ export function ReviewLogSheet({
               const groupRecipes = (allRecipes ?? []).filter(r => (r.remakeGroupId ?? r.id) === groupKey);
               const sessions = (groupRecipes.length > 0 ? groupRecipes : [recipe])
                 .sort((a, b) => parseSession(b.session).current - parseSession(a.session).current);
-              return sessions.flatMap(r => reviewsOf(r).map((rv, j) => {
+              return sessions.flatMap(r => [...allReviewsOf(r)].reverse().map((rv, j) => {
                 const evaluation = rv.evaluation?.trim();
                 const improvement = rv.improvement?.trim();
                 return (
