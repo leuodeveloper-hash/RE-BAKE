@@ -26,6 +26,8 @@ export interface ShareRecipeSheetProps {
 }
 
 const CARD_W = 300;
+/** 팝업 가장자리 ~ 카드 간격 */
+const CARD_INSET = Spacing.sm;
 /** 메타(페이스북) 앱 ID — 인스타 스토리에 이미지를 바로 넘길 때 보낸 앱 확인용(공개 값) */
 const META_APP_ID = '981260695017508';
 /** 카드 바탕 = 스토리 배경(같은 검정) */
@@ -171,7 +173,8 @@ export function ShareRecipeSheet({visible, onClose, recipe, linkable}: ShareReci
   ];
 
   return (
-    <Dialog visible={visible} onClose={onClose} showCloseButton={false}>
+    // 카드가 팝업 모서리와 사방 같은 간격(8)으로 — 카드 모서리는 팝업 모서리에서 그 간격만큼 뺀 값(자연스러운 겹 라운드)
+    <Dialog visible={visible} onClose={onClose} showCloseButton={false} width={CARD_W + CARD_INSET * 2} contentInset={CARD_INSET}>
       <View style={styles.wrap}>
         {/* 공유 카드 — 이 모양 그대로 이미지가 된다 */}
         <View ref={cardRef} collapsable={false} style={styles.card}>
@@ -224,7 +227,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   card: {
     width: CARD_W,
     backgroundColor: STORY_BG,
-    borderRadius: Radius['radius-xl'],
+    // 팝업(radius-xl 24) 안쪽 겹 — 24 - 8
+    borderRadius: Radius['radius-xl'] - CARD_INSET,
     paddingVertical: Spacing.lg,
     alignItems: 'center',
     gap: Spacing.md,

@@ -54,6 +54,7 @@ import {CookbookSelectSheet, MadeConfirmSheet, InquirySheet} from '@components/B
 import {sendAppInquiry} from '@utils/appInquiry';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import {DEFAULT_AXES} from '@components/RecipeGroups/groupAxis';
+import {ShareRecipeSheet} from '@components/BottomSheet/ShareRecipeSheet';
 import {
   IconTrash,
   IconTrashTwotone,
@@ -77,9 +78,11 @@ const getDefaultCardMenuItems = (recipe: Recipe, t: (key: string, params?: Recor
     session: `${currentSessionNumber(recipe)}회차`,
     showPin: true,
     isPinned: !!recipe.pinnedAt,
-    showMade: true,
+    // 상세 오버플로우와 같은 항목 — 팁은 만드는 게 아니라 읽는 정보라 만들었어요·새 회차가 빠진다
+    showMade: recipe.kind !== 'tip',
     isMade: isMadeOf(recipe),
-    showRemake: true, showEdit: true, showDelete: true, showCookbook: true,
+    showRemake: recipe.kind !== 'tip', showEdit: true, showDelete: true, showCookbook: true,
+    showShare: true,
   });
 
 export interface HomeScreenProps {
@@ -467,6 +470,8 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
     });
   }, [madeSheetRecipe, setMade, router, showSnackbar, t]);
 
+  // 공유 카드 — 상세와 같은 시트. 내 레시피는 링크 없이 카드 이미지로
+  const [shareRecipe, setShareRecipe] = useState<Recipe | null>(null);
   const handleCardMenuSelect = useCallback((id: string, recipe: Recipe): void => {
     if (id === 'pin' || id === 'unpin') {
       // pinnedAt에 시각을 남긴다 — 여러 개를 고정했을 때 핀한 순서대로 위에 쌓인다
@@ -506,6 +511,8 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
       setRecipes(prev => prev.map(r => (r.id === recipe.id ? recordNewSession(r) : r)));
       showSnackbar(t('home.newSessionAdded'), {tone: 'positive'});
       router.push(`/recipe/${recipe.id}` as any);
+    } else if (id === 'share') {
+      setShareRecipe(recipe);
     } else if (id === 'edit') {
       router.push(`/recipe/edit/${recipe.id}`);
     } else if (id === 'delete') {
@@ -950,6 +957,14 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
       />
 
       {/* PDF 미리보기 다이얼로그 */}
+      {shareRecipe ? (
+        <ShareRecipeSheet
+          visible
+          onClose={() => setShareRecipe(null)}
+          recipe={{id: shareRecipe.id, title: shareRecipe.title, imageUri: shareRecipe.imageUri, authorHandle: shareRecipe.authorHandle ?? handle ?? undefined, authorAvatarSeed: shareRecipe.authorAvatarSeed ?? avatarSeed ?? undefined}}
+          linkable={false}
+        />
+      ) : null}
       <PdfPreviewDialog
         visible={showPdfPreview}
         onClose={() => setShowPdfPreview(false)}

@@ -9,6 +9,7 @@ import {IconLogoBadge} from '@components/Icon/IconIndex';
 import {NavPillButton} from '@components/Navigation';
 import {NAV_PILL_HEIGHT} from '@constants/layout';
 import {View} from 'react-native';
+import {ShareRecipeSheet} from '@components/BottomSheet/ShareRecipeSheet';
 import React, {useCallback, useMemo, useState} from 'react';
 import {useRouter} from 'expo-router';
 import {AppBar} from '@components/Navigation';
@@ -59,9 +60,9 @@ const FREE_RECIPE_COUNT = ENTITLEMENTS.free.quota.exploreFree;
 // 둘러보기에선 "만들었어요"를 두지 않는다 — 가져와야 요리할 수 있고,
 // 스탬프는 내 레시피에만 찍힌다(가져온 뒤 sourceId로 원본 칸이 채워진다).
 const makeBaseCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string, isPinned: boolean) =>
-  getRecipeMenuItems({t, showPin: true, isPinned, showImport: true});
+  getRecipeMenuItems({t, showPin: true, isPinned, showImport: true, showShare: true});
 const makeAdminCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string, isPinned: boolean) =>
-  getRecipeMenuItems({t, showPin: true, isPinned, showImport: true, showEdit: true, showDelete: true});
+  getRecipeMenuItems({t, showPin: true, isPinned, showImport: true, showEdit: true, showShare: true, showDelete: true});
 
 export interface ExploreScreenProps {
   /** 게스트 랜딩 카드 — 팩 보기 한가운데 */
@@ -271,6 +272,8 @@ export function ExploreScreen({
       }));
   }, [data, t]);
 
+  // 공유 카드 — 상세와 같은 시트. 둘러보기 레시피는 링크로도 열린다
+  const [shareRecipe, setShareRecipe] = useState<Recipe | null>(null);
   const handleCardMenuSelect = useCallback((id: string, recipe: Recipe) => {
     if (id === 'pin' || id === 'unpin') {
       togglePin(recipe.id);
@@ -281,6 +284,8 @@ export function ExploreScreen({
       onImportRecipe(recipe);
     } else if (id === 'download') {
       setPdfRecipe(recipe);
+    } else if (id === 'share') {
+      setShareRecipe(recipe);
     } else if (id === 'edit' && onEditRecipe) {
       onEditRecipe(recipe);
     } else if (id === 'delete' && onDeleteRecipe) {
@@ -550,6 +555,14 @@ export function ExploreScreen({
       }
     />
 
+    {shareRecipe ? (
+      <ShareRecipeSheet
+        visible
+        onClose={() => setShareRecipe(null)}
+        recipe={{id: shareRecipe.id, title: shareRecipe.title, imageUri: shareRecipe.imageUri, authorHandle: shareRecipe.authorHandle, authorAvatarSeed: shareRecipe.authorAvatarSeed}}
+        linkable
+      />
+    ) : null}
     <PdfPreviewDialog
       visible={!!pdfRecipe}
       onClose={() => setPdfRecipe(null)}

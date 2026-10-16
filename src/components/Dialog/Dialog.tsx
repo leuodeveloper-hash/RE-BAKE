@@ -53,6 +53,8 @@ export interface DialogProps {
   surface?: 'bright' | 'dim';
   /** 카드 너비 (기본: 312) */
   width?: number;
+  /** 머리 없이 내용만 꽉 채울 때 — 위·좌우 여백을 이 값 하나로(카드 같은 내용을 팝업 모서리와 같은 간격으로) */
+  contentInset?: number;
   /** 배경 블러 (기본: false) */
   blurBackdrop?: boolean;
   /** 헤더 레이아웃 (기본: 'default') */
@@ -85,6 +87,7 @@ export function Dialog({
   width,
   blurBackdrop = false,
   headerType,
+  contentInset,
   position = 'center',
   headerRight,
 }: DialogProps) {
@@ -222,7 +225,11 @@ export function Dialog({
 
         {/* Content */}
         {/* 라벨 가운데 헤더(앱바형)면 헤더 아래·버튼 위 여백을 8로 — 기본 20은 미리보기처럼 큰 내용에서 휑했다 */}
-        {children && <View style={[styles.content, effectiveHeaderType === 'center' && styles.contentCompact]}>{children}</View>}
+        {children && <View style={[
+          styles.content,
+          effectiveHeaderType === 'center' && styles.contentCompact,
+          contentInset != null && {paddingHorizontal: contentInset, paddingTop: contentInset, marginTop: 0},
+        ]}>{children}</View>}
 
         {/* Actions */}
         {actions && (
