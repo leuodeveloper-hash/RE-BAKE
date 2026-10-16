@@ -1,5 +1,7 @@
 import {PageScrollView} from '@components/Page';
-import React, {useCallback} from 'react';
+import React, {useCallback, useState} from 'react';
+import {Dialog} from '@components/Dialog/Dialog';
+import {Button} from '@components/Button';
 import {Alert, Platform, ScrollView, StyleSheet, View} from 'react-native';
 import {useRouter} from 'expo-router';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -80,9 +82,12 @@ export default function DataRoute() {
   }, [showSnackbar]);
 
   // 사진 클라우드 백업은 Pro 기능 — 무료면 플랜을 보여준다
+  // 끌 때는 한 번 묻는다 — 끄면 새로 넣는 사진이 이 기기에만 남아 다른 기기·웹에서 안 보인다
+  const [confirmBackupOff, setConfirmBackupOff] = useState(false);
   const toggleBackup = useCallback((v: boolean) => {
     if (v && !isPro) { openPlanSheet(); return; }
-    setPhotoCloudBackup(v);
+    if (!v) { setConfirmBackupOff(true); return; }
+    setPhotoCloudBackup(true);
   }, [isPro, openPlanSheet, setPhotoCloudBackup]);
 
   return (
@@ -167,6 +172,24 @@ export default function DataRoute() {
         ) : null}
       </PageScrollView>
 
+      <Dialog
+        visible={confirmBackupOff}
+        onClose={() => setConfirmBackupOff(false)}
+        icon={IconPhoto}
+        title={t('profile.photoBackupOffTitle')}
+        description={t('profile.photoBackupOffDesc')}
+        actions={
+          <>
+            <Button label={t('profile.photoBackupKeep')} variant="soft" onPress={() => setConfirmBackupOff(false)} />
+            <Button
+              label={t('profile.photoBackupTurnOff')}
+              variant="soft"
+              destructive
+              onPress={() => { setConfirmBackupOff(false); setPhotoCloudBackup(false); }}
+            />
+          </>
+        }
+      />
       <AppBar centered title={t('profile.dataManagement')} leftIcon={IconArrowLeft} onLeftPress={() => goBackOr(router)} />
     </View>
   );

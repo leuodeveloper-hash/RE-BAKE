@@ -25,7 +25,8 @@ export function SubscriptionProvider({children}: {children: React.ReactNode}) {
   // 웹은 결제를 지원하지 않는다(스토어 인앱결제 전용) — 구독 관리도 앱에서만.
   const value = useMemo<SubscriptionContextValue>(() => ({
     isPro: isAdmin, offerings: null, purchasePackage, restorePurchases, isLoading: false,
-    photoCloudBackup: false,
+    // 웹도 사진을 클라우드에 올린다 — 안 올리면 웹에서 넣은 사진이 다른 기기에서 안 보인다
+    photoCloudBackup: true,
     setPhotoCloudBackup: () => {},
     purchaseStore: null,
     canManageSubscription: false,

@@ -1,6 +1,35 @@
 import {ref, uploadBytes, uploadString, getDownloadURL, deleteObject} from 'firebase/storage';
 import {Platform} from 'react-native';
-import {storage} from '@config/firebase';
+import {auth, storage} from '@config/firebase';
+
+/**
+ * 네이티브 파일 업로드 — expo-file-system이 파일을 그대로 보낸다(자바스크립트로 파일을 읽지 않음).
+ * 받는 쪽은 Firebase Storage REST. 권한 규칙은 SDK와 똑같이 적용된다(로그인 토큰을 같이 보낸다).
+ */
+async function uploadNativeFile(uri: string, path: string): Promise<string> {
+  const user = auth.currentUser;
+  if (!user) throw new Error('storage/unauthenticated');
+  const token = await user.getIdToken();
+  const bucket = storage.app.options.storageBucket;
+  const name = encodeURIComponent(path);
+  const FileSystem = require('expo-file-system/legacy');
+  const res = await FileSystem.uploadAsync(
+    `https://firebasestorage.googleapis.com/v0/b/${bucket}/o?uploadType=media&name=${name}`,
+    uri,
+    {
+      httpMethod: 'POST',
+      uploadType: FileSystem.FileSystemUploadType.BINARY_CONTENT,
+      headers: {Authorization: `Firebase ${token}`, 'Content-Type': 'image/jpeg'},
+    },
+  );
+  if (res.status < 200 || res.status >= 300) {
+    throw new Error(`storage/upload-failed (${res.status}) ${String(res.body).slice(0, 200)}`);
+  }
+  const body = JSON.parse(res.body);
+  const dl = String(body.downloadTokens ?? '').split(',')[0];
+  if (!dl) throw new Error('storage/no-download-token');
+  return `https://firebasestorage.googleapis.com/v0/b/${bucket}/o/${name}?alt=media&token=${dl}`;
+}
 
 /**
  * 웹에서 blob: URL을 data: URL(base64)로 즉시 변환.
@@ -69,14 +98,10 @@ export async function uploadImageTo(uri: string, path: string): Promise<string> 
     const blob = await response.blob();
     await uploadBytes(storageRef, blob);
   } else {
-    // 네이티브: expo-file-system base64 → uploadString.
-    // SDK 54 기본 진입점(새 API)의 readAsStringAsync는 예외를 던져 아이폰·안드로이드 업로드가
-    // 전부 실패하고 로컬 경로만 남았다 — 기존 API(/legacy)를 쓴다.
-    const FileSystem = require('expo-file-system/legacy');
-    const base64 = await FileSystem.readAsStringAsync(uri, {
-      encoding: FileSystem.EncodingType.Base64,
-    });
-    await uploadString(storageRef, base64, 'base64', {contentType: 'image/jpeg'});
+    // 네이티브: 기기가 파일을 직접 Storage(REST)로 보낸다.
+    // base64 → uploadString은 리액트 네이티브에서 Blob을 못 만들어 실패하고, 실패하면 폰 안 경로가
+    // 그대로 저장돼 다른 기기에서 사진이 안 보였다. fetch → Blob은 아이폰에서 빈 파일이 올라갔다.
+    return uploadNativeFile(uri, path);
   }
 
   return getDownloadURL(storageRef);
