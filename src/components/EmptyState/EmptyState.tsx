@@ -7,8 +7,8 @@ import {useThemedStyles} from '@hooks/useThemedStyles';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
-const emptyRecipeImage = require('../../../assets/images/empty_recipe.png');
-const emptyNetworkImage = require('../../../assets/images/empty_network.png');
+import {useTheme} from '@contexts/ThemeContext';
+import {emptyImage, EMPTY_IMAGE_RATIO as IMAGE_RATIO} from '@constants/emptyImages';
 
 export type EmptyStateCategory = 'no-results' | 'no-recipe' | 'network-error' | 'error';
 export type EmptyStateVariant = 'fullscreen' | 'simple';
@@ -31,22 +31,22 @@ export interface EmptyStateProps {
   variant?: EmptyStateVariant;
 }
 
-function categoryImage(category: EmptyStateCategory): ImageSourcePropType | null {
+function categoryImage(category: EmptyStateCategory, isDark: boolean): ImageSourcePropType | null {
   switch (category) {
-    // 검색 결과 없음도 꽃 그림 — 예전 그림(empty_no_results)은 지웠다
-    case 'no-results': return emptyRecipeImage;
-    case 'no-recipe': return emptyRecipeImage;
-    case 'network-error': return emptyNetworkImage;
+    case 'no-results': return emptyImage('default', isDark);
+    case 'no-recipe': return emptyImage('default', isDark);
+    case 'network-error': return emptyImage('network', isDark);
     case 'error': return null;
   }
 }
 
 export function EmptyState({category, image, icon, title, subtitle, actionLabel, onAction, actionVariant = 'ghost', variant = 'fullscreen'}: EmptyStateProps) {
   const styles = useThemedStyles(createStyles);
+  const {isDark} = useTheme();
 
   if (variant === 'simple') {
     // 심플: 작은 일러스트(카테고리/이미지 있을 때만) + 텍스트. 이미지는 경우에 따라 있거나 없음.
-    const simpleImg = category ? categoryImage(category) : image;
+    const simpleImg = category ? categoryImage(category, isDark) : image;
     return (
       // 일러스트 있을 때만 하단 여백 바이어스 → 부모 중앙 정렬 시 시각적 상하 중앙처럼 보임.
       // 텍스트만일 땐 순수 중앙(바이어스 없음).
@@ -58,7 +58,7 @@ export function EmptyState({category, image, icon, title, subtitle, actionLabel,
     );
   }
 
-  const fullImg = category ? categoryImage(category) : image;
+  const fullImg = category ? categoryImage(category, isDark) : image;
   return (
     <View style={styles.container}>
       {fullImg && <Image source={fullImg} style={styles.image} />}
@@ -87,11 +87,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   image: {
     width: 120,
-    height: 120,
+    aspectRatio: IMAGE_RATIO,
   },
   smallImage: {
     width: 60,
-    height: 60,
+    aspectRatio: IMAGE_RATIO,
   },
   iconColor: {
     color: colors['foreground/on-surface-muted'],

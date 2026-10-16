@@ -33,6 +33,7 @@ import {ReviewLogSheet} from '@components/BottomSheet';
 import {getCookbookColorKey} from '@components/ColorPicker';
 import {PullIndicator, RefreshGap, usePullProgress} from '@components/PullIndicator';
 import {useThemedStyles} from '@hooks/useThemedStyles';
+import {useTheme} from '@contexts/ThemeContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {useColors} from '@contexts/ThemeContext';
 import {useAddSheet} from '@contexts/AddSheetContext';
@@ -126,6 +127,7 @@ type ViewMode = 'list' | 'pack';
 
 export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors, axis, onAxisChange, onComingSoon, onDeleteCookbook, onCookbookPress, onMethodPress, onMethodGuidePress, exploreRecipes, exploreCookbooks, isAdmin, onExploreCookbookPress, onDeleteExploreCookbook, onRefresh, onRecipePress, availableAxes = DEFAULT_AXES, axisOverrides, showAddButton = true, bookCarousel = false, addAsOfficial = false, cookbooksAreOfficial = false, onDownloadPdf, onAddRecipeToCookbook, authorBadge, menuHeaderNode, onBack, onSettingsPress, headerExtra}: GroupScreenProps) {
   const styles = useThemedStyles(createStyles);
+  const {isDark} = useTheme();
   const breadcrumbItemOffset = useBreadcrumbItemOffset();
   // 탭바(안전영역 포함)가 차지하는 아래 공간 — 캐러셀·팩·빈 화면을 그 위 영역 가운데에
   const tabBarSpace = useTabBarSpace();
@@ -359,7 +361,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
     return cookbooks.map(cb => {
       const isUngrouped = cb.name === '레시피 북 없음';
       // 공통 헬퍼: 비었으면 빈 종이, 아니면 레시피 표지(사진/종이). 일러스트 이미지 안 씀.
-      const cards = coverCards(cb.items, cb.name);
+      const cards = coverCards(cb.items, cb.name, 3, isDark);
       const reviewTotal = cb.items.reduce((sum, r) => sum + reviewsOf(r).length, 0);
       return {
         id: `cb_${cb.name}`,
@@ -392,7 +394,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
           : (pos: {pageX: number; pageY: number; width: number; height: number}) => (cookbooksAreOfficial ? handleExploreCookbookMenuPress : handleCookbookMenuPress)(cb.name, pos),
       };
     });
-  }, [cookbooks, cookbookColors, colors, cookbooksAreOfficial, exploreCookbookHiddenMap, exploreCookbookColorMap, t, reviewsOf, isOfficialBook, bookColorOf, user, handle, avatarSeed, isAdmin]);
+  }, [cookbooks, cookbookColors, colors, cookbooksAreOfficial, exploreCookbookHiddenMap, exploreCookbookColorMap, t, reviewsOf, isOfficialBook, bookColorOf, user, handle, avatarSeed, isAdmin, isDark]);
 
   // 회고 노트 기준: 실제 작성된 회고가 있는 레시피만 (같은 remakeGroup은 회고 유무 합산 후 최신 회차 하나로 대표)
   // 회고 노트 대상 — 내 레시피 + 내가 회고를 쓴 둘러보기 레시피
