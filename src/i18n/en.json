@@ -852,6 +852,8 @@
   "recipeEdit.methodPlaceholder": "Method",
   "recipeEdit.moveGroupDown": "Move down",
   "recipeEdit.moveGroupUp": "Move up",
+  "recipeEdit.ocrReading": "Reading text…",
+  "recipeEdit.ocrCancel": "Cancel",
   "recipeEdit.ocrEmpty": "Couldn't find any text in the photo",
   "recipeEdit.ocrMetaNone": "Couldn't find a value in the photo",
   "recipeEdit.ocrMetaOne": "Filled \"{{value}}\" from the photo",

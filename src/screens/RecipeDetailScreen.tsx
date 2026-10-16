@@ -561,6 +561,11 @@ export function RecipeDetailScreen({
     return out;
   }, [heroPhotos, stepGroups, steps, advicePhotos, reviews, t]);
   /** 그 묶음(src)의 i번째 사진으로 연다 */
+  /** 위 사진에서 열 때 — 커버는 이미 화면에 보이니 그다음 장부터(한 장뿐이면 그 장) */
+  const openHeroViewer = useCallback(() => {
+    if (allPhotos.length === 0) return;
+    setViewerIndex(allPhotos.length > 1 ? 1 : 0);
+  }, [allPhotos.length]);
   const openPhotoViewer = useCallback((src: unknown, i: number) => {
     const start = allPhotos.findIndex(p => p.src === src);
     if (start >= 0) setViewerIndex(start + i);
@@ -1026,7 +1031,7 @@ export function RecipeDetailScreen({
                   기준이 바뀌어 레이아웃이 깨진다. 같은 자리에 투명 영역만 겹친다. */}
               <Pressable
                 style={[styles.heroImage, heroFrame]}
-                onLongPress={() => { triggerHaptic('medium'); openPhotoViewer('hero', 0); }}
+                onLongPress={() => { triggerHaptic('medium'); openHeroViewer(); }}
               />
               {/* 장식용 어둡기 레이어 — Pressable 위에 덮이므로 터치를 통과시킨다.
                   (웹은 DOM 이벤트라 이게 없으면 롱프레스가 이 레이어에 먹혀 뷰어가 안 열린다) */}
@@ -1146,7 +1151,7 @@ export function RecipeDetailScreen({
                   <Pressable
                     style={[styles.reviewBadge, styles.heroCountBadge]}
                     hitSlop={8}
-                    onPress={() => { triggerHaptic('light'); openPhotoViewer('hero', 0); }}>
+                    onPress={() => { triggerHaptic('light'); openHeroViewer(); }}>
                     {/* 보조 정보라 한 단계 옅게(inverse-var) */}
                     <IconPhoto1 width={12} height={12} color={colors['foreground/on-surface-inverse-var']} />
                     <Text style={[styles.heroDescription, {color: colors['foreground/on-surface-inverse-var']}]}>{heroPhotos.length}</Text>

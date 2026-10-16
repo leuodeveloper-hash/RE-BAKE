@@ -654,6 +654,7 @@ function NavigationContent() {
           action={snackbar?.action}
           icon={snackbar?.icon}
           tone={snackbar?.tone}
+          persistent={snackbar?.persistent}
           visible={!!snackbar}
           onClose={clearSnackbar}
         />

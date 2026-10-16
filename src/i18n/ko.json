@@ -837,6 +837,8 @@
   "recipeEdit.methodPlaceholder": "공법",
   "recipeEdit.moveGroupDown": "아래로 이동",
   "recipeEdit.moveGroupUp": "위로 이동",
+  "recipeEdit.ocrReading": "글자를 읽는 중이에요",
+  "recipeEdit.ocrCancel": "취소",
   "recipeEdit.ocrEmpty": "사진에서 글자를 찾지 못했어요",
   "recipeEdit.ocrMetaNone": "사진에서 값을 찾지 못했어요",
   "recipeEdit.ocrMetaOne": "사진에서 읽어 \"{{value}}\"(으)로 채웠어요",

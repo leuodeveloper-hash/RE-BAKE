@@ -34,12 +34,14 @@ export interface SnackbarProps {
   /** 톤이 주는 아이콘을 덮어쓸 때만 */
   icon?: React.FC<SvgProps>;
   action?: {label: string; onPress: () => void};
+  /** 저절로 닫히지 않는다 — 진행 중 안내(인식 중 · 취소)처럼 끝날 때 코드가 닫는다 */
+  persistent?: boolean;
   onClose?: () => void;
   visible?: boolean;
   style?: ViewStyle;
 }
 
-export function Snackbar({message, tone = 'info', icon, action, onClose, visible = false, style}: SnackbarProps) {
+export function Snackbar({message, tone = 'info', icon, action, persistent, onClose, visible = false, style}: SnackbarProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const {elevation} = useTheme();
@@ -56,12 +58,6 @@ export function Snackbar({message, tone = 'info', icon, action, onClose, visible
         Animated.timing(opacity, {toValue: 1, duration: ANIMATION_DURATION, useNativeDriver: true}),
         Animated.timing(translateY, {toValue: 0, duration: ANIMATION_DURATION, useNativeDriver: true}),
       ]).start();
-
-      // 자동 닫기
-      clearTimeout(timerRef.current);
-      timerRef.current = setTimeout(() => {
-        onClose?.();
-      }, AUTO_DISMISS_DELAY);
     } else if (!visible && isVisible.current) {
       // 퇴장 애니메이션
       clearTimeout(timerRef.current);
@@ -75,6 +71,14 @@ export function Snackbar({message, tone = 'info', icon, action, onClose, visible
 
     return () => clearTimeout(timerRef.current);
   }, [visible]);
+
+  // 자동 닫기 — 떠 있는 동안 문구가 바뀌면(다른 알림으로 교체) 다시 센다. 진행 중 안내는 안 닫는다
+  useEffect(() => {
+    clearTimeout(timerRef.current);
+    if (!visible || persistent) return;
+    timerRef.current = setTimeout(() => { onClose?.(); }, AUTO_DISMISS_DELAY);
+    return () => clearTimeout(timerRef.current);
+  }, [visible, message, persistent]);
 
   return (
     <Animated.View style={{opacity, transform: [{translateY}]}} pointerEvents={visible ? 'auto' : 'none'}>

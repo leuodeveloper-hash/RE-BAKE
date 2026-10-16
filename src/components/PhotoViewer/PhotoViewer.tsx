@@ -1,7 +1,8 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
-import {FloatingNavBar, navPillStyle, NavPillButton, RulerSlider} from '@components/Navigation';
+import {FloatingNavBar, navPillStyle, NavPillButton} from '@components/Navigation';
+import {ThumbnailSlider} from '@components/ThumbnailSlider';
 import {Selector} from '@components/Selector';
 import {BottomActionBar} from '@components/BottomActionBar';
 import {GlassContainer} from '@components/Container';
@@ -175,20 +176,18 @@ export function PhotoViewer({
             ) : currentCaption.trim() ? (
               <Text style={styles.captionText}>{currentCaption}</Text>
             ) : null}
-            {/* 아래 눈금 — 전체 장수, 지금 장 강조. 탭·끌기로 이동(요리모드와 같은 눈금) */}
+            {/* 아래 작은 썸네일 줄 — 숫자·눈금 대신 사진으로. 눌러서 건너뛴다 */}
             {total > 1 && (
               <View style={styles.bottomNav}>
                 <BottomActionBar background="#000000" showTopMask={false}>
-                  <RulerSlider
-                    items={photos.map((_, i) => ({id: String(i), label: `${i + 1} / ${total}`}))}
-                    selectedId={String(index)}
-                    onSelect={id => jumpTo(Number(id))}
-                  />
+                  <ThumbnailSlider uris={photos.map(p => p.uri)} index={index} onSelect={jumpTo} />
                 </BottomActionBar>
               </View>
             )}
             <FloatingNavBar
               tintColor="#000000"
+              // 헤더 가운데 — 몇 번째 장인지
+              title={total > 1 ? `${index + 1}/${total}` : undefined}
               // 왼쪽 — 닫기, 구획이 둘 이상이면 그 옆에 구획 고르기(요리모드와 같은 2뎁스, 사이 4)
               left={
                 <View style={styles.topLeft}>

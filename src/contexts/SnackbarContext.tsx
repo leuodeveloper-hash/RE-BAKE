@@ -12,6 +12,8 @@ interface SnackbarOptions {
   icon?: React.FC<SvgProps>;
   /** 알림의 성격 — 아이콘·색이 바뀐다 (기본 info) */
   tone?: SnackbarTone;
+  /** 저절로 닫히지 않음 — 끝날 때 clearSnackbar */
+  persistent?: boolean;
 }
 
 interface SnackbarState {
@@ -19,6 +21,7 @@ interface SnackbarState {
   action?: SnackbarAction;
   icon?: React.FC<SvgProps>;
   tone?: SnackbarTone;
+  persistent?: boolean;
 }
 
 interface SnackbarContextValue {
@@ -36,9 +39,9 @@ export function SnackbarProvider({children}: {children: React.ReactNode}) {
     if (options && 'onPress' in options && 'label' in options && !('action' in options)) {
       // Legacy: showSnackbar('msg', {label, onPress})
       setSnackbar({message, action: options as SnackbarAction});
-    } else if (options && ('action' in options || 'icon' in options || 'tone' in options)) {
+    } else if (options && ('action' in options || 'icon' in options || 'tone' in options || 'persistent' in options)) {
       const opts = options as SnackbarOptions;
-      setSnackbar({message, action: opts.action, icon: opts.icon, tone: opts.tone});
+      setSnackbar({message, action: opts.action, icon: opts.icon, tone: opts.tone, persistent: opts.persistent});
     } else {
       setSnackbar({message});
     }

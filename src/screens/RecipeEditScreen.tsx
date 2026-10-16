@@ -242,7 +242,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const {width: screenWidth} = useWindowDimensions();
   // 팝오버는 콘텐츠 최대너비 기준 X 버튼 아래에 붙어야 함(넓은 웹 화면에서 좌측 밖으로 안 나가게)
   const contentLeftEdge = Math.max(Spacing.md, (screenWidth - MAX_CONTENT_WIDTH) / 2 + Spacing.md);
-  const {showSnackbar} = useSnackbar();
+  const {showSnackbar, clearSnackbar, snackbar} = useSnackbar();
   const nextIdRef = useRef(100);
   const genId = () => String(nextIdRef.current++);
 
@@ -299,6 +299,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   // 툴바는 편집화면 진입 시부터 항상 마운트(요리모드와 동일) → 픽 중 유지 플래그 불필요
   const ocrFieldRef = useRef<RecipeOcrField | null>(null);
   const [ocrLoading, setOcrLoading] = useState(false);
+  // 인식 취소 — 인식은 서버에서 끝까지 돌지만, 취소했으면 돌아온 글을 버린다
+  const ocrCancelledRef = useRef(false);
   const blurTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // 타자기 타이머 정리는 useOcrTypewriter가 직접 한다(타이머를 소유한 쪽이 치운다)
   useEffect(() => () => {
@@ -1084,6 +1086,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     recipePhotos: {title, imageUri: imageUri ?? undefined, imageUris},
     onBusyChange: setOcrLoading,
     onText: text => {
+      if (ocrCancelledRef.current) return;
       // 텍스트로 채우기 시트에서 '이미지로 읽기' — 읽은 글을 쓰기 규칙 글로 바꿔 시트를 다시 연다(무지개 타이핑)
       // 시간·분량 등 정보 줄 인식 — 읽은 글에서 칸별 값을 찾아 넣고 그 칸을 켠다
       // 시간·분량·반죽 온도·분할 용량 팝업의 '사진에서 읽기' — 그 칸 하나만 채운다
@@ -1125,7 +1128,24 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   });
 
   /** OCR로 읽은 값을 칸에 넣는다(무지개 타이핑) — 입력 툴바 스캔·한번에 쓰기 인식 버튼 공용 */
+  // 인식 중 — 취소 버튼이 있는 안내를 띄운다(칸에는 뼈대만 보여 멈출 방법이 없었다)
+  const ocrReadingMsg = t('recipeEdit.ocrReading');
+  useEffect(() => {
+    if (ocrLoading) {
+      ocrCancelledRef.current = false;
+      showSnackbar(ocrReadingMsg, {persistent: true, action: {label: t('recipeEdit.ocrCancel'), onPress: () => {
+        ocrCancelledRef.current = true;
+        setOcrLoading(false);
+        clearSnackbar();
+      }}});
+    } else if (snackbar?.message === ocrReadingMsg) {
+      clearSnackbar();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ocrLoading]);
+
   const handleOcrRecognized = (value: string | string[], field: RecipeOcrField) => {
+            if (ocrCancelledRef.current) return;
             if (field === 'title' && typeof value === 'string' && value.trim()) {
               typewriteString(value.trim().replace(/\s+/g, ' '), setTitle, 'title');
             } else if (field === 'ingredients' && Array.isArray(value)) {
