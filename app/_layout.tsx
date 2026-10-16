@@ -1,4 +1,6 @@
 import '../global.css';
+import {launchLibrary} from '@components/AlbumPicker/albumPicker';
+import {AlbumPickerHost} from '@components/AlbumPicker';
 import {logOcrWithImage} from '@utils/ocrLog';
 import {trackScreen} from '@utils/analytics';
 import {ocrFailMessage} from '@utils/ocrFailMessage';
@@ -476,7 +478,7 @@ function NavigationContent() {
     });
     if (!ok) return;
     const opts: ImagePicker.ImagePickerOptions = {mediaTypes: ['images'], quality: 0.9, base64: Platform.OS === 'web'};
-    const result = isCamera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
+    const result = isCamera ? await ImagePicker.launchCameraAsync(opts) : await launchLibrary(opts);
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
     const uri = await getPersistentUri(asset.uri, asset.base64);
@@ -659,6 +661,9 @@ function NavigationContent() {
           onClose={clearSnackbar}
         />
       </View>
+
+      {/* 앱 안 사진첩 — 사진 고르기는 전부 여기(마지막 앨범 기억) */}
+      <AlbumPickerHost />
 
       {/* 강제 업데이트 — 닫을 수 없다. 스토어로만 나갈 수 있다 */}
       <UpdateDialog visible={!!forcedUpdate} onUpdate={() => forcedUpdate?.()} />

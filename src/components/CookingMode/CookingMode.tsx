@@ -1,4 +1,5 @@
 import {NOTE_BLOCK} from '@constants/noteBlock';
+import {launchLibrary} from '@components/AlbumPicker/albumPicker';
 import {ocrFailMessage} from '@utils/ocrFailMessage';
 import {APPBAR_ITEM_GAP} from '@constants/layout';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
@@ -965,7 +966,7 @@ export function CookingMode({
       if (!ok) return;
       const result = source === 'camera'
         ? await ImagePicker.launchCameraAsync({quality: 0.85})
-        : await ImagePicker.launchImageLibraryAsync({mediaTypes: ['images'], quality: 0.85});
+        : await launchLibrary({mediaTypes: ['images'], quality: 0.85});
       if (result.canceled || !result.assets[0]) return;
       ocrUri = result.assets[0].uri;
       const text = (await recognizeImageText(ocrUri)).trim();
@@ -1023,7 +1024,7 @@ export function CookingMode({
     const result =
       source === 'camera'
         ? await ImagePicker.launchCameraAsync(options)
-        : await ImagePicker.launchImageLibraryAsync(options);
+        : await launchLibrary(options);
     if (!result.canceled && result.assets.length > 0) {
       const uris = await Promise.all(result.assets.map(a => getPersistentUri(a.uri, a.base64)));
       const newPhotos = [...(currentPhotos ?? []), ...uris.map(u => ({uri: u}))].slice(0, MAX_PHOTOS);
@@ -1057,7 +1058,7 @@ export function CookingMode({
       settingsCancelLabel: t('permission.cancel'),
     });
     if (!permOk) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const result = await launchLibrary({
       mediaTypes: ['images'],
       quality: 0.8,
       base64: Platform.OS === 'web',
@@ -1097,7 +1098,7 @@ export function CookingMode({
     };
     const result = source === 'camera'
       ? await ImagePicker.launchCameraAsync(options)
-      : await ImagePicker.launchImageLibraryAsync(options);
+      : await launchLibrary(options);
     if (!result.canceled && result.assets.length > 0) {
       const uris = await Promise.all(result.assets.map(a => getPersistentUri(a.uri, a.base64)));
       setEditAdvicePhotos(prev => [...prev, ...uris].slice(0, MAX_PHOTOS));
@@ -1159,7 +1160,7 @@ export function CookingMode({
     };
     const result = source === 'camera'
       ? await ImagePicker.launchCameraAsync(options)
-      : await ImagePicker.launchImageLibraryAsync(options);
+      : await launchLibrary(options);
     if (result.canceled || result.assets.length === 0) return;
     const uris = await Promise.all(result.assets.map(a => getPersistentUri(a.uri, a.base64)));
     const ok = commitAdvicePhotos([...viewAdvicePhotos, ...uris].slice(0, MAX_PHOTOS));
@@ -1315,7 +1316,7 @@ export function CookingMode({
       settingsCancelLabel: t('permission.cancel'),
     });
     if (!permOk) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const result = await launchLibrary({
       mediaTypes: ['images', 'videos'],
       quality: 0.8,
       base64: Platform.OS === 'web',
@@ -1358,7 +1359,7 @@ export function CookingMode({
       settingsCancelLabel: t('permission.cancel'),
     });
     if (!permOk) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const result = await launchLibrary({
       mediaTypes: ['images'],
       quality: 0.8,
       base64: Platform.OS === 'web',

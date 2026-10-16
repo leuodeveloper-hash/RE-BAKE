@@ -1,4 +1,9 @@
 {
+  "albumPicker.allPhotos": "All photos",
+  "albumPicker.denied": "Photo access is off. Allow it to pick photos right from the album you used last.",
+  "albumPicker.limited": "Only some photos are allowed. Tap to choose more",
+  "albumPicker.choose": "Add {{count}}",
+  "albumPicker.chooseNone": "Choose photos",
   "photoViewer.restyleTitle": "Retouch prompt",
   "photoViewer.restyleLoading": "Loading…",
   "photoViewer.restyleReset": "Default",
@@ -575,7 +580,7 @@
   "permission.cameraTitle": "Camera access is off",
   "permission.cancel": "Cancel",
   "permission.openSettings": "Open Settings",
-  "permission.photoBody": "Allow photo access in Settings to scan from your images.",
+  "permission.photoBody": "Allow photo access in Settings to pick photos right from the album you used last.",
   "permission.photoTitle": "Photo access is off",
   "photo": "Photo",
   "photoPermissionNeeded": "Photo access needed, enable it in Settings",

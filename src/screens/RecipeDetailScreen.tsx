@@ -1,4 +1,5 @@
 import {NOTE_BLOCK} from '@constants/noteBlock';
+import {launchLibrary} from '@components/AlbumPicker/albumPicker';
 import {StepTimer, type StepTimerHandle} from '@components/StepTimer';
 import {scaleAmount, scaleLabel} from '@utils/scaleAmount';
 import {DotSlider} from '@components/DotSlider';
@@ -618,7 +619,7 @@ export function RecipeDetailScreen({
     };
     const result = isCamera
       ? await ImagePicker.launchCameraAsync(options)
-      : await ImagePicker.launchImageLibraryAsync(options);
+      : await launchLibrary(options);
     if (result.canceled) return [];
     return Promise.all(result.assets.slice(0, room).map(a => getPersistentUri(a.uri, a.base64)));
   }, [showSnackbar, t]);

@@ -1,4 +1,5 @@
 import {cookbookColorOf} from '@contexts/RecipeContext';
+import {launchLibrary} from '@components/AlbumPicker/albumPicker';
 import {focusAt} from '@utils/focusAt';
 import {ocrFailMessage} from '@utils/ocrFailMessage';
 import {BREAD_FIELDS, isBreadRecipe} from '@utils/breadFieldsMigration';
@@ -576,7 +577,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     if (!ok) return;
     const result = isCamera
       ? await ImagePicker.launchCameraAsync({quality: 0.8, base64: Platform.OS === 'web'})
-      : await ImagePicker.launchImageLibraryAsync({
+      : await launchLibrary({
           mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web', allowsMultipleSelection: true, selectionLimit: 3,
         });
     if (result.canceled || result.assets.length === 0) return;
@@ -835,7 +836,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     const result =
       source === 'camera'
         ? await ImagePicker.launchCameraAsync(options)
-        : await ImagePicker.launchImageLibraryAsync(options);
+        : await launchLibrary(options);
     if (result.canceled || result.assets.length === 0) return;
     const uris = await Promise.all(result.assets.slice(0, Math.max(1, room)).map(a => getPersistentUri(a.uri, a.base64)));
     if (slot === 'extra') {
@@ -853,7 +854,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
 
   /** 뷰어에서 추가분 교체 — imageUris의 idx 자리를 새로 고른 사진으로 바꾼다 */
   const replaceExtraHeroAt = useCallback(async (idx: number) => {
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const result = await launchLibrary({
       // 정사각으로 자르지 않는다. 자르기 화면은 안드로이드만(자유 비율) — iOS 자르기는 정사각만 돼서 끈다
       allowsEditing: Platform.OS === 'android',
       quality: 0.8,
@@ -1990,7 +1991,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
       if (!permOk) return;
       const result = isCamera
         ? await ImagePicker.launchCameraAsync({quality: 0.8, base64: Platform.OS === 'web'})
-        : await ImagePicker.launchImageLibraryAsync({mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web'});
+        : await launchLibrary({mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web'});
       if (!result.canceled && result.assets.length > 0) {
         const uris = await Promise.all(
           result.assets.map(a => getPersistentUri(a.uri, a.base64)),
@@ -3876,7 +3877,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
             settingsCancelLabel: t('permission.cancel'),
           });
           if (!ok) return;
-          const result = await ImagePicker.launchImageLibraryAsync({mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web'});
+          const result = await launchLibrary({mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web'});
           if (result.canceled || !result.assets[0]) return;
           const uri = await getPersistentUri(result.assets[0].uri, result.assets[0].base64);
           updateStepPhotos(target.groupId, target.stepId, ps => placeAt(ps, target.index, uri));

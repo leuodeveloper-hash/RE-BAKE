@@ -1,4 +1,5 @@
 import React, {useEffect, useState} from 'react';
+import {launchLibrary} from '@components/AlbumPicker/albumPicker';
 import {Platform, Pressable, StyleSheet, Text, View} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {StepPhotos} from '@components/StepPhotos';
@@ -68,7 +69,7 @@ export function ReviewDialog({visible, onClose, value, onConfirm}: ReviewDialogP
       settingsCancelLabel: t('permission.cancel'),
     });
     if (!ok) return;
-    const result = await ImagePicker.launchImageLibraryAsync({
+    const result = await launchLibrary({
       mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web',
       allowsMultipleSelection: true, selectionLimit: Math.max(1, MAX_REVIEW_PHOTOS - photos.length),
     });

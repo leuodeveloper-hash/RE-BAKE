@@ -1,4 +1,5 @@
 import {ocrFailMessage} from '@utils/ocrFailMessage';
+import {launchLibrary} from '@components/AlbumPicker/albumPicker';
 import React, {useCallback, useRef, useState} from 'react';
 import {logOcrWithImage} from '@utils/ocrLog';
 import {auth} from '@config/firebase';
@@ -85,7 +86,7 @@ export function useImageTextReader({onText, recipePhotos, onBusyChange}: UseImag
     });
     if (!ok) return;
     const opts: ImagePicker.ImagePickerOptions = {mediaTypes: ['images'], quality: 0.9, base64: Platform.OS === 'web'};
-    const result = isCamera ? await ImagePicker.launchCameraAsync(opts) : await ImagePicker.launchImageLibraryAsync(opts);
+    const result = isCamera ? await ImagePicker.launchCameraAsync(opts) : await launchLibrary(opts);
     if (result.canceled || !result.assets[0]) return;
     const asset = result.assets[0];
     const uri = await getPersistentUri(asset.uri, asset.base64);

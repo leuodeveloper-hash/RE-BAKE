@@ -1,4 +1,9 @@
 {
+  "albumPicker.allPhotos": "모든 사진",
+  "albumPicker.denied": "사진 접근이 꺼져 있어요. 허용하면 마지막으로 연 앨범에서 바로 사진을 고를 수 있어요.",
+  "albumPicker.limited": "일부 사진만 허용돼 있어요. 눌러서 더 고르기",
+  "albumPicker.choose": "{{count}}장 넣기",
+  "albumPicker.chooseNone": "사진을 골라 주세요",
   "photoViewer.restyleTitle": "사진 보정 프롬프트",
   "photoViewer.restyleLoading": "불러오는 중…",
   "photoViewer.restyleReset": "기본값",
@@ -560,7 +565,7 @@
   "permission.cameraTitle": "카메라 권한이 꺼져 있어요",
   "permission.cancel": "취소",
   "permission.openSettings": "설정 열기",
-  "permission.photoBody": "설정에서 사진 접근을 허용하면 이미지를 불러와 스캔할 수 있어요.",
+  "permission.photoBody": "설정에서 사진 접근을 허용하면 마지막으로 연 앨범에서 바로 사진을 고를 수 있어요.",
   "permission.photoTitle": "사진 권한이 꺼져 있어요",
   "photo": "사진",
   "photoPermissionNeeded": "사진 권한이 필요해요, 설정에서 허용해주세요",

@@ -1,4 +1,5 @@
 import {ocrFailMessage} from '@utils/ocrFailMessage';
+import {launchLibrary} from '@components/AlbumPicker/albumPicker';
 import React, {useCallback, useState} from 'react';
 import {Keyboard, Platform, ViewStyle} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
@@ -207,7 +208,7 @@ export function RecipeInputFloatingBar({
       };
       const result = source === 'camera'
         ? await ImagePicker.launchCameraAsync(pickerOptions)
-        : await ImagePicker.launchImageLibraryAsync(pickerOptions);
+        : await launchLibrary(pickerOptions);
       const asset = result.canceled ? undefined : result.assets[0];
       if (!asset) return;
       // 크기를 알면 영역 지정 크롭, 모르면(드묾) 전체 이미지로 바로 인식
