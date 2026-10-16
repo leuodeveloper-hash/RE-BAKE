@@ -98,7 +98,7 @@ export function EditableChip({
     yellow: {
       backgroundColor: colors['custom/yellow-subtle'],
       iconColor: colors['custom/yellow'],
-      textColor: colors['custom/yellow-var'],
+      textColor: colors['custom/yellow-on-container'],
       barColor: colors['custom/yellow-var'],
       placeholderColor: colors['custom/yellow-var'],
       Icon: IconCircleAlertFilled,

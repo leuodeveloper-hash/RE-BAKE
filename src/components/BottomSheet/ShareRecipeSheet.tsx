@@ -1,5 +1,5 @@
 import React, {useRef} from 'react';
-import {Platform, Pressable, Share, StyleSheet, Text, View} from 'react-native';
+import {Linking, Platform, Pressable, Share, StyleSheet, Text, View} from 'react-native';
 import {Image as ExpoImage} from 'expo-image';
 import {Dialog} from '@components/Dialog/Dialog';
 import {Avatar} from '@components/Avatar';
@@ -26,6 +26,15 @@ export interface ShareRecipeSheetProps {
 }
 
 const CARD_W = 300;
+/** 메타(페이스북) 앱 ID — 인스타 스토리에 이미지를 바로 넘길 때 보낸 앱 확인용(공개 값) */
+const META_APP_ID = '981260695017508';
+/** 카드 바탕 = 스토리 배경(같은 검정) */
+const STORY_BG = '#1f1f1f';
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const INSTAGRAM_STORIES = require('../../../assets/images/instagram_stories.png');
+/** 이미지 버튼 — 토날 IconButton large와 같은 크기 */
+const ACTION_SIZE = 48;
+const ACTION_TOUCH = 56;
 const PHOTO = 220;
 
 /**
@@ -113,10 +122,51 @@ export function ShareRecipeSheet({visible, onClose, recipe, linkable}: ShareReci
     }
   };
 
+  // 인스타 스토리 — 카드 이미지를 스토리 편집 화면에 바로 붙여 연다(메타 앱 ID로 보낸 앱을 확인한다).
+  // 연동이 안 되는 환경이면 카드를 복사해 두고 스토리 카메라만 연다(거기서 붙여넣기)
+  const shareStory = async () => {
+    triggerHaptic('light');
+    let base64: string;
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const {captureRef} = require('react-native-view-shot');
+      base64 = await captureRef(cardRef, {format: 'png', quality: 1, result: 'base64'});
+    } catch (e) {
+      console.warn('[share] 스토리용 카드 만들기 실패:', e);
+      showSnackbar(t('shareCard.captureFailed'));
+      return;
+    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const Share = require('react-native-share').default;
+      await Share.shareSingle({
+        social: Share.Social.INSTAGRAM_STORIES,
+        appId: META_APP_ID,
+        backgroundImage: `data:image/png;base64,${base64}`,
+        backgroundTopColor: STORY_BG,
+        backgroundBottomColor: STORY_BG,
+      });
+      return;
+    } catch (e) {
+      console.warn('[share] 인스타 스토리 연동 실패, 붙여넣기 방식으로:', e);
+    }
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const Clipboard = require('expo-clipboard');
+      await Clipboard.setImageAsync(base64);
+      await Linking.openURL('instagram://story-camera');
+      showSnackbar(t('shareCard.storyCopied'), {tone: 'positive'});
+    } catch {
+      showSnackbar(t('shareCard.instagramUnavailable'));
+    }
+  };
+
   const actions = [
     ...(linkable ? [{key: 'link', icon: IconLink, label: t('shareCard.copyLink'), onPress: copyLink}] : []),
     {key: 'save', icon: IconArrowDownToLine, label: t('shareCard.saveImage'), onPress: saveImage},
-    // 인스타 스토리 — 카드 이미지를 기기 공유 창으로(인스타그램 → 스토리). 바로 스토리로 여는 건 인스타 전용 연동이 필요하다
+    // 스토리는 앱에서만(인스타그램 앱으로 이동)
+    ...(Platform.OS !== 'web' ? [{key: 'story', image: INSTAGRAM_STORIES, label: t('shareCard.story'), onPress: shareStory}] : []),
+    // 공유는 맨 끝 — 기기 공유 창
     {key: 'share', icon: IconShare, label: t('shareCard.share'), onPress: shareCard},
   ];
 
@@ -153,7 +203,13 @@ export function ShareRecipeSheet({visible, onClose, recipe, linkable}: ShareReci
         <View style={styles.actions}>
           {actions.map(a => (
             <View key={a.key} style={styles.action}>
-              <IconButton icon={a.icon} variant="tonal" size="large" onPress={a.onPress} />
+              {'image' in a ? (
+                <Pressable onPress={a.onPress} style={styles.actionImageTouch}>
+                  <ExpoImage source={a.image} style={styles.actionImage} contentFit="cover" />
+                </Pressable>
+              ) : (
+                <IconButton icon={a.icon} variant="tonal" size="large" onPress={a.onPress} />
+              )}
               <Text style={styles.actionLabel}>{a.label}</Text>
             </View>
           ))}
@@ -167,7 +223,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   wrap: {alignItems: 'center', gap: Spacing.lg},
   card: {
     width: CARD_W,
-    backgroundColor: '#1f1f1f',
+    backgroundColor: STORY_BG,
     borderRadius: Radius['radius-xl'],
     paddingVertical: Spacing.lg,
     alignItems: 'center',
@@ -199,5 +255,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   by: {...Typography.body.medium, color: 'rgba(255,255,255,0.72)'},
   actions: {flexDirection: 'row', justifyContent: 'center', gap: Spacing.lg},
   action: {alignItems: 'center', gap: Spacing.xs},
+  actionImageTouch: {width: ACTION_TOUCH, height: ACTION_TOUCH, alignItems: 'center', justifyContent: 'center'},
+  actionImage: {width: ACTION_SIZE, height: ACTION_SIZE, borderRadius: ACTION_SIZE / 2},
   actionLabel: {...Typography.caption.medium, color: colors['foreground/on-surface-muted']},
 });
