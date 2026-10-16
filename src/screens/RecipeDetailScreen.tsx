@@ -570,6 +570,30 @@ export function RecipeDetailScreen({
     const start = allPhotos.findIndex(p => p.src === src);
     if (start >= 0) setViewerIndex(start + i);
   }, [allPhotos]);
+  /** 뷰어에서 보정한 사진을 그 자리에 — 대표·과정·조언 사진(회고 사진은 계정 쪽이라 제외) */
+  const handleViewerRestyled = useCallback((idx: number, uri: string) => {
+    const entry = allPhotos[idx];
+    if (!entry || !onUpdate) return;
+    const local = idx - allPhotos.findIndex(p => p.src === entry.src);
+    if (entry.src === 'hero') {
+      const next = heroPhotos.map(p => p.uri).map((u, i) => (i === local ? uri : u));
+      onUpdate({imageUri: next[0] ?? null, imageUris: next.slice(1)});
+    } else if (entry.src === 'advice') {
+      onUpdate({advicePhotos: (advicePhotos ?? []).map((u, i) => (i === local ? uri : u))});
+    } else if (stepGroups && stepGroups.length > 0) {
+      onUpdate({stepGroups: stepGroups.map(g => ({...g, steps: g.steps.map(st => st.photos === entry.src
+        ? {...st, photos: (st.photos ?? []).map((p: any, i: number) => (i === local ? (typeof p === 'string' ? uri : {...p, uri}) : p))}
+        : st)}))});
+    } else if (steps) {
+      onUpdate({steps: steps.map(st => st.photos === entry.src
+        ? {...st, photos: (st.photos ?? []).map((p: any, i: number) => (i === local ? (typeof p === 'string' ? uri : {...p, uri}) : p))}
+        : st)});
+    }
+  }, [allPhotos, onUpdate, heroPhotos, advicePhotos, stepGroups, steps]);
+  // 회고 사진은 보정 대상이 아니다
+  const viewerSrc = viewerIndex !== null ? allPhotos[viewerIndex]?.src : undefined;
+  const viewerCanRestyle = !!onUpdate && viewerSrc != null
+    && viewerSrc !== reviews?.[reviews.length - 1]?.photos;
   // 지금 보는 사진이 대표 사진이면 뷰어에서 바로 더 올릴 수 있다
   const viewerIsHero = viewerIndex !== null && allPhotos[viewerIndex]?.src === 'hero';
 
@@ -1842,6 +1866,7 @@ export function RecipeDetailScreen({
         onAdd={viewerIsHero && canEdit ? handleHeroAdd : undefined}
         onIndexChange={setViewerIndex}
         onClose={() => setViewerIndex(null)}
+        onRestyled={viewerCanRestyle ? handleViewerRestyled : undefined}
         onDownload={onDownloadPhoto && viewerIndex !== null
           ? () => onDownloadPhoto(allPhotos[viewerIndex]?.uri ?? '')
           : undefined}

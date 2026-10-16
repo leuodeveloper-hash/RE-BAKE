@@ -1,4 +1,13 @@
 {
+  "photoViewer.restyleTitle": "Retouch prompt",
+  "photoViewer.restyleLoading": "Loading…",
+  "photoViewer.restyleReset": "Default",
+  "photoViewer.restyleCancel": "Cancel",
+  "photoViewer.restyleRun": "Retouch",
+  "photoViewer.restyleUndo": "Revert to original",
+  "photoViewer.restyleUndone": "Reverted to original",
+  "photoViewer.restyleNoCredit": "No OpenAI credits. Add credits in API billing",
+  "photoViewer.restyleAdminOnly": "Admins only",
   "photoViewer.restyled": "Retouched to cover style",
   "photoViewer.restyleFailed": "Couldn't retouch",
   "addGroup": "Add group",

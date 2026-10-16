@@ -9,8 +9,8 @@ import {GlassContainer} from '@components/Container';
 import {IconButton} from '@components/IconButton';
 import {IconClose, IconChoose, IconTrash, IconArrowDownToLine, IconAdd, IconSparkle} from '@components/Icon/IconIndex';
 import {useAuth} from '@contexts/AuthContext';
-import {useSnackbar} from '@contexts/SnackbarContext';
-import {restylePhoto} from '@utils/photoRestyle';
+import {loadStylePrompt, restylePhoto} from '@utils/photoRestyle';
+import {Button} from '@components/Button';
 import {ForceDarkTheme} from '@contexts/ThemeContext';
 import {Menu} from '@components/Menu';
 import {photoSourceMenuItems, type PhotoSource} from '@utils/photoSourceMenu';
@@ -79,9 +79,33 @@ export function PhotoViewer({
   onRestyled,
 }: PhotoViewerProps) {
   const {isAdmin} = useAuth();
-  const {showSnackbar} = useSnackbar();
-  const canRestyle = isAdmin && !!onRestyled;
+    const canRestyle = isAdmin && !!onRestyled;
   const [restyling, setRestyling] = useState(false);
+  // 보정 시트 — 프롬프트를 보여주고 고쳐서 쓴다(뷰어 모달 안에 띄운다: 시트를 또 띄우면 iOS에서 모달이 겹쳐 안 뜬다)
+  const [restyleSheet, setRestyleSheet] = useState(false);
+  const [promptDraft, setPromptDraft] = useState('');
+  const [promptLoading, setPromptLoading] = useState(false);
+  const openRestyle = async (reset = false) => {
+    setRestyleSheet(true);
+    setPromptLoading(true);
+    try {
+      const {prompt} = await loadStylePrompt(reset);
+      setPromptDraft(prompt);
+    } catch (e: any) {
+      setRestyleNote({text: `${t('photoViewer.restyleFailed')}\n${String(e?.message ?? '').slice(0, 80)}`, error: true});
+    } finally {
+      setPromptLoading(false);
+    }
+  };
+  // 되돌리기 — 보정 전 사진(이 뷰어를 닫기 전까지)
+  const [undo, setUndo] = useState<{index: number; uri: string} | null>(null);
+  // 보정 결과 안내 — 뷰어는 모달이라 앱 스낵바가 뒤에 깔려 안 보인다. 뷰어 안에 잠깐 띄운다
+  const [restyleNote, setRestyleNote] = useState<{text: string; error: boolean} | null>(null);
+  useEffect(() => {
+    if (!restyleNote) return;
+    const id = setTimeout(() => setRestyleNote(null), restyleNote.error ? 6000 : 2500);
+    return () => clearTimeout(id);
+  }, [restyleNote]);
   const {width: containerWidth, height: windowHeight} = useWindowDimensions();
   // 사진 영역 높이 — 화면의 74%(예전 imageFrame과 같은 비율). 스크롤 안이라 퍼센트 대신 숫자로 준다
   const pageHeight = Math.round(windowHeight * 0.74);
@@ -132,14 +156,21 @@ export function PhotoViewer({
     const at = index;
     const src = photos[at]?.uri;
     if (!src) return;
+    setRestyleSheet(false);
     setRestyling(true);
     try {
-      const url = await restylePhoto(src);
+      const url = await restylePhoto(src, promptDraft);
       onRestyled(at, url);
-      showSnackbar(t('photoViewer.restyled'), {tone: 'positive'});
+      setUndo({index: at, uri: src});
+      setRestyleNote({text: t('photoViewer.restyled'), error: false});
     } catch (e: any) {
       console.warn('[PhotoViewer] 보정 실패:', e);
-      showSnackbar(`${t('photoViewer.restyleFailed')}${e?.message ? ` (${String(e.message).slice(0, 60)})` : ''}`, {tone: 'error'});
+      const msg = String(e?.message ?? '');
+      // 자주 나는 이유는 알아듣게 — 크레딧 없음(429)·권한
+      const reason = /OPENAI_429|credits|quota/i.test(msg) ? t('photoViewer.restyleNoCredit')
+        : /ADMIN_ONLY|permission/i.test(msg) ? t('photoViewer.restyleAdminOnly')
+        : msg.slice(0, 80);
+      setRestyleNote({text: `${t('photoViewer.restyleFailed')}${reason ? `\n${reason}` : ''}`, error: true});
     } finally {
       setRestyling(false);
     }
@@ -207,6 +238,43 @@ export function PhotoViewer({
             ) : currentCaption.trim() ? (
               <Text style={styles.captionText}>{currentCaption}</Text>
             ) : null}
+            {restyleNote ? (
+              <View pointerEvents="none" style={styles.noteWrap}>
+                <Text style={[styles.note, restyleNote.error && styles.noteError]}>{restyleNote.text}</Text>
+              </View>
+            ) : null}
+            {/* 보정 되돌리기 — 보정한 그 장을 보고 있을 때 */}
+            {undo && undo.index === index && !restyleSheet ? (
+              <View style={styles.undoWrap}>
+                <Button
+                  label={t('photoViewer.restyleUndo')}
+                  variant="soft"
+                  size="small"
+                  onPress={() => { onRestyled?.(undo.index, undo.uri); setUndo(null); setRestyleNote({text: t('photoViewer.restyleUndone'), error: false}); }}
+                />
+              </View>
+            ) : null}
+            {/* 보정 시트 — 프롬프트 확인·수정 후 보정 */}
+            {restyleSheet ? (
+              <View style={styles.sheet}>
+                <Text style={styles.sheetTitle}>{t('photoViewer.restyleTitle')}</Text>
+                <TextInput
+                  style={styles.promptInput}
+                  value={promptLoading ? '' : promptDraft}
+                  onChangeText={setPromptDraft}
+                  placeholder={promptLoading ? t('photoViewer.restyleLoading') : ''}
+                  placeholderTextColor="rgba(255,255,255,0.45)"
+                  multiline
+                  editable={!promptLoading}
+                />
+                <View style={styles.sheetActions}>
+                  <Button label={t('photoViewer.restyleReset')} variant="ghost" size="small" onPress={() => openRestyle(true)} disabled={promptLoading} />
+                  <View style={{flex: 1}} />
+                  <Button label={t('photoViewer.restyleCancel')} variant="soft" size="small" onPress={() => setRestyleSheet(false)} />
+                  <Button label={t('photoViewer.restyleRun')} variant="filled" size="small" onPress={runRestyle} disabled={promptLoading || !promptDraft.trim()} />
+                </View>
+              </View>
+            ) : null}
             {/* 아래 작은 썸네일 줄 — 숫자·눈금 대신 사진으로. 눌러서 건너뛴다 */}
             {total > 1 && (
               <View style={styles.bottomNav}>
@@ -249,7 +317,7 @@ export function PhotoViewer({
               right={hasRightActions ? (
                 <GlassContainer contentStyle={navPillStyle}>
                   {canRestyle && (
-                    <IconButton icon={IconSparkle} onPress={runRestyle} variant="ghost-primary" size="medium" loading={restyling} disabled={restyling} />
+                    <IconButton icon={IconSparkle} onPress={() => openRestyle()} variant="ghost-primary" size="medium" loading={restyling} disabled={restyling} forcePressed={restyleSheet} />
                   )}
                   {onAdd && (
                     <IconButton icon={IconAdd} onPress={() => setShowAddMenu(v => !v)} variant="ghost-primary" size="medium" forcePressed={showAddMenu} />
@@ -298,6 +366,63 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     padding: 2,
+  },
+  undoWrap: {
+    position: 'absolute',
+    bottom: 196,
+    alignSelf: 'center',
+  },
+  sheet: {
+    position: 'absolute',
+    left: Spacing.sm,
+    right: Spacing.sm,
+    bottom: Spacing.sm,
+    zIndex: 30,
+    padding: Spacing.md,
+    gap: Spacing.sm,
+    borderRadius: Radius['radius-xl'],
+    backgroundColor: '#1f1f1f',
+    maxWidth: MAX_CONTENT_WIDTH,
+    alignSelf: 'center',
+  },
+  sheetTitle: {
+    ...Typography.title.small,
+    color: '#FFFFFF',
+  },
+  promptInput: {
+    ...Typography.body.medium,
+    color: '#FFFFFF',
+    minHeight: 120,
+    maxHeight: 220,
+    padding: Spacing.smd,
+    borderRadius: Radius['radius-md'],
+    backgroundColor: 'rgba(255,255,255,0.08)',
+    textAlignVertical: 'top',
+  },
+  sheetActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.sm,
+  },
+  noteWrap: {
+    position: 'absolute',
+    left: Spacing.md,
+    right: Spacing.md,
+    bottom: 140,
+    alignItems: 'center',
+  },
+  note: {
+    ...Typography.body.medium,
+    color: '#FFFFFF',
+    textAlign: 'center',
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    borderRadius: Radius['radius-md'],
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    overflow: 'hidden',
+  },
+  noteError: {
+    backgroundColor: 'rgba(220,60,60,0.85)',
   },
   sliderCol: {
     flex: 1,

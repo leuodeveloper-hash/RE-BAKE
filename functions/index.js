@@ -374,12 +374,16 @@ export const restoreRecipesAt = onCall(
 // ---------------------------------------------------------------------------
 const OPENAI_API_KEY = defineSecret('OPENAI_API_KEY');
 const DEFAULT_PHOTO_STYLE_PROMPT = [
-  'Retouch this baking photo into a clean editorial cookbook cover shot.',
-  'Keep the exact same baked goods: same shape, size, color, texture, quantity and arrangement. Do not add or remove food.',
-  'Soft warm natural window light, gentle shadows, true-to-life colors, slightly bright and airy.',
-  'Simple tidy background in warm cream or light neutral tones, remove clutter and distracting objects.',
-  'Subject centered, sharp focus, high detail, no text, no watermark, photorealistic.',
-].join(' ');
+  '너는 하마다 히데아키의 사진에서 영감을 받은 감각을 가진 전문 푸드 사진작가이자 포토에디터야. 원본 베이킹 사진을 분석해 주인공(빵·디저트)을 찾아내고, 구도부터 색감까지 완성도 높게 개선해 줘.',
+  '1. 구도: 주인공을 파악하고 크롭과 여백만으로 가장 좋은 구도를 만든다. 음식과 소품의 위치·각도·배치는 옮기거나 돌리지 않는다.',
+  '2. 빛: 창가의 부드러운 자연광 느낌을 살리고, 노출과 명암을 부드럽게 보정한다. 그림자는 은은하게.',
+  '3. 색감: 하마다 히데아키의 사진에서 영감을 받은 맑고 담백한 색감. 화이트 밸런스는 중립으로, 흰색은 흰색 그대로. 노랗거나 주황빛 톤을 더하지 않는다. 빵의 구운 색은 실제 그대로 자연스럽게.',
+  '4. 배경·환경: 실제 배경의 모습은 유지하되 어수선한 물건은 덜어내고 단순하고 정돈된 느낌으로.',
+  '5. 분위기: 일상의 한 순간을 포착한 듯 자연스럽고 차분하게.',
+  '6. 원본 유지: 음식의 모양, 크기, 개수, 질감, 단면, 토핑을 그대로 보존한다. 새로운 음식이나 소품을 더하거나 빼지 않는다.',
+  '7. 금지: 과한 필터, 인위적인 블러, 과한 채도·광택, AI 특유의 매끈하고 부자연스러운 느낌, 글자·로고·워터마크.',
+  '사진마다 가장 적합한 구도와 보정 방식을 스스로 판단하고, 단순한 색감 보정을 넘어 전문 푸드 사진작가가 촬영한 듯한 완성도 높은 사진 한 장을 만들어 줘.',
+].join('\n');
 
 export const restylePhoto = onCall(
   {region: 'asia-northeast3', memory: '1GiB', timeoutSeconds: 180, secrets: [OPENAI_API_KEY]},
@@ -403,8 +407,16 @@ export const restylePhoto = onCall(
     }
     if (bytes.length > 8 * 1024 * 1024) throw new HttpsError('invalid-argument', 'IMAGE_TOO_LARGE');
 
-    const style = (await db.doc('config/photoStyle').get()).data();
-    const prompt = (typeof style?.prompt === 'string' && style.prompt.trim()) || DEFAULT_PHOTO_STYLE_PROMPT;
+    // 앱에서 고친 프롬프트가 오면 그걸 쓰고, 다음에도 쓰게 저장한다
+    const custom = typeof req.data?.prompt === 'string' ? req.data.prompt.trim().slice(0, 2000) : '';
+    let prompt;
+    if (custom) {
+      prompt = custom;
+      await db.doc('config/photoStyle').set({prompt: custom, updatedAt: Timestamp.now(), updatedBy: uid}, {merge: true});
+    } else {
+      const style = (await db.doc('config/photoStyle').get()).data();
+      prompt = (typeof style?.prompt === 'string' && style.prompt.trim()) || DEFAULT_PHOTO_STYLE_PROMPT;
+    }
 
     const form = new FormData();
     form.append('model', 'gpt-image-1');
@@ -437,5 +449,23 @@ export const restylePhoto = onCall(
     });
     const url = `https://firebasestorage.googleapis.com/v0/b/${bucket.name}/o/${encodeURIComponent(path)}?alt=media&token=${token}`;
     return {url};
+  },
+);
+
+/** 보정 프롬프트 읽기(어드민) — 저장된 게 없으면 기본 템플릿. reset이면 기본으로 되돌린다 */
+export const photoStylePrompt = onCall(
+  {region: 'asia-northeast3', memory: '256MiB'},
+  async (req) => {
+    const uid = req.auth?.uid;
+    if (!uid) throw new HttpsError('unauthenticated', 'LOGIN_REQUIRED');
+    const db = getFirestore();
+    if (!(await db.collection('admin').doc(uid).get()).exists) throw new HttpsError('permission-denied', 'ADMIN_ONLY');
+    if (req.data?.reset) {
+      await db.doc('config/photoStyle').set({prompt: '', updatedAt: Timestamp.now(), updatedBy: uid}, {merge: true});
+      return {prompt: DEFAULT_PHOTO_STYLE_PROMPT, isDefault: true};
+    }
+    const style = (await db.doc('config/photoStyle').get()).data();
+    const saved = typeof style?.prompt === 'string' ? style.prompt.trim() : '';
+    return {prompt: saved || DEFAULT_PHOTO_STYLE_PROMPT, isDefault: !saved};
   },
 );

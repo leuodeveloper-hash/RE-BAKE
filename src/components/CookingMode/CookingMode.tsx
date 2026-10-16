@@ -2263,6 +2263,14 @@ export function CookingMode({
               onClose={() => setViewerPhoto(null)}
               onReplace={canEdit ? doReplace : undefined}
               onDelete={canEdit ? doDelete : undefined}
+              // 보정(어드민) — 그 자리 사진만 바꾼다. 편집 중이면 편집 카드, 보기면 바로 저장
+              onRestyled={canEdit ? (pi, uri) => {
+                const {card, editing} = viewerPhoto;
+                const np = (card.photos ?? []).map((p, k) => (k === pi ? {...p, uri} : p));
+                if (editing) updateCardPhotos(card.globalIndex, np);
+                else commitStepPhotos(card, np);
+                setViewerPhoto(v => (v ? {...v, card: {...v.card, photos: np}} : v));
+              } : undefined}
             />
           );
         })()}
