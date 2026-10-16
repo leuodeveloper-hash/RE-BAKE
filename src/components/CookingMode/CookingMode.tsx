@@ -2006,12 +2006,15 @@ export function CookingMode({
                       {/* 보기 모드 사진 추가 — 편집에 들어가야만 넣을 수 있어
                           "이미지 등록이 안 된다"고 느껴졌다. 스텝 카드와 같은 흐름. */}
                       {!isEditing && canEdit && !!onUpdate && viewAdvicePhotos.length < MAX_PHOTOS && (
-                        <Pressable
+                        // 과정 사진과 같은 공통 추가 칸(점선 + +) — 라벨 없이, 조언 사진과 같은 크기. 노랑 카드 안이라 노랑 점선
+                        <AddSlot
+                          variant="yellow"
+                          size={containerWidth >= TABLET_BREAKPOINT ? 140 : 96}
+                          radius={16}
+                          iconSize="md"
                           onPress={() => addAdvicePhotoView('gallery')}
-                          style={styles.adviceAddPhoto}>
-                          <AppIcon icon={IconAdd} size="sm" color={colors['foreground/on-surface-muted']} />
-                          <Text style={styles.adviceAddPhotoText}>{t('cookingMode.photo')}</Text>
-                        </Pressable>
+                          style={styles.adviceAddPhoto}
+                        />
                       )}
                       {/* Add menu */}
                       {isEditing && isOnAdviceCard && (
@@ -2647,21 +2650,7 @@ const createStyles = (colors: SemanticColors) =>
     },
     // 보기 모드 사진 추가 버튼 (조언 카드) — 점선 테두리의 조용한 액션
     adviceAddPhoto: {
-      flexDirection: 'row',
-      alignItems: 'center',
       alignSelf: 'flex-start',
-      gap: Spacing.xs,
       marginTop: Spacing.sm,
-      paddingVertical: Spacing.xs,
-      paddingHorizontal: Spacing.smd,
-      // 이 파일은 숫자 반경을 그대로 쓴다(Radius 토큰 미사용) — 알약 형태
-      borderRadius: 999,
-      borderWidth: 1,
-      borderStyle: 'dashed',
-      borderColor: colors['border/normal'],
-    },
-    adviceAddPhotoText: {
-      ...Typography.caption.medium,
-      color: colors['foreground/on-surface-muted'],
     },
   });
