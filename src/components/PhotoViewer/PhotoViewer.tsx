@@ -6,7 +6,7 @@ import {Selector} from '@components/Selector';
 import {BottomActionBar} from '@components/BottomActionBar';
 import {GlassContainer} from '@components/Container';
 import {IconButton} from '@components/IconButton';
-import {IconClose, IconPhoto, IconTrash, IconArrowDownToLine, IconAdd} from '@components/Icon/IconIndex';
+import {IconClose, IconChoose, IconTrash, IconArrowDownToLine, IconAdd} from '@components/Icon/IconIndex';
 import {ForceDarkTheme} from '@contexts/ThemeContext';
 import {Menu} from '@components/Menu';
 import {photoSourceMenuItems, type PhotoSource} from '@utils/photoSourceMenu';
@@ -220,7 +220,7 @@ export function PhotoViewer({
                     <IconButton icon={IconAdd} onPress={() => setShowAddMenu(v => !v)} variant="ghost-primary" size="medium" forcePressed={showAddMenu} />
                   )}
                   {onReplace && (
-                    <IconButton icon={IconPhoto} onPress={() => runPick(onReplace)} variant="ghost-primary" size="medium" />
+                    <IconButton icon={IconChoose} onPress={() => runPick(onReplace)} variant="ghost-primary" size="medium" />
                   )}
                   {onDelete && (
                     <IconButton icon={IconTrash} onPress={onDelete} variant="ghost-primary" size="medium" />
