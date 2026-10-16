@@ -720,10 +720,10 @@ export function RecipeDetailScreen({
   // ---- 기존 로직 ----
   const hasFlourBase = useMemo(() => hasFlour(ingredientGroups), [ingredientGroups]);
   const computedGroups = useMemo(() => computeBakersPercentages(ingredientGroups), [ingredientGroups]);
-  // 한번에 보기 — 재료·과정을 줄 목록 대신 글 한 덩어리로. 처음엔 꺼져 있고, 켜든 끄든 마지막 선택을 기기에 기억
-  const [bulkView, setBulkView] = useState(false);
+  // 한번에 보기 — 재료·과정을 줄 목록 대신 글 한 덩어리로. 기본은 켜짐, 켜든 끄든 마지막 선택을 기기에 기억
+  const [bulkView, setBulkView] = useState(true);
   useEffect(() => {
-    AsyncStorage.getItem('@bakle_detail_bulk_view').then(v => { if (v === '1') setBulkView(true); }).catch(() => {});
+    AsyncStorage.getItem('@bakle_detail_bulk_view').then(v => { if (v === '0') setBulkView(false); }).catch(() => {});
   }, []);
   // 편집으로 — 한번에 보기 중이면 편집도 한번에 쓰기로
   const editWith = (section?: string) => onEdit?.(section, {bulk: bulkView});
