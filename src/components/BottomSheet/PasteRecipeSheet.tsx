@@ -145,8 +145,6 @@ export function PasteRecipeSheet({visible, onClose, onApply, initialText, loadin
   );
 }
 
-const INPUT_MAX_HEIGHT = 320;
-
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 다른 시트 본문과 같게 — 좌우·상하 8
   body: {
@@ -160,12 +158,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingHorizontal: Spacing.smd,
     paddingVertical: Spacing.sm,
     minHeight: 200,
-    // 칸은 최대 320까지만 — 넘치면 칸 안에서 스크롤(키보드가 올라와도 커서가 보이게)
-    maxHeight: INPUT_MAX_HEIGHT,
+    // 높이 제한 없음 — 글만큼 늘고 넘치면 시트가 스크롤한다(320으로 묶었더니 인식한 긴 글이 잘렸다)
   },
   input: {
     ...Typography.body.medium,
-    maxHeight: INPUT_MAX_HEIGHT - Spacing.sm * 2,
     color: colors['foreground/on-surface'],
   },
   // 오버레이를 입력 글자 자리에 겹친다 — inputWrap 안쪽 여백과 같게

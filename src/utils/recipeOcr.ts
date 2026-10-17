@@ -12,7 +12,9 @@ export function normalizeOcrWhitespace(s: string): string {
   if (!s) return '';
   return s
     .replace(/[   ]/g, ' ')
-    .replace(/[ \t\f\v]+/g, ' ')
+    // 표 칸 사이(두 칸 공백)는 남긴다 — 하나로 합치면 재료 이름과 분량 경계가 사라진다
+    .replace(/[\t\f\v]+/g, ' ')
+    .replace(/ {3,}/g, '  ')
     .replace(/[ \t]*\n[ \t]*/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
@@ -32,7 +34,36 @@ export async function recognizeImageText(imageUri: string): Promise<string> {
     uri = (await FileSystem.downloadAsync(imageUri, target)).uri;
   }
   const result = await TextRecognition.recognize(uri, TextRecognitionScript.KOREAN);
-  return normalizeOcrWhitespace(result.text || '');
+  return normalizeOcrWhitespace(rebuildRows(result) || result.text || '');
+}
+
+/**
+ * 표를 줄 단위로 다시 묶는다.
+ * ML Kit은 글을 세로 단(블록) 순서로 돌려줘서, 표를 읽으면 "이름 전부 → 분량 전부"로 나와 줄이 어긋났다.
+ * 인식된 줄마다 위치(frame)를 보고, 세로 가운데가 비슷한 줄끼리 한 줄로 모아 왼쪽부터 잇는다.
+ * 위치가 없으면(드묾) null — 기존 글 그대로.
+ */
+function rebuildRows(result: {blocks?: {lines?: {text: string; frame?: {top: number; left: number; width: number; height: number}}[]}[]}): string | null {
+  const lines = (result.blocks ?? []).flatMap(b => b.lines ?? [])
+    .filter(l => l.text?.trim() && l.frame && l.frame.height > 0);
+  if (lines.length === 0) return null;
+  const items = lines.map(l => ({text: l.text.trim(), x: l.frame!.left, cy: l.frame!.top + l.frame!.height / 2, h: l.frame!.height}));
+  // 한 줄로 볼 세로 거리 — 글자 높이의 절반쯤(중간값 기준이라 큰 제목에 흔들리지 않는다)
+  const hs = items.map(i => i.h).sort((a, b) => a - b);
+  const tol = hs[Math.floor(hs.length / 2)] * 0.55;
+  items.sort((a, b) => a.cy - b.cy);
+  const rows: {cy: number; cells: typeof items}[] = [];
+  for (const it of items) {
+    const row = rows[rows.length - 1];
+    if (row && Math.abs(it.cy - row.cy) <= tol) {
+      row.cells.push(it);
+      row.cy = row.cells.reduce((s, c) => s + c.cy, 0) / row.cells.length;
+    } else {
+      rows.push({cy: it.cy, cells: [it]});
+    }
+  }
+  // 칸 사이는 두 칸 띄움 — 표 칸 나누기(splitTableRow)가 넓은 공백을 칸 경계로 본다
+  return rows.map(r => r.cells.sort((a, b) => a.x - b.x).map(c => c.text).join('  ')).join('\n');
 }
 
 export class OcrValidationError extends Error {
