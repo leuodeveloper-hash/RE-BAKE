@@ -144,7 +144,11 @@ export function SectionHeader({
               <IconButton icon={IconEllipsisVertical} variant="ghost-secondary" size="small" forcePressed={menuOpen} onPress={() => setMenuOpen(v => !v)} />
               <Menu
                 // 묶음(비율 조절 등)이 위, 항목(편집 등)은 아래
-                sections={[...(menuExtraSections ?? []), ...(menuItems?.length ? [{items: menuItems, dividerBefore: !!menuExtraSections?.length}] : [])]}
+                // 항목(편집 등)이 위, 컨트롤(비율 조절 등)은 아래 — 사이에 구분선
+                sections={[
+                  ...(menuItems?.length ? [{items: menuItems}] : []),
+                  ...(menuExtraSections ?? []).map((sec, i) => (i === 0 && menuItems?.length ? {...sec, dividerBefore: true} : sec)),
+                ]}
                 visible={menuOpen}
                 onSelect={id => { setMenuOpen(false); onMenuSelect?.(id); }}
                 onClose={() => setMenuOpen(false)}

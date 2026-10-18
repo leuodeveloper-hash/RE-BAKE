@@ -750,10 +750,11 @@ export function RecipeDetailScreen({
   // ---- 기존 로직 ----
   const hasFlourBase = useMemo(() => hasFlour(ingredientGroups), [ingredientGroups]);
   const computedGroups = useMemo(() => computeBakersPercentages(ingredientGroups), [ingredientGroups]);
-  // 한번에 보기 — 재료·과정을 줄 목록 대신 글 한 덩어리로. 기본은 켜짐, 켜든 끄든 마지막 선택을 기기에 기억
+  // 한번에 보기 — 재료·과정을 줄 목록 대신 글 한 덩어리로. 처음은 한번에 보기, 그다음은 마지막에 본 보기로.
+  // 저장 키를 새로 — 예전에 한 번 꺼 둔 기기도 한번에 보기부터 시작한다
   const [bulkView, setBulkView] = useState(true);
   useEffect(() => {
-    AsyncStorage.getItem('@bakle_detail_bulk_view').then(v => { if (v === '0') setBulkView(false); }).catch(() => {});
+    AsyncStorage.getItem(BULK_VIEW_KEY).then(v => { if (v === '0') setBulkView(false); }).catch(() => {});
   }, []);
   // 편집으로 — 한번에 보기 중이면 편집도 한번에 쓰기로
   const editWith = (section?: string) => onEdit?.(section, {bulk: bulkView});
@@ -764,7 +765,7 @@ export function RecipeDetailScreen({
   }, [onRefresh]);
   const toggleBulkView = useCallback((v: boolean) => {
     setBulkView(v);
-    AsyncStorage.setItem('@bakle_detail_bulk_view', v ? '1' : '0').catch(() => {});
+    AsyncStorage.setItem(BULK_VIEW_KEY, v ? '1' : '0').catch(() => {});
   }, []);
   const ingredientsHasContent = useMemo(
     () => computedGroups.some(g => g.ingredients.length > 0),
@@ -2001,6 +2002,8 @@ export function RecipeDetailScreen({
 }
 
 const HERO_HEIGHT = 280;
+/** 상세 보기(한번에 보기/줄 목록) 마지막 선택 */
+const BULK_VIEW_KEY = '@bakle_detail_bulk_view_v2';
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 한번에 보기
