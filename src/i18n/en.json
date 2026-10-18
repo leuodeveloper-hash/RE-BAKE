@@ -1,4 +1,9 @@
 {
+  "stepTemplate.saveGroup": "Save whole section",
+  "stepTemplate.groupSaved": "Section saved",
+  "stepTemplate.groupEmpty": "No steps to save",
+  "stepTemplate.groupInserted": "Section added",
+  "stepTemplate.groupSub": "Section · {{count}} steps",
   "photoViewer.restyleExtraLabel": "Extra request",
   "stepTemplate.edit": "Edit",
   "stepTemplate.delete": "Delete",

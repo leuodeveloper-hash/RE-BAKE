@@ -288,7 +288,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const [focusedStep, setFocusedStep] = useState<{groupId: string; stepId: string} | null>(null);
   // 자주 쓰는 과정 시트 — 열 때의 과정(그 아래에 넣는다)
   const [templateTarget, setTemplateTarget] = useState<{groupId: string; stepId: string} | null>(null);
-  const {addTemplate} = useStepTemplates();
+  const {addTemplate, addGroupTemplate} = useStepTemplates();
   // 스크롤 위치 — 커서 줄 아래 사진 칸까지 툴바 위로 올릴 때 쓴다
   const scrollYRef = useRef(0);
   /**
@@ -638,6 +638,15 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     : [{title: g.title, tools: resolveGroupTools(g)}]);
 
   /** 과정 묶음 → 저장용 설명 배열. bulkMode면 bulkText 파싱, 아니면 개별 폼. */
+  /** 묶음(섹션) 통째로 자주 쓰는 과정에 저장 — 이름·타이머·과정 전부 */
+  const saveGroupAsTemplate = (g: StepGroup) => {
+    const steps = resolveGroupSteps(g).map(({description, tip, caution, photos}: any) => ({description, tip, caution, photos}));
+    if (steps.length === 0) { showSnackbar(t('stepTemplate.groupEmpty')); return; }
+    addGroupTemplate({title: g.title || t('recipeEdit.stepsLabel'), timer: g.timer, steps})
+      .then(() => showSnackbar(t('stepTemplate.groupSaved'), {tone: 'positive'}))
+      .catch(() => showSnackbar(t('stepTemplate.saveFailed'), {tone: 'error'}));
+  };
+
   const resolveGroupSteps = (g: StepGroup) =>
     g.bulkMode
       // 칸 안 `## 묶음`·`> 팁:` 줄은 과정이 아니다 — 같은 쓰기 규칙으로 읽은 과정만
@@ -3043,10 +3052,13 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 items={[
                   {id: 'step', label: t('recipeEdit.addItem')},
                   {id: 'group', label: t('recipeEdit.addGroup')},
+                  {id: 'saveTemplate', label: t('stepTemplate.saveGroup'), icon: IconStarFilled},
                 ]}
                 visible={stepAddMenu === group.id}
                 onSelect={(id) => {
-                  if (id === 'step') {
+                  if (id === 'saveTemplate') {
+                    saveGroupAsTemplate(group);
+                  } else if (id === 'step') {
                     const newId = addStep(group.id);
                     setTimeout(() => rowInputRefs.current[newId]?.focus(), 50);
                   } else {
@@ -3062,12 +3074,14 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   {id: 'addAbove', label: t('recipeEdit.addGroupAbove')},
                   {id: 'up', label: t('recipeEdit.moveGroupUp'), disabled: groupIndex === 0},
                   {id: 'down', label: t('recipeEdit.moveGroupDown'), disabled: groupIndex === stepGroups.length - 1},
+                  {id: 'saveTemplate', label: t('stepTemplate.saveGroup'), icon: IconStarFilled},
                   // 마지막 묶음은 지우면 과정이 통째로 사라지므로 막는다
                   {id: 'delete', label: t('recipeEdit.deleteGroup'), destructive: true, disabled: stepGroups.length <= 1},
                 ]}
                 visible={stepGroupMenu === group.id}
                 onSelect={(id) => {
-                  if (id === 'addAbove') insertStepGroupAbove(group.id);
+                  if (id === 'saveTemplate') saveGroupAsTemplate(group);
+                  else if (id === 'addAbove') insertStepGroupAbove(group.id);
                   else if (id === 'delete') removeStepGroup(group.id);
                   else moveStepGroup(group.id, id === 'up' ? -1 : 1);
                   setStepGroupMenu(null);
@@ -3868,6 +3882,26 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
             onPick={tpl => {
               if (!tg) return;
               setTemplateTarget(null);
+              // 묶음 템플릿 — 그 묶음 전체(이름·타이머·과정)를 지금 묶음 바로 아래 새 묶음으로
+              if (tpl.group) {
+                const g0 = tpl.group;
+                setStepGroups(prev => {
+                  const at = prev.findIndex(g => g.id === tg.groupId);
+                  const newGroup: StepGroup = {
+                    id: genId(),
+                    title: g0.title,
+                    ...(g0.timer ? {timer: g0.timer} : {}),
+                    steps: g0.steps.map(st => ({id: genId(), description: st.description, ...(st.tip ? {tip: st.tip} : {}), ...(st.caution ? {caution: st.caution} : {}), ...(st.photos?.length ? {photos: st.photos.map(p => ({...p}))} : {})})),
+                    bulkMode: false,
+                    bulkText: '',
+                  };
+                  const next = [...prev];
+                  next.splice(at + 1, 0, newGroup);
+                  return next;
+                });
+                showSnackbar(t('stepTemplate.groupInserted'), {tone: 'positive'});
+                return;
+              }
               const newStep = {
                 id: genId(),
                 description: tpl.description,

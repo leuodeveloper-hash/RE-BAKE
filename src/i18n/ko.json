@@ -1,4 +1,9 @@
 {
+  "stepTemplate.saveGroup": "묶음 통째로 자주 쓰는 과정에 저장",
+  "stepTemplate.groupSaved": "묶음을 자주 쓰는 과정에 저장했어요",
+  "stepTemplate.groupEmpty": "저장할 과정이 없어요",
+  "stepTemplate.groupInserted": "묶음을 넣었어요",
+  "stepTemplate.groupSub": "묶음 · 과정 {{count}}개",
   "photoViewer.restyleExtraLabel": "추가 요청",
   "stepTemplate.edit": "편집",
   "stepTemplate.delete": "삭제",

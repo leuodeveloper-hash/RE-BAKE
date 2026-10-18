@@ -7,7 +7,7 @@ import {ListItem} from '@components/ListItem';
 import {Button} from '@components/Button';
 import {Menu} from '@components/Menu';
 import {TextInput} from '@components/TextInput';
-import {IconStarFilled, IconEllipsisVertical, IconEdit, IconTrash} from '@components/Icon/IconIndex';
+import {IconStarFilled, IconEllipsisVertical, IconEdit, IconTrash, IconProcess} from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
 import {useStepTemplates, type StepTemplate} from '@hooks/useStepTemplates';
@@ -91,8 +91,11 @@ export function StepTemplateSheet({visible, onClose, onPick, onSaveCurrent, canS
           // 메뉴가 열리면 카드 잘라내기를 풀고 그 줄을 위로(드롭다운 3종 세트)
           <Card style={menuFor ? {overflow: 'visible'} : undefined}>
             {templates.map((tpl, i) => {
-              const sub = [tpl.tip, tpl.caution].filter(Boolean).join(' · ');
-              const thumb = tpl.photos?.[0]?.uri;
+              const isGroup = !!tpl.group;
+              const sub = isGroup
+                ? t('stepTemplate.groupSub', {count: tpl.group!.steps.length})
+                : [tpl.tip, tpl.caution].filter(Boolean).join(' · ');
+              const thumb = isGroup ? tpl.group!.steps.flatMap(st => st.photos ?? [])[0]?.uri : tpl.photos?.[0]?.uri;
               const open = menuFor === tpl.id;
               return (
                 <View key={tpl.id} style={open ? styles.rowOpen : undefined}>
@@ -101,7 +104,7 @@ export function StepTemplateSheet({visible, onClose, onPick, onSaveCurrent, canS
                     description={sub || (tpl.photos?.length ? t('stepTemplate.photoCount', {count: tpl.photos.length}) : undefined)}
                     leading={thumb
                       ? {type: 'custom', element: <ExpoImage source={{uri: thumb}} style={styles.thumb} contentFit="cover" />}
-                      : {type: 'icon', icon: IconStarFilled}}
+                      : {type: 'icon', icon: isGroup ? IconProcess : IconStarFilled}}
                     trailing={{type: 'iconButton', icon: IconEllipsisVertical, variant: 'ghost-secondary', onPress: () => setMenuFor(open ? null : tpl.id)}}
                     onPress={() => onPick(tpl)}
                     showDivider={i < templates.length - 1}
@@ -109,7 +112,8 @@ export function StepTemplateSheet({visible, onClose, onPick, onSaveCurrent, canS
                   <View pointerEvents="box-none" style={styles.menuAnchor}>
                     <Menu
                       items={[
-                        {id: 'edit', label: t('stepTemplate.edit'), icon: IconEdit},
+                        // 묶음은 글을 칸 하나로 고칠 수 없다 — 삭제만(고치려면 레시피에서 고쳐 다시 저장)
+                        ...(isGroup ? [] : [{id: 'edit', label: t('stepTemplate.edit'), icon: IconEdit}]),
                         {id: 'delete', label: t('stepTemplate.delete'), icon: IconTrash, destructive: true},
                       ]}
                       visible={open}

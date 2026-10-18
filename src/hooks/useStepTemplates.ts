@@ -10,9 +10,22 @@ const CACHE_KEY = 'step_templates';
 /** 너무 많으면 고르기 어렵다 */
 export const MAX_STEP_TEMPLATES = 50;
 
-/** 자주 쓰는 과정 — 설명·팁·주의·사진을 한 묶음으로 */
+/** 템플릿 안 과정 하나 */
+export interface TemplateStep {
+  description: string;
+  tip?: string;
+  caution?: string;
+  photos?: StepPhoto[];
+}
+
+/**
+ * 자주 쓰는 과정 — 과정 하나(설명·팁·주의·사진), 또는 group이 있으면 묶음(섹션) 통째로
+ * (묶음 이름·타이머·안의 과정 전부).
+ */
 export interface StepTemplate {
   id: string;
+  /** 묶음 템플릿 — 불러오면 이 묶음 전체가 새 묶음으로 들어간다 */
+  group?: {title: string; timer?: string; steps: TemplateStep[]};
   description: string;
   tip?: string;
   caution?: string;
@@ -92,6 +105,36 @@ function useStepTemplatesState() {
     return tpl;
   }, [persist]);
 
+  /** 묶음(섹션) 통째로 템플릿으로 — 안 과정들의 기기 안 사진도 올린다 */
+  const addGroupTemplate = useCallback(async (group: {title: string; timer?: string; steps: TemplateStep[]}) => {
+    const uid = uidRef.current;
+    const id = `g_${Date.now().toString(36)}`;
+    const steps = await Promise.all(group.steps.map(async (st, si) => {
+      const photos = await Promise.all((st.photos ?? []).map(async (p, i) => {
+        if (!uid || !isLocalUri(p.uri)) return p;
+        try { return {...p, uri: await uploadImageTo(p.uri, `recipe_images/tpl_${uid}_${id}_${si}_${i}`)}; } catch { return p; }
+      }));
+      return {
+        description: st.description.trim(),
+        ...(st.tip?.trim() ? {tip: st.tip.trim()} : {}),
+        ...(st.caution?.trim() ? {caution: st.caution.trim()} : {}),
+        ...(photos.length ? {photos: photos.map(p => (p.caption ? {uri: p.uri, caption: p.caption} : {uri: p.uri}))} : {}),
+      };
+    }));
+    const tpl: StepTemplate = {
+      id,
+      group: {title: group.title.trim(), ...(group.timer ? {timer: group.timer} : {}), steps},
+      description: group.title.trim(),
+      createdAt: new Date().toISOString(),
+    };
+    setTemplates(prev => {
+      const next = [tpl, ...prev].slice(0, MAX_STEP_TEMPLATES);
+      persist(next);
+      return next;
+    });
+    return tpl;
+  }, [persist]);
+
   /** 글만 고친다(사진은 그대로) */
   const updateTemplate = useCallback((id: string, patch: {description: string; tip?: string; caution?: string}) => {
     setTemplates(prev => {
@@ -118,7 +161,7 @@ function useStepTemplatesState() {
     });
   }, [persist]);
 
-  return {templates, addTemplate, updateTemplate, removeTemplate};
+  return {templates, addTemplate, addGroupTemplate, updateTemplate, removeTemplate};
 }
 
 type Value = ReturnType<typeof useStepTemplatesState>;
