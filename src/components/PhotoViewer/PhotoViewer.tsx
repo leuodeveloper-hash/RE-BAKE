@@ -7,9 +7,10 @@ import {Selector} from '@components/Selector';
 import {BottomActionBar} from '@components/BottomActionBar';
 import {GlassContainer} from '@components/Container';
 import {IconButton} from '@components/IconButton';
-import {IconClose, IconChoose, IconTrash, IconArrowDownToLine, IconAdd, IconSparkle} from '@components/Icon/IconIndex';
+import {IconClose, IconChoose, IconTrash, IconArrowDownToLine, IconAdd, IconSparkle, IconChevronLeft, IconChevronRight} from '@components/Icon/IconIndex';
 import {useAuth} from '@contexts/AuthContext';
 import {loadStylePrompt, restylePhoto} from '@utils/photoRestyle';
+import {AppIcon} from '@components/Icon/AppIcon';
 import {Button} from '@components/Button';
 import {ForceDarkTheme} from '@contexts/ThemeContext';
 import {Menu} from '@components/Menu';
@@ -53,6 +54,9 @@ export interface PhotoViewerProps {
   onRestyled?: (index: number, uri: string) => void;
 }
 
+/** 템플릿 불러오는 중 표시 */
+const LOADING = '\u0000loading';
+
 /** 설명 최대 길이 — 요리모드 카드에 2줄로 들어가는 정도 */
 const CAPTION_MAX = 60;
 
@@ -83,18 +87,19 @@ export function PhotoViewer({
   const [restyling, setRestyling] = useState(false);
   // 보정 시트 — 프롬프트를 보여주고 고쳐서 쓴다(뷰어 모달 안에 띄운다: 시트를 또 띄우면 iOS에서 모달이 겹쳐 안 뜬다)
   const [restyleSheet, setRestyleSheet] = useState(false);
-  const [promptDraft, setPromptDraft] = useState('');
-  const [promptLoading, setPromptLoading] = useState(false);
-  const openRestyle = async (reset = false) => {
-    setRestyleSheet(true);
-    setPromptLoading(true);
+  // 이번에만 더할 요청 — 기본 템플릿 뒤에 붙는다
+  const [extraDraft, setExtraDraft] = useState('');
+  // 기본 템플릿은 서버가 쓴다 — 시트에선 이번에 더할 요청만 받는다
+  const openRestyle = () => { setTemplateView(null); setRestyleSheet(true); };
+  // 기본 템플릿 보기(서버 것) — null이면 입력 화면
+  const [templateView, setTemplateView] = useState<string | null>(null);
+  const showTemplate = async () => {
+    setTemplateView(LOADING);
     try {
-      const {prompt} = await loadStylePrompt(reset);
-      setPromptDraft(prompt);
+      const {prompt} = await loadStylePrompt();
+      setTemplateView(prompt);
     } catch (e: any) {
-      setRestyleNote({text: `${t('photoViewer.restyleFailed')}\n${String(e?.message ?? '').slice(0, 80)}`, error: true});
-    } finally {
-      setPromptLoading(false);
+      setTemplateView(String(e?.message ?? t('photoViewer.restyleFailed')));
     }
   };
   // 되돌리기 — 보정 전 사진(이 뷰어를 닫기 전까지)
@@ -159,7 +164,8 @@ export function PhotoViewer({
     setRestyleSheet(false);
     setRestyling(true);
     try {
-      const url = await restylePhoto(src, promptDraft);
+      const url = await restylePhoto(src, extraDraft);
+      setExtraDraft('');
       onRestyled(at, url);
       setUndo({index: at, uri: src});
       setRestyleNote({text: t('photoViewer.restyled'), error: false});
@@ -257,22 +263,42 @@ export function PhotoViewer({
             {/* 보정 시트 — 프롬프트 확인·수정 후 보정 */}
             {restyleSheet ? (
               <View style={styles.sheet}>
-                <Text style={styles.sheetTitle}>{t('photoViewer.restyleTitle')}</Text>
-                <TextInput
-                  style={styles.promptInput}
-                  value={promptLoading ? '' : promptDraft}
-                  onChangeText={setPromptDraft}
-                  placeholder={promptLoading ? t('photoViewer.restyleLoading') : ''}
-                  placeholderTextColor="rgba(255,255,255,0.45)"
-                  multiline
-                  editable={!promptLoading}
-                />
-                <View style={styles.sheetActions}>
-                  <Button label={t('photoViewer.restyleReset')} variant="ghost" size="small" onPress={() => openRestyle(true)} disabled={promptLoading} />
-                  <View style={{flex: 1}} />
-                  <Button label={t('photoViewer.restyleCancel')} variant="soft" size="small" onPress={() => setRestyleSheet(false)} />
-                  <Button label={t('photoViewer.restyleRun')} variant="filled" size="small" onPress={runRestyle} disabled={promptLoading || !promptDraft.trim()} />
-                </View>
+                {templateView ? (
+                  <>
+                    {/* 기본 템플릿 보기 — 뒤로가면 입력으로 */}
+                    <Pressable style={styles.sheetHeadRow} onPress={() => setTemplateView(null)} hitSlop={8}>
+                      <AppIcon icon={IconChevronLeft} size="sm" color="#FFFFFF" />
+                      <Text style={styles.sheetTitle}>{t('photoViewer.restyleTemplate')}</Text>
+                    </Pressable>
+                    <ScrollView style={styles.templateBox} nestedScrollEnabled>
+                      <Text style={styles.templateText}>{templateView === LOADING ? t('photoViewer.restyleLoading') : templateView}</Text>
+                    </ScrollView>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.sheetTitle}>{t('photoViewer.restyleTitle')}</Text>
+                    {/* 이번에만 더할 요청 */}
+                    <TextInput
+                      style={styles.extraInput}
+                      value={extraDraft}
+                      onChangeText={setExtraDraft}
+                      placeholder={t('photoViewer.restyleExtraPlaceholder')}
+                      placeholderTextColor="rgba(255,255,255,0.45)"
+                      multiline
+                      maxLength={500}
+                    />
+                    {/* 기본 템플릿은 눌러서 볼 때만 */}
+                    <Pressable style={styles.templateLink} onPress={showTemplate} hitSlop={6}>
+                      <Text style={styles.templateLinkText}>{t('photoViewer.restyleTemplate')}</Text>
+                      <AppIcon icon={IconChevronRight} size="xs" color="rgba(255,255,255,0.6)" />
+                    </Pressable>
+                    <View style={styles.sheetActions}>
+                      <View style={{flex: 1}} />
+                      <Button label={t('photoViewer.restyleCancel')} variant="soft" size="small" onPress={() => setRestyleSheet(false)} />
+                      <Button label={t('photoViewer.restyleRun')} variant="filled" size="small" onPress={runRestyle} disabled={restyling} />
+                    </View>
+                  </>
+                )}
               </View>
             ) : null}
             {/* 아래 작은 썸네일 줄 — 숫자·눈금 대신 사진으로. 눌러서 건너뛴다 */}
@@ -389,14 +415,39 @@ const styles = StyleSheet.create({
     ...Typography.title.small,
     color: '#FFFFFF',
   },
-  promptInput: {
-    ...Typography.body.medium,
-    color: '#FFFFFF',
-    minHeight: 120,
+  sheetHeadRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: Spacing.xs,
+  },
+  templateBox: {
     maxHeight: 220,
     padding: Spacing.smd,
     borderRadius: Radius['radius-md'],
-    backgroundColor: 'rgba(255,255,255,0.08)',
+    backgroundColor: 'rgba(255,255,255,0.06)',
+  },
+  templateText: {
+    ...Typography.caption.medium,
+    color: 'rgba(255,255,255,0.72)',
+  },
+  templateLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 2,
+  },
+  templateLinkText: {
+    ...Typography.caption.medium,
+    color: 'rgba(255,255,255,0.6)',
+  },
+  extraInput: {
+    ...Typography.body.medium,
+    color: '#FFFFFF',
+    minHeight: 48,
+    maxHeight: 120,
+    padding: Spacing.smd,
+    borderRadius: Radius['radius-md'],
+    backgroundColor: 'rgba(255,255,255,0.12)',
     textAlignVertical: 'top',
   },
   sheetActions: {

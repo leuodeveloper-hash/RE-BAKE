@@ -417,6 +417,9 @@ export const restylePhoto = onCall(
       const style = (await db.doc('config/photoStyle').get()).data();
       prompt = (typeof style?.prompt === 'string' && style.prompt.trim()) || DEFAULT_PHOTO_STYLE_PROMPT;
     }
+    // 이번 한 번만 더하는 요청 — 기본 템플릿은 그대로 두고 뒤에 붙인다(저장하지 않는다)
+    const extra = typeof req.data?.extra === 'string' ? req.data.extra.trim().slice(0, 500) : '';
+    if (extra) prompt = `${prompt}\n\n추가 요청(위 원칙을 지키면서 반영): ${extra}`;
 
     const form = new FormData();
     form.append('model', 'gpt-image-1');

@@ -1,4 +1,5 @@
 import {NOTE_BLOCK} from '@constants/noteBlock';
+import {launchCamera} from '@utils/camera';
 import {launchLibrary} from '@components/AlbumPicker/albumPicker';
 import {ocrFailMessage} from '@utils/ocrFailMessage';
 import {APPBAR_ITEM_GAP} from '@constants/layout';
@@ -1023,7 +1024,7 @@ export function CookingMode({
     };
     const result =
       source === 'camera'
-        ? await ImagePicker.launchCameraAsync(options)
+        ? await launchCamera(options)
         : await launchLibrary(options);
     if (!result.canceled && result.assets.length > 0) {
       const uris = await Promise.all(result.assets.map(a => getPersistentUri(a.uri, a.base64)));
@@ -1097,7 +1098,7 @@ export function CookingMode({
       base64: Platform.OS === 'web',
     };
     const result = source === 'camera'
-      ? await ImagePicker.launchCameraAsync(options)
+      ? await launchCamera(options)
       : await launchLibrary(options);
     if (!result.canceled && result.assets.length > 0) {
       const uris = await Promise.all(result.assets.map(a => getPersistentUri(a.uri, a.base64)));
@@ -1159,7 +1160,7 @@ export function CookingMode({
       base64: Platform.OS === 'web',
     };
     const result = source === 'camera'
-      ? await ImagePicker.launchCameraAsync(options)
+      ? await launchCamera(options)
       : await launchLibrary(options);
     if (result.canceled || result.assets.length === 0) return;
     const uris = await Promise.all(result.assets.map(a => getPersistentUri(a.uri, a.base64)));

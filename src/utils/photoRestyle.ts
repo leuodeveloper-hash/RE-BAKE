@@ -6,12 +6,13 @@ const fns = () => getFunctions(app, 'asia-northeast3');
 
 /**
  * 사진 보정(어드민) — 서버(restylePhoto)가 프롬프트대로 다시 그려 새 주소를 돌려준다.
- * 기기 안 사진이면 먼저 올려서(압축 포함) 그 주소를 넘긴다. prompt를 주면 서버에 저장돼 다음에도 쓴다.
+ * 기기 안 사진이면 먼저 올려서(압축 포함) 그 주소를 넘긴다. extra는 이번에만 더하는 요청.
  */
-export async function restylePhoto(uri: string, prompt?: string): Promise<string> {
+export async function restylePhoto(uri: string, extra?: string): Promise<string> {
   const imageUrl = isLocalUri(uri) ? await uploadImageTo(uri, `recipe_images/restyle_src_${Date.now()}`) : uri;
-  const call = httpsCallable<{imageUrl: string; prompt?: string}, {url: string}>(fns(), 'restylePhoto', {timeout: 180000});
-  const {data} = await call({imageUrl, ...(prompt?.trim() ? {prompt: prompt.trim()} : {})});
+  const call = httpsCallable<{imageUrl: string; extra?: string}, {url: string}>(fns(), 'restylePhoto', {timeout: 180000});
+  // 기본 템플릿은 서버 것 그대로 — 이번에 더할 요청만 보낸다
+  const {data} = await call({imageUrl, ...(extra?.trim() ? {extra: extra.trim()} : {})});
   return data.url;
 }
 

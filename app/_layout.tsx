@@ -20,6 +20,7 @@ import {ThemeProvider, useTheme, useColors} from '@contexts/ThemeContext';
 import {RecipeProvider} from '@contexts/RecipeContext';
 import {MadeStampsProvider} from '@hooks/useMadeStamps';
 import {RecipeReviewsProvider} from '@hooks/useRecipeReviews';
+import {StepTemplatesProvider} from '@hooks/useStepTemplates';
 import {SnackbarProvider, useSnackbar} from '@contexts/SnackbarContext';
 import {AddSheetProvider, useAddSheet} from '@contexts/AddSheetContext';
 import {AuthProvider, useAuth} from '@contexts/AuthContext';
@@ -984,6 +985,7 @@ export default function RootLayout() {
                 상태를 들어 한쪽에서 바꿔도 다른 쪽이 안 따라온다 */}
             <MadeStampsProvider>
             <RecipeReviewsProvider>
+            <StepTemplatesProvider>
             <AddSheetProvider>
               {/* 본문 링크 — 팁은 바텀시트, 레시피는 상세, 그 밖은 브라우저 */}
               <RecipeLinkProvider>
@@ -1004,6 +1006,7 @@ export default function RootLayout() {
               </PlanSheetProvider>
               </RecipeLinkProvider>
             </AddSheetProvider>
+            </StepTemplatesProvider>
             </RecipeReviewsProvider>
             </MadeStampsProvider>
             </ExploreRecipeProvider>

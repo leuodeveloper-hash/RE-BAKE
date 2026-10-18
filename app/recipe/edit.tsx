@@ -73,7 +73,7 @@ export default function RecipeNewRoute() {
     }
   }, [router]);
 
-  const handleSave = useCallback(async (data: any) => {
+  const handleSave = useCallback(async (data: any, opts?: {stay?: boolean}) => {
     const id = `${isExploreTarget ? 'explore' : 'user'}_${Date.now()}`;
 
     // 로그인 상태에서 로컬 이미지 → Firebase Storage 업로드
@@ -127,7 +127,9 @@ export default function RecipeNewRoute() {
       setRecipes(prev => [...prev, newRecipe]);
       showSnackbar(t('edit.recipeSaved'), {tone: 'positive'});
     }
-    router.back();
+    // 입력 툴바 저장은 편집에 남는다 — 새 레시피는 이제 있는 레시피라 그 편집 화면으로 바꿔 이어 쓴다
+    if (opts?.stay && !isExploreTarget) router.replace(`/recipe/edit/${id}` as any);
+    else router.back();
   }, [isExploreTarget, setRecipes, showSnackbar, router, t]);
 
   return (

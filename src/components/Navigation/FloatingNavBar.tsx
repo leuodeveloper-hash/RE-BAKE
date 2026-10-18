@@ -18,6 +18,8 @@ export interface FloatingNavBarProps {
   title?: string;
   /** 중앙 커스텀 노드 — title 대신 임의 요소를 정중앙에 둘 때 */
   center?: React.ReactNode;
+  /** 가운데 요소 아래로 펼쳐지는 메뉴(가운데 정렬) */
+  centerMenu?: React.ReactNode;
   /** 좌측 캡슐 아래에 표시할 메뉴 */
   leftMenu?: React.ReactNode;
   /** 우측 캡슐 아래에 표시할 메뉴 */
@@ -86,7 +88,7 @@ export function usePageContentPadding() {
 // pill 바로 아래에서 짧게 페이드아웃 — 콘텐츠 침범 방지 (이전 66 → 24)
 const GRADIENT_EXTENSION = Spacing.xxl; // 사라지는 구간을 길게 — 짧으면 경계가 보인다
 
-export function FloatingNavBar({left, right, title, center, leftMenu, rightMenu, leftFull, tintColor, style}: FloatingNavBarProps) {
+export function FloatingNavBar({left, right, title, center, centerMenu, leftMenu, rightMenu, leftFull, tintColor, style}: FloatingNavBarProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const {isDark} = useTheme();
@@ -129,6 +131,11 @@ export function FloatingNavBar({left, right, title, center, leftMenu, rightMenu,
                   {leftMenu}
                 </View>
               )}
+            </View>
+          ) : null}
+          {centerMenu ? (
+            <View style={styles.centerMenuContainer} pointerEvents="box-none">
+              {centerMenu}
             </View>
           ) : null}
           {right && (
@@ -197,6 +204,14 @@ const styles = StyleSheet.create({
     position: 'absolute' as const,
     top: NAV_PILL_HEIGHT + Spacing.xs,
     left: 0,
+    zIndex: 20,
+  },
+  centerMenuContainer: {
+    position: 'absolute' as const,
+    top: NAV_PILL_HEIGHT + Spacing.xs,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
     zIndex: 20,
   },
   rightMenuContainer: {

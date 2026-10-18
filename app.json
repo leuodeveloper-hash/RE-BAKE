@@ -36,7 +36,7 @@
           "NSAllowsArbitraryLoads": true,
           "NSAllowsLocalNetworking": true
         },
-        "NSPhotoLibraryAddUsageDescription": "레시피 공유 카드를 사진첩에 저장합니다.",
+        "NSPhotoLibraryAddUsageDescription": "레시피 사진을 찍으면 사진첩에도 함께 저장하고, 레시피 공유 카드를 사진첩에 저장해요.",
         "LSApplicationQueriesSchemes": [
           "instagram",
           "instagram-stories"

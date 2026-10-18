@@ -1,5 +1,10 @@
 import {cookbookColorOf} from '@contexts/RecipeContext';
+import {launchCamera} from '@utils/camera';
+import {dismissKeyboardAndWait} from '@utils/keyboard';
 import {launchLibrary} from '@components/AlbumPicker/albumPicker';
+import {StepTemplateSheet} from '@components/BottomSheet/StepTemplateSheet';
+import {useStepTemplates} from '@hooks/useStepTemplates';
+
 import {focusAt} from '@utils/focusAt';
 import {ocrFailMessage} from '@utils/ocrFailMessage';
 import {BREAD_FIELDS, isBreadRecipe} from '@utils/breadFieldsMigration';
@@ -109,7 +114,7 @@ import {
   IconEllipsisVertical,
   IconPhoto,
   IconClockFilled,
-  IconUsersRoundFilled, IconDoughTempFilled, IconSplitFilled, IconRecipeFilled, IconSplitTwotone, IconDoughTempTwotone,
+  IconUsersRoundFilled, IconDoughTempFilled, IconSplitFilled, IconSplitTwotone, IconDoughTempTwotone,
   IconMinus,
   IconAdd,
   IconPlusCircleFilled,
@@ -125,6 +130,7 @@ import {
   IconSquareAsteriskFilled,
   IconCircleAlert,
   IconCircleAlertFilled,
+  IconStarFilled,
   IconCameraFilled,
   IconLeafFilled,
   IconFilesFilled,
@@ -141,8 +147,7 @@ import {
   IconImport,
   IconNoteFilled,
   IconArrowTopRight,
-  IconMic,
-} from '@components/Icon/IconIndex';
+  IconMic, IconChoose} from '@components/Icon/IconIndex';
 
 // ---- Types ----
 // 편집용 타입은 RecipeEditScreen.types.ts로 분리 (화면 파일이 길어 읽기 어려웠다)
@@ -194,6 +199,8 @@ const makeSlashMenuItems = (t: TFn) => [
   {id: 'gallery', label: t('recipeEdit.chooseFromGallery'), icon: IconPhoto},
   {id: 'tip', label: t('recipeEdit.tip'), icon: IconAstriks},
   {id: 'caution', label: t('recipeEdit.caution'), icon: IconCircleAlertFilled},
+  // 자주 쓰는 과정 — 저장해 둔 과정을 지금 과정 아래에 넣는다(지금 과정 저장도 여기서)
+  {id: 'template', label: t('stepTemplate.title'), icon: IconStarFilled},
 ];
 
 // Web: textarea 포커스 아웃라인 제거
@@ -279,6 +286,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const [ocrBulkGroupId, setOcrBulkGroupId] = useState<string | null>(null);
   // 포커스된 과정(step) — 툴바 + 로 팁/주의/사진 추가 대상
   const [focusedStep, setFocusedStep] = useState<{groupId: string; stepId: string} | null>(null);
+  // 자주 쓰는 과정 시트 — 열 때의 과정(그 아래에 넣는다)
+  const [templateTarget, setTemplateTarget] = useState<{groupId: string; stepId: string} | null>(null);
+  const {addTemplate} = useStepTemplates();
   // 스크롤 위치 — 커서 줄 아래 사진 칸까지 툴바 위로 올릴 때 쓴다
   const scrollYRef = useRef(0);
   /**
@@ -582,7 +592,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         });
     if (!ok) return;
     const result = isCamera
-      ? await ImagePicker.launchCameraAsync({quality: 0.8, base64: Platform.OS === 'web'})
+      ? await launchCamera({quality: 0.8, base64: Platform.OS === 'web'})
       : await launchLibrary({
           mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web', allowsMultipleSelection: true, selectionLimit: 3,
         });
@@ -698,6 +708,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     hidden: isExplore ? hidden : undefined,
   }), [title, cookbook, method, ratio, time, servings, doughTemp, divideWeight, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, description, advice, advicePhotos, kind, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden]);
   const initialSnapshotRef = useRef(currentSnapshot);
+  const snapshotRef = useRef(currentSnapshot);
+  snapshotRef.current = currentSnapshot;
 
   // ── 되돌리기/다시하기 ──────────────────────────────────────
   // currentSnapshot은 "저장용 정규화 데이터"라(빈 항목이 필터링됨) 복원에 쓸 수 없다.
@@ -760,7 +772,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   }, [isDirty, hasTitle, hasIngredient, hasStep, imageUri, sourceUrl, onClose]);
 
   // 저장 실행 — 저장 버튼과 닫기 팝오버 "저장" 공용. 필수 필드 없으면 해당 위치로 스크롤/포커스.
-  const handleSave = useCallback(async () => {
+  // stay: 저장하고 편집 화면에 남는다(입력 툴바 저장) — 아니면 저장 후 나간다
+  const handleSave = useCallback(async (opts?: {stay?: boolean}) => {
     if (!title.trim()) {
       setTitleError(true);
       scrollViewRef.current?.scrollTo({y: 0, animated: true});
@@ -800,7 +813,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         referenceUrl: referenceUrl || undefined,
         sourceUrl: sourceUrl || undefined,
         ...(isExplore ? {hidden} : {}),
-      });
+      }, opts?.stay ? {stay: true} : undefined);
+      // 남는 저장이면 지금 내용을 저장된 기준으로 — 나갈 때 '저장 안 함' 확인이 다시 뜨지 않게
+      if (opts?.stay) initialSnapshotRef.current = snapshotRef.current;
     } finally {
       setSaving(false);
     }
@@ -841,7 +856,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     };
     const result =
       source === 'camera'
-        ? await ImagePicker.launchCameraAsync(options)
+        ? await launchCamera(options)
         : await launchLibrary(options);
     if (result.canceled || result.assets.length === 0) return;
     const uris = await Promise.all(result.assets.slice(0, Math.max(1, room)).map(a => getPersistentUri(a.uri, a.base64)));
@@ -1967,6 +1982,13 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     if (!t0) return;
     const {groupId, stepId} = t0;
 
+    if (menuId === 'template') {
+      setSlashMenu(null);
+      await dismissKeyboardAndWait();
+      setTemplateTarget({groupId, stepId});
+      return;
+    }
+
     // 사진: 촬영(camera) 또는 갤러리(gallery) → step.photos에 추가
     if (menuId === 'camera' || menuId === 'gallery') {
       const isCamera = menuId === 'camera';
@@ -1990,7 +2012,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
           });
       if (!permOk) return;
       const result = isCamera
-        ? await ImagePicker.launchCameraAsync({quality: 0.8, base64: Platform.OS === 'web'})
+        ? await launchCamera({quality: 0.8, base64: Platform.OS === 'web'})
         : await launchLibrary({mediaTypes: ['images'], quality: 0.8, base64: Platform.OS === 'web'});
       if (!result.canceled && result.assets.length > 0) {
         const uris = await Promise.all(
@@ -3235,7 +3257,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                               onRemove={(pi) => updateStepPhotos(group.id, step.id, ps => ps.filter((_, i) => i !== pi))}
                               // 빈 칸 → 촬영 / 갤러리 메뉴(슬래시 메뉴와 같은 항목)
                               // 이 레시피에 사진이 있으면 '기존 사진'도 — 대표·다른 과정 사진을 이 과정에 붙인다(같은 사진을 함께 쓴다)
-                              addMenuItems={canAdd ? ((heroUris.length > 0 || stepGroups.some(g => g.steps.some(st => (st.photos?.length ?? 0) > 0))) ? [...photoSourceItems, {id: 'existing', label: t('recipeEdit.existingPhoto'), icon: IconRecipeFilled}] : photoSourceItems) : undefined}
+                              addMenuItems={canAdd ? ((heroUris.length > 0 || stepGroups.some(g => g.steps.some(st => (st.photos?.length ?? 0) > 0))) ? [...photoSourceItems, {id: 'existing', label: t('recipeEdit.existingPhoto'), icon: IconChoose}] : photoSourceItems) : undefined}
                               onAddSelect={id => {
                                 if (id === 'existing') {
                                   const at = {groupId: group.id, stepId: step.id, index: photos.length};
@@ -3702,7 +3724,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
           const s = g?.steps.find(ss => ss.id === focusedStep.stepId);
           if (s) stepHasRoom = s.tip == null || s.caution == null || (s.photos?.length ?? 0) < 3;
         }
-        const canAddChip = (focusedOcrField === 'steps' && stepHasRoom)
+        // 자주 쓰는 과정은 칸이 다 차도 쓸 수 있다
+        const canAddChip = (focusedOcrField === 'steps' && !!focusedStep)
           // 조언 칸도 [+]로 사진(3장까지)
           || (adviceFocused && advicePhotos.length < 3);
         // 묶음 나누기: 커서가 있는 과정 줄을 새 그룹의 제목(과정명)으로 올리고,
@@ -3797,13 +3820,57 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
           // 선택이 있으면 켠다(선택 없이는 링크를 걸 자리가 없다).
           canLink={isOcrField || !!linkCtx?.hasSelection}
           subView={adviceSubView ?? chipSubView}
-          onDone={handleSave}
+          onDone={() => handleSave({stay: true})}
           onOcrStart={() => setOcrLoading(true)}
           onOcrEnd={() => setOcrLoading(false)}
           externalBusy={typing || ocrLoading}
           onStop={stopTyping}
           onRecognized={handleOcrRecognized}
         />
+        );
+      })()}
+
+      {/* 자주 쓰는 과정 — 고르면 지금 과정 아래 새 과정으로, 지금 과정을 저장할 수도 */}
+      {(() => {
+        const tg = templateTarget;
+        const cur = tg ? stepGroups.find(g => g.id === tg.groupId)?.steps.find(st => st.id === tg.stepId) : undefined;
+        const curHasContent = !!(cur && (cur.description.trim() || cur.tip?.trim() || cur.caution?.trim() || cur.photos?.length));
+        return (
+          <StepTemplateSheet
+            visible={!!tg}
+            onClose={() => setTemplateTarget(null)}
+            canSaveCurrent={curHasContent}
+            onSaveCurrent={() => {
+              if (!cur) return;
+              setTemplateTarget(null);
+              addTemplate({description: cur.description, tip: cur.tip, caution: cur.caution, photos: cur.photos})
+                .then(() => showSnackbar(t('stepTemplate.saved'), {tone: 'positive'}))
+                .catch(() => showSnackbar(t('stepTemplate.saveFailed'), {tone: 'error'}));
+            }}
+            onPick={tpl => {
+              if (!tg) return;
+              setTemplateTarget(null);
+              const newStep = {
+                id: genId(),
+                description: tpl.description,
+                ...(tpl.tip ? {tip: tpl.tip} : {}),
+                ...(tpl.caution ? {caution: tpl.caution} : {}),
+                ...(tpl.photos?.length ? {photos: tpl.photos.map(p => ({...p}))} : {}),
+              };
+              // 지금 과정이 비어 있으면 그 자리를 채우고, 아니면 바로 아래에 넣는다
+              setStepGroups(prev => prev.map(g => {
+                if (g.id !== tg.groupId) return g;
+                const idx = g.steps.findIndex(st => st.id === tg.stepId);
+                const target = g.steps[idx];
+                const empty = target && !target.description.trim() && !target.tip && !target.caution && !target.photos?.length;
+                const steps = [...g.steps];
+                if (empty) steps[idx] = {...newStep, id: target.id};
+                else steps.splice(idx + 1, 0, newStep);
+                return {...g, steps};
+              }));
+              showSnackbar(t('stepTemplate.inserted'), {tone: 'positive'});
+            }}
+          />
         );
       })()}
 

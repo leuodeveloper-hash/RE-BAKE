@@ -4,7 +4,8 @@ import {Image as ExpoImage} from 'expo-image';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as MediaLibrary from 'expo-media-library';
 import {SafeAreaProvider, useSafeAreaInsets} from 'react-native-safe-area-context';
-import {AppBar} from '@components/Navigation';
+import {FloatingNavBar, NavPillButton} from '@components/Navigation';
+import {useAppBarContentTop} from '@components/Navigation/FloatingNavBar';
 import {Breadcrumb} from '@components/Navigation/Breadcrumb';
 import {Menu} from '@components/Menu';
 import {Button} from '@components/Button';
@@ -55,6 +56,8 @@ function AlbumPickerScreen({limit, onDone}: {limit: number; onDone: (v: PickedAs
   const {t} = useTranslation();
   const insets = useSafeAreaInsets();
   const {width, height} = useWindowDimensions();
+  // 앱바는 위에 떠 있다 — 사진·안내는 그 아래부터
+  const contentTop = useAppBarContentTop();
   const cell = Math.floor((width - GAP * (COLS - 1)) / COLS);
 
   const [perm, setPerm] = useState<'loading' | 'all' | 'limited' | 'denied'>('loading');
@@ -144,17 +147,17 @@ function AlbumPickerScreen({limit, onDone}: {limit: number; onDone: (v: PickedAs
   return (
     <View style={[styles.root, {backgroundColor: colors['surface/dim']}]}>
       {/* 홈의 레시피북 고르기와 같은 공통 앱바 셀렉터 — 닫기 옆 앨범 이름, 누르면 아래 메뉴 */}
-      <AppBar
-        leftIcon={IconClose}
-        onLeftPress={() => onDone(null)}
-        titleNode={
+      {/* 앱바 — 왼쪽 닫기, 가운데 앨범 셀렉터(홈과 같은 Breadcrumb), 그 아래 메뉴(앨범이 많으면 검색) */}
+      <FloatingNavBar
+        left={<NavPillButton icon={IconClose} onPress={() => onDone(null)} />}
+        center={
           <Breadcrumb
             axisLabel={albumLabel}
             axisIcon={IconPhoto}
             onAxisPress={perm === 'all' || perm === 'limited' ? () => setShowAlbums(v => !v) : undefined}
           />
         }
-        titleMenu={
+        centerMenu={
           <Menu
             items={albumItems}
             selectedId={albumId}
@@ -162,6 +165,7 @@ function AlbumPickerScreen({limit, onDone}: {limit: number; onDone: (v: PickedAs
             visible={showAlbums}
             onClose={() => setShowAlbums(false)}
             maxHeight={Math.round(height * 0.6)}
+            searchable={albums.length > 8}
           />
         }
       />
@@ -175,7 +179,7 @@ function AlbumPickerScreen({limit, onDone}: {limit: number; onDone: (v: PickedAs
       ) : (
         <>
           {perm === 'limited' ? (
-            <Pressable style={styles.limited} onPress={() => MediaLibrary.presentPermissionsPickerAsync(['photo']).then(() => loadMore(true)).catch(() => {})}>
+            <Pressable style={[styles.limited, {marginTop: contentTop}]} onPress={() => MediaLibrary.presentPermissionsPickerAsync(['photo']).then(() => loadMore(true)).catch(() => {})}>
               <Text style={[styles.limitedText, {color: colors['foreground/on-surface-var']}]}>{t('albumPicker.limited')}</Text>
             </Pressable>
           ) : null}
@@ -184,7 +188,7 @@ function AlbumPickerScreen({limit, onDone}: {limit: number; onDone: (v: PickedAs
             keyExtractor={a => a.id}
             numColumns={COLS}
             columnWrapperStyle={{gap: GAP}}
-            contentContainerStyle={{gap: GAP, paddingBottom: insets.bottom + 88}}
+            contentContainerStyle={{gap: GAP, paddingTop: perm === 'limited' ? 0 : contentTop, paddingBottom: insets.bottom + 88}}
             onEndReached={() => loadMore()}
             onEndReachedThreshold={0.6}
             renderItem={({item}) => {

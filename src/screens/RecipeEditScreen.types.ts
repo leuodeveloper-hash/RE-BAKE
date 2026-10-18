@@ -96,7 +96,7 @@ export interface RecipeEditScreenProps {
     referenceUrl?: string;
     sourceUrl?: string;
     hidden?: boolean;
-  }) => void | Promise<void>;
+  }, opts?: {stay?: boolean}) => void | Promise<void>;
   /** 편집 시 전달되는 레시피 데이터 (없으면 빈 생성 화면) */
   recipe?: {
     title: string;

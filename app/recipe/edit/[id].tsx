@@ -82,7 +82,7 @@ export default function RecipeEditRoute() {
     navigateBack();
   }, [navigateBack]);
 
-  const handleSave = useCallback(async (data: any) => {
+  const handleSave = useCallback(async (data: any, opts?: {stay?: boolean}) => {
     // 로그인 상태에서 로컬 이미지 → Firebase Storage 업로드
     const oldImageUri = recipe?.imageUri;
     if (user && data.imageUri && isLocalUri(data.imageUri)) {
@@ -146,7 +146,8 @@ export default function RecipeEditRoute() {
       ));
     }
     showSnackbar(t('id.recipeUpdated'));
-    navigateBack();
+    // 입력 툴바 저장은 편집 화면에 남는다
+    if (!opts?.stay) navigateBack();
   }, [id, isMyRecipe, isExploreTarget, isAdmin, recipe, setRecipes, showSnackbar, navigateBack, t]);
 
   const [editorKey, setEditorKey] = useState(0);

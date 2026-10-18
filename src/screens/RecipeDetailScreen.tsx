@@ -1,4 +1,5 @@
 import {NOTE_BLOCK} from '@constants/noteBlock';
+import {launchCamera} from '@utils/camera';
 import {launchLibrary} from '@components/AlbumPicker/albumPicker';
 import {StepTimer, type StepTimerHandle} from '@components/StepTimer';
 import {scaleAmount, scaleLabel} from '@utils/scaleAmount';
@@ -618,7 +619,7 @@ export function RecipeDetailScreen({
       ...(multi ? {allowsMultipleSelection: true, selectionLimit: room} : {}),
     };
     const result = isCamera
-      ? await ImagePicker.launchCameraAsync(options)
+      ? await launchCamera(options)
       : await launchLibrary(options);
     if (result.canceled) return [];
     return Promise.all(result.assets.slice(0, room).map(a => getPersistentUri(a.uri, a.base64)));
