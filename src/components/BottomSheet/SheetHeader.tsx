@@ -134,10 +134,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingTop: Spacing.lg,
     paddingHorizontal: Spacing.lg,
   },
+  // 아이콘 아래 제목·설명 묶음 — 위아래 8씩 더(아이콘·버튼과 붙어 보였다)
   titleBelowGraphic: {
     paddingHorizontal: Spacing.lg,
-    paddingTop: Spacing.smd,
-    paddingBottom: Spacing.smd,
+    paddingTop: Spacing.smd + Spacing.sm,
+    paddingBottom: Spacing.smd + Spacing.sm,
   },
   titleRow: {
     flexDirection: 'row',
