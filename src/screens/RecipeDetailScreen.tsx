@@ -1406,8 +1406,9 @@ export function RecipeDetailScreen({
                             <StepTimer duration={'timer' in g ? g.timer : undefined} hideWhenUnset />
                           </View>
                         ) : null}
-                        {g.steps.filter(st => st.description?.trim()).map((st, si) => (
-                          <View key={si}>
+                        {g.steps.filter(st => st.description?.trim()).map((st, si, arr) => (
+                          // 사진이 붙은 과정은 다음 과정과 한 칸 띄운다 — 사진 바로 밑에 다음 글이 붙어 보였다
+                          <View key={si} style={st.photos?.length && si < arr.length - 1 ? styles.bulkStepWithPhotos : undefined}>
                             <Text style={styles.bulkText}>{`${si + 1}. `}<RichText inline>{st.description}</RichText></Text>
                             {/* 팁·주의 — 편집처럼 왼쪽 세로 라인. 한 과정에 딸린 한 덩어리라 둘 사이는 좁게(묶음 안 간격만) */}
                             {(st.tip?.trim() || st.caution?.trim()) ? <View style={styles.bulkNotes}>
@@ -2041,6 +2042,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 팁·주의 묶음 — 과정 줄 바로 아래, 다음 과정과는 띄우고 팁·주의 사이는 좁게
   bulkPhotos: {
     marginTop: Spacing.xs,
+  },
+  // 사진이 붙은 과정 아래 — 다음 과정과 16
+  bulkStepWithPhotos: {
+    marginBottom: Spacing.md,
   },
   bulkNotes: {
     marginTop: Spacing.xs,

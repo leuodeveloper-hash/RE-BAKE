@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from 'react';
+import React, {useRef, useEffect, useState} from 'react';
 import {StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {BottomSheet, sheetTileWidth} from './BottomSheet';
 import {OptionTile} from '@components/OptionTile';
@@ -38,11 +38,22 @@ export function AddRecipeSheet({visible, onClose, onStartRecipe, onCreateCookboo
   const colors = useColors();
   const {t} = useTranslation();
   const [photoMenuOpen, setPhotoMenuOpen] = useState(false);
+  // 이미지 칸 화면 위치 — 메뉴 아래 끝을 칸 위 4에 맞춘다(시트 위 끝 기준으로 띄우면 칸과 벌어졌다)
+  const imageCellRef = useRef<View>(null);
+  const [menuAnchor, setMenuAnchor] = useState<{x: number; y: number} | null>(null);
+  const {height: windowHeight} = useWindowDimensions();
+  const openPhotoMenu = () => {
+    if (photoMenuOpen) { setPhotoMenuOpen(false); return; }
+    imageCellRef.current?.measureInWindow((x, y) => {
+      setMenuAnchor({x, y});
+      setPhotoMenuOpen(true);
+    });
+  };
   // 3칸 — 재료 준비 칸과 같은 방식(숫자 폭 바깥 View + 안쪽은 꽉 채움)
   const {width: windowWidth} = useWindowDimensions();
   const tileWidth = sheetTileWidth(windowWidth, 3, ROW_PADDING, TILE_GAP);
   const cell = (key: string, tile: React.ReactNode) => (
-    <View key={key} style={[styles.cell, {width: tileWidth}]}>{tile}</View>
+    <View key={key} ref={key === 'image' ? imageCellRef : undefined} collapsable={false} style={[styles.cell, {width: tileWidth}]}>{tile}</View>
   );
 
   useEffect(() => { if (!visible) setPhotoMenuOpen(false); }, [visible]);
@@ -54,23 +65,25 @@ export function AddRecipeSheet({visible, onClose, onStartRecipe, onCreateCookboo
       visible={visible}
       onClose={onClose}
       onDismissed={onDismissed}
-      // 이미지 메뉴는 시트 위로 펼친다 — 아래로 펼치면 화면 끝에 걸려 가려졌다
-      aboveSheet={photoMenuOpen ? (
-        <Menu
-          // 찍기·앨범만 — 기존 레시피 사진에서 고르기는 뺐다
-          items={photoSourceMenuItems(t)}
-          visible
-          onSelect={id => { setPhotoMenuOpen(false); start(id as AddRecipeInput); }}
-          onClose={() => setPhotoMenuOpen(false)}
-          style={styles.photoMenu}
-        />
+      // 이미지 메뉴는 이미지 칸 바로 위로 펼친다(칸 위 4) — 아래로 펼치면 화면 끝에 걸려 가려졌다.
+      // 시트 위 전체 층(floating)에 두어 시트에 잘리지 않는다
+      floating={photoMenuOpen && menuAnchor ? (
+        <View pointerEvents="box-none" style={[styles.photoMenuLayer, {left: menuAnchor.x, bottom: windowHeight - menuAnchor.y + Spacing.xs}]}>
+          <Menu
+            // 찍기·앨범만 — 기존 레시피 사진에서 고르기는 뺐다
+            items={photoSourceMenuItems(t)}
+            visible
+            onSelect={id => { setPhotoMenuOpen(false); start(id as AddRecipeInput); }}
+            onClose={() => setPhotoMenuOpen(false)}
+          />
+        </View>
       ) : undefined}>
       <View style={styles.body}>
         {/* 메뉴가 아래 줄(레시피북 만들기) 위로 뜨게 줄 자체도 올린다 */}
         <View style={styles.tiles}>
           {[
                 cell('image', <OptionTile icon={IconScanText} iconColor={colors['custom/orange-var']} label={t('layout.addImage')} size="large" surface="faint" gap={ICON_LABEL_GAP} labelStyle={LIST_ITEM_TITLE_TEXT}
-                  style={styles.tileFill} onPress={() => setPhotoMenuOpen(v => !v)} />),
+                  style={styles.tileFill} onPress={openPhotoMenu} />),
                 cell('url', <OptionTile icon={IconUrl} iconColor={colors['custom/lime-var']} label={t('layout.addUrl')} size="large" surface="faint" gap={ICON_LABEL_GAP} labelStyle={LIST_ITEM_TITLE_TEXT}
                   style={styles.tileFill} onPress={() => start('url')} />),
                 cell('text', <OptionTile icon={IconText} iconColor={colors['custom/yellow-var']} label={t('layout.addText')} size="large" surface="faint" gap={ICON_LABEL_GAP} labelStyle={LIST_ITEM_TITLE_TEXT}
@@ -124,11 +137,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     flexGrow: 0,
     flexShrink: 0,
   },
-  // 편집 화면 사진 칸 메뉴와 같은 자리 — 칸 바로 아래 왼쪽 정렬
-  // 시트 위 — 이미지 칸(첫 칸) 왼쪽 선에 맞춘다(시트 본문 여백 4 + 줄 여백)
-  photoMenu: {
-    alignSelf: 'flex-start',
-    marginLeft: Spacing.xs + ROW_PADDING,
+  photoMenuLayer: {
+    position: 'absolute',
   },
   tileFill: {
     width: '100%',
