@@ -5,10 +5,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as MediaLibrary from 'expo-media-library';
 import {SafeAreaProvider, useSafeAreaInsets} from 'react-native-safe-area-context';
 import {AppBar} from '@components/Navigation';
-import {Selector} from '@components/Selector';
+import {Breadcrumb} from '@components/Navigation/Breadcrumb';
 import {Menu} from '@components/Menu';
 import {Button} from '@components/Button';
-import {IconClose} from '@components/Icon/IconIndex';
+import {IconClose, IconPhoto} from '@components/Icon/IconIndex';
 import {useColors} from '@contexts/ThemeContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {Spacing} from '@constants/spacing';
@@ -54,7 +54,7 @@ function AlbumPickerScreen({limit, onDone}: {limit: number; onDone: (v: PickedAs
   const colors = useColors();
   const {t} = useTranslation();
   const insets = useSafeAreaInsets();
-  const {width} = useWindowDimensions();
+  const {width, height} = useWindowDimensions();
   const cell = Math.floor((width - GAP * (COLS - 1)) / COLS);
 
   const [perm, setPerm] = useState<'loading' | 'all' | 'limited' | 'denied'>('loading');
@@ -138,20 +138,32 @@ function AlbumPickerScreen({limit, onDone}: {limit: number; onDone: (v: PickedAs
   };
 
   const albumLabel = albumId === ALL ? t('albumPicker.allPhotos') : (albums.find(a => a.id === albumId)?.title ?? t('albumPicker.allPhotos'));
-  const albumItems = [{id: ALL, label: t('albumPicker.allPhotos')}, ...albums.map(a => ({id: a.id, label: `${a.title}  ${a.assetCount ?? ''}`}))];
+  // 홈 레시피북 메뉴와 같은 형식 — 아이콘 + 이름
+  const albumItems = [{id: ALL, label: t('albumPicker.allPhotos'), icon: IconPhoto}, ...albums.map(a => ({id: a.id, label: a.title, icon: IconPhoto}))];
 
   return (
     <View style={[styles.root, {backgroundColor: colors['surface/dim']}]}>
+      {/* 홈의 레시피북 고르기와 같은 공통 앱바 셀렉터 — 닫기 옆 앨범 이름, 누르면 아래 메뉴 */}
       <AppBar
-        centered
         leftIcon={IconClose}
         onLeftPress={() => onDone(null)}
-        titleNode={perm === 'all' || perm === 'limited' ? (
-          <View>
-            <Selector label={albumLabel} onPress={() => setShowAlbums(v => !v)} />
-            <Menu items={albumItems} visible={showAlbums} selectedId={albumId} onSelect={id => { setShowAlbums(false); setSelected([]); setAlbumId(id); }} onClose={() => setShowAlbums(false)} />
-          </View>
-        ) : undefined}
+        titleNode={
+          <Breadcrumb
+            axisLabel={albumLabel}
+            axisIcon={IconPhoto}
+            onAxisPress={perm === 'all' || perm === 'limited' ? () => setShowAlbums(v => !v) : undefined}
+          />
+        }
+        titleMenu={
+          <Menu
+            items={albumItems}
+            selectedId={albumId}
+            onSelect={id => { setShowAlbums(false); setSelected([]); setAlbumId(id); }}
+            visible={showAlbums}
+            onClose={() => setShowAlbums(false)}
+            maxHeight={Math.round(height * 0.6)}
+          />
+        }
       />
       {perm === 'loading' ? (
         <View style={styles.center}><ActivityIndicator /></View>

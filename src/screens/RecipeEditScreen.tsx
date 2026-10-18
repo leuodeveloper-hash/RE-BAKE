@@ -220,6 +220,19 @@ export function RecipeEditScreen(props: RecipeEditScreenProps) {
   );
 }
 
+/**
+ * 합쳐진 분량 → {숫자, 단위}. "600g" → 600·g, "약간" → ''·약간.
+ * 괄호도 숫자 쪽에 둔다 — 저울마다 다르게 적는다("500(510)g", "1(1.5)T"). 예전엔 괄호를 지워 "500510"이 됐다.
+ */
+function splitAmountUnit(amount: string): {amount: string; unit: string} {
+  const numUnit = amount.match(/^([\d.]+(?:\s*\([^)]*\))?)\s*([a-zA-Zㄱ-ㅎ가-힣]+)\s*(\([^)]*\))?$/);
+  if (numUnit) return {amount: numUnit[1] + (numUnit[3] ?? ''), unit: numUnit[2]};
+  const textOnly = amount.match(/^([a-zA-Zㄱ-ㅎ가-힣]+)$/);
+  if (textOnly) return {amount: '', unit: textOnly[1]};
+  // 숫자·소수점·괄호·물결·대시만 남긴다
+  return {amount: amount.replace(/[^0-9.()~\-\s]/g, '').trim(), unit: 'g'};
+}
+
 function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks, cookbookColors: cookbookColorsProp, onSetCookbookColor, initialSection, initialCookbook, isExplore, onDeleteCookbook, recipeId, onLoadVersion, initialBulk}: RecipeEditScreenProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
@@ -252,14 +265,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const emptyIngredient = (): EditableIngredient => ({id: genId(), name: '', amount: '', unit: 'g'});
 
   /** 저장형 재료({name, amount}) → 편집형({amount, unit}). "600g" → {amount:'600', unit:'g'}, "약간" → {amount:'', unit:'약간'} */
-  const toEditableIngredient = (i: {name: string; amount: string}): EditableIngredient => {
-    const amount = i.amount ?? '';
-    const numUnit = amount.match(/^([\d.]+)\s*([a-zA-Z\u3131-\u314e\uac00-\ud7a3]+)/);
-    if (numUnit) return {id: genId(), name: i.name, amount: numUnit[1], unit: numUnit[2]};
-    const textOnly = amount.match(/^([a-zA-Z\u3131-\u314e\uac00-\ud7a3]+)$/);
-    if (textOnly) return {id: genId(), name: i.name, amount: '', unit: textOnly[1]};
-    return {id: genId(), name: i.name, amount: amount.replace(/[^0-9.]/g, ''), unit: 'g'};
-  };
+  const toEditableIngredient = (i: {name: string; amount: string}): EditableIngredient => ({id: genId(), name: i.name, ...splitAmountUnit(i.amount ?? '')});
 
   // State — recipe prop이 있으면 편집 모드, 없으면 빈 생성 모드
   const [title, setTitle] = useState(() => recipe?.title ?? '');
@@ -879,13 +885,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   };
 
   // "600g" → {amount:'600', unit:'g'} 등, 합쳐진 양 문자열을 편집화면 재료 형태로 분리
-  const splitAmountUnit = (amount: string): {amount: string; unit: string} => {
-    const numUnit = amount.match(/^([\d.]+)\s*([a-zA-Zㄱ-ㅎ가-힣]+)/);
-    if (numUnit) return {amount: numUnit[1], unit: numUnit[2]};
-    const textOnly = amount.match(/^([a-zA-Zㄱ-ㅎ가-힣]+)$/);
-    if (textOnly) return {amount: '', unit: textOnly[1]};
-    return {amount: amount.replace(/[^0-9.]/g, ''), unit: 'g'};
-  };
+
 
   const [importing, setImporting] = useState(false);
 

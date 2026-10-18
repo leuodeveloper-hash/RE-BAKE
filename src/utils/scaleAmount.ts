@@ -17,6 +17,15 @@ function round(value: number, rest: string): string {
 
 export function scaleAmount(amount: string, factor: number): string {
   if (!amount || factor === 1) return amount;
+  // 괄호가 있으면("500(510)g") 바깥과 괄호 안을 각각 같은 배율로
+  if (/\([^)]*\d[^)]*\)/.test(amount)) {
+    return amount.replace(/\(([^)]*)\)|[^()]+/g, (part, inner) =>
+      inner != null ? `(${scaleOne(inner, factor)})` : scaleOne(part, factor));
+  }
+  return scaleOne(amount, factor);
+}
+
+function scaleOne(amount: string, factor: number): string {
   // 분수(1/2컵)도 한 숫자로 — 앞 숫자만 곱하면 '2/2컵'이 됐다
   const m = amount.match(/(\d+\s*\/\s*\d+|\d[\d,]*(?:\.\d+)?)/);
   if (!m || m.index == null) return amount;

@@ -105,7 +105,9 @@ export function Menu({
   const textW = Math.max(0, ...allLabels.map(l => [...l].reduce((w, ch) => w + charW(ch), 0)));
   // 최대 320 — 'Official recipe books' 정도까지는 한 줄, 그보다 긴 이름(레시피 제목 등)만 두 줄로 꺾인다
   const MENU_MAX_WIDTH = 320;
-  const menuMinWidth = Math.min(Math.max(200, textW + 64), MENU_MAX_WIDTH, SCREEN_W - 32);
+  // 슬라이더 같은 컨트롤이 든 메뉴는 그게 들어갈 만큼(240) — 글자 길이만 보면 좁아 컨트롤이 잘렸다
+  const hasControl = !!sections?.some(sec => sec.content);
+  const menuMinWidth = Math.min(Math.max(hasControl ? 240 : 200, textW + 64), MENU_MAX_WIDTH, SCREEN_W - 32);
   const colors = useColors();
   const {t} = useTranslation();
   const scale = useRef(new Animated.Value(0.95)).current;

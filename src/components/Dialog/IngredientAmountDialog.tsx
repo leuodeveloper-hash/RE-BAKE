@@ -1,5 +1,6 @@
 import React, {useEffect, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
+import {Platform} from 'react-native';
 import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
 import {Selector} from '@components/Selector';
@@ -97,9 +98,10 @@ export function IngredientAmountDialog({visible, onClose, amount, unit, onConfir
                 label={t('ingredientAmount.amountLabel')}
                 value={inputAmount}
                 onChangeText={setInputAmount}
-                keyboardType="decimal-pad"
+                // 괄호도 쓴다(저울마다 "500(510)"처럼 적는다) — 숫자패드엔 괄호가 없어 숫자·기호 키보드
+                keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
                 placeholder="0"
-                maxLength={10}
+                maxLength={16}
                 selectTextOnFocus
               />
             </View>

@@ -6,7 +6,8 @@ type IngredientLike = {name: string; amount: string};
 type GroupLike = {ingredients: IngredientLike[]};
 
 export function parseAmountGrams(amount: string): number {
-  const match = amount.match(/[\d.]+/);
+  // 괄호 안(저울마다 다르게 적은 값 "500(510)g")은 빼고 바깥 숫자로 계산한다
+  const match = amount.replace(/\([^)]*\)/g, '').match(/[\d.]+/);
   return match ? parseFloat(match[0]) : 0;
 }
 

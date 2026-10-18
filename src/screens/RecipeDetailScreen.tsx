@@ -2229,7 +2229,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   // 메뉴 안 컨트롤 — 구분 탭처럼 좌우는 메뉴 안쪽 여백만, 아래 4
   scaleControl: {
-    width: 232,
+    // 메뉴 폭에 맞춘다 — 고정 폭(232)은 좁은 폰에서 메뉴 밖으로 잘렸다
+    alignSelf: 'stretch',
     paddingHorizontal: Spacing.xs,
     paddingTop: Spacing.xs,
     paddingBottom: Spacing.sm,
