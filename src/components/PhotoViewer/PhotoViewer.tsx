@@ -7,12 +7,14 @@ import {Selector} from '@components/Selector';
 import {BottomActionBar} from '@components/BottomActionBar';
 import {GlassContainer} from '@components/Container';
 import {IconButton} from '@components/IconButton';
-import {IconClose, IconChoose, IconTrash, IconArrowDownToLine, IconAdd, IconSparkle, IconChevronLeft, IconChevronRight} from '@components/Icon/IconIndex';
+import {IconClose, IconChoose, IconTrash, IconArrowDownToLine, IconAdd, IconSparkle, IconSparkleFilled, IconChevronLeft, IconChevronRight} from '@components/Icon/IconIndex';
 import {useAuth} from '@contexts/AuthContext';
 import {loadStylePrompt, restylePhoto} from '@utils/photoRestyle';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {Button} from '@components/Button';
-import {ForceDarkTheme} from '@contexts/ThemeContext';
+import {BottomSheet} from '@components/BottomSheet/BottomSheet';
+import {TextInput as AppTextInput} from '@components/TextInput';
+import {ForceDarkTheme, useColors} from '@contexts/ThemeContext';
 import {Menu} from '@components/Menu';
 import {photoSourceMenuItems, type PhotoSource} from '@utils/photoSourceMenu';
 import {useTranslation} from '@contexts/LanguageContext';
@@ -52,6 +54,16 @@ export interface PhotoViewerProps {
    * 보정은 서버가 커버 사진 톤으로 다시 그린다(utils/photoRestyle).
    */
   onRestyled?: (index: number, uri: string) => void;
+}
+
+/** 시트 안 글자 — 뷰어는 검정 고정(ForceDarkTheme)이라 그 안의 테마 색을 쓴다 */
+function SheetText({children, muted}: {children: React.ReactNode; muted?: boolean}) {
+  const c = useColors();
+  return <Text style={[Typography.caption.medium, {color: c[muted ? 'foreground/on-surface-muted' : 'foreground/on-surface-var']}]}>{children}</Text>;
+}
+function SheetChevron() {
+  const c = useColors();
+  return <AppIcon icon={IconChevronRight} size="xs" color={c['foreground/on-surface-muted'] as string} />;
 }
 
 /** 템플릿 불러오는 중 표시 */
@@ -261,46 +273,6 @@ export function PhotoViewer({
               </View>
             ) : null}
             {/* 보정 시트 — 프롬프트 확인·수정 후 보정 */}
-            {restyleSheet ? (
-              <View style={styles.sheet}>
-                {templateView ? (
-                  <>
-                    {/* 기본 템플릿 보기 — 뒤로가면 입력으로 */}
-                    <Pressable style={styles.sheetHeadRow} onPress={() => setTemplateView(null)} hitSlop={8}>
-                      <AppIcon icon={IconChevronLeft} size="sm" color="#FFFFFF" />
-                      <Text style={styles.sheetTitle}>{t('photoViewer.restyleTemplate')}</Text>
-                    </Pressable>
-                    <ScrollView style={styles.templateBox} nestedScrollEnabled>
-                      <Text style={styles.templateText}>{templateView === LOADING ? t('photoViewer.restyleLoading') : templateView}</Text>
-                    </ScrollView>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.sheetTitle}>{t('photoViewer.restyleTitle')}</Text>
-                    {/* 이번에만 더할 요청 */}
-                    <TextInput
-                      style={styles.extraInput}
-                      value={extraDraft}
-                      onChangeText={setExtraDraft}
-                      placeholder={t('photoViewer.restyleExtraPlaceholder')}
-                      placeholderTextColor="rgba(255,255,255,0.45)"
-                      multiline
-                      maxLength={500}
-                    />
-                    {/* 기본 템플릿은 눌러서 볼 때만 */}
-                    <Pressable style={styles.templateLink} onPress={showTemplate} hitSlop={6}>
-                      <Text style={styles.templateLinkText}>{t('photoViewer.restyleTemplate')}</Text>
-                      <AppIcon icon={IconChevronRight} size="xs" color="rgba(255,255,255,0.6)" />
-                    </Pressable>
-                    {/* 아래 버튼은 다른 시트 바텀 액션과 같은 크기(medium)·반반 */}
-                    <View style={styles.sheetActions}>
-                      <Button label={t('photoViewer.restyleCancel')} variant="soft" onPress={() => setRestyleSheet(false)} style={{flex: 1}} />
-                      <Button label={t('photoViewer.restyleRun')} variant="filled" onPress={runRestyle} disabled={restyling} style={{flex: 1}} />
-                    </View>
-                  </>
-                )}
-              </View>
-            ) : null}
             {/* 아래 작은 썸네일 줄 — 숫자·눈금 대신 사진으로. 눌러서 건너뛴다 */}
             {total > 1 && (
               <View style={styles.bottomNav}>
@@ -343,7 +315,7 @@ export function PhotoViewer({
               right={hasRightActions ? (
                 <GlassContainer contentStyle={navPillStyle}>
                   {canRestyle && (
-                    <IconButton icon={IconSparkle} onPress={() => openRestyle()} variant="ghost-primary" size="medium" loading={restyling} disabled={restyling} forcePressed={restyleSheet} />
+                    <IconButton icon={restyleSheet ? IconSparkleFilled : IconSparkle} onPress={() => openRestyle()} variant="ghost-primary" size="medium" loading={restyling} disabled={restyling} forcePressed={restyleSheet} />
                   )}
                   {onAdd && (
                     <IconButton icon={IconAdd} onPress={() => setShowAddMenu(v => !v)} variant="ghost-primary" size="medium" forcePressed={showAddMenu} />
@@ -368,6 +340,44 @@ export function PhotoViewer({
                 />
               ) : undefined}
             />
+            {/* 보정 시트 — 공통 바텀시트(키보드 따라 올라옴·헤더·바텀 액션 가이드). 뷰어 모달 안이라 모달 없이 띄운다 */}
+            <BottomSheet
+              visible={restyleSheet}
+              onClose={() => setRestyleSheet(false)}
+              hostAsView
+              title={templateView ? t('photoViewer.restyleTemplate') : t('photoViewer.restyleTitle')}
+              headerType="center"
+              onBack={templateView ? () => setTemplateView(null) : undefined}
+              bottomAction={templateView ? undefined : (
+                <>
+                  <Button label={t('photoViewer.restyleCancel')} variant="soft" onPress={() => setRestyleSheet(false)} style={{flex: 1}} />
+                  <Button label={t('photoViewer.restyleRun')} variant="filled" onPress={runRestyle} disabled={restyling} style={{flex: 1}} />
+                </>
+              )}>
+              <View style={styles.sheetBody}>
+                {templateView ? (
+                  // 기본 템플릿 보기 — 헤더 ‹로 입력으로 돌아간다
+                  <SheetText muted={false}>{templateView === LOADING ? t('photoViewer.restyleLoading') : templateView}</SheetText>
+                ) : (
+                  <>
+                    {/* 이번에만 더할 요청 */}
+                    <AppTextInput
+                      label={t('photoViewer.restyleExtraLabel')}
+                      value={extraDraft}
+                      onChangeText={setExtraDraft}
+                      placeholder={t('photoViewer.restyleExtraPlaceholder')}
+                      multiline
+                      maxLength={500}
+                    />
+                    {/* 기본 템플릿은 눌러서 볼 때만 */}
+                    <Pressable style={styles.templateLink} onPress={showTemplate} hitSlop={6}>
+                      <SheetText muted>{t('photoViewer.restyleTemplate')}</SheetText>
+                      <SheetChevron />
+                    </Pressable>
+                  </>
+                )}
+              </View>
+            </BottomSheet>
           </KeyboardAvoidingView>
         </ForceDarkTheme>
       </SafeAreaProvider>
@@ -426,19 +436,16 @@ const styles = StyleSheet.create({
     borderRadius: Radius['radius-md'],
     backgroundColor: 'rgba(255,255,255,0.06)',
   },
-  templateText: {
-    ...Typography.caption.medium,
-    color: 'rgba(255,255,255,0.72)',
+  sheetBody: {
+    paddingHorizontal: Spacing.md,
+    paddingVertical: Spacing.sm,
+    gap: Spacing.sm,
   },
   templateLink: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: 2,
-  },
-  templateLinkText: {
-    ...Typography.caption.medium,
-    color: 'rgba(255,255,255,0.6)',
   },
   extraInput: {
     ...Typography.body.medium,

@@ -117,7 +117,7 @@ export {default as IconPhoto} from '../../../assets/icons/photo.svg';
 export {default as IconMic} from '../../../assets/icons/mic.svg';
 export {default as IconMicFilled} from '../../../assets/icons/mic_filled.svg';
 export {default as IconSparkle} from '../../../assets/icons/sparkle.svg';
-export {default as IconSparkleFilled} from '../../../assets/icons/sparkle_filled.svg';
+export {default as IconSparkleFilled} from '../../../assets/icons/sparkle-filled.svg';
 export {default as IconFire} from '../../../assets/icons/fire.svg';
 export {default as IconFireFilled} from '../../../assets/icons/fire_filled.svg';
 export {default as IconLeaf} from '../../../assets/icons/leaf.svg';

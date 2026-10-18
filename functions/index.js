@@ -426,7 +426,8 @@ export const restylePhoto = onCall(
     form.append('prompt', prompt);
     form.append('image', new Blob([bytes], {type: 'image/jpeg'}), 'photo.jpg');
     form.append('size', 'auto');
-    form.append('quality', 'medium');
+    // 낮춤 — 중간보다 절반쯤 빠르고 싸다(디테일은 조금 덜)
+    form.append('quality', 'low');
     form.append('output_format', 'jpeg');
     form.append('output_compression', '80');
     const res = await fetch('https://api.openai.com/v1/images/edits', {
