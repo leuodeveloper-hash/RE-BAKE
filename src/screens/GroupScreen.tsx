@@ -43,7 +43,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import type {Recipe} from '../types/recipe';
-import {IconAdd, IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconPenTipFilled, IconChevronRight, IconCornerDownRight, IconGlobeFilled, IconSparkle, IconProcess, IconCards, IconCardsFilled, IconArrowDownToLine, IconList, IconClose} from '@components/Icon/IconIndex';
+import {IconAdd, IconTrash, IconTrashTwotone, IconEdit, IconBookFilled, IconExprolerBookFilled, IconPenTipFilled, IconChevronRight, IconCornerDownRight, IconGlobeFilled, IconBroom, IconProcess, IconCards, IconCardsFilled, IconArrowDownToLine, IconList, IconClose} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import {buildPaperPreview} from '@utils/recipePaperPreview';
 import {coverCards, recipeCoverCards, emptyCoverCard} from '@utils/cookbookCards';
@@ -226,7 +226,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
   const moreMenuItems = useMemo(() => {
     const items: MenuItemData[] = [];
     if (emptyCookbookNames.length > 0) {
-      items.push({id: 'cleanup', label: t('group.cleanupEmptyCookbooks', {count: emptyCookbookNames.length}), icon: IconSparkle});
+      items.push({id: 'cleanup', label: t('group.cleanupEmptyCookbooks', {count: emptyCookbookNames.length}), icon: IconBroom});
     }
     // PDF 다운로드(현재 리스트 익스포트) — 콜백이 주어질 때만 (둘러보기 전용)
     if (onDownloadPdf) {
