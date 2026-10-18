@@ -28,6 +28,8 @@ export function UpdateDialog({visible, onUpdate, onLater}: UpdateDialogProps) {
       blurBackdrop
       enableBackdropDismiss={optional}
       icon={IconArrowDownToLine}
+      // 다른 확인 팝업처럼 색 바탕 아이콘 — 색 없이 두면 회색으로 떠 가이드와 달랐다
+      avatarColor="blue"
       showCloseButton={false}
       title={optional ? t('update.availableTitle') : t('update.requiredTitle')}
       description={optional ? t('update.availableDescription') : t('update.requiredDescription')}

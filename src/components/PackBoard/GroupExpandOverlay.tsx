@@ -224,6 +224,7 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
         visible={confirmPublish}
         onClose={() => setConfirmPublish(false)}
         icon={IconShare}
+        avatarColor="orange"
         title={t('sharedCookbook.publishTitle')}
         description={t('sharedCookbook.publishDesc')}
         actions={

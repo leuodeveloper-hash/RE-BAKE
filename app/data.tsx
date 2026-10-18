@@ -176,6 +176,7 @@ export default function DataRoute() {
         visible={confirmBackupOff}
         onClose={() => setConfirmBackupOff(false)}
         icon={IconPhoto}
+        avatarColor="lightblue"
         title={t('profile.photoBackupOffTitle')}
         description={t('profile.photoBackupOffDesc')}
         actions={

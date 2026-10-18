@@ -26,7 +26,7 @@ import {getSharedRecipe} from '@utils/sharedRecipeCache';
 import {uploadRecipeImage, isLocalUri} from '@utils/imageUpload';
 import {getCookbookColorKey} from '@components/ColorPicker';
 import {DEFAULT_COOKBOOK_COLOR} from '@contexts/RecipeContext';
-import {IconTrashFilled, IconExprolerBookFilled} from '@components/Icon/IconIndex';
+import {IconTrashFilled, IconExprolerBookFilled, IconExprolerBookTwotone} from '@components/Icon/IconIndex';
 import {CookbookSelectSheet} from '@components/BottomSheet';
 import {Dialog} from '@components/Dialog';
 import {Button} from '@components/Button';
@@ -811,7 +811,8 @@ const handleDelete = useCallback(async () => {
       <Dialog
         visible={copyToExploreCookbook !== null}
         onClose={() => setCopyToExploreCookbook(null)}
-        icon={IconExprolerBookFilled}
+        icon={IconExprolerBookTwotone}
+        avatarColor="darkred"
         title={t('id.copyToExploreTitle')}
         description={t('id.copyToExploreDesc', {
           title: recipe?.title ?? '',
