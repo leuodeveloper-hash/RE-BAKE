@@ -9,7 +9,7 @@ import {
   IconUndo,
   IconRedo,
   IconAdd,
-  IconSliceVertical,
+  IconSliceVertical, IconStar,
   IconLink,
   IconMic,
   IconScanText,
@@ -61,6 +61,8 @@ export interface EditorToolbarProps {
   scan?: ToolbarAction;
   /** 커서가 있는 줄을 묶음(과정명)으로 — 과정 편집 전용 */
   group?: ToolbarAction;
+  /** 지금 과정을 자주 쓰는 과정으로 저장(별) — 과정 편집 전용 */
+  star?: ToolbarAction;
   /** 선택한 텍스트에 링크 넣기 */
   link?: ToolbarAction;
   /** 완료(✓) */
@@ -83,6 +85,7 @@ export function EditorToolbar({
   voice,
   scan,
   group,
+  star,
   link,
   onDone,
   doneDisabled,
@@ -117,11 +120,17 @@ export function EditorToolbar({
             <IconButton icon={IconUndo} onPress={undo?.onPress} variant="ghost-primary" size="medium" disabled={isOff(undo)} />
             <IconButton icon={IconRedo} onPress={redo?.onPress} variant="ghost-primary" size="medium" disabled={isOff(redo)} />
             <IconButton icon={IconAdd} onPress={add?.onPress} variant="ghost-primary" size="medium" disabled={isOff(add)} forcePressed={add?.active} />
-            <IconButton icon={IconMic} onPress={voice?.onPress} variant="ghost-primary" size="medium" disabled={isOff(voice)} forcePressed={voice?.active} />
+            {/* 음성 입력 — 넘긴 화면에서만(편집 화면은 동작이 불안정해 뺐다) */}
+            {voice ? (
+              <IconButton icon={IconMic} onPress={voice.onPress} variant="ghost-primary" size="medium" disabled={isOff(voice)} forcePressed={voice.active} />
+            ) : null}
             <IconButton icon={IconScanText} onPress={scan?.onPress} variant="ghost-primary" size="medium" disabled={isOff(scan)} forcePressed={scan?.active} />
             {/* 묶음 나누기 — group을 넘긴 화면(과정 편집)에서만 노출 */}
             {group ? (
               <IconButton icon={IconSliceVertical} onPress={group.onPress} variant="ghost-primary" size="medium" disabled={isOff(group)} forcePressed={group.active} />
+            ) : null}
+            {star ? (
+              <IconButton icon={IconStar} onPress={star.onPress} variant="ghost-primary" size="medium" disabled={isOff(star)} forcePressed={star.active} />
             ) : null}
             {/* 선택 텍스트에 링크 — link를 넘긴 화면에서만 노출 */}
             {link ? (

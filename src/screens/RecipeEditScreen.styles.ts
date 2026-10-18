@@ -1,4 +1,4 @@
-import {StyleSheet} from 'react-native';
+import {Platform, StyleSheet} from 'react-native';
 import {KEYBOARD_TOOLBAR_HEIGHT} from '@components/KeyboardToolbar';
 import {NAV_PILL_HEIGHT} from '@components/Navigation';
 import {Spacing} from '@constants/spacing';
@@ -329,6 +329,9 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
     marginTop: 0,
     height: Typography.body.medium.lineHeight,
     paddingVertical: 0,
+    // 아이폰 한 줄 입력에 lineHeight를 주면 글자가 칸 아래로 밀려 내려앉는다(RN iOS 버그).
+    // 높이는 위에서 고정했으니 아이폰만 lineHeight를 빼고 칸 가운데에 그린다
+    ...(Platform.OS === 'ios' ? {lineHeight: undefined} : null),
   },
   groupTimer: {
     marginLeft: Spacing.xs,

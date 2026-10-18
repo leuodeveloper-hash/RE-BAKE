@@ -1,4 +1,11 @@
 {
+  "stepTemplate.edit": "편집",
+  "stepTemplate.delete": "삭제",
+  "stepTemplate.editTitle": "자주 쓰는 과정 편집",
+  "stepTemplate.editSave": "저장",
+  "stepTemplate.fieldStep": "과정",
+  "stepTemplate.fieldTip": "팁",
+  "stepTemplate.fieldCaution": "주의사항",
   "photoViewer.restyleTemplate": "기본 템플릿",
   "photoViewer.restyleExtraPlaceholder": "추가로 원하는 보정 (예: 배경을 밝은 나무 테이블로)",
   "stepTemplate.title": "자주 쓰는 과정",

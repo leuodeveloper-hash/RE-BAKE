@@ -92,6 +92,24 @@ function useStepTemplatesState() {
     return tpl;
   }, [persist]);
 
+  /** 글만 고친다(사진은 그대로) */
+  const updateTemplate = useCallback((id: string, patch: {description: string; tip?: string; caution?: string}) => {
+    setTemplates(prev => {
+      const next = prev.map(t => {
+        if (t.id !== id) return t;
+        const {tip: _tip, caution: _caution, ...rest} = t;
+        return {
+          ...rest,
+          description: patch.description.trim(),
+          ...(patch.tip?.trim() ? {tip: patch.tip.trim()} : {}),
+          ...(patch.caution?.trim() ? {caution: patch.caution.trim()} : {}),
+        };
+      });
+      persist(next);
+      return next;
+    });
+  }, [persist]);
+
   const removeTemplate = useCallback((id: string) => {
     setTemplates(prev => {
       const next = prev.filter(t => t.id !== id);
@@ -100,7 +118,7 @@ function useStepTemplatesState() {
     });
   }, [persist]);
 
-  return {templates, addTemplate, removeTemplate};
+  return {templates, addTemplate, updateTemplate, removeTemplate};
 }
 
 type Value = ReturnType<typeof useStepTemplatesState>;

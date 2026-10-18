@@ -1,4 +1,11 @@
 {
+  "stepTemplate.edit": "Edit",
+  "stepTemplate.delete": "Delete",
+  "stepTemplate.editTitle": "Edit saved step",
+  "stepTemplate.editSave": "Save",
+  "stepTemplate.fieldStep": "Step",
+  "stepTemplate.fieldTip": "Tip",
+  "stepTemplate.fieldCaution": "Caution",
   "photoViewer.restyleTemplate": "Base template",
   "photoViewer.restyleExtraPlaceholder": "Anything else? (e.g. light wooden table background)",
   "stepTemplate.title": "Saved steps",

@@ -292,10 +292,10 @@ export function PhotoViewer({
                       <Text style={styles.templateLinkText}>{t('photoViewer.restyleTemplate')}</Text>
                       <AppIcon icon={IconChevronRight} size="xs" color="rgba(255,255,255,0.6)" />
                     </Pressable>
+                    {/* 아래 버튼은 다른 시트 바텀 액션과 같은 크기(medium)·반반 */}
                     <View style={styles.sheetActions}>
-                      <View style={{flex: 1}} />
-                      <Button label={t('photoViewer.restyleCancel')} variant="soft" size="small" onPress={() => setRestyleSheet(false)} />
-                      <Button label={t('photoViewer.restyleRun')} variant="filled" size="small" onPress={runRestyle} disabled={restyling} />
+                      <Button label={t('photoViewer.restyleCancel')} variant="soft" onPress={() => setRestyleSheet(false)} style={{flex: 1}} />
+                      <Button label={t('photoViewer.restyleRun')} variant="filled" onPress={runRestyle} disabled={restyling} style={{flex: 1}} />
                     </View>
                   </>
                 )}

@@ -120,7 +120,15 @@ export function FloatingNavBar({left, right, title, center, centerMenu, leftMenu
           {/* absoluteFill이라 좌우 캡슐 폭과 무관하게 항상 화면 정중앙 */}
           {center != null && (
             <View style={styles.titleCenter} pointerEvents="box-none">
-              {center}
+              {/* 가운데 메뉴는 가운데 요소에 붙여 바로 밑 4에 연다(좌우 메뉴와 같은 규칙) */}
+              <View pointerEvents="box-none">
+                {center}
+                {centerMenu ? (
+                  <View style={styles.centerMenuContainer} pointerEvents="box-none">
+                    {centerMenu}
+                  </View>
+                ) : null}
+              </View>
             </View>
           )}
           {left ? (
@@ -131,11 +139,6 @@ export function FloatingNavBar({left, right, title, center, centerMenu, leftMenu
                   {leftMenu}
                 </View>
               )}
-            </View>
-          ) : null}
-          {centerMenu ? (
-            <View style={styles.centerMenuContainer} pointerEvents="box-none">
-              {centerMenu}
             </View>
           ) : null}
           {right && (
@@ -206,11 +209,13 @@ const styles = StyleSheet.create({
     left: 0,
     zIndex: 20,
   },
+  // 가운데 요소 바로 밑 4 — 메뉴가 요소보다 넓어도 가운데에 오게 좌우를 넉넉히 펼친다
   centerMenuContainer: {
     position: 'absolute' as const,
-    top: NAV_PILL_HEIGHT + Spacing.xs,
-    left: 0,
-    right: 0,
+    top: '100%',
+    marginTop: Spacing.xs,
+    left: -400,
+    right: -400,
     alignItems: 'center',
     zIndex: 20,
   },

@@ -48,6 +48,9 @@ export interface RecipeInputFloatingBarProps {
   onGroupSplit?: () => void;
   /** 묶음 나누기 활성 여부 */
   canGroupSplit?: boolean;
+  /** 지금 과정을 자주 쓰는 과정으로 저장(툴바 별) */
+  onStar?: () => void;
+  canStar?: boolean;
   /** 선택한 텍스트에 링크 넣기. 없으면 버튼 숨김 */
   onLink?: () => void;
   /** 링크 버튼 활성 여부 (텍스트가 선택돼 있을 때만) */
@@ -92,6 +95,8 @@ export function RecipeInputFloatingBar({
   canRedo = false,
   onGroupSplit,
   canGroupSplit = false,
+  onStar,
+  canStar = false,
   onLink,
   canLink = false,
   onDone,
@@ -262,8 +267,8 @@ export function RecipeInputFloatingBar({
         undo={onUndo ? {onPress: onUndo, disabled: !canUndo} : undefined}
         redo={onRedo ? {onPress: onRedo, disabled: !canRedo} : undefined}
         group={onGroupSplit ? {onPress: onGroupSplit, disabled: !canGroupSplit} : undefined}
+        star={onStar ? {onPress: onStar, disabled: !canStar} : undefined}
         link={onLink ? {onPress: onLink, disabled: !canLink} : undefined}
-        voice={{onPress: handleVoice, active: stt.recording, disabled: ocrDisabled}}
         scan={{
           onPress: () => {
             if (externalBusy || busy) {

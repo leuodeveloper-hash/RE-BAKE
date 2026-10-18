@@ -2551,6 +2551,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                               responder={responder}
                               enabled={canDragIngredient}
                               onPress={() => { triggerHaptic('light'); setIngRowMenu({groupId: group.id, itemId: ingredient.id}); }}
+                              active={ingRowMenu?.itemId === ingredient.id}
                             />
                           ),
                         }}
@@ -2849,6 +2850,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                               responder={responder}
                               enabled={canDrag}
                               onPress={() => { triggerHaptic('light'); setToolRowMenu({groupId: group.id, itemId: tool.id}); }}
+                              active={toolRowMenu?.itemId === tool.id}
                             />
                           ),
                         }}
@@ -3153,6 +3155,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                               responder={responder}
                               enabled={canDragStep}
                               onPress={() => { triggerHaptic('light'); setStepRowMenu({groupId: group.id, stepId: step.id}); }}
+                              active={stepRowMenu?.stepId === step.id}
                             />
                           ),
                         }}
@@ -3725,9 +3728,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
           if (s) stepHasRoom = s.tip == null || s.caution == null || (s.photos?.length ?? 0) < 3;
         }
         // 자주 쓰는 과정은 칸이 다 차도 쓸 수 있다
-        const canAddChip = (focusedOcrField === 'steps' && !!focusedStep)
-          // 조언 칸도 [+]로 사진(3장까지)
-          || (adviceFocused && advicePhotos.length < 3);
+        // 사진은 칸 아래 사진 썸네일 칸에서 넣는다 — 조언 칸 [+]는 사진뿐이라 끈다
+        const canAddChip = focusedOcrField === 'steps' && !!focusedStep;
         // 묶음 나누기: 커서가 있는 과정 줄을 새 그룹의 제목(과정명)으로 올리고,
         // 그 아래 과정들을 새 그룹으로 옮긴다. 해당 줄 자체는 제목이 되므로 목록에서 빠진다.
         const canGroupSplit = focusedOcrField === 'steps' && !!focusedStep && (() => {
@@ -3785,7 +3787,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
           const s = g?.steps.find(ss => ss.id === slashMenu.stepId);
           const actions = SLASH_MENU_ITEMS
             .filter(item =>
-              (item.id === 'camera' || item.id === 'gallery') ? (s?.photos?.length ?? 0) < 3
+              // 사진은 과정 아래 사진 칸에서 넣는다 — 툴바 2뎁스에선 뺐다
+              (item.id === 'camera' || item.id === 'gallery') ? false
               : item.id === 'tip' ? s?.tip == null
               : item.id === 'caution' ? s?.caution == null
               : true,
@@ -3814,6 +3817,21 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
           canRedo={history.canRedo}
           onGroupSplit={handleGroupSplit}
           canGroupSplit={canGroupSplit}
+          // 별 — 지금 과정(설명·팁·주의·사진)을 자주 쓰는 과정으로 저장. 꺼내 쓰기는 [+] → 자주 쓰는 과정
+          onStar={() => {
+            if (!focusedStep) return;
+            const cur = stepGroups.find(g => g.id === focusedStep.groupId)?.steps.find(st => st.id === focusedStep.stepId);
+            if (!cur) return;
+            triggerHaptic('light');
+            addTemplate({description: cur.description, tip: cur.tip, caution: cur.caution, photos: cur.photos})
+              .then(() => showSnackbar(t('stepTemplate.saved'), {tone: 'positive'}))
+              .catch(() => showSnackbar(t('stepTemplate.saveFailed'), {tone: 'error'}));
+          }}
+          canStar={(() => {
+            if (focusedOcrField !== 'steps' || !focusedStep) return false;
+            const cur = stepGroups.find(g => g.id === focusedStep.groupId)?.steps.find(st => st.id === focusedStep.stepId);
+            return !!(cur && (cur.description.trim() || cur.tip?.trim() || cur.caution?.trim() || cur.photos?.length));
+          })()}
           onLink={handleLink}
           // 팁·주의 칩도 공통 TextInput이라 링크 배선이 이미 돼 있다 —
           // OCR 필드에만 열어 두면 칩에서는 버튼이 꺼져 링크를 못 걸었다.
