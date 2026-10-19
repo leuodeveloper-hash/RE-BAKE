@@ -2,15 +2,16 @@ import {Platform, Linking} from 'react-native';
 import Constants from 'expo-constants';
 import {doc, getDoc} from 'firebase/firestore';
 import {db} from '../config/firebase';
+import webBuild from '../config/webBuild.json';
 
 /** 현재 실행 중인 앱/웹 버전 (app.json version) */
 export const CURRENT_VERSION = Constants.expoConfig?.version ?? '0.0.0';
 /**
  * 웹 배포 번호 — 웹은 배포할 때마다 바뀌어야 새 버전을 알아챈다.
  * app.json 버전은 스토어 출시 때만 올라가서, 그것만 비교하면 웹 배포를 해도 팝업이 안 떴다.
- * deploy:web이 export 때 넣고 같은 값을 dist/version.json에도 적는다.
+ * deploy:web이 export 전에 webBuild.json에 적고 같은 값을 dist/version.json에도 적는다(scripts/writeWebBuild.js).
  */
-const WEB_BUILD = process.env.EXPO_PUBLIC_WEB_BUILD ?? '0';
+const WEB_BUILD = webBuild.build;
 /** 비교에 쓰는 현재 버전 — 웹은 배포 번호까지(1.0.21.<배포번호>) */
 const CURRENT_COMPARE = Platform.OS === 'web' ? `${CURRENT_VERSION}.${WEB_BUILD}` : CURRENT_VERSION;
 

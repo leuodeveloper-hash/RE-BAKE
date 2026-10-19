@@ -10,7 +10,8 @@ import {
   GoogleAuthProvider,
   OAuthProvider,
   updateProfile,
-  signInWithPopup,
+  signInWithRedirect,
+  getRedirectResult,
   signInWithCredential,
   getAdditionalUserInfo,
   User,
@@ -56,6 +57,18 @@ async function incrementSignupCount(): Promise<void> {
     setDoc(doc(db, 'signupLimits', todayKey), {count: increment(1)}, {merge: true}),
     setDoc(doc(db, 'signupLimits', TOTAL_KEY), {count: increment(1)}, {merge: true}),
   ]);
+}
+
+/** 새 가입자면 가입 한도 확인 후 카운트 — 넘으면 바로 로그아웃 */
+async function handleNewUser(result: UserCredential): Promise<void> {
+  if (!getAdditionalUserInfo(result)?.isNewUser) return;
+  try {
+    await checkSignupLimit();
+    await incrementSignupCount();
+  } catch (e) {
+    await firebaseSignOut(auth);
+    throw e;
+  }
 }
 
 const GOOGLE_WEB_CLIENT_ID = '420587944388-nh09tqe1o1gmsreuf55qesjjmalgtmg0.apps.googleusercontent.com';
@@ -135,6 +148,14 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
 
   // 아바타 시드: 로그인=UID, 게스트=랜덤 시드
   const avatarSeed: string | number = user ? user.uid : guestSeed;
+
+  // 웹 Google 로그인에서 돌아왔을 때 — 새 가입자 한도 확인
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    getRedirectResult(auth)
+      .then(r => r && handleNewUser(r))
+      .catch(e => console.warn('[Auth] Google 로그인 결과 처리 실패:', e));
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -225,7 +246,10 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
   const signInWithGoogleFn = useCallback(async () => {
     let result: UserCredential | undefined;
     if (Platform.OS === 'web') {
-      result = await signInWithPopup(auth, googleProvider);
+      // 웹은 지금 탭에서 Google로 갔다 돌아온다(결과는 아래 getRedirectResult에서).
+      // 팝업은 크롬에서 닫힌 뒤 결과가 원래 탭에 안 넘어와 아무 반응 없이 끝났다.
+      await signInWithRedirect(auth, googleProvider);
+      return;
     } else {
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();
@@ -234,18 +258,7 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
         result = await signInWithCredential(auth, credential);
       }
     }
-    if (result) {
-      const info = getAdditionalUserInfo(result);
-      if (info?.isNewUser) {
-        try {
-          await checkSignupLimit();
-          await incrementSignupCount();
-        } catch (e) {
-          await firebaseSignOut(auth);
-          throw e;
-        }
-      }
-    }
+    if (result) await handleNewUser(result);
   }, []);
 
   const signOut = useCallback(async () => {
