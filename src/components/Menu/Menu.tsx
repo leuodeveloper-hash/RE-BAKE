@@ -106,9 +106,9 @@ export function Menu({
   // 최대 320 — 'Official recipe books' 정도까지는 한 줄, 그보다 긴 이름(레시피 제목 등)만 두 줄로 꺾인다
   const MENU_MAX_WIDTH = 320;
   // 슬라이더 같은 컨트롤이 든 메뉴는 그게 들어갈 만큼(240) — 글자 길이만 보면 좁아 컨트롤이 잘렸다
-  // 검색칸이 있는 메뉴도 — 이름이 짧으면 메뉴가 좁아 검색칸이 찌그러졌다
-  const hasControl = !!sections?.some(sec => sec.content) || searchable;
-  const menuMinWidth = Math.min(Math.max(hasControl ? 260 : 200, textW + 64), MENU_MAX_WIDTH, SCREEN_W - 32);
+  // 검색칸이 있는 메뉴만 넓게 — 이름이 짧으면 검색칸이 찌그러졌다.
+  // 컨트롤(레이아웃 아이콘·탭·슬라이더)이 든 메뉴는 그 컨트롤 폭대로 늘어난다(무조건 넓히면 레이아웃 메뉴가 휑했다)
+  const menuMinWidth = Math.min(Math.max(searchable ? 260 : 200, textW + 64), MENU_MAX_WIDTH, SCREEN_W - 32);
   const colors = useColors();
   const {t} = useTranslation();
   const scale = useRef(new Animated.Value(0.95)).current;

@@ -1,3 +1,4 @@
+import {cToF, fToC, useTempUnit} from '@utils/temperature';
 import React, {useEffect, useState} from 'react';
 import {StyleSheet, Text, View} from 'react-native';
 import {SvgProps} from 'react-native-svg';
@@ -38,13 +39,19 @@ export function NumberValueDialog({visible, onClose, title, icon, avatarColor = 
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const [num, setNum] = useState('');
+  // 온도(°C) 칸이면 화씨 설정에서 화씨로 받고 섭씨로 바꿔 저장한다 — 저장은 늘 섭씨
+  const tempUnit = useTempUnit();
+  const asF = suffix === '°C' && tempUnit === 'F';
+  const shownSuffix = asF ? '°F' : suffix;
   useEffect(() => {
-    if (visible) setNum(value?.match(/-?\d+(?:\.\d+)?/)?.[0] ?? '');
-  }, [visible, value]);
+    if (!visible) return;
+    const raw = value?.match(/-?\d+(?:\.\d+)?/)?.[0] ?? '';
+    setNum(raw && asF ? String(Math.round(cToF(parseFloat(raw)))) : raw);
+  }, [visible, value, asF]);
   const n = num.trim();
   const confirm = () => {
     if (!n) return;
-    onConfirm(`${n}${suffix}`);
+    onConfirm(asF ? `${Math.round(fToC(parseFloat(n)) * 10) / 10}${suffix}` : `${n}${suffix}`);
     onClose();
   };
   return (
@@ -74,7 +81,7 @@ export function NumberValueDialog({visible, onClose, title, icon, avatarColor = 
         <View style={styles.inputWrap}>
           <TextInput value={num} onChangeText={setNum} keyboardType="decimal-pad" placeholder="0" maxLength={6} selectTextOnFocus autoFocus />
         </View>
-        <Text style={styles.suffix}>{suffix}</Text>
+        <Text style={styles.suffix}>{shownSuffix}</Text>
       </View>
     </Dialog>
   );

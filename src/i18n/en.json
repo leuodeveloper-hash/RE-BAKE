@@ -1,4 +1,5 @@
 {
+  "settings.tempUnit": "Temperature unit",
   "exploreLock.free": "Open for free",
   "exploreLock.locked": "Lock",
   "exploreLock.auto": "Automatic (by order)",

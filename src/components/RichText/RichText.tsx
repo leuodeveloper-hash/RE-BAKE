@@ -1,3 +1,4 @@
+import {convertTempsInText, useTempUnit} from '@utils/temperature';
 import React, {useCallback} from 'react';
 import {Platform, StyleProp, Text, TextStyle, View} from 'react-native';
 import {useRecipeLink, internalRecipeId} from '@contexts/RecipeLinkContext';
@@ -43,7 +44,9 @@ export interface RichTextProps {
 export function RichText({children, style, numberOfLines, inline}: RichTextProps) {
   const colors = useColors();
   useDictionary(); // 사전이 바뀌면 공법 밑줄도 다시
-  const segments = parseRichText(children ?? '');
+  // 글 속 섭씨 온도(180℃)는 화씨 설정이면 화씨로 보여준다 — 저장은 섭씨 그대로
+  const tempUnit = useTempUnit();
+  const segments = parseRichText(convertTempsInText(children ?? '', tempUnit));
   // 링크 종류별로 연다 — 팁은 바텀시트, 레시피는 앱 안 상세, 그 밖은 브라우저(RecipeLinkContext)
   const {openLink, linkKind, openMethod} = useRecipeLink();
   const open = useCallback((url: string) => openLink(url), [openLink]);

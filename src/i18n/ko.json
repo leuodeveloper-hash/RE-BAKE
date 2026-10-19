@@ -1,4 +1,5 @@
 {
+  "settings.tempUnit": "온도 단위",
   "exploreLock.free": "무료로 열기",
   "exploreLock.locked": "잠그기",
   "exploreLock.auto": "자동으로(목록 순서대로)",

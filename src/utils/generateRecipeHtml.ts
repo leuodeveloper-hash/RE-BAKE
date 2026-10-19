@@ -1,3 +1,4 @@
+import {convertTempsInText, getTempUnit} from './temperature';
 import {hasFlour, flourTotal, bakersPercentOf} from './bakersPercentage';
 import {stripRichText} from './richText';
 import {SemanticColorsLight} from '@constants/tokens';
@@ -54,7 +55,8 @@ export interface RecipePdfData {
 }
 
 function escapeHtml(str: string): string {
-  return str
+  // PDF 글도 화면과 같은 온도 단위로(섭씨 저장 → 화씨 설정이면 화씨)
+  return convertTempsInText(str, getTempUnit())
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

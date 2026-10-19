@@ -54,6 +54,7 @@ import {Thumbnail} from '@components/Thumbnail';
 import {StepPhotos} from '@components/StepPhotos';
 import {PhotoViewer} from '@components/PhotoViewer';
 import {BrokenImageMark, useBrokenImage} from '@components/BrokenImage';
+import {formatTemp, useTempUnit} from '@utils/temperature';
 import * as ImagePicker from 'expo-image-picker';
 import {ensureImagePermission} from '@utils/imagePermission';
 import {getPersistentUri, MAX_HERO_PHOTOS} from '@utils/imageUpload';
@@ -631,6 +632,8 @@ export function RecipeDetailScreen({
   }, [onUpdate]);
   const heroUris = useMemo(() => heroPhotos.map(p => p.uri), [heroPhotos]);
   const heroBroken = useBrokenImage(imageUri);
+  // 온도 단위(설정) — 반죽 온도 메타를 화씨로 보여줄 때
+  const tempUnit = useTempUnit();
   const handleHeroAdd = useCallback(async (source: PhotoSource) => {
     if (heroUris.length >= MAX_HERO_PHOTOS) {
       showSnackbar(t('recipeDetail.heroPhotoMax', {count: MAX_HERO_PHOTOS}));
@@ -938,7 +941,7 @@ export function RecipeDetailScreen({
     // 필드 관리에서 끈 칸은 값이 있어도 숨긴다
     ...(time && isFieldActive('time') ? [{icon: IconClockFilled, label: time, onPress: canEdit ? () => setShowTimeDialog(true) : undefined}] : []),
     ...(servings && isFieldActive('servings') ? [{icon: IconUsersRoundFilled, label: servings, onPress: canEdit ? () => setShowServingsDialog(true) : undefined}] : []),
-    ...(doughTemp && isFieldActive('doughTemp') ? [{icon: IconDoughTempFilled, label: doughTemp, onPress: canEdit ? () => setNumberDialog('doughTemp') : undefined}] : []),
+    ...(doughTemp && isFieldActive('doughTemp') ? [{icon: IconDoughTempFilled, label: formatTemp(doughTemp, tempUnit), onPress: canEdit ? () => setNumberDialog('doughTemp') : undefined}] : []),
     ...(divideWeight && isFieldActive('divideWeight') ? [{icon: IconSplitFilled, label: divideWeight, onPress: canEdit ? () => setNumberDialog('divideWeight') : undefined}] : []),
   ];
 
@@ -2264,8 +2267,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   // 메뉴 안 컨트롤 — 구분 탭처럼 좌우는 메뉴 안쪽 여백만, 아래 4
   scaleControl: {
-    // 메뉴 폭에 맞춘다 — 고정 폭(232)은 좁은 폰에서 메뉴 밖으로 잘렸다
+    // 슬라이더가 들어갈 최소 폭 — 메뉴가 이만큼 늘어난다(고정 폭이 아니라 최소라 메뉴 밖으로 안 나간다)
     alignSelf: 'stretch',
+    minWidth: 232,
     paddingHorizontal: Spacing.xs,
     paddingTop: Spacing.xs,
     paddingBottom: Spacing.sm,

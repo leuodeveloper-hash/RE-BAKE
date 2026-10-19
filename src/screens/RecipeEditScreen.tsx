@@ -3,6 +3,7 @@ import {launchCamera} from '@utils/camera';
 import {dismissKeyboardAndWait} from '@utils/keyboard';
 import {launchLibrary} from '@components/AlbumPicker/albumPicker';
 import {stripAmountParens} from '@utils/scaleAmount';
+import {formatTemp, useTempUnit} from '@utils/temperature';
 import {StepTemplateSheet} from '@components/BottomSheet/StepTemplateSheet';
 import {useStepTemplates} from '@hooks/useStepTemplates';
 
@@ -291,6 +292,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   // bulk 재료 입력 중 포커스된 그룹 id — OCR/타이핑 오버레이를 해당 그룹에만 적용
   const [ocrBulkGroupId, setOcrBulkGroupId] = useState<string | null>(null);
   // 포커스된 과정(step) — 툴바 + 로 팁/주의/사진 추가 대상
+  // 온도 단위(설정) — 반죽 온도 칸을 화씨로 보여줄 때
+  const tempUnit = useTempUnit();
   const [focusedStep, setFocusedStep] = useState<{groupId: string; stepId: string} | null>(null);
   // 자주 쓰는 과정 시트 — 열 때의 과정(그 아래에 넣는다)
   const [templateTarget, setTemplateTarget] = useState<{groupId: string; stepId: string} | null>(null);
@@ -2305,7 +2308,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
             )}
             {isFieldActive('time') && <OptionTile icon={IconClockFilled} label={time || t('recipeEdit.time')} onPress={() => setShowTimeDialog(true)} />}
             {isFieldActive('servings') && <OptionTile icon={IconUsersRoundFilled} label={servings || t('recipeEdit.servings')} onPress={() => setShowServingsDialog(true)} />}
-            {isFieldActive('doughTemp') && <OptionTile icon={IconDoughTempFilled} label={doughTemp || t('recipeEdit.doughTemp')} onPress={() => setNumberDialog('doughTemp')} />}
+            {isFieldActive('doughTemp') && <OptionTile icon={IconDoughTempFilled} label={doughTemp ? formatTemp(doughTemp, tempUnit) : t('recipeEdit.doughTemp')} onPress={() => setNumberDialog('doughTemp')} />}
             {isFieldActive('divideWeight') && <OptionTile icon={IconSplitFilled} label={divideWeight || t('recipeEdit.divideWeight')} onPress={() => setNumberDialog('divideWeight')} />}
             {/* 회차 타일 제거 — '다시 만들기' 자동값이라 편집화면에 표시할 필요 없음 (session 데이터는 저장 유지) */}
           </View>

@@ -1,4 +1,5 @@
 import {syncTimeLabel} from '@utils/dateLabel';
+import {setTempUnit, useTempUnit} from '@utils/temperature';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {Alert, Platform, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {useFocusEffect} from 'expo-router';
@@ -54,7 +55,7 @@ import {
   IconMoonFilled,
   IconCloudFilled,
   IconTicketFilled,
-  IconGlobeFilled,
+  IconGlobeFilled, IconDoughTempFilled,
   IconClockFilled,
   IconCameraFilled, IconWidgetFilled, IconMailFilled, IconCursorFilled} from '@components/Icon/IconIndex';
 
@@ -205,6 +206,7 @@ export function ProfileScreen({
   const colors = useColors();
   const {appearanceMode, setAppearanceMode} = useTheme();
   const {language, setLanguage, t} = useTranslation();
+  const tempUnit = useTempUnit();
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   // 언어 옵션 라벨은 각 언어의 네이티브 표기로 고정 (번역하지 않음)
   const LANGUAGE_OPTIONS = useMemo(() => [
@@ -556,6 +558,14 @@ export function ProfileScreen({
                 trailingValue={LANGUAGE_OPTIONS.find(o => o.id === language)?.label ?? '한국어'}
                 trailing={{type: 'icon', icon: IconChevronRight}}
                 onPress={() => setShowLanguageMenu(true)}
+                showDivider
+              />
+              {/* 온도 단위 — 누를 때마다 섭씨·화씨. 저장은 늘 섭씨, 화면·PDF만 바꿔 보여준다 */}
+              <ListItem
+                title={t('settings.tempUnit')}
+                leading={{type: 'icon', icon: IconDoughTempFilled}}
+                trailingValue={tempUnit === 'F' ? '°F' : '°C'}
+                onPress={() => setTempUnit(tempUnit === 'F' ? 'C' : 'F')}
                 showDivider
               />
               {/* Support — 메일 앱을 열지 않고 앱 안에서 문의 */}
