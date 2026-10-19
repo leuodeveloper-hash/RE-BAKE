@@ -10,12 +10,17 @@ import {PrimitiveColors, Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 
-export interface FloatingNoticeProps {
+export interface FloatingNoticeItem {
   label: string;
   icon?: React.FC<SvgProps>;
   onPress: () => void;
   /** 처리 중 — 아이콘 자리에 돌아가는 표시, 누르기 막음 */
   loading?: boolean;
+}
+
+export interface FloatingNoticeProps {
+  /** 띄울 알림들 — 여럿이면 가운데에 나란히(새 버전 + 레시피 업데이트됨 등) */
+  items: FloatingNoticeItem[];
   /** 화면 아래에서 띄울 거리(탭바·하단 바 위). 기본 110 */
   bottom?: number;
 }
@@ -37,22 +42,25 @@ export const noticePillStyle = {
 export const noticeShadow = (color: string) => `0px 6px 16px -2px ${withAlpha(color, 0.45)}`;
 export const noticeLabelStyle = {...Typography.caption.large, fontWeight: '600' as const};
 
-export function FloatingNotice({label, icon, onPress, loading, bottom = 110}: FloatingNoticeProps) {
+export function FloatingNotice({items, bottom = 110}: FloatingNoticeProps) {
   const styles = useThemedStyles(createStyles);
+  if (items.length === 0) return null;
   // 떠 있는 유리 컨테이너(앱바 알약과 같은 NavPillGroup) 안에 고스트 스몰 둥근 버튼 — 앱바 버튼들과 같은 타입
   return (
     <View pointerEvents="box-none" style={[styles.wrap, {bottom}]}>
-      <NavPillGroup>
-        <Button
-          label={label}
-          icon={icon}
-          variant="ghost"
-          size="small"
-          loading={loading}
-          disabled={loading}
-          onPress={onPress}
-        />
-      </NavPillGroup>
+      {items.map(item => (
+        <NavPillGroup key={item.label}>
+          <Button
+            label={item.label}
+            icon={item.icon}
+            variant="ghost"
+            size="small"
+            loading={item.loading}
+            disabled={item.loading}
+            onPress={item.onPress}
+          />
+        </NavPillGroup>
+      ))}
     </View>
   );
 }
@@ -62,6 +70,9 @@ const createStyles = (_colors: SemanticColors) => StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    alignItems: 'center',
+    // 여럿이면 가운데에 나란히(사이 8)
+    flexDirection: 'row',
+    justifyContent: 'center',
+    gap: Spacing.sm,
   },
 });

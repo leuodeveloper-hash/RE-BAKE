@@ -4,7 +4,7 @@ import {getColorVarKey} from '@components/ColorPicker';
 import {useBreadcrumbItemOffset} from '@components/Navigation/Breadcrumb';
 import {cookbookMenuItem} from '@utils/cookbookMenuItem';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import {useLandingMenu} from '@components/RecipeGroups/groupAxis';
+import {useLandingMenu, methodMenuItem, allMenuItem} from '@components/RecipeGroups/groupAxis';
 import {IconLogoBadge} from '@components/Icon/IconIndex';
 import {NavPillButton} from '@components/Navigation';
 import {NAV_PILL_HEIGHT} from '@constants/layout';
@@ -320,7 +320,7 @@ export function ExploreScreen({
     const names = new Set<string>();
     for (const r of data) names.add(r.cookbook || '공식 레시피 북 없음');
     exploreCookbooks?.forEach(c => names.add(c.name));
-    return [{id: CRUMB_ALL, label: t('explore.all')}, ...noBookLast(names).map(bookItem)];
+    return [allMenuItem(CRUMB_ALL, t('explore.all'), 'cookbook', colors), ...noBookLast(names).map(bookItem)];
   }, [data, exploreCookbooks, t, bookItem]);
 
 
@@ -336,15 +336,15 @@ export function ExploreScreen({
       const names = new Set<string>();
       for (const r of data) names.add(r.cookbook || '공식 레시피 북 없음');
       exploreCookbooks?.forEach(c => names.add(c.name));
-      return [{id: CRUMB_ALL, label: t('explore.all')}, ...noBookLast(names).map(bookItem)];
+      return [allMenuItem(CRUMB_ALL, t('explore.all'), 'cookbook', colors), ...noBookLast(names).map(bookItem)];
     }
     if (crumbAxis === 'method') {
       const names = new Set<string>();
       for (const r of data) names.add(r.method?.trim() || '공법 없음');
-      return [{id: CRUMB_ALL, label: t('explore.all')}, ...[...names].map(n => ({id: n, label: n}))];
+      return [allMenuItem(CRUMB_ALL, t('explore.all'), 'method', colors), ...[...names].map(n => methodMenuItem(n, colors))];
     }
     return [];
-  }, [crumbAxis, data, exploreCookbooks, cookbookFilterItems, isAdmin, t, bookItem]);
+  }, [crumbAxis, data, exploreCookbooks, cookbookFilterItems, isAdmin, t, bookItem, colors]);
 
   const handleCrumbItemSelect = useCallback((id: string) => {
     setShowItemMenu(false);

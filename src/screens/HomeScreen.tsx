@@ -11,7 +11,7 @@ import {cookbookMenuItem} from '@utils/cookbookMenuItem';
 import {ProfileHeader} from '@components/ProfileHeader';
 import {shareProfile} from '@utils/shareCookbook';
 import {IconSettings} from '@components/Icon/IconIndex';
-import {useLandingMenu} from '@components/RecipeGroups/groupAxis';
+import {useLandingMenu, methodMenuItem, allMenuItem} from '@components/RecipeGroups/groupAxis';
 import {IconShare} from '@components/Icon/IconIndex';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Linking, StyleSheet, Text, View} from 'react-native';
@@ -365,7 +365,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
       const names = new Set<string>();
       for (const r of recipes) names.add(r.cookbook || t('home.noCookbook'));
       availableCookbooks.forEach(n => names.add(n));
-      const items = [{id: ALL_ID, label: t('home.all')}, ...noBookLast(names).map(bookItem)];
+      const items = [allMenuItem(ALL_ID, t('home.all'), 'cookbook', colors), ...noBookLast(names).map(bookItem)];
       // '레시피' 축에선 북을 여기서 고르므로 새 북 만들기도 여기 둔다
       // 단계에 맞는 추가를 맨 아래에 — 레시피 단계는 '레시피 추가', 레시피북에서 들어온 단계는 '레시피 북 추가'
       if (isAuthorMode) return items;
@@ -376,10 +376,10 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
     if (crumbAxis === 'method') {
       const names = new Set<string>();
       for (const r of recipes) names.add(r.method?.trim() || t('home.noMethod'));
-      return [{id: ALL_ID, label: t('home.all')}, ...[...names].map(n => ({id: n, label: n}))];
+      return [allMenuItem(ALL_ID, t('home.all'), 'method', colors), ...[...names].map(n => methodMenuItem(n, colors))];
     }
     return [];
-  }, [crumbAxis, recipes, availableCookbooks, t, bookItem, noBookLast, isAuthorMode]);
+  }, [crumbAxis, recipes, availableCookbooks, t, bookItem, noBookLast, isAuthorMode, colors]);
 
   /**
    * 축 메뉴에 붙는 레시피북 목록.
@@ -393,7 +393,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
     const names = new Set<string>();
     for (const r of recipes) names.add(r.cookbook || t('home.noCookbook'));
     availableCookbooks.forEach(n => names.add(n));
-    return [{id: ALL_ID, label: t('home.all')}, ...noBookLast(names).map(bookItem)];
+    return [allMenuItem(ALL_ID, t('home.all'), 'cookbook', colors), ...noBookLast(names).map(bookItem)];
   }, [recipes, availableCookbooks, t, bookItem, noBookLast]);
 
   const handleCookbookFilterSelect = useCallback((id: string) => {

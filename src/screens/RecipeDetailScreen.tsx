@@ -9,7 +9,7 @@ import {DotSlider} from '@components/DotSlider';
 const SCALE_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3];
 import {effectiveActiveFields} from '@utils/breadFieldsMigration';
 import {IconRefresh} from '@components/Icon/IconIndex';
-import {FloatingNotice} from '@components/FloatingNotice';
+import {useFloatingNotice} from '@contexts/FloatingNoticeContext';
 import {APPBAR_ITEM_GAP} from '@constants/layout';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
@@ -774,6 +774,10 @@ export function RecipeDetailScreen({
     setRefreshing(true);
     try { await onRefresh?.(); } finally { setRefreshing(false); }
   }, [onRefresh]);
+  // 업데이트됨 — 다른 기기에서 고친 내용이 있으면 아래쪽에 떠 있는 버튼, 누르면 새로 받는다(새 버전 알림과 나란히)
+  useFloatingNotice('recipeUpdated', updateAvailable && onRefresh
+    ? {icon: IconRefresh, label: refreshing ? t('recipeDetail.updating') : t('recipeDetail.updated'), onPress: handlePullRefresh, loading: refreshing}
+    : null);
   const toggleBulkView = useCallback((v: boolean) => {
     setBulkView(v);
     AsyncStorage.setItem(BULK_VIEW_KEY, v ? '1' : '0').catch(() => {});
@@ -1753,10 +1757,6 @@ export function RecipeDetailScreen({
         <View style={{height: 120 + safeBottom}} />
       </Animated.ScrollView>
 
-      {/* 업데이트됨 — 다른 기기에서 고친 내용이 있으면 아래쪽에 떠 있는 버튼, 누르면 새로 받는다 */}
-      {updateAvailable && onRefresh ? (
-        <FloatingNotice icon={IconRefresh} label={refreshing ? t('recipeDetail.updating') : t('recipeDetail.updated')} onPress={handlePullRefresh} loading={refreshing} />
-      ) : null}
 
       {/* Overlay for Menu */}
       <Pressable

@@ -1,4 +1,5 @@
 import {onRequest, onCall, HttpsError} from 'firebase-functions/v2/https';
+import {setGlobalOptions} from 'firebase-functions/v2';
 import {onDocumentCreated} from 'firebase-functions/v2/firestore';
 import {onSchedule} from 'firebase-functions/v2/scheduler';
 import {defineSecret} from 'firebase-functions/params';
@@ -10,6 +11,28 @@ import nodemailer from 'nodemailer';
 
 initializeApp();
 
+// ---------------------------------------------------------------------------
+// 횟수 제한 — 돈이 나갈 수 있는 함수(외부 호출·AI·대량 읽기)는 하루 한도를 둔다.
+// rate_limits/{이름_키_날짜} 문서에 센다(서버만 쓴다, 앱 규칙은 기본 거부).
+// 넘으면 resource-exhausted. 이틀 지난 문서는 purgeOldOcrLogs와 같은 정리에서 지운다.
+// ---------------------------------------------------------------------------
+const todayKey = () => new Date(Date.now() + 9 * 3600 * 1000).toISOString().slice(0, 10); // 한국 날짜
+async function takeQuota(name, key, limit) {
+  const db = getFirestore();
+  const ref = db.collection('rate_limits').doc(`${name}_${String(key).replace(/[^\w.:-]/g, '_')}_${todayKey()}`);
+  const count = await db.runTransaction(async (tx) => {
+    const snap = await tx.get(ref);
+    const n = (snap.exists ? snap.data().count : 0) + 1;
+    tx.set(ref, {count: n, day: todayKey(), name}, {merge: true});
+    return n;
+  });
+  return count <= limit;
+}
+/** 함수 하나가 한 번에 띄울 수 있는 서버 수 — 몰려도 비용이 그 이상 늘지 않는다 */
+const MAX_INSTANCES = 3;
+// 모든 함수 기본 상한(따로 준 함수는 그 값) — 이상한 호출이 몰려도 서버가 끝없이 늘지 않는다
+setGlobalOptions({maxInstances: 5});
+
 /**
  * 레시피 가져오기용 CORS 프록시.
  * 웹(브라우저)은 외부 사이트(만개의레시피 등)를 CORS 때문에 직접 fetch 못 함.
@@ -18,8 +41,14 @@ initializeApp();
  * 앱은 직접 fetch가 가능하지만, 로직 통일을 위해 이 프록시를 함께 써도 된다.
  */
 export const importProxy = onRequest(
-  {region: 'asia-northeast3', cors: true, memory: '256MiB', timeoutSeconds: 20},
+  {region: 'asia-northeast3', cors: true, memory: '256MiB', timeoutSeconds: 20, maxInstances: MAX_INSTANCES},
   async (req, res) => {
+    // 누구나 부를 수 있는 주소라 IP마다 하루 100번까지(레시피 가져오기 한 번에 1회)
+    const ip = String(req.headers['x-forwarded-for'] ?? req.ip ?? 'unknown').split(',')[0].trim();
+    if (!(await takeQuota('importProxy', ip, 100))) {
+      res.status(429).json({error: 'TOO_MANY_REQUESTS'});
+      return;
+    }
     const target = req.query.url;
     if (typeof target !== 'string' || !/^https?:\/\//i.test(target)) {
       res.status(400).json({error: 'INVALID_URL'});
@@ -84,6 +113,8 @@ export const onRecipeFeedback = onDocumentCreated(
   async (event) => {
     const d = event.data?.data();
     if (!d) return;
+    // 메일은 하루 50통까지(글이 몰려도 Gmail 차단·비용이 늘지 않게) — 넘은 글은 어드민 화면에서 본다
+    if (!(await takeQuota('mail', 'all', 50))) return;
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -127,6 +158,8 @@ export const onAppInquiry = onDocumentCreated(
   async (event) => {
     const d = event.data?.data();
     if (!d) return;
+    // 메일은 하루 50통까지(글이 몰려도 Gmail 차단·비용이 늘지 않게) — 넘은 글은 어드민 화면에서 본다
+    if (!(await takeQuota('mail', 'all', 50))) return;
 
     const transporter = nodemailer.createTransport({
       service: 'gmail',
@@ -268,6 +301,10 @@ export const purgeOldOcrLogs = onSchedule(
 
     // 1) 기록 문서
     const db = getFirestore();
+    // 0) 지난 횟수 제한 기록(이틀 전 것부터) — 오늘·어제 것만 남긴다
+    const yesterday = new Date(Date.now() + 9 * 3600 * 1000 - DAY_MS).toISOString().slice(0, 10);
+    const oldLimits = await db.collection('rate_limits').where('day', '<', yesterday).limit(2000).get();
+    await Promise.all(oldLimits.docs.map(d => d.ref.delete()));
     const old = await db.collection('ocr_logs')
       .where('createdAt', '<', Timestamp.fromMillis(cutoffMs))
       .limit(2000)
@@ -331,10 +368,12 @@ export const deleteAccount = onCall(
  * Firestore는 기본으로 1시간 안의 이전 판을 읽을 수 있다(그보다 오래되면 못 읽는다).
  */
 export const restoreRecipesAt = onCall(
-  {region: 'asia-northeast3', memory: '512MiB', timeoutSeconds: 120},
+  {region: 'asia-northeast3', memory: '512MiB', timeoutSeconds: 120, maxInstances: MAX_INSTANCES},
   async (req) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError('unauthenticated', 'LOGIN_REQUIRED');
+    // 전체 레시피를 두 번 읽는다 — 사람마다 하루 10번까지
+    if (!(await takeQuota('restoreRecipesAt', uid, 10))) throw new HttpsError('resource-exhausted', 'DAILY_LIMIT');
     const minutesAgo = Math.min(59, Math.max(1, Number(req.data?.minutesAgo) || 10));
     const db = getFirestore();
     // scope 'explore' — 공식(둘러보기) 레시피, 어드민만
@@ -386,12 +425,14 @@ const DEFAULT_PHOTO_STYLE_PROMPT = [
 ].join('\n');
 
 export const restylePhoto = onCall(
-  {region: 'asia-northeast3', memory: '1GiB', timeoutSeconds: 180, secrets: [OPENAI_API_KEY]},
+  {region: 'asia-northeast3', memory: '1GiB', timeoutSeconds: 180, secrets: [OPENAI_API_KEY], maxInstances: MAX_INSTANCES},
   async (req) => {
     const uid = req.auth?.uid;
     if (!uid) throw new HttpsError('unauthenticated', 'LOGIN_REQUIRED');
     const db = getFirestore();
     if (!(await db.collection('admin').doc(uid).get()).exists) throw new HttpsError('permission-denied', 'ADMIN_ONLY');
+    // OpenAI 이미지 편집은 장당 비용이 든다 — 하루 30장까지
+    if (!(await takeQuota('restylePhoto', uid, 30))) throw new HttpsError('resource-exhausted', 'DAILY_LIMIT');
 
     // 사진 — 앱이 줄여 보낸 JPEG base64, 또는 이미 올라간 주소
     const {imageBase64, imageUrl} = req.data ?? {};

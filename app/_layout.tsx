@@ -60,6 +60,7 @@ import {BottomTabBar, type TabItem} from '@components/Navigation/BottomTabBar';
 import {sheetBottomInset} from '@components/BottomSheet/BottomSheet';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useTabBarSpace} from '@hooks/useTabBarSpace';
+import {FloatingNoticeProvider, useFloatingNotice} from '@contexts/FloatingNoticeContext';
 import {AddRecipeSheet, PasteRecipeSheet, RecipeImagePickerSheet, type AddRecipeInput} from '@components/BottomSheet';
 import * as ImagePicker from 'expo-image-picker';
 import {ensureImagePermission} from '@utils/imagePermission';
@@ -81,6 +82,7 @@ import {
   IconAdd,
   IconUserFilled,
   IconNoteFilled,
+  IconRefresh,
 } from '@components/Icon/IconIndex';
 import {collection, deleteDoc, doc, getDocs, query, setDoc, updateDoc, where} from 'firebase/firestore';
 import {db, auth} from '@config/firebase';
@@ -352,6 +354,8 @@ function NavigationContent() {
   // 켤 때와 다시 앞으로 돌아올 때 확인한다(오래 켜 둔 웹 탭·백그라운드 앱도 잡히게).
   // 같은 버전 안내는 한 번만.
   const notifiedVersionRef = useRef<string | null>(null);
+  const [appUpdate, setAppUpdate] = useState<(() => void) | null>(null);
+  useFloatingNotice('appUpdate', appUpdate ? {icon: IconRefresh, label: t('update.availableTitle'), onPress: appUpdate} : null);
   useEffect(() => {
     const run = () => checkForUpdate().then(res => {
       if (!res) return;
@@ -362,12 +366,8 @@ function NavigationContent() {
       }
       if (notifiedVersionRef.current === res.latestVersion) return;
       notifiedVersionRef.current = res.latestVersion;
-      AsyncStorage.getItem('@bakle_update_later').then(later => {
-        if (later === res.latestVersion) return;
-        // 권장 업데이트는 팝업 대신 아래 스낵바로(업데이트 버튼) — 한 버전에 한 번만
-        AsyncStorage.setItem('@bakle_update_later', res.latestVersion).catch(() => {});
-        showSnackbar(t('update.availableTitle'), {action: {label: t('update.action'), onPress: res.onUpdate}});
-      }).catch(() => {});
+      // 권장 업데이트는 팝업 대신 아래 떠 있는 알림(레시피 '업데이트됨'과 같은 모양) — 누를 때까지 남는다
+      setAppUpdate(() => res.onUpdate);
     });
     run();
     const sub = AppState.addEventListener('change', state => {
@@ -995,6 +995,7 @@ export default function RootLayout() {
       <SafeAreaProvider>
         {/* RecipeProvider가 동기화 실패를 스낵바로 알리므로 SnackbarProvider가 위에 있어야 한다 */}
         <SnackbarProvider>
+          <FloatingNoticeProvider>
           <RecipeProvider>
             <ExploreRecipeProvider>
             {/* 스탬프·회고는 여러 화면이 같이 본다 — 화면마다 훅을 부르면 각자
@@ -1027,6 +1028,7 @@ export default function RootLayout() {
             </MadeStampsProvider>
             </ExploreRecipeProvider>
           </RecipeProvider>
+          </FloatingNoticeProvider>
         </SnackbarProvider>
       </SafeAreaProvider>
       </SubscriptionProvider>

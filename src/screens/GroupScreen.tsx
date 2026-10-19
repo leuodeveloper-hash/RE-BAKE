@@ -5,7 +5,9 @@ import {cookbookMenuItem} from '@utils/cookbookMenuItem';
 import {APPBAR_HEIGHT} from '@components/Container/ContentContainer';
 import {useTabBarSpace} from '@hooks/useTabBarSpace';
 import {useBreadcrumbItemOffset} from '@components/Navigation/Breadcrumb';
-import {useLandingMenu} from '@components/RecipeGroups/groupAxis';
+import {useLandingMenu, allMenuItem, methodMenuItem} from '@components/RecipeGroups/groupAxis';
+/** 2뎁스 메뉴 맨 위 '전체' */
+const GROUP_ALL_ID = '__all__';
 import {EdgeFade} from '@components/Container/ContentMask';
 import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
@@ -754,18 +756,21 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
             <Menu
               // 항목 셀렉터 기준 좌정렬(앞의 축 버튼만큼 민다)
               style={{marginLeft: breadcrumbItemOffset}}
+              // 맨 위 '전체' — 셀렉터에 '전체'가 보이니 메뉴에도 있어야 한다(고르면 지금 화면 그대로)
               items={axis === 'cookbook'
                 ? [
+                  allMenuItem(GROUP_ALL_ID, t('home.all'), 'cookbook', colors),
                   ...cookbooks.map(c => cookbookMenuItem(c.name, {colors, color: bookColorOf(c.name), official: isOfficialBook(c.name), hidden: isOfficialBook(c.name) && !!exploreCookbookHiddenMap.get(c.name)})),
                   // 레시피북 단계 메뉴의 추가는 '레시피북 추가'
                   ...(showAddButton ? [{id: '__add_cookbook__', label: t('cookbookSelect.addCookbook'), icon: IconAdd}] : []),
                 ]
                 : axis === 'method'
-                  ? methodGroups.map(g => ({id: g.method, label: g.method}))
+                  ? [allMenuItem(GROUP_ALL_ID, t('home.all'), 'method', colors), ...methodGroups.map(g => methodMenuItem(g.method, colors))]
                   : []}
               visible={showItemMenu && axis !== 'retrospective'}
               onSelect={id => {
                 setShowItemMenu(false);
+                if (id === GROUP_ALL_ID) return;
                 if (id === '__add_cookbook__') {
                   setCookbookEditTarget(null);
                   setCookbookInitialOfficial(addAsOfficial);
