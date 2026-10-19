@@ -33,7 +33,8 @@ import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconList, IconLayoutGrid, IconNoteFilled, IconEyeClosed} from '@components/Icon/IconIndex';
+import {NavPillButton} from '@components/Navigation';
+import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconList, IconLayoutGrid, IconNoteFilled, IconEyeClosed, IconPenTipFilled, IconPenTip} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import type {Recipe} from '../src/types/recipe';
 import {goBackOr} from '@utils/navigation';
@@ -62,6 +63,10 @@ interface StampSlot {
   count: number;
   /** 모은 순번 — 스탬프 모양을 정한다. 안 만든 칸은 의미 없음 */
   order: number;
+  /** 회고를 하나라도 적었는지 — 스탬프 모서리에 펜촉 표시 */
+  reviewed?: boolean;
+  /** 스탬프를 찍은 내 레시피(가장 최근) — 회고는 여기에 쓴다(둘러보기 칸이어도 가져온 내 레시피) */
+  mine?: Recipe;
 }
 
 type StampAxis = 'cookbook' | 'date';
@@ -112,7 +117,7 @@ function HighlightPop({active, children, onLanded}: {active: boolean; children: 
 const LIST_STAMP = 36;
 
 /** 그리드·리스트가 같은 그림을 쓴다 — 채운 칸은 스탬프, 빈 칸은 점 */
-function SlotStamp({slot, size, styles, colors, highlight, onLanded}: {
+function SlotStamp({slot, size, styles, colors, highlight, onLanded, onReview}: {
   slot: StampSlot;
   size: number;
   styles: ReturnType<typeof createStyles>;
@@ -121,6 +126,8 @@ function SlotStamp({slot, size, styles, colors, highlight, onLanded}: {
   highlight?: boolean;
   /** 방금 찍은 스탬프가 붙은 직후 */
   onLanded?: () => void;
+  /** 회고 쓰기 — 찍었는데 회고가 없을 때 스탬프 위 떠 있는 버튼 */
+  onReview?: () => void;
 }) {
   if (!slot.madeAt) {
     // 빈 칸은 모두 점선 실루엣 — 무엇이 들어올 자리인지 모양으로 보인다.
@@ -147,6 +154,17 @@ function SlotStamp({slot, size, styles, colors, highlight, onLanded}: {
         // 리스트의 작은 칸에선 글이 뭉개지기만 해 넣지 않는다
         recipe={size >= 64 ? slot.recipe : undefined}
       />
+      {/* 회고를 적었으면 오른쪽 아래 펜촉 — 목록의 리뷰 표시와 같은 아이콘 */}
+      {slot.reviewed ? (
+        <View style={styles.reviewMark} pointerEvents="none">
+          <IconPenTipFilled width={size >= 64 ? 14 : 10} height={size >= 64 ? 14 : 10} color={colors['foreground/on-surface-inverse']} />
+        </View>
+      ) : onReview && size >= 64 ? (
+        // 안 적었으면 바로 쓰는 떠 있는 버튼(시트 헤더 버튼과 같은 알약)
+        <View style={styles.reviewButton}>
+          <NavPillButton icon={IconPenTip} size="small" onPress={onReview} />
+        </View>
+      ) : null}
     </HighlightPop>
   );
 }
@@ -195,29 +213,35 @@ export default function StampsRoute() {
    * (가져와서 고쳐 만들어도 그 품목을 해낸 것이므로)
    */
   const madeIndex = useMemo(() => {
-    const byRecipeId = new Map<string, {madeAt: string; count: number}>();
-    const bump = (key: string, madeAt: string) => {
+    const byRecipeId = new Map<string, {madeAt: string; count: number; reviewed: boolean; mine: Recipe}>();
+    const bump = (key: string, madeAt: string, reviewed: boolean, mine: Recipe) => {
       const prev = byRecipeId.get(key);
-      if (!prev) byRecipeId.set(key, {madeAt, count: 1});
+      if (!prev) byRecipeId.set(key, {madeAt, count: 1, reviewed, mine});
       else byRecipeId.set(key, {
         madeAt: madeAt > prev.madeAt ? madeAt : prev.madeAt,
         count: prev.count + 1,
+        reviewed: prev.reviewed || reviewed,
+        mine: madeAt > prev.madeAt ? mine : prev.mine,
       });
+    };
+    const hasReview = (id: string) => {
+      const rv = reviewOf(id);
+      return !!(rv && (rv.evaluation?.trim() || rv.improvement?.trim() || rv.photos?.length));
     };
     for (const r of [...recipes, ...exploreRecipes]) {
       // 회차마다 스탬프 — 지난 회차 기록(그 회차 id) + 지금 회차. 레시피는 하나라 레시피 id로 모아 센다
       const times = [
-        ...(r.sessions ?? []).map(x => madeAtOf({id: x.id})),
-        madeAtOf(r),
-      ].filter((x): x is string => !!x);
-      for (const madeAt of times) {
+        ...(r.sessions ?? []).map(x => ({madeAt: madeAtOf({id: x.id}), reviewed: hasReview(x.id)})),
+        {madeAt: madeAtOf(r), reviewed: hasReview(sessionKey(r))},
+      ].filter((x): x is {madeAt: string; reviewed: boolean} => !!x.madeAt);
+      for (const {madeAt, reviewed} of times) {
         // 내 레시피 자체로도, 원본(가져온 출처)으로도 센다
-        bump(r.remakeGroupId ?? r.id, madeAt);
-        if (r.sourceId) bump(r.sourceId, madeAt);
+        bump(r.remakeGroupId ?? r.id, madeAt, reviewed, r);
+        if (r.sourceId) bump(r.sourceId, madeAt, reviewed, r);
       }
     }
     return byRecipeId;
-  }, [recipes, exploreRecipes, madeAtOf]);
+  }, [recipes, exploreRecipes, madeAtOf, reviewOf]);
 
   /** 같은 회차 그룹의 내 레시피들 — 시트에서 회차별 회고를 보여준다 */
   const sessionsOf = useCallback((r: Recipe) => {
@@ -239,6 +263,8 @@ export default function StampsRoute() {
       recipe: r,
       madeAt: hit?.madeAt,
       count: hit?.count ?? 0,
+      reviewed: hit?.reviewed,
+      mine: hit?.mine,
       // 모양은 레시피마다 고정 — 빈 칸이든 찍힌 칸이든, 목록이든 표지든
       // 같은 레시피면 같은 모양이라야 "그 스탬프"로 알아본다.
       order: stampShapeSeed(key),
@@ -527,7 +553,7 @@ export default function StampsRoute() {
                           key={slot.recipe.id}
                           onPress={() => { if (!user) { openAuthSheet({onSuccess: () => setSelected(slot)}); return; } setSelected(slot); }}
                           style={[styles.gridCell, {width: slotSize, height: slotSize}]}>
-                          <SlotStamp slot={slot} size={slotSize} styles={styles} colors={colors} highlight={slot.recipe.id === just} onLanded={slot.recipe.id === just ? handleStampLanded : undefined} />
+                          <SlotStamp slot={slot} size={slotSize} styles={styles} colors={colors} highlight={slot.recipe.id === just} onLanded={slot.recipe.id === just ? handleStampLanded : undefined} onReview={slot.madeAt ? () => setReviewTarget(slot.mine ?? slot.recipe) : undefined} />
                         </Pressable>
                       ))}
                     </View>
@@ -567,13 +593,15 @@ export default function StampsRoute() {
         madeAt={selected?.madeAt}
         stampIndex={selected?.order ?? 0}
         sessions={selected ? sessionsOf(selected.recipe) : undefined}
+        // 지금 회차 회고 — 적었으면 시트에 보이고 버튼이 '회고 수정'
+        review={selected ? reviewOf(sessionKey(selected.mine ?? selected.recipe)) : undefined}
         onOpenRecipe={() => {
           const id = selected?.recipe.id;
           setSelected(null);
           if (id) router.push(`/recipe/${id}` as any);
         }}
         // 시트를 닫지 않는다 — 회고를 쓰고 나면 보던 스탬프로 돌아온다
-        onWriteReview={() => { if (selected) setReviewTarget(selected.recipe); }}
+        onWriteReview={() => { if (selected) setReviewTarget(selected.mine ?? selected.recipe); }}
       />
 
     </View>
@@ -581,6 +609,13 @@ export default function StampsRoute() {
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  // 회고 표시 — 스탬프 오른쪽 아래 작은 원
+  reviewButton: {position: 'absolute', right: -4, bottom: -4},
+  reviewMark: {
+    position: 'absolute', right: 2, bottom: 2,
+    padding: 3, borderRadius: 999,
+    backgroundColor: colors['foreground/on-surface'],
+  },
   container: {flex: 1, backgroundColor: colors['surface/dim']},
   safeArea: {flex: 1},
   scrollView: {flex: 1},

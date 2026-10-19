@@ -1,16 +1,13 @@
 import React, {useEffect, useState} from 'react';
 import {launchLibrary} from '@components/AlbumPicker/albumPicker';
-import {Platform, Pressable, StyleSheet, Text, View} from 'react-native';
+import {Platform, StyleSheet, View} from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {StepPhotos} from '@components/StepPhotos';
-import {IconPhoto} from '@components/Icon/IconIndex';
 import {ensureImagePermission} from '@utils/imagePermission';
 import {getPersistentUri} from '@utils/imageUpload';
 import {dismissKeyboardAndWait} from '@utils/keyboard';
 import {normalizeStepPhotos} from '@utils/stepPhotos';
-import {useColors} from '@contexts/ThemeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
-import {Typography} from '@constants/typography';
 import {BottomSheet} from '@components/BottomSheet/BottomSheet';
 import {Button} from '@components/Button';
 import {ReviewFields} from './ReviewFields';
@@ -43,7 +40,6 @@ export function ReviewDialog({visible, onClose, value, onConfirm}: ReviewDialogP
   const [improvement, setImprovement] = useState('');
   // 회고 사진 — 최대 3장(과정 사진과 같은 수)
   const [photos, setPhotos] = useState<string[]>([]);
-  const colors = useColors();
   const {showSnackbar} = useSnackbar();
 
   useEffect(() => {
@@ -111,22 +107,15 @@ export function ReviewDialog({visible, onClose, value, onConfirm}: ReviewDialogP
           onChangeEvaluation={setEvaluation}
           onChangeImprovement={setImprovement}
         />
-        {/* 사진 — 썸네일(X로 삭제) + 3장 미만이면 추가 버튼 */}
+        {/* 사진 — 과정 사진과 같은 공통 칸(썸네일 X로 삭제, 3장 미만이면 점선 + 칸) */}
         <View style={styles.photoRow}>
-          {photos.length > 0 && (
-            <StepPhotos
-              photos={normalizeStepPhotos(photos)}
-              mode="edit"
-              paddingTop={false}
-              onRemove={i => setPhotos(prev => prev.filter((_, k) => k !== i))}
-            />
-          )}
-          {photos.length < MAX_REVIEW_PHOTOS && (
-            <Pressable onPress={addPhotos} style={[styles.addPhoto, {backgroundColor: colors['fill/subtle']}]} hitSlop={4}>
-              <IconPhoto width={18} height={18} color={colors['foreground/on-surface-muted']} />
-              <Text style={[styles.addPhotoText, {color: colors['foreground/on-surface-muted']}]}>{`${photos.length}/${MAX_REVIEW_PHOTOS}`}</Text>
-            </Pressable>
-          )}
+          <StepPhotos
+            photos={normalizeStepPhotos(photos)}
+            mode="edit"
+            paddingTop={false}
+            onRemove={i => setPhotos(prev => prev.filter((_, k) => k !== i))}
+            onAdd={photos.length < MAX_REVIEW_PHOTOS ? addPhotos : undefined}
+          />
         </View>
       </View>
     </BottomSheet>
@@ -138,21 +127,7 @@ const MAX_REVIEW_PHOTOS = 3;
 
 const styles = StyleSheet.create({
   photoRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: Spacing.xs,
     paddingTop: Spacing.sm,
-  },
-  addPhoto: {
-    width: 56,
-    height: 56,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 2,
-  },
-  addPhotoText: {
-    ...Typography.caption.small,
   },
   body: {
     paddingHorizontal: Spacing.smd,

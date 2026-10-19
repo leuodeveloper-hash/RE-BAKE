@@ -1213,5 +1213,6 @@
   "widgetConfig.pastryExam": "제과기능사 시험",
   "widgetConfig.bakingExam": "제빵기능사 시험",
   "widgetConfig.done": "완료",
-  "recipeDetail.deleteSessionMenu": "{{session}}회차 삭제"
+  "recipeDetail.deleteSessionMenu": "{{session}}회차 삭제",
+  "stampDetail.editReview": "회고 수정"
 }

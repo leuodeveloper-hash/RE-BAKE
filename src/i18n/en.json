@@ -1228,5 +1228,6 @@
   "widgetConfig.pastryExam": "Pastry exam",
   "widgetConfig.bakingExam": "Bread exam",
   "widgetConfig.done": "Done",
-  "recipeDetail.deleteSessionMenu": "Delete session {{session}}"
+  "recipeDetail.deleteSessionMenu": "Delete session {{session}}",
+  "stampDetail.editReview": "Edit reflection"
 }

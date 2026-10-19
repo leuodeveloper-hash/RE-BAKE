@@ -30,6 +30,8 @@ export interface StampDetailSheetProps {
   onOpenRecipe: () => void;
   /** 회고 남기기(편집 화면으로) */
   onWriteReview?: () => void;
+  /** 지금 회차 회고 — 있으면 내용을 보여주고 버튼이 '회고 수정' */
+  review?: {evaluation?: string; improvement?: string};
 }
 
 /**
@@ -47,6 +49,7 @@ export function StampDetailSheet({
   sessions,
   onOpenRecipe,
   onWriteReview,
+  review,
 }: StampDetailSheetProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
@@ -76,6 +79,7 @@ export function StampDetailSheet({
   }, [sessions, t, reviewsOf]);
 
   const made = !!madeAt;
+  const reviewText = [review?.evaluation?.trim(), review?.improvement?.trim()].filter(Boolean) as string[];
 
   return (
     <BottomSheet visible={visible} onClose={onClose}>
@@ -99,6 +103,15 @@ export function StampDetailSheet({
           {dateLabel ?? t('stampDetail.notMadeYet')}
         </Text>
 
+        {/* 적은 회고 — 시트를 열면 바로 보인다 */}
+        {reviewText.length > 0 && (
+          <View style={styles.sessions}>
+            {reviewText.map((line, i) => (
+              <Text key={i} style={styles.sessionText} numberOfLines={3}>{line}</Text>
+            ))}
+          </View>
+        )}
+
         {sessionRows.length > 0 && (
           <View style={styles.sessions}>
             {sessionRows.map(row => (
@@ -113,7 +126,7 @@ export function StampDetailSheet({
         <View style={styles.actions}>
           {made && onWriteReview && (
             <Button
-              label={t('stampDetail.writeReview')}
+              label={t(reviewText.length > 0 ? 'stampDetail.editReview' : 'stampDetail.writeReview')}
               variant="soft"
               onPress={onWriteReview}
               style={styles.action}
