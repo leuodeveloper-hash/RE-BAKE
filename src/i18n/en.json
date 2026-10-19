@@ -1,4 +1,6 @@
 {
+  "settings.tempCelsius": "Celsius °C",
+  "settings.tempFahrenheit": "Fahrenheit °F",
   "settings.tempUnit": "Temperature unit",
   "exploreLock.free": "Open for free",
   "exploreLock.locked": "Lock",

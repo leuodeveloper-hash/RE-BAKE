@@ -207,6 +207,12 @@ export function ProfileScreen({
   const {appearanceMode, setAppearanceMode} = useTheme();
   const {language, setLanguage, t} = useTranslation();
   const tempUnit = useTempUnit();
+  // 온도 단위 고르기 — 언어와 같은 시트. 저장은 섭씨, 화면만 바꿔 보여준다
+  const [showTempMenu, setShowTempMenu] = useState(false);
+  const TEMP_OPTIONS = useMemo((): {id: 'C' | 'F'; label: string}[] => [
+    {id: 'C', label: t('settings.tempCelsius')},
+    {id: 'F', label: t('settings.tempFahrenheit')},
+  ], [t]);
   const [showLanguageMenu, setShowLanguageMenu] = useState(false);
   // 언어 옵션 라벨은 각 언어의 네이티브 표기로 고정 (번역하지 않음)
   const LANGUAGE_OPTIONS = useMemo(() => [
@@ -564,8 +570,9 @@ export function ProfileScreen({
               <ListItem
                 title={t('settings.tempUnit')}
                 leading={{type: 'icon', icon: IconDoughTempFilled}}
-                trailingValue={tempUnit === 'F' ? '°F' : '°C'}
-                onPress={() => setTempUnit(tempUnit === 'F' ? 'C' : 'F')}
+                trailingValue={TEMP_OPTIONS.find(o => o.id === tempUnit)?.label}
+                trailing={{type: 'icon', icon: IconChevronRight}}
+                onPress={() => setShowTempMenu(true)}
                 showDivider
               />
               {/* Support — 메일 앱을 열지 않고 앱 안에서 문의 */}
@@ -711,6 +718,27 @@ export function ProfileScreen({
               onPress={() => {
                 setLanguage(option.id as 'ko' | 'en');
                 setShowLanguageMenu(false);
+              }}
+            />
+          ))}
+        </View>
+      </BottomSheet>
+
+      {/* 온도 단위 — 언어와 같은 형식(시트 + 선택 항목) */}
+      <BottomSheet
+        visible={showTempMenu}
+        onClose={() => setShowTempMenu(false)}
+      >
+        <View>
+          {TEMP_OPTIONS.map(option => (
+            <MenuItem
+              key={option.id}
+              id={option.id}
+              label={option.label}
+              selected={option.id === tempUnit}
+              onPress={() => {
+                setTempUnit(option.id);
+                setShowTempMenu(false);
               }}
             />
           ))}

@@ -1,4 +1,6 @@
 {
+  "settings.tempCelsius": "섭씨 °C",
+  "settings.tempFahrenheit": "화씨 °F",
   "settings.tempUnit": "온도 단위",
   "exploreLock.free": "무료로 열기",
   "exploreLock.locked": "잠그기",
