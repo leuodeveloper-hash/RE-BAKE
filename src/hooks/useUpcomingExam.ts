@@ -21,6 +21,8 @@ export interface UpcomingExam {
   label: string;
   /** '2026년 1회' 등 */
   round: string;
+  /** 실기·필기 — 시험 일정을 그 종류로 걸러 연다(내 D-day는 없음) */
+  kind?: 'written' | 'practical';
 }
 
 /** 오늘 자정 기준 남은 일수. 지났으면 null. */
@@ -82,6 +84,7 @@ export function useUpcomingExam() {
         days: upcoming.days,
         label: labelByType[toExamType(upcoming.s.examType)] ?? t('examNotifications.defaultExamLabel'),
         round: upcoming.s.round ?? '',
+        kind: upcoming.s.examType.endsWith('written') ? 'written' : 'practical',
       });
     } catch {
       // 조회 실패 시 배너를 숨긴다 — 홈을 막지 않는 편이 낫다

@@ -30,15 +30,17 @@ export function formatIngredientForBulk(ing: {name?: string; amount?: string; un
 
 /** 재료 라인("감자 22g") → {name, amount, unit} */
 export function parseIngredientBulkLine(line: string): IngredientBulkItem {
-  const s = line.replace(/\s+/g, ' ').trim();
+  // 분량 괄호("500(510)g")는 지운다 — 분량은 숫자만, 반올림 값은 화면에서 붙인다
+  const s = line.replace(/(\d)\s*\([^)]*\)/g, '$1').replace(/\s+/g, ' ').trim();
   if (!s) return {name: '', amount: '', unit: 'g'};
 
-  const m1 = s.match(/^(.+?)\s+([\d.]+)\s*([a-zA-Z가-힣ㄱ-ㅎ]+)$/);
+  // 분량에 괄호(저울마다 다른 값 "500(510)g")가 붙어도 숫자 쪽으로 — 예전엔 괄호 때문에 재료 이름으로 들어갔다
+  const m1 = s.match(/^(.+?)\s+([\d.]+(?:\s*\([^)]*\))?)\s*([a-zA-Z가-힣ㄱ-ㅎ]+)\s*(\([^)]*\))?$/);
   if (m1) {
-    return {name: m1[1].trim(), amount: m1[2], unit: m1[3]};
+    return {name: m1[1].trim(), amount: m1[2] + (m1[4] ?? ''), unit: m1[3]};
   }
 
-  const m2 = s.match(/^(.+?)\s+([\d.]+)$/);
+  const m2 = s.match(/^(.+?)\s+([\d.]+(?:\s*\([^)]*\))?)$/);
   if (m2) {
     return {name: m2[1].trim(), amount: m2[2], unit: 'g'};
   }

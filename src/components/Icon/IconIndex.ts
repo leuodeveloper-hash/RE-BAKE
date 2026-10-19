@@ -114,6 +114,7 @@ export {default as IconClockTwotone} from '../../../assets/icons/clock_twotone.s
 export {default as IconTag} from '../../../assets/icons/tag.svg';
 export {default as IconLink} from '../../../assets/icons/link.svg';
 export {default as IconPhoto} from '../../../assets/icons/photo.svg';
+export {default as IconPhotoFilled} from '../../../assets/icons/photo-filled.svg';
 export {default as IconMic} from '../../../assets/icons/mic.svg';
 export {default as IconMicFilled} from '../../../assets/icons/mic_filled.svg';
 export {default as IconBroom} from '../../../assets/icons/broom.svg';

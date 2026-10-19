@@ -2,7 +2,7 @@ import React, {useCallback, useEffect, useMemo, useState} from 'react';
 import {linkTextStyle} from '@components/RichText/RichText';
 import {ActivityIndicator, Linking, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View} from 'react-native';
 import {SafeAreaView, useSafeAreaInsets} from 'react-native-safe-area-context';
-import {useRouter} from 'expo-router';
+import {useLocalSearchParams, useRouter} from 'expo-router';
 import {FloatingNavBar, NavPillButton} from '@components/Navigation';
 import {ContentContainer} from '@components/Container';
 import {Selector} from '@components/Selector';
@@ -157,7 +157,9 @@ export default function ExamScheduleRoute() {
   }, []);
 
   // 필기/실기 전환 — 회차가 많아 한 종류씩만 표시(필기 41 / 실기 24).
-  const [kind, setKind] = useState<'written' | 'practical'>('written');
+  // 들어올 때 종류를 받으면(실기 배너 등) 그걸로 시작
+  const params = useLocalSearchParams<{kind?: string}>();
+  const [kind, setKind] = useState<'written' | 'practical'>(params.kind === 'practical' ? 'practical' : 'written');
   const [kindMenuOpen, setKindMenuOpen] = useState(false);
   // 종목(제과/제빵) 통합 + 선택한 필기/실기만
   const shown = useMemo(

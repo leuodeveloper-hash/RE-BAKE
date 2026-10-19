@@ -2,7 +2,7 @@ import {NOTE_BLOCK} from '@constants/noteBlock';
 import {launchCamera} from '@utils/camera';
 import {launchLibrary} from '@components/AlbumPicker/albumPicker';
 import {StepTimer, type StepTimerHandle} from '@components/StepTimer';
-import {scaleAmount, scaleLabel} from '@utils/scaleAmount';
+import {scaleAmount, scaleLabel, withRoundedHint} from '@utils/scaleAmount';
 import {DotSlider} from '@components/DotSlider';
 
 /** 재료 비율 조정 눈금 — ×1이 한가운데(줄이기 3칸 · 늘리기 3칸) */
@@ -1254,7 +1254,7 @@ export function RecipeDetailScreen({
                           {g.ingredients.map((ing, ii) => (
                             <React.Fragment key={ii}>
                               {ii > 0 ? ', ' : ''}
-                              <RichText inline>{ing.name}</RichText>{/\d/.test(ing.amount ?? '') ? ' ' : ''}{/\d/.test(ing.amount ?? '') ? <Text style={scaleChanged(ing.amount) ? styles.scaledAmount : undefined}>{scaleAmount(ing.amount, ingScale)}</Text> : null}
+                              <RichText inline>{ing.name}</RichText>{/\d/.test(ing.amount ?? '') ? ' ' : ''}{/\d/.test(ing.amount ?? '') ? <Text style={scaleChanged(ing.amount) ? styles.scaledAmount : undefined}>{withRoundedHint(scaleAmount(ing.amount, ingScale))}</Text> : null}
                             </React.Fragment>
                           ))}
                         </Text>
@@ -1302,7 +1302,7 @@ export function RecipeDetailScreen({
                                 d?.status === 'added' && styles.hlAdded,
                                 d?.status === 'changed' && styles.hlChanged,
                               ]}>
-                              <RichText inline>{ingredient.name}</RichText>{/\d/.test(ingredient.amount) ? ' ' : ''}{/\d/.test(ingredient.amount) ? <Text style={scaleChanged(ingredient.amount) ? styles.scaledAmount : undefined}>{scaleAmount(ingredient.amount, ingScale)}</Text> : null}
+                              <RichText inline>{ingredient.name}</RichText>{/\d/.test(ingredient.amount) ? ' ' : ''}{/\d/.test(ingredient.amount) ? <Text style={scaleChanged(ingredient.amount) ? styles.scaledAmount : undefined}>{withRoundedHint(scaleAmount(ingredient.amount, ingScale))}</Text> : null}
                             </Text>
                             {d?.status === 'changed' && d.prevAmount ? (
                               <Text style={styles.prevAmount}> {d.prevAmount}</Text>

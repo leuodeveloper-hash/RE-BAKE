@@ -2,6 +2,7 @@ import {cookbookColorOf} from '@contexts/RecipeContext';
 import {launchCamera} from '@utils/camera';
 import {dismissKeyboardAndWait} from '@utils/keyboard';
 import {launchLibrary} from '@components/AlbumPicker/albumPicker';
+import {stripAmountParens} from '@utils/scaleAmount';
 import {StepTemplateSheet} from '@components/BottomSheet/StepTemplateSheet';
 import {useStepTemplates} from '@hooks/useStepTemplates';
 
@@ -231,7 +232,9 @@ export function RecipeEditScreen(props: RecipeEditScreenProps) {
  * 합쳐진 분량 → {숫자, 단위}. "600g" → 600·g, "약간" → ''·약간.
  * 괄호도 숫자 쪽에 둔다 — 저울마다 다르게 적는다("500(510)g", "1(1.5)T"). 예전엔 괄호를 지워 "500510"이 됐다.
  */
-function splitAmountUnit(amount: string): {amount: string; unit: string} {
+function splitAmountUnit(raw: string): {amount: string; unit: string} {
+  // 예전에 글로 적은 괄호는 지운다 — 분량은 숫자만, 반올림 값은 화면에서 붙인다(withRoundedHint)
+  const amount = stripAmountParens(raw);
   const numUnit = amount.match(/^([\d.]+(?:\s*\([^)]*\))?)\s*([a-zA-Zㄱ-ㅎ가-힣]+)\s*(\([^)]*\))?$/);
   if (numUnit) return {amount: numUnit[1] + (numUnit[3] ?? ''), unit: numUnit[2]};
   const textOnly = amount.match(/^([a-zA-Zㄱ-ㅎ가-힣]+)$/);

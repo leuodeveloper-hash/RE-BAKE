@@ -57,7 +57,7 @@ export function TimelineItem({isFirst, isLast, variant, monogram, gradientIndex,
       </View>
 
       <Avatar size="large" shape="rounded" type="gradient" gradientIndex={gradientIndex} monogram={monogram}
-        style={isPast ? styles.avatarPast : undefined} />
+        style={isPast ? {...styles.avatar, ...styles.avatarPast} : styles.avatar} />
 
       <View style={styles.content}>
         <Text style={[styles.title, isPast && styles.titlePast]} numberOfLines={1}>{title}</Text>
@@ -77,14 +77,14 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     alignItems: 'center',
     minHeight: 72,
     paddingHorizontal: Spacing.md,
-    // 줄 상하 8 — 아바타가 줄 위아래에 붙지 않게(시험 일정·D-day 공통)
-    paddingVertical: Spacing.sm,
+    // 줄 상하 여백은 줄이 아니라 안쪽 내용에 — 줄에 주면 세로선이 그만큼 잘려 줄 사이가 끊겨 보였다
   },
   itemCurrent: {
     backgroundColor: colors['fill/subtle'],
   },
   rail: {
     width: RAIL_WIDTH,
+    // 줄 위아래 끝까지 — 이웃 줄 선과 이어진다
     alignSelf: 'stretch',
     alignItems: 'center',
     justifyContent: 'center',
@@ -109,9 +109,14 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   avatarPast: {
     opacity: 0.55,
   },
+  // 아바타·글 위아래 8 — 줄 위아래에 붙지 않게(시험 일정·D-day 공통)
+  avatar: {
+    marginVertical: Spacing.sm,
+  },
   content: {
     flex: 1,
     marginLeft: Spacing.smd,
+    paddingVertical: Spacing.sm,
   },
   trailing: {
     marginLeft: Spacing.sm,

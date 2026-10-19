@@ -41,3 +41,27 @@ export const scaleLabel = (factor: number) => `×${Math.round(factor * 100) / 10
 
 /** 보기용 분량 — 숫자가 없으면(단위만 'g' 등) 비운다. 그람을 안 쓴 재료에 'g'만 덩그러니 보이지 않게 */
 export const displayAmount = (amount?: string) => (amount && /\d/.test(amount) ? amount : '');
+
+/**
+ * 2g 단위 저울용 — 소수점이거나 홀수인 무게·부피(g·ml)엔 가장 가까운 짝수를 괄호로 같이.
+ * "513g" → "513g(514)", "512.6g" → "512.6g(512)". 짝수·다른 단위·이미 괄호가 있는 분량은 그대로.
+ * 입력·저장은 숫자 그대로 두고 화면에서만 붙인다.
+ */
+export function withRoundedHint(raw: string): string {
+  // 예전에 글로 적어 둔 괄호("500(510)g")는 지우고 숫자만 — 반올림 값은 아래에서 다시 붙인다
+  const amount = stripAmountParens(raw);
+  if (!amount) return amount;
+  const m = amount.match(/^(\d[\d,]*(?:\.\d+)?)\s*(g|ml|mL|그램|kg)?$/i);
+  if (!m) return amount;
+  const n = parseFloat(m[1].replace(/,/g, ''));
+  if (!isFinite(n)) return amount;
+  const even = Math.round(n / 2) * 2;
+  if (even === n) return amount;
+  return `${amount}(${even.toLocaleString('en-US')})`;
+}
+
+/** 분량 안의 괄호 부분을 지운다 — "500(510)g" → "500g". 분량은 숫자로만 두고 괄호는 화면이 붙인다 */
+export function stripAmountParens(amount: string): string {
+  if (!amount || !amount.includes('(')) return amount;
+  return amount.replace(/\s*\([^)]*\)/g, '').trim();
+}

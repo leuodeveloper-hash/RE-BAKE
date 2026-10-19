@@ -668,7 +668,8 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
               size="medium"
               action={{
                 label: t('home.examSchedule'),
-                onPress: () => router.navigate('/exam-schedule' as any),
+                // 실기면 실기로 걸러진 일정으로(필기가 기본이라 실기 배너에서 들어가면 엉뚱한 목록이 떴다)
+                onPress: () => router.navigate((upcomingExam.kind ? `/exam-schedule?kind=${upcomingExam.kind}` : '/exam-schedule') as any),
               }}
               // 닫으면 오늘은 이 배너를 다시 안 띄운다(내일 남은 일수가 바뀌면 다시)
               onClose={dismissExamBanner}

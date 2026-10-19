@@ -98,10 +98,10 @@ export function IngredientAmountDialog({visible, onClose, amount, unit, onConfir
                 label={t('ingredientAmount.amountLabel')}
                 value={inputAmount}
                 onChangeText={setInputAmount}
-                // 괄호도 쓴다(저울마다 "500(510)"처럼 적는다) — 숫자패드엔 괄호가 없어 숫자·기호 키보드
-                keyboardType={Platform.OS === 'ios' ? 'numbers-and-punctuation' : 'default'}
+                // 숫자만 — 소수점이면 화면에서 반올림 값을 괄호로 붙여 준다(withRoundedHint)
+                keyboardType="decimal-pad"
                 placeholder="0"
-                maxLength={16}
+                maxLength={10}
                 selectTextOnFocus
               />
             </View>
