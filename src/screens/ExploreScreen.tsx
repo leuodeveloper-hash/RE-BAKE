@@ -9,10 +9,8 @@ import {IconLogoBadge} from '@components/Icon/IconIndex';
 import {NavPillButton} from '@components/Navigation';
 import {NAV_PILL_HEIGHT} from '@constants/layout';
 import {View} from 'react-native';
-import {doc, setDoc, deleteField} from 'firebase/firestore';
-import {db} from '@config/firebase';
 import type {MenuItemData} from '@components/Menu';
-import {IconLock, IconUnlock, IconBroom} from '@components/Icon/IconIndex';
+import {computeLockedIds, insertLockItems, isLockMenuId, useSetExploreLock} from '@hooks/useExploreLock';
 import {ShareRecipeSheet} from '@components/BottomSheet/ShareRecipeSheet';
 import React, {useCallback, useMemo, useState} from 'react';
 import {useRouter} from 'expo-router';
@@ -49,7 +47,6 @@ import {Spacing} from '@constants/spacing';
 import {IconExprolerBookFilled} from '@components/Icon/IconIndex';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import {resolveAuthorHandle} from '../types/author';
-import {ENTITLEMENTS} from '@constants/entitlements';
 
 // 둘러보기 노출 축: 회고 제외 (둘러보기 레시피엔 회고가 없음)
 const EXPLORE_AXES: GroupAxis[] = ['all', 'cookbook', 'method'];
@@ -59,7 +56,6 @@ const makeExploreAxisOverrides = (t: (key: string) => string): AxisOverrides => 
 });
 
 /** 무료로 볼 수 있는 둘러보기 레시피 수 — 정책 단일 출처는 @constants/entitlements */
-const FREE_RECIPE_COUNT = ENTITLEMENTS.free.quota.exploreFree;
 
 // 둘러보기에선 "만들었어요"를 두지 않는다 — 가져와야 요리할 수 있고,
 // 스탬프는 내 레시피에만 찍힌다(가져온 뒤 sourceId로 원본 칸이 채워진다).
@@ -67,21 +63,6 @@ const makeBaseCardMenuItems = (t: (key: string, params?: Record<string, unknown>
   getRecipeMenuItems({t, showPin: true, isPinned, showImport: true, showShare: true});
 const makeAdminCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string, isPinned: boolean) =>
   getRecipeMenuItems({t, showPin: true, isPinned, showImport: true, showEdit: true, showShare: true, showDelete: true});
-
-/**
- * 어드민 — 무료 사용자에게 이 레시피를 열지·잠글지(삭제 바로 위에 끼운다).
- * 지금 보이는 상태(자물쇠 유무)의 반대 하나만 보이고, 정해 둔 상태면 '자동으로'(목록 순서대로)도 보인다.
- */
-function insertLockItems(items: MenuItemData[], recipe: Recipe, locked: boolean, t: (key: string, params?: Record<string, unknown>) => string): MenuItemData[] {
-  const lock: MenuItemData[] = [
-    locked
-      ? {id: 'lockFree', label: t('exploreLock.free'), icon: IconUnlock}
-      : {id: 'lockLocked', label: t('exploreLock.locked'), icon: IconLock},
-    ...(recipe.lockMode ? [{id: 'lockAuto', label: t('exploreLock.auto'), icon: IconBroom}] : []),
-  ];
-  const del = items.findIndex(i => i.id === 'delete');
-  return del < 0 ? [...items, ...lock] : [...items.slice(0, del), ...lock, ...items.slice(del)];
-}
 
 export interface ExploreScreenProps {
   /** 게스트 랜딩 카드 — 팩 보기 한가운데 */
@@ -232,22 +213,13 @@ export function ExploreScreen({
   // 어드민은 잠금 표시만 보여 준다(열기는 막지 않음) — 어떤 게 잠겼는지 알아야 잠금 설정을 고친다
   const lockedRecipeIds = useMemo(() => {
     if (!isFreeUser && !isAdmin) return undefined;
-    // 어드민이 정한 것 먼저 — 'free'는 늘 열림, 'locked'는 늘 잠김. 나머지는 목록 앞 N개만 무료(자동)
-    const ids = new Set<string>();
-    let autoIndex = 0;
-    for (const r of filteredData) {
-      if (r.lockMode === 'free') continue;
-      if (r.lockMode === 'locked') { ids.add(r.id); continue; }
-      if (autoIndex >= FREE_RECIPE_COUNT) ids.add(r.id);
-      autoIndex++;
-    }
-    return ids;
+    return computeLockedIds(filteredData);
   }, [filteredData, isFreeUser, isAdmin]);
 
   // 핀 상태가 레시피마다 달라 함수 형태로 넘긴다(고정/해제 라벨이 바뀐다)
   const cardMenuItems = useCallback(
     (recipe: Recipe) => isAdmin
-      ? insertLockItems(makeAdminCardMenuItems(t, isPinned(recipe.id)), recipe, !!lockedRecipeIds?.has(recipe.id), t)
+      ? insertLockItems(makeAdminCardMenuItems(t, isPinned(recipe.id)), recipe.lockMode, !!lockedRecipeIds?.has(recipe.id), t)
       : makeBaseCardMenuItems(t, isPinned(recipe.id)),
     [isAdmin, t, isPinned, lockedRecipeIds],
   );
@@ -301,23 +273,14 @@ export function ExploreScreen({
 
   // 공유 카드 — 상세와 같은 시트. 둘러보기 레시피는 링크로도 열린다
   const [shareRecipe, setShareRecipe] = useState<Recipe | null>(null);
+  const setExploreLock = useSetExploreLock();
   const handleCardMenuSelect = useCallback((id: string, recipe: Recipe) => {
     if (id === 'pin' || id === 'unpin') {
       togglePin(recipe.id);
       showSnackbar(t(id === 'pin' ? 'home.pinned' : 'home.unpinned'), {tone: 'positive'});
       return;
     }
-    if (id === 'lockFree' || id === 'lockLocked' || id === 'lockAuto') {
-      // 공식 레시피 문서에 바로 — 비우면(자동) 필드를 지운다
-      const mode = id === 'lockFree' ? 'free' : id === 'lockLocked' ? 'locked' : null;
-      setDoc(doc(db, 'explore_recipes', recipe.id), {lockMode: mode ?? deleteField()}, {merge: true})
-        .then(() => {
-          onRefresh?.();
-          showSnackbar(t(mode === 'free' ? 'exploreLock.setFree' : mode === 'locked' ? 'exploreLock.setLocked' : 'exploreLock.setAuto'), {tone: 'positive'});
-        })
-        .catch(() => showSnackbar(t('exploreLock.failed'), {tone: 'error'}));
-      return;
-    }
+    if (isLockMenuId(id)) { setExploreLock(id, recipe.id); return; }
     if (id === 'save') {
       onImportRecipe(recipe);
     } else if (id === 'download') {
@@ -331,7 +294,7 @@ export function ExploreScreen({
     } else {
       onComingSoon();
     }
-  }, [onImportRecipe, onEditRecipe, onDeleteRecipe, onComingSoon, togglePin, showSnackbar, t, onRefresh]);
+  }, [onImportRecipe, onEditRecipe, onDeleteRecipe, onComingSoon, togglePin, showSnackbar, t, setExploreLock]);
 
   const handleGroupRecipePress = useCallback((id: string) => {
     const r = data.find(x => x.id === id);

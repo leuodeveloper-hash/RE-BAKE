@@ -55,6 +55,7 @@ import {sendAppInquiry} from '@utils/appInquiry';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import {DEFAULT_AXES} from '@components/RecipeGroups/groupAxis';
 import {ShareRecipeSheet} from '@components/BottomSheet/ShareRecipeSheet';
+import {computeLockedIds, insertLockItems, isLockMenuId, useSetExploreLock} from '@hooks/useExploreLock';
 import {
   IconTrash,
   IconTrashTwotone,
@@ -178,6 +179,23 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
     () => isAuthorMode ? exploreRecipesAll.filter(r => r.authorId === authorId && !r.hidden) : homeRecipes,
     [isAuthorMode, exploreRecipesAll, authorId, homeRecipes],
   );
+  // 둘러보기 잠금 — 작성자 홈(둘러보기 레시피)과 어드민 내 홈(공식 레시피)도 둘러보기와 같은 규칙으로 자물쇠.
+  // 어드민은 표시만(열기는 그대로), 무료 사용자는 작성자 홈에서 열면 잠금 화면.
+  const isFreeUser = !isAdmin && !isPro;
+  const lockedRecipeIds = useMemo(() => {
+    if (isAuthorMode) return isAdmin || isFreeUser ? computeLockedIds(recipes) : undefined;
+    if (!isAdmin || exploreIdOf.size === 0) return undefined;
+    const lockedExplore = computeLockedIds(exploreRecipesAll.filter(r => r.authorId === OFFICIAL_AUTHOR_ID && !r.hidden));
+    const ids = new Set<string>();
+    exploreIdOf.forEach((pub, homeId) => { if (lockedExplore.has(pub)) ids.add(homeId); });
+    return ids;
+  }, [isAuthorMode, isAdmin, isFreeUser, recipes, exploreIdOf, exploreRecipesAll]);
+  /** 이 카드의 둘러보기 문서 — 작성자 홈은 그대로, 내 홈은 공개본 */
+  const exploreRecipeOf = useCallback((r: Recipe) => {
+    const id = isAuthorMode ? r.id : exploreIdOf.get(r.id);
+    return id ? exploreRecipesAll.find(x => x.id === id) : undefined;
+  }, [isAuthorMode, exploreIdOf, exploreRecipesAll]);
+  const setExploreLock = useSetExploreLock();
   const isLoading = isAuthorMode ? exploreLoading : myLoading;
   const availableCookbooks = isAuthorMode
     ? Array.from(new Set(recipes.map(r => r.cookbook).filter(Boolean) as string[]))
@@ -473,6 +491,11 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
   // 공유 카드 — 상세와 같은 시트. 내 레시피는 링크 없이 카드 이미지로
   const [shareRecipe, setShareRecipe] = useState<Recipe | null>(null);
   const handleCardMenuSelect = useCallback((id: string, recipe: Recipe): void => {
+    if (isLockMenuId(id)) {
+      const pub = exploreRecipeOf(recipe);
+      if (pub) setExploreLock(id, pub.id);
+      return;
+    }
     if (id === 'pin' || id === 'unpin') {
       // pinnedAt에 시각을 남긴다 — 여러 개를 고정했을 때 핀한 순서대로 위에 쌓인다
       const pinnedAt = id === 'pin' ? new Date().toISOString() : undefined;
@@ -540,7 +563,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
       });
       setShowPdfPreview(true);
     }
-  }, [router, setRecipes, showSnackbar, canAddRecipe, t, isGuest, openAuthSheet, exploreIdOf, setExplorePin]);
+  }, [router, setRecipes, showSnackbar, canAddRecipe, t, isGuest, openAuthSheet, exploreIdOf, setExplorePin, exploreRecipeOf, setExploreLock]);
 
   const handleConfirmDelete = useCallback(() => {
     if (!deleteTarget) return;
@@ -802,8 +825,13 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
         selectedId: `vis:${visibility}`,
         onSelect: id => setVisibility(id.slice(4) as typeof visibility),
       } : undefined}
-      onRecipePress={(item) => router.push(`/recipe/${item.id}`)}
-      cardMenuItems={(recipe) => getDefaultCardMenuItems(recipe, t, r => !!madeAtOf(r))}
+      onRecipePress={(item) => router.push((isAuthorMode && isFreeUser && lockedRecipeIds?.has(item.id) ? `/recipe/${item.id}?from=explore&locked=1` : `/recipe/${item.id}`) as any)}
+      cardMenuItems={(recipe) => {
+        const items = getDefaultCardMenuItems(recipe, t, r => !!madeAtOf(r));
+        const pub = isAdmin ? exploreRecipeOf(recipe) : undefined;
+        return pub ? insertLockItems(items, pub.lockMode, !!lockedRecipeIds?.has(recipe.id), t) : items;
+      }}
+      lockedRecipeIds={lockedRecipeIds}
       onCardMenuSelect={handleCardMenuSelect}
       onOverlayPress={closeLocalMenus}
       extraOverlayVisible={showMoreMenu || crumbMenu !== null}
