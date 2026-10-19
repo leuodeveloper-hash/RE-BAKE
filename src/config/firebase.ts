@@ -8,9 +8,16 @@ import {Platform} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // TODO: Firebase Console에서 프로젝트 생성 후 아래 값 입력
+// 웹 로그인 처리 주소 — 사이트와 같은 주소로(bakle.app 등). 다른 주소(firebaseapp.com)를 거치면
+// 브라우저가 다른 주소 저장소를 막아(사파리·시크릿) 구글 로그인 결과가 안 넘어와 로그인 상태가 안 바뀌었다.
+// 우리 호스팅 주소일 때만 — 그 외(localhost 등)는 기본 주소
+const SAME_SITE_AUTH_HOSTS = ['bakle.app', 'bakle.web.app', 'bakecycle-b82b5.web.app'];
+const webHost = Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.hostname : '';
+const authDomain = SAME_SITE_AUTH_HOSTS.includes(webHost) ? webHost : "bakecycle-b82b5.firebaseapp.com";
+
 const firebaseConfig = {
   apiKey: "AIzaSyBxV2M2GYMqhg6_3RFW3-vrB0PkQn9XQaU",
-  authDomain: "bakecycle-b82b5.firebaseapp.com",
+  authDomain,
   projectId: "bakecycle-b82b5",
   storageBucket: "bakecycle-b82b5.firebasestorage.app",
   messagingSenderId: "420587944388",
