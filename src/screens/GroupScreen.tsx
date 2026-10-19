@@ -505,8 +505,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         onPress: () => { setRetroTarget(recipe); setShowReviewSheet(true); },
       };
     });
-    // 리스트와 같은 순서 — 써야 할 것(회고를 기다려요) 먼저, 쓴 회고 다음
-    if (reviewedPacks.length + writePacks.length > 0) return [...writePacks, ...reviewedPacks];
+    // 리스트와 같은 순서 — 쓴 회고 먼저, 써야 할 것(회고를 기다려요)은 뒤에
+    if (reviewedPacks.length + writePacks.length > 0) return [...reviewedPacks, ...writePacks];
     {
       // 레시피가 하나도 없으면 예시 회고(흐리게) — 누르면 레시피 목록으로
       return [{
@@ -1030,16 +1030,17 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                       const written = rows.filter(r => !r.write);
                       return (
                         <>
-                          {waiting.length > 0 && (
-                            <>
-                              <SectionHeader title={t('retrospectiveNote.waitingTitle')} style={styles.sectionHeader} />
-                              {waiting.map((row, idx) => renderRow(row, idx, waiting))}
-                            </>
-                          )}
+                          {/* 쓴 회고 먼저, 남겨야 할 회고는 뒤에 */}
                           {written.length > 0 && (
                             <>
                               <SectionHeader title={t('group.retroNote')} style={styles.sectionHeader} />
                               {written.map((row, idx) => renderRow(row, idx, written))}
+                            </>
+                          )}
+                          {waiting.length > 0 && (
+                            <>
+                              <SectionHeader title={t('retrospectiveNote.waitingTitle')} style={styles.sectionHeader} />
+                              {waiting.map((row, idx) => renderRow(row, idx, waiting))}
                             </>
                           )}
                         </>
