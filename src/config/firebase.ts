@@ -15,6 +15,7 @@ const SAME_SITE_AUTH_HOSTS = ['bakle.app', 'bakle.web.app', 'bakecycle-b82b5.web
 const webHost = Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.hostname : '';
 /** 로그인 처리 주소가 지금 사이트와 같은가 — 같을 때만 현재 탭 이동 로그인이 된다(다르면 팝업) */
 export const AUTH_SAME_SITE = SAME_SITE_AUTH_HOSTS.includes(webHost);
+// 그 밖(localhost 등)은 프로젝트 기본 주소 — Firebase가 로그인 처리 주소를 https로만 열어 http인 localhost 자신은 못 쓴다
 const authDomain = AUTH_SAME_SITE ? webHost : "bakecycle-b82b5.firebaseapp.com";
 
 const firebaseConfig = {
