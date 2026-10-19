@@ -806,9 +806,16 @@ function GlobalPlanSheet() {
       setTimeout(() => openAuthSheet(), 300);
       return;
     }
+    // 웹은 결제가 없다(스토어 인앱결제 전용) — 시트를 닫고 안내해야 보인다(시트 뒤에 깔려 '반응 없음'으로 보였다)
+    if (Platform.OS === 'web') {
+      close();
+      setTimeout(() => showSnackbar(t('layout.subscribeInApp')), 300);
+      return;
+    }
     // 상품을 못 불러온 경우(결제 비활성/스토어 미등록) — 구매를 시도하지 않는다
     if (!pkg) {
-      showSnackbar(t('layout.subscriptionComingSoon'));
+      close();
+      setTimeout(() => showSnackbar(t('layout.subscriptionComingSoon')), 300);
       return;
     }
     const ok = await purchasePackage(pkg);

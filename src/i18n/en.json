@@ -1,4 +1,5 @@
 {
+  "layout.subscribeInApp": "Subscriptions are available in the iOS and Android app. Sign in with the same account there to subscribe.",
   "settings.tempCelsius": "Celsius °C",
   "settings.tempFahrenheit": "Fahrenheit °F",
   "settings.tempUnit": "Temperature unit",
