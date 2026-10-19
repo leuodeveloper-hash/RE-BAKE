@@ -236,8 +236,9 @@ export function ExploreScreen({
   // 무료 유저: 전체 표시하되 잠금 처리
   const paywallData = filteredData;
 
+  // 어드민은 잠금 표시만 보여 준다(열기는 막지 않음) — 어떤 게 잠겼는지 알아야 잠금 설정을 고친다
   const lockedRecipeIds = useMemo(() => {
-    if (!isFreeUser) return undefined;
+    if (!isFreeUser && !isAdmin) return undefined;
     // 어드민이 정한 것 먼저 — 'free'는 늘 열림, 'locked'는 늘 잠김. 나머지는 목록 앞 N개만 무료(자동)
     const ids = new Set<string>();
     let autoIndex = 0;
@@ -248,11 +249,11 @@ export function ExploreScreen({
       autoIndex++;
     }
     return ids;
-  }, [filteredData, isFreeUser]);
+  }, [filteredData, isFreeUser, isAdmin]);
 
   const handleRecipePress = useCallback((recipe: Recipe) => {
-    onRecipePress(recipe, lockedRecipeIds?.has(recipe.id));
-  }, [lockedRecipeIds, onRecipePress]);
+    onRecipePress(recipe, isFreeUser && lockedRecipeIds?.has(recipe.id));
+  }, [isFreeUser, lockedRecipeIds, onRecipePress]);
 
   const searchItems = useMemo(() =>
     data.map(r => {
