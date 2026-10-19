@@ -7,6 +7,9 @@ import {Button} from '@components/Button';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
 import {useRecipeReviews} from '@hooks/useRecipeReviews';
+import {StepPhotos} from '@components/StepPhotos/StepPhotos';
+import {normalizeStepPhotos} from '@utils/stepPhotos';
+import type {StepPhoto} from '../../types/recipe';
 import type {SemanticColors} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
@@ -31,7 +34,7 @@ export interface StampDetailSheetProps {
   /** 회고 남기기(편집 화면으로) */
   onWriteReview?: () => void;
   /** 지금 회차 회고 — 있으면 내용을 보여주고 버튼이 '회고 수정' */
-  review?: {evaluation?: string; improvement?: string};
+  review?: {evaluation?: string; improvement?: string; photos?: StepPhoto[] | string[]};
 }
 
 /**
@@ -79,7 +82,13 @@ export function StampDetailSheet({
   }, [sessions, t, reviewsOf]);
 
   const made = !!madeAt;
-  const reviewText = [review?.evaluation?.trim(), review?.improvement?.trim()].filter(Boolean) as string[];
+  // 적은 회고 — 평가 / 다음 개선 점(라벨과 함께), 사진
+  const reviewRows = [
+    {label: t('review.evaluationLabel'), text: review?.evaluation?.trim()},
+    {label: t('review.improvementLabel'), text: review?.improvement?.trim()},
+  ].filter(r => !!r.text) as {label: string; text: string}[];
+  const reviewPhotos = review?.photos?.length ? normalizeStepPhotos(review.photos as (string | StepPhoto)[]) : [];
+  const hasReview = reviewRows.length > 0 || reviewPhotos.length > 0;
 
   return (
     <BottomSheet visible={visible} onClose={onClose}>
@@ -104,11 +113,13 @@ export function StampDetailSheet({
         </Text>
 
         {/* 적은 회고 — 시트를 열면 바로 보인다 */}
-        {reviewText.length > 0 && (
+        {hasReview && (
           <View style={styles.sessions}>
-            {reviewText.map((line, i) => (
-              <Text key={i} style={styles.sessionText} numberOfLines={3}>{line}</Text>
+            {/* 내용만 — 라벨 없이 적은 글 그대로 */}
+            {reviewRows.map(row => (
+              <Text key={row.label} style={styles.reviewText}>{row.text}</Text>
             ))}
+            {reviewPhotos.length > 0 && <StepPhotos photos={reviewPhotos} mode="view" paddingTop={false} />}
           </View>
         )}
 
@@ -126,7 +137,7 @@ export function StampDetailSheet({
         <View style={styles.actions}>
           {made && onWriteReview && (
             <Button
-              label={t(reviewText.length > 0 ? 'stampDetail.editReview' : 'stampDetail.writeReview')}
+              label={t(hasReview ? 'stampDetail.editReview' : 'stampDetail.writeReview')}
               variant="soft"
               onPress={onWriteReview}
               style={styles.action}
@@ -177,6 +188,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     ...Typography.caption.medium,
     color: colors['foreground/on-surface-muted'],
     minWidth: 48,
+  },
+  reviewText: {
+    ...Typography.body.medium,
+    color: colors['foreground/on-surface-var'],
   },
   sessionText: {
     ...Typography.body.small,

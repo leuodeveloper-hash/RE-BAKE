@@ -13,7 +13,9 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // 우리 호스팅 주소일 때만 — 그 외(localhost 등)는 기본 주소
 const SAME_SITE_AUTH_HOSTS = ['bakle.app', 'bakle.web.app', 'bakecycle-b82b5.web.app'];
 const webHost = Platform.OS === 'web' && typeof window !== 'undefined' ? window.location.hostname : '';
-const authDomain = SAME_SITE_AUTH_HOSTS.includes(webHost) ? webHost : "bakecycle-b82b5.firebaseapp.com";
+/** 로그인 처리 주소가 지금 사이트와 같은가 — 같을 때만 현재 탭 이동 로그인이 된다(다르면 팝업) */
+export const AUTH_SAME_SITE = SAME_SITE_AUTH_HOSTS.includes(webHost);
+const authDomain = AUTH_SAME_SITE ? webHost : "bakecycle-b82b5.firebaseapp.com";
 
 const firebaseConfig = {
   apiKey: "AIzaSyBxV2M2GYMqhg6_3RFW3-vrB0PkQn9XQaU",

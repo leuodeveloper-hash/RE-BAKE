@@ -4,6 +4,7 @@ import {shortDate} from '@utils/dateLabel';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, Easing, InteractionManager, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {triggerHaptic} from '@utils/haptics';
+import {IconButton} from '@components/IconButton';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import {AppBar} from '@components/Navigation';
 import {ContentContainer} from '@components/Container';
@@ -33,8 +34,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {NavPillButton} from '@components/Navigation';
-import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconList, IconLayoutGrid, IconNoteFilled, IconEyeClosed, IconPenTipFilled, IconPenTip} from '@components/Icon/IconIndex';
+import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconList, IconLayoutGrid, IconNoteFilled, IconEyeClosed, IconPenTipFilled} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import type {Recipe} from '../src/types/recipe';
 import {goBackOr} from '@utils/navigation';
@@ -154,15 +154,11 @@ function SlotStamp({slot, size, styles, colors, highlight, onLanded, onReview}: 
         // 리스트의 작은 칸에선 글이 뭉개지기만 해 넣지 않는다
         recipe={size >= 64 ? slot.recipe : undefined}
       />
-      {/* 회고를 적었으면 오른쪽 아래 펜촉 — 목록의 리뷰 표시와 같은 아이콘 */}
-      {slot.reviewed ? (
-        <View style={styles.reviewMark} pointerEvents="none">
-          <IconPenTipFilled width={size >= 64 ? 14 : 10} height={size >= 64 ? 14 : 10} color={colors['foreground/on-surface-inverse']} />
-        </View>
-      ) : onReview && size >= 64 ? (
-        // 안 적었으면 바로 쓰는 떠 있는 버튼(시트 헤더 버튼과 같은 알약)
+      {/* 회고를 안 적었으면 오른쪽 아래 작은 떠 있는 쓰기 버튼(적은 건 표시 없음). 리스트의 작은 칸엔 없다 */}
+      {!slot.reviewed && onReview && size >= 64 ? (
+        // 공통 아이콘 버튼(작게) — 채운 펜촉·세컨더리 색
         <View style={styles.reviewButton}>
-          <NavPillButton icon={IconPenTip} size="small" onPress={onReview} />
+          <IconButton icon={IconPenTipFilled} variant="soft" size="small" iconColor={colors['foreground/on-surface-var']} onPress={onReview} />
         </View>
       ) : null}
     </HighlightPop>
@@ -609,13 +605,8 @@ export default function StampsRoute() {
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
-  // 회고 표시 — 스탬프 오른쪽 아래 작은 원
-  reviewButton: {position: 'absolute', right: -4, bottom: -4},
-  reviewMark: {
-    position: 'absolute', right: 2, bottom: 2,
-    padding: 3, borderRadius: 999,
-    backgroundColor: colors['foreground/on-surface'],
-  },
+  // 회고 쓰기 — 스탬프 오른쪽 아래(모양·색은 공통 IconButton small 그대로, 바깥은 자리만)
+  reviewButton: {position: 'absolute', right: -6, bottom: -6},
   container: {flex: 1, backgroundColor: colors['surface/dim']},
   safeArea: {flex: 1},
   scrollView: {flex: 1},
