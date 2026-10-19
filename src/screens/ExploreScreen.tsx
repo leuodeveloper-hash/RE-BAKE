@@ -70,12 +70,13 @@ const makeAdminCardMenuItems = (t: (key: string, params?: Record<string, unknown
 
 /**
  * 어드민 — 무료 사용자에게 이 레시피를 열지·잠글지(삭제 바로 위에 끼운다).
- * 지금 상태가 아닌 쪽만 보이고, 정해 둔 상태면 '자동으로'(목록 순서대로)도 보인다.
+ * 지금 보이는 상태(자물쇠 유무)의 반대 하나만 보이고, 정해 둔 상태면 '자동으로'(목록 순서대로)도 보인다.
  */
-function insertLockItems(items: MenuItemData[], recipe: Recipe, t: (key: string, params?: Record<string, unknown>) => string): MenuItemData[] {
+function insertLockItems(items: MenuItemData[], recipe: Recipe, locked: boolean, t: (key: string, params?: Record<string, unknown>) => string): MenuItemData[] {
   const lock: MenuItemData[] = [
-    ...(recipe.lockMode !== 'free' ? [{id: 'lockFree', label: t('exploreLock.free'), icon: IconUnlock}] : []),
-    ...(recipe.lockMode !== 'locked' ? [{id: 'lockLocked', label: t('exploreLock.locked'), icon: IconLock}] : []),
+    locked
+      ? {id: 'lockFree', label: t('exploreLock.free'), icon: IconUnlock}
+      : {id: 'lockLocked', label: t('exploreLock.locked'), icon: IconLock},
     ...(recipe.lockMode ? [{id: 'lockAuto', label: t('exploreLock.auto'), icon: IconBroom}] : []),
   ];
   const del = items.findIndex(i => i.id === 'delete');
@@ -187,14 +188,6 @@ export function ExploreScreen({
   const [pdfRecipe, setPdfRecipe] = useState<Recipe | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
 
-  // 핀 상태가 레시피마다 달라 함수 형태로 넘긴다(고정/해제 라벨이 바뀐다)
-  const cardMenuItems = useCallback(
-    (recipe: Recipe) => isAdmin
-      ? insertLockItems(makeAdminCardMenuItems(t, isPinned(recipe.id)), recipe, t)
-      : makeBaseCardMenuItems(t, isPinned(recipe.id)),
-    [isAdmin, t, isPinned],
-  );
-
   const exploreCookbookMap = useMemo(() => {
     const map = new Map<string, string>();
     exploreCookbooks?.forEach(c => map.set(c.name, c.color));
@@ -250,6 +243,14 @@ export function ExploreScreen({
     }
     return ids;
   }, [filteredData, isFreeUser, isAdmin]);
+
+  // 핀 상태가 레시피마다 달라 함수 형태로 넘긴다(고정/해제 라벨이 바뀐다)
+  const cardMenuItems = useCallback(
+    (recipe: Recipe) => isAdmin
+      ? insertLockItems(makeAdminCardMenuItems(t, isPinned(recipe.id)), recipe, !!lockedRecipeIds?.has(recipe.id), t)
+      : makeBaseCardMenuItems(t, isPinned(recipe.id)),
+    [isAdmin, t, isPinned, lockedRecipeIds],
+  );
 
   const handleRecipePress = useCallback((recipe: Recipe) => {
     onRecipePress(recipe, isFreeUser && lockedRecipeIds?.has(recipe.id));
