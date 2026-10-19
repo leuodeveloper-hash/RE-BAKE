@@ -1191,5 +1191,14 @@
   "widgetPreview.states": "배너 상태",
   "widgetPreview.title": "위젯 미리보기",
   "youTubePlayer.cannotPlayHere": "여기서 재생할 수 없는 영상이에요",
-  "youTubePlayer.openInYouTube": "유튜브에서 열기"
+  "youTubePlayer.openInYouTube": "유튜브에서 열기",
+  "profile.userStats": "사용자 통계",
+  "adminStats.title": "사용자 통계",
+  "adminStats.dau": "오늘 활성(DAU)",
+  "adminStats.wau": "최근 7일(WAU)",
+  "adminStats.mau": "최근 30일(MAU)",
+  "adminStats.devices": "전체 기기",
+  "adminStats.users": "가입자",
+  "adminStats.loadFailed": "통계를 불러오지 못했어요.",
+  "adminStats.note": "기기 기준이에요. 이번 빌드부터 쌓여요. 이전 기록은 Firebase 콘솔 Analytics에서 볼 수 있어요."
 }

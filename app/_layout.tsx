@@ -28,6 +28,7 @@ import {StepTemplatesProvider} from '@hooks/useStepTemplates';
 import {SnackbarProvider, useSnackbar} from '@contexts/SnackbarContext';
 import {AddSheetProvider, useAddSheet} from '@contexts/AddSheetContext';
 import {AuthProvider, useAuth} from '@contexts/AuthContext';
+import {recordActive} from '@utils/activity';
 import {useExamNotificationPrefs} from '@hooks/useExamNotificationPrefs';
 import {SubscriptionProvider, useSubscription} from '@contexts/SubscriptionContext';
 import {PlanSheetProvider, usePlanSheet} from '@contexts/PlanSheetContext';
@@ -372,6 +373,14 @@ function NavigationContent() {
     // showSnackbar/t는 안정적.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // 활성 사용자 기록(어드민 > 사용자 통계) — 켤 때·다시 열 때, 하루 한 번
+  const activeUid = user?.uid;
+  useEffect(() => {
+    recordActive(activeUid);
+    const sub = AppState.addEventListener('change', s => { if (s === 'active') recordActive(activeUid); });
+    return () => sub.remove();
+  }, [activeUid]);
 
   // 내 제빵 레시피도 반죽 온도·분할 무게 칸을 켠다(기기마다 1회, 레시피를 불러온 뒤)
   const breadMigratedRef = useRef(false);

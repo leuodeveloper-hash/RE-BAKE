@@ -1206,5 +1206,14 @@
   "widgetPreview.states": "Banner states",
   "widgetPreview.title": "Widget preview",
   "youTubePlayer.cannotPlayHere": "This video can't be played here",
-  "youTubePlayer.openInYouTube": "Open in YouTube"
+  "youTubePlayer.openInYouTube": "Open in YouTube",
+  "profile.userStats": "User stats",
+  "adminStats.title": "User stats",
+  "adminStats.dau": "Active today (DAU)",
+  "adminStats.wau": "Last 7 days (WAU)",
+  "adminStats.mau": "Last 30 days (MAU)",
+  "adminStats.devices": "All devices",
+  "adminStats.users": "Signed up",
+  "adminStats.loadFailed": "Couldn't load stats.",
+  "adminStats.note": "Counted per device, from this build on. Earlier data is in Firebase Analytics."
 }

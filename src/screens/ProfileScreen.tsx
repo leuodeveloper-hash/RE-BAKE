@@ -40,7 +40,7 @@ import {
   IconExport,
   IconChevronRight,
   IconStamps,
-  IconExprolerBookFilled,
+  IconExprolerBookFilled, IconUsersFilled,
   IconPaletteFilled,
   IconLogout,
   IconSettingsFilled,
@@ -104,6 +104,7 @@ export interface ProfileScreenProps {
   onWidgetPreviewPress?: () => void;
   /** 둘러보기 신청 검토 화면 진입 (어드민) */
   onSubmissionsPress?: () => void;
+  onStatsPress?: () => void;
   /** 시험 일정 알림 설정 화면 진입 */
   onExamNotifPress?: () => void;
   /** 홈 화면 위젯 안내 화면 진입 */
@@ -192,6 +193,7 @@ export function ProfileScreen({
   stampCount = 0,
   onWidgetPreviewPress,
   onSubmissionsPress,
+  onStatsPress,
   onExamNotifPress,
   onWidgetGuidePress,
   onDdaysPress,
@@ -596,6 +598,13 @@ export function ProfileScreen({
                   leading={{type: 'icon', icon: IconExprolerBookFilled}}
                   trailing={{type: 'icon', icon: IconChevronRight}}
                   onPress={() => onSubmissionsPress?.()}
+                  showDivider
+                />
+                <ListItem
+                  title={t('profile.userStats')}
+                  leading={{type: 'icon', icon: IconUsersFilled}}
+                  trailing={{type: 'icon', icon: IconChevronRight}}
+                  onPress={() => onStatsPress?.()}
                   showDivider
                 />
                 <ListItem

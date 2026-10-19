@@ -101,8 +101,12 @@ export async function checkForUpdate(): Promise<{
 
   const onUpdate = () => {
     if (Platform.OS === 'web') {
-      // 웹: 캐시 무시 새로고침으로 최신 배포본 로드
-      if (typeof window !== 'undefined') window.location.reload();
+      // 웹: 주소에 표시를 붙여 캐시된 index.html을 건너뛰고 최신 배포본을 받는다(그냥 reload는 캐시본이 와서 팝업이 반복됐다)
+      if (typeof window !== 'undefined') {
+        const url = new URL(window.location.href);
+        url.searchParams.set('v', Date.now().toString(36));
+        window.location.replace(url.toString());
+      }
       return;
     }
     // 앱: 스토어로. config → 스토어 공개 정보 → 기본값 순.
