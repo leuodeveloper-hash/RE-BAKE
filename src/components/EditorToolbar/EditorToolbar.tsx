@@ -9,7 +9,7 @@ import {
   IconUndo,
   IconRedo,
   IconAdd,
-  IconSliceVertical, IconStar,
+  IconSliceVertical, IconStar, IconAstriks, IconCircleAlertFilled,
   IconLink,
   IconMic,
   IconScanText,
@@ -61,6 +61,10 @@ export interface EditorToolbarProps {
   scan?: ToolbarAction;
   /** 커서가 있는 줄을 묶음(과정명)으로 — 과정 편집 전용 */
   group?: ToolbarAction;
+  /** 팁 칩 추가 — 과정 편집 전용(예전 [+] 안에 있던 것) */
+  tip?: ToolbarAction;
+  /** 주의 칩 추가 — 과정 편집 전용 */
+  caution?: ToolbarAction;
   /** 지금 과정을 자주 쓰는 과정으로 저장(별) — 과정 편집 전용 */
   star?: ToolbarAction;
   /** 선택한 텍스트에 링크 넣기 */
@@ -86,6 +90,8 @@ export function EditorToolbar({
   scan,
   group,
   star,
+  tip,
+  caution,
   link,
   onDone,
   doneDisabled,
@@ -119,7 +125,16 @@ export function EditorToolbar({
           <>
             <IconButton icon={IconUndo} onPress={undo?.onPress} variant="ghost-primary" size="medium" disabled={isOff(undo)} />
             <IconButton icon={IconRedo} onPress={redo?.onPress} variant="ghost-primary" size="medium" disabled={isOff(redo)} />
-            <IconButton icon={IconAdd} onPress={add?.onPress} variant="ghost-primary" size="medium" disabled={isOff(add)} forcePressed={add?.active} />
+            {/* [+]는 넘긴 화면에서만 — 과정은 팁·주의를 바깥 버튼으로 꺼내 놓아 [+]가 없다 */}
+            {add ? (
+              <IconButton icon={IconAdd} onPress={add.onPress} variant="ghost-primary" size="medium" disabled={isOff(add)} forcePressed={add.active} />
+            ) : null}
+            {tip ? (
+              <IconButton icon={IconAstriks} onPress={tip.onPress} variant="ghost-primary" size="medium" disabled={isOff(tip)} />
+            ) : null}
+            {caution ? (
+              <IconButton icon={IconCircleAlertFilled} onPress={caution.onPress} variant="ghost-primary" size="medium" disabled={isOff(caution)} />
+            ) : null}
             {/* 음성 입력 — 넘긴 화면에서만(편집 화면은 동작이 불안정해 뺐다) */}
             {voice ? (
               <IconButton icon={IconMic} onPress={voice.onPress} variant="ghost-primary" size="medium" disabled={isOff(voice)} forcePressed={voice.active} />

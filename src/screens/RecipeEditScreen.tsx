@@ -4,6 +4,7 @@ import {dismissKeyboardAndWait} from '@utils/keyboard';
 import {launchLibrary} from '@components/AlbumPicker/albumPicker';
 import {stripAmountParens} from '@utils/scaleAmount';
 import {formatTemp, useTempUnit} from '@utils/temperature';
+import {IconArrowBottom} from '@components/Icon/IconArrowBottom';
 import {StepTemplateSheet} from '@components/BottomSheet/StepTemplateSheet';
 import {useStepTemplates} from '@hooks/useStepTemplates';
 
@@ -144,6 +145,7 @@ import {
   IconTrash,
   IconBlackNose,
   IconBlockPlus,
+  IconArrowTop,
   IconLink,
   IconYourubeColored,
   IconImport,
@@ -201,8 +203,6 @@ const makeSlashMenuItems = (t: TFn) => [
   {id: 'gallery', label: t('recipeEdit.chooseFromGallery'), icon: IconPhoto},
   {id: 'tip', label: t('recipeEdit.tip'), icon: IconAstriks},
   {id: 'caution', label: t('recipeEdit.caution'), icon: IconCircleAlertFilled},
-  // 자주 쓰는 과정 — 저장해 둔 과정을 지금 과정 아래에 넣는다(지금 과정 저장도 여기서)
-  {id: 'template', label: t('stepTemplate.title'), icon: IconStarFilled},
 ];
 
 // Web: textarea 포커스 아웃라인 제거
@@ -2468,10 +2468,10 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
 
               <Menu
                 items={[
-                  {id: 'addAbove', label: t('recipeEdit.addGroupAbove')},
-                  {id: 'up', label: t('recipeEdit.moveGroupUp'), disabled: groupIndex === 0},
-                  {id: 'down', label: t('recipeEdit.moveGroupDown'), disabled: groupIndex === ingredientGroups.length - 1},
-                  {id: 'delete', label: t('recipeEdit.deleteGroup'), destructive: true, disabled: ingredientGroups.length <= 1},
+                  {id: 'addAbove', label: t('recipeEdit.addGroupAbove'), icon: IconBlockPlus},
+                  {id: 'up', label: t('recipeEdit.moveGroupUp'), icon: IconArrowTop, disabled: groupIndex === 0},
+                  {id: 'down', label: t('recipeEdit.moveGroupDown'), icon: IconArrowBottom, disabled: groupIndex === ingredientGroups.length - 1},
+                  {id: 'delete', label: t('recipeEdit.deleteGroup'), icon: IconTrash, destructive: true, disabled: ingredientGroups.length <= 1},
                 ]}
                 visible={ingGroupMenu === group.id}
                 onSelect={(id) => {
@@ -2485,8 +2485,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
               />
               <Menu
                 items={[
-                  {id: 'item', label: t('recipeEdit.addItem')},
-                  {id: 'group', label: t('recipeEdit.addGroup')},
+                  {id: 'item', label: t('recipeEdit.addItem'), icon: IconAdd},
+                  {id: 'group', label: t('recipeEdit.addGroup'), icon: IconBlockPlus},
                 ]}
                 visible={ingAddMenu === group.id}
                 onSelect={(id) => {
@@ -2770,10 +2770,10 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
 
               <Menu
                 items={[
-                  {id: 'addAbove', label: t('recipeEdit.addGroupAbove')},
-                  {id: 'up', label: t('recipeEdit.moveGroupUp'), disabled: groupIndex === 0},
-                  {id: 'down', label: t('recipeEdit.moveGroupDown'), disabled: groupIndex === toolGroups.length - 1},
-                  {id: 'delete', label: t('recipeEdit.deleteGroup'), destructive: true, disabled: toolGroups.length <= 1},
+                  {id: 'addAbove', label: t('recipeEdit.addGroupAbove'), icon: IconBlockPlus},
+                  {id: 'up', label: t('recipeEdit.moveGroupUp'), icon: IconArrowTop, disabled: groupIndex === 0},
+                  {id: 'down', label: t('recipeEdit.moveGroupDown'), icon: IconArrowBottom, disabled: groupIndex === toolGroups.length - 1},
+                  {id: 'delete', label: t('recipeEdit.deleteGroup'), icon: IconTrash, destructive: true, disabled: toolGroups.length <= 1},
                 ]}
                 visible={toolGroupMenu === group.id}
                 onSelect={(id) => {
@@ -2787,8 +2787,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
               />
               <Menu
                 items={[
-                  {id: 'item', label: t('recipeEdit.addItem')},
-                  {id: 'group', label: t('recipeEdit.addGroup')},
+                  {id: 'item', label: t('recipeEdit.addItem'), icon: IconAdd},
+                  {id: 'group', label: t('recipeEdit.addGroup'), icon: IconBlockPlus},
                 ]}
                 visible={toolAddMenu === group.id}
                 onSelect={(id) => {
@@ -3060,8 +3060,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
               </Pressable>
               <Menu
                 items={[
-                  {id: 'step', label: t('recipeEdit.addItem')},
-                  {id: 'group', label: t('recipeEdit.addGroup')},
+                  {id: 'step', label: t('recipeEdit.addItem'), icon: IconAdd},
+                  {id: 'group', label: t('recipeEdit.addGroup'), icon: IconBlockPlus},
                   {id: 'saveTemplate', label: t('stepTemplate.saveGroup'), icon: IconStarFilled},
                 ]}
                 visible={stepAddMenu === group.id}
@@ -3081,12 +3081,12 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
               />
               <Menu
                 items={[
-                  {id: 'addAbove', label: t('recipeEdit.addGroupAbove')},
-                  {id: 'up', label: t('recipeEdit.moveGroupUp'), disabled: groupIndex === 0},
-                  {id: 'down', label: t('recipeEdit.moveGroupDown'), disabled: groupIndex === stepGroups.length - 1},
+                  {id: 'addAbove', label: t('recipeEdit.addGroupAbove'), icon: IconBlockPlus},
+                  {id: 'up', label: t('recipeEdit.moveGroupUp'), icon: IconArrowTop, disabled: groupIndex === 0},
+                  {id: 'down', label: t('recipeEdit.moveGroupDown'), icon: IconArrowBottom, disabled: groupIndex === stepGroups.length - 1},
                   {id: 'saveTemplate', label: t('stepTemplate.saveGroup'), icon: IconStarFilled},
                   // 마지막 묶음은 지우면 과정이 통째로 사라지므로 막는다
-                  {id: 'delete', label: t('recipeEdit.deleteGroup'), destructive: true, disabled: stepGroups.length <= 1},
+                  {id: 'delete', label: t('recipeEdit.deleteGroup'), icon: IconTrash, destructive: true, disabled: stepGroups.length <= 1},
                 ]}
                 visible={stepGroupMenu === group.id}
                 onSelect={(id) => {
@@ -3745,11 +3745,12 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         // 현재 포커스가 OCR 대상 필드인지 (아니면 OCR 기능 비활성)
         const isOcrField = !!focusedOcrField;
         // 칩 추가(+): 포커스된 과정에 팁/주의/사진 여유가 있을 때만 활성
-        let stepHasRoom = false;
+        let canTip = false;
+        let canCaution = false;
         if (focusedStep) {
           const g = stepGroups.find(gg => gg.id === focusedStep.groupId);
           const s = g?.steps.find(ss => ss.id === focusedStep.stepId);
-          if (s) stepHasRoom = s.tip == null || s.caution == null || (s.photos?.length ?? 0) < 3;
+          if (s && focusedOcrField === 'steps') { canTip = s.tip == null; canCaution = s.caution == null; }
         }
         // 자주 쓰는 과정은 칸이 다 차도 쓸 수 있다
         // 사진은 칸 아래 사진 썸네일 칸에서 넣는다 — 조언 칸 [+]는 사진뿐이라 끈다
@@ -3830,32 +3831,25 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
           onScanFromRecipe={heroUris.length > 0 ? (f) => { ocrTargetRef.current = {field: f}; ocrReader.start('recipe'); } : undefined}
           field={focusedOcrField ?? ocrFieldRef.current ?? 'title'}
           ocrDisabled={!isOcrField}
-          onAddChip={() => {
-            if (adviceFocused) { setAdviceChipMenu(true); return; }
-            if (focusedStep) setSlashMenu(focusedStep);
-          }}
-          canAddChip={canAddChip}
+          // 팁·주의 — [+] 대신 툴바 바깥 아이콘 버튼으로 바로
+          onTip={() => { if (focusedStep) handleSlashMenuSelect('tip', focusedStep); }}
+          canTip={canTip}
+          onCaution={() => { if (focusedStep) handleSlashMenuSelect('caution', focusedStep); }}
+          canCaution={canCaution}
           onUndo={history.undo}
           canUndo={history.canUndo}
           onRedo={history.redo}
           canRedo={history.canRedo}
           onGroupSplit={handleGroupSplit}
           canGroupSplit={canGroupSplit}
-          // 별 — 지금 과정(설명·팁·주의·사진)을 자주 쓰는 과정으로 저장. 꺼내 쓰기는 [+] → 자주 쓰는 과정
-          onStar={() => {
+          // 별 — 자주 쓰는 과정 시트(꺼내 넣기 · 지금 과정 저장). 툴바 [+]에선 뺐다
+          onStar={async () => {
             if (!focusedStep) return;
-            const cur = stepGroups.find(g => g.id === focusedStep.groupId)?.steps.find(st => st.id === focusedStep.stepId);
-            if (!cur) return;
             triggerHaptic('light');
-            addTemplate({description: cur.description, tip: cur.tip, caution: cur.caution, photos: cur.photos})
-              .then(() => showSnackbar(t('stepTemplate.saved'), {tone: 'positive'}))
-              .catch(() => showSnackbar(t('stepTemplate.saveFailed'), {tone: 'error'}));
+            await dismissKeyboardAndWait();
+            setTemplateTarget(focusedStep);
           }}
-          canStar={(() => {
-            if (focusedOcrField !== 'steps' || !focusedStep) return false;
-            const cur = stepGroups.find(g => g.id === focusedStep.groupId)?.steps.find(st => st.id === focusedStep.stepId);
-            return !!(cur && (cur.description.trim() || cur.tip?.trim() || cur.caution?.trim() || cur.photos?.length));
-          })()}
+          canStar={focusedOcrField === 'steps' && !!focusedStep}
           onLink={handleLink}
           // 팁·주의 칩도 공통 TextInput이라 링크 배선이 이미 돼 있다 —
           // OCR 필드에만 열어 두면 칩에서는 버튼이 꺼져 링크를 못 걸었다.

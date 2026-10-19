@@ -11,7 +11,7 @@
   "exploreLock.failed": "바꾸지 못했어요",
   "fieldManage.sectionActive": "사용 중",
   "fieldManage.sectionAvailable": "추가할 수 있어요",
-  "stepTemplate.saveGroup": "묶음 통째로 자주 쓰는 과정에 저장",
+  "stepTemplate.saveGroup": "자주 쓰는 과정",
   "stepTemplate.groupSaved": "묶음을 자주 쓰는 과정에 저장했어요",
   "stepTemplate.groupEmpty": "저장할 과정이 없어요",
   "stepTemplate.groupInserted": "묶음을 넣었어요",

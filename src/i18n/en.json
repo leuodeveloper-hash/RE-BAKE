@@ -11,7 +11,7 @@
   "exploreLock.failed": "Couldn't change",
   "fieldManage.sectionActive": "In use",
   "fieldManage.sectionAvailable": "Add more",
-  "stepTemplate.saveGroup": "Save whole section",
+  "stepTemplate.saveGroup": "Saved steps",
   "stepTemplate.groupSaved": "Section saved",
   "stepTemplate.groupEmpty": "No steps to save",
   "stepTemplate.groupInserted": "Section added",

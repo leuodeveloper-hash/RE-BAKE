@@ -36,6 +36,11 @@ export interface RecipeInputFloatingBarProps {
   onVoicePress?: () => void;
   /** 칩 추가(+): 포커스된 과정에 팁/주의/사진 추가 메뉴 열기. 없으면 + 버튼 숨김 */
   onAddChip?: () => void;
+  /** 팁·주의 칩 바로 추가(과정) — 주면 툴바에 아이콘 버튼으로 */
+  onTip?: () => void;
+  canTip?: boolean;
+  onCaution?: () => void;
+  canCaution?: boolean;
   /** + 활성화 여부 (해당사항 없으면 false → disabled) */
   canAddChip?: boolean;
   /** 되돌리기 — 없으면 버튼 숨김 */
@@ -88,6 +93,10 @@ export function RecipeInputFloatingBar({
   onStop,
   onVoicePress,
   onAddChip,
+  onTip,
+  canTip = false,
+  onCaution,
+  canCaution = false,
   canAddChip = false,
   onUndo,
   canUndo = false,
@@ -263,7 +272,9 @@ export function RecipeInputFloatingBar({
     <>
       <EditorToolbar
         style={style}
-        add={{onPress: onAddChip, disabled: !canAddChip}}
+        add={onAddChip ? {onPress: onAddChip, disabled: !canAddChip} : undefined}
+        tip={onTip ? {onPress: onTip, disabled: !canTip} : undefined}
+        caution={onCaution ? {onPress: onCaution, disabled: !canCaution} : undefined}
         undo={onUndo ? {onPress: onUndo, disabled: !canUndo} : undefined}
         redo={onRedo ? {onPress: onRedo, disabled: !canRedo} : undefined}
         group={onGroupSplit ? {onPress: onGroupSplit, disabled: !canGroupSplit} : undefined}
