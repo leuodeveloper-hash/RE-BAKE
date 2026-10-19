@@ -1,6 +1,10 @@
 import '../global.css';
 import {launchLibrary} from '@components/AlbumPicker/albumPicker';
 import {AlbumPickerHost} from '@components/AlbumPicker';
+import {checkShareDomain} from '@config/share';
+
+// 공유 링크 주소 확인 — bakle.app이 안 열리면 원래 주소(bakle.web.app)로 링크를 만든다
+checkShareDomain();
 import {logOcrWithImage} from '@utils/ocrLog';
 import {trackScreen} from '@utils/analytics';
 import {ocrFailMessage} from '@utils/ocrFailMessage';

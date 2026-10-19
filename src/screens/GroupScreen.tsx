@@ -232,10 +232,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
     if (onDownloadPdf) {
       items.push({id: 'downloadPdf', label: t('group.downloadPdf'), icon: IconArrowDownToLine});
     }
-    // 전체 삭제는 어드민 전용 (게스트/일반 사용자에겐 노출하지 않음)
-    if (isAdmin) {
-      items.push({id: 'deleteAll', label: t('group.deleteAll'), icon: IconTrash, destructive: true});
-    }
+    // 전체 삭제는 아직 동작이 없어 메뉴에서 뺐다(누르면 '예정' 안내만 떠 심사에서 미완성으로 본다)
     return items;
   }, [emptyCookbookNames, isAdmin, onDownloadPdf, t]);
 

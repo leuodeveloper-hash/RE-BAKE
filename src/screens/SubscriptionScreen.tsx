@@ -42,11 +42,6 @@ export function SubscriptionScreen({visible, onClose}: SubscriptionScreenProps) 
         <BenefitRow text={t('subscription.benefitNoAds')} styles={styles} />
       </View>
 
-      {/* 예정 안내 */}
-      <View style={styles.comingSoonSection}>
-        <Text style={styles.comingSoonText}>{t('subscription.comingSoon')}</Text>
-      </View>
-
       {/* 버튼 */}
       <View style={styles.actionSection}>
         <Button

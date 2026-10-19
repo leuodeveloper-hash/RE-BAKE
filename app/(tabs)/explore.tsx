@@ -115,7 +115,7 @@ export function ExploreRouteBase({landing = false}: {landing?: boolean}) {
   }, [showSnackbar, t]);
 
   const handleComingSoon = useCallback(() => {
-    showSnackbar(t('explore.comingSoon'));
+    // 처리 안 된 메뉴 — '예정' 안내는 띄우지 않는다(심사에서 미완성으로 본다)
   }, [showSnackbar, t]);
 
   // 공식 레시피 북 삭제 (어드민 전용): Firestore 문서 삭제 후 목록 재조회

@@ -611,8 +611,8 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
 
   // ===== 그룹 모드 (axis !== 'all') 핸들러 =====
   const handleGroupComingSoon = useCallback(() => {
-    showSnackbar(t('home.comingSoon'));
-  }, [showSnackbar, t]);
+    // 처리 안 된 메뉴 — '예정' 안내는 띄우지 않는다(심사에서 미완성으로 본다)
+  }, []);
 
   const handleGroupDeleteCookbook = useCallback((name: string) => {
     setRecipes(prev => prev.map(r => (r.cookbook === name ? {...r, cookbook: undefined} : r)));

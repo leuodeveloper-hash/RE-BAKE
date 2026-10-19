@@ -305,8 +305,8 @@ const handleDelete = useCallback(async () => {
   }, [recipe, isMyRecipe, isExploreRecipe, isAdmin, id, setRecipes, showSnackbar, router, t]);
 
   const handleComingSoon = useCallback(() => {
-    showSnackbar(t('id.comingSoon'));
-  }, [showSnackbar, t]);
+    // 처리 안 된 메뉴 — '예정' 안내는 띄우지 않는다(심사에서 미완성으로 본다)
+  }, []);
 
   const importRef = useRef<() => void>(() => {});
   const handleImport = useCallback(() => {
