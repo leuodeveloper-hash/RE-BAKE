@@ -199,8 +199,7 @@ const BAKING_METHODS = [
 
 const makeSlashMenuItems = (t: TFn) => [
   // 사진: 촬영/갤러리 둘 다 제공 (기존 photo 하나는 카메라 직행이라 갤러리 선택지가 없었음)
-  {id: 'camera', label: t('recipeEdit.takePhoto'), icon: IconCameraFilled},
-  {id: 'gallery', label: t('recipeEdit.chooseFromGallery'), icon: IconPhoto},
+  ...photoSourceMenuItems(t),
   {id: 'tip', label: t('recipeEdit.tip'), icon: IconAstriks},
   {id: 'caution', label: t('recipeEdit.caution'), icon: IconCircleAlertFilled},
 ];

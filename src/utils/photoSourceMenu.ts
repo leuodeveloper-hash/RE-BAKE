@@ -1,4 +1,4 @@
-import {IconCameraFilled, IconPhoto} from '@components/Icon/IconIndex';
+import {IconCameraFilled, IconPhotoFilled} from '@components/Icon/IconIndex';
 
 export type PhotoSource = 'camera' | 'gallery';
 
@@ -9,6 +9,6 @@ export type PhotoSource = 'camera' | 'gallery';
 export function photoSourceMenuItems(t: (key: string) => string) {
   return [
     {id: 'camera', label: t('recipeEdit.takePhoto'), icon: IconCameraFilled},
-    {id: 'gallery', label: t('recipeEdit.chooseFromGallery'), icon: IconPhoto},
+    {id: 'gallery', label: t('recipeEdit.chooseFromGallery'), icon: IconPhotoFilled},
   ];
 }
