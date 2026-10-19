@@ -11,7 +11,6 @@ import {
   OAuthProvider,
   updateProfile,
   signInWithRedirect,
-  signInWithPopup,
   getRedirectResult,
   signInWithCredential,
   getAdditionalUserInfo,
@@ -249,12 +248,15 @@ export function AuthProvider({children}: {children: React.ReactNode}) {
     if (Platform.OS === 'web') {
       // 배포 주소(bakle.app 등)는 지금 탭에서 Google로 갔다 돌아온다(결과는 아래 getRedirectResult에서).
       // 팝업은 크롬에서 닫힌 뒤 결과가 원래 탭에 안 넘어와 아무 반응 없이 끝났다.
-      // localhost 등은 처리 주소가 다른 사이트라 탭 이동 결과를 못 읽는다 → 예전처럼 팝업
+      // localhost 등은 처리 주소가 다른 사이트라 탭 이동 결과를 못 읽고, Firebase 팝업은 크롬 COOP에 막힌다
+      // → Google 로그인 창(GIS)에서 토큰을 받아 바로 로그인
       if (AUTH_SAME_SITE) {
         await signInWithRedirect(auth, googleProvider);
         return;
       }
-      result = await signInWithPopup(auth, googleProvider);
+      const {requestGoogleAccessToken} = require('@utils/googleWebToken');
+      const accessToken: string = await requestGoogleAccessToken(GOOGLE_WEB_CLIENT_ID);
+      result = await signInWithCredential(auth, GoogleAuthProvider.credential(null, accessToken));
     } else {
       await GoogleSignin.hasPlayServices();
       const response = await GoogleSignin.signIn();

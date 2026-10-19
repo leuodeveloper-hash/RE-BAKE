@@ -577,10 +577,12 @@ export function RecipeCard({
   const hasImage = !!imageUrl;
   // 메타 줄 세그먼트: 각 항목이 자기 링크로 이동(핸들→작성자, 레시피북→북, 공법→공법).
   // 색은 전부 동일(muted). 링크 여부와 무관하게 톤 통일.
-  const metaSegments: {key: string; text: string; onPress?: () => void; icon?: boolean}[] = [];
+  const metaSegments: {key: string; text: string; onPress?: () => void; icon?: React.FC<SvgProps>}[] = [];
   if (authorHandle) metaSegments.push({key: 'author', text: `@${authorHandle}`, onPress: onAuthorPress});
+  // 잠겼으면 메타 줄 맨 앞에 작은 자물쇠(제목 앞은 너무 튀었다) — 메타 줄이 없는 칸(검색 설명 등)은 제목 앞 그대로
+  const lockOnBook = locked && metaSegments.length + (cookbook ? 1 : 0) + (method ? 1 : 0) + (specificGravity ? 1 : 0) > 0 && !customSubtitle;
   // 공개(공식) 레시피면 레시피북 이름 앞에 작은 공식 레시피북 아이콘
-  if (cookbook) metaSegments.push({key: 'cookbook', text: cookbook, onPress: onCookbookPress, icon: !!published});
+  if (cookbook) metaSegments.push({key: 'cookbook', text: cookbook, onPress: onCookbookPress, icon: published ? IconExprolerBookFilled : undefined});
   if (method) metaSegments.push({key: 'method', text: method, onPress: onMethodPress});
   if (specificGravity) metaSegments.push({key: 'sg', text: t('recipeCard.specificGravity', {value: specificGravity})});
   const hasMeta = metaSegments.length > 0;
@@ -603,25 +605,28 @@ export function RecipeCard({
     // wrap이면 줄이지도 자르지도 않는다 — 줄바꿈으로 넘긴다(리스트뷰).
     const segStyle = wrap ? undefined : styles.metaSegment;
     const lineProps = wrap ? {} : {numberOfLines: 1, ellipsizeMode: 'tail' as const};
-    return (limit ? segments.slice(0, limit) : segments).map(seg => (
+    const lockIcon = lockOnBook ? (
+      <IconLockFilled key="lock" width={12} height={12} color={StyleSheet.flatten(textStyle)?.color ?? colors['foreground/on-surface-muted']} />
+    ) : null;
+    return [lockIcon, ...(limit ? segments.slice(0, limit) : segments).map(seg => (
       <React.Fragment key={seg.key}>
         {seg.onPress ? (
           // flexShrink: 폭이 모자라면 이 조각이 줄어들며 말줄임(…)이 나온다.
           // Pressable에 주지 않으면 자식 Text가 폭을 몰라 잘리지 않고 넘친다.
           <Pressable onPress={seg.onPress} hitSlop={2} style={[segStyle, seg.icon && styles.metaIconRow]}>
-            {seg.icon ? <IconExprolerBookFilled width={12} height={12} color={StyleSheet.flatten(textStyle)?.color ?? colors['foreground/on-surface-muted']} /> : null}
+            {seg.icon ? <seg.icon width={12} height={12} color={StyleSheet.flatten(textStyle)?.color ?? colors['foreground/on-surface-muted']} /> : null}
             <Text style={seg.icon ? [textStyle, {flexShrink: 1}] : textStyle} {...lineProps}>{seg.text}</Text>
           </Pressable>
         ) : seg.icon ? (
           <View style={[segStyle, styles.metaIconRow]}>
-            <IconExprolerBookFilled width={12} height={12} color={StyleSheet.flatten(textStyle)?.color ?? colors['foreground/on-surface-muted']} />
+            <seg.icon width={12} height={12} color={StyleSheet.flatten(textStyle)?.color ?? colors['foreground/on-surface-muted']} />
             <Text style={[textStyle, {flexShrink: 1}]} {...lineProps}>{seg.text}</Text>
           </View>
         ) : (
           <Text style={[textStyle, segStyle]} {...lineProps}>{seg.text}</Text>
         )}
       </React.Fragment>
-    ));
+    ))];
   };
 
   const handlePress = useCallback(() => {
@@ -688,7 +693,7 @@ export function RecipeCard({
                 {pinned && (
                   <IconPinFilled width={14} height={14} color={colors['foreground/on-surface-muted']} />
                 )}
-                {locked && (
+                {locked && !lockOnBook && (
                   <IconLockFilled width={16} height={16} color={colors['foreground/on-surface-muted']} />
                 )}
                 <Text style={isSmall ? styles.listTitleSmall : styles.listTitle} numberOfLines={1}>
@@ -810,7 +815,7 @@ export function RecipeCard({
             {pinned && (
               <IconPinFilled width={14} height={14} color="rgba(255,255,255,0.9)" />
             )}
-            {locked && (
+            {locked && !lockOnBook && (
               <IconLockFilled width={16} height={16} color="rgba(255,255,255,0.9)" />
             )}
             <Text style={styles.photoListTitle} numberOfLines={1}>{title}</Text>
@@ -856,7 +861,7 @@ export function RecipeCard({
               {pinned && (
                 <IconPinFilled width={14} height={14} color={colors['foreground/on-surface-muted']} />
               )}
-              {locked && (
+              {locked && !lockOnBook && (
                 <IconLockFilled width={16} height={16} color={colors['foreground/on-surface-muted']} />
               )}
               <Text style={styles.gridTitle} numberOfLines={1}>{title}</Text>
