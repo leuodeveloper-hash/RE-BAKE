@@ -260,18 +260,28 @@ export default function RecipeDetailRoute() {
     router.push(path as any);
   }, [router, id, isExploreRecipe]);
 
+  /**
+   * 보고 있는 회차만 지운다. 지난 회차면 그 기록만, 지금 회차면 바로 전 회차 내용이 지금 회차가 된다.
+   */
+  const handleDeleteSession = useCallback(() => {
+    if (!recipe?.sessions?.length) return;
+    const now = new Date().toISOString();
+    const removedNumber = viewedSession ? viewedSession.number : currentSessionNumber(recipe);
+    setRecipes(prev => prev.map(r => {
+      if (r.id !== id) return r;
+      const past = r.sessions ?? [];
+      if (viewedSession) return {...r, sessions: past.filter(x => x.id !== viewedSession.id), updatedAt: now};
+      const prevSession = past[past.length - 1];
+      const {id: prevId, number: prevNumber, createdAt: _c, ...content} = prevSession;
+      return {...r, ...content, sessions: past.slice(0, -1), sessionId: prevId, sessionNumber: prevNumber, session: undefined, updatedAt: now};
+    }));
+    setViewSessionId(null);
+    showSnackbar(t('id.recipeDeleted', {title: recipe.title, sessionLabel: ` ${t('id.sessionLabel', {current: removedNumber})}`}), {icon: IconTrashFilled});
+  }, [recipe, viewedSession, id, setRecipes, showSnackbar, t]);
+
 const handleDelete = useCallback(async () => {
     if (!recipe) return;
     if (isMyRecipe) {
-      // 지난 회차를 보고 있으면 그 회차 기록만 지운다(레시피는 하나). 아니면 레시피 전체
-      if (viewedSession) {
-        setRecipes(prev => prev.map(r => r.id === id
-          ? {...r, sessions: (r.sessions ?? []).filter(x => x.id !== viewedSession.id), updatedAt: new Date().toISOString()}
-          : r));
-        setViewSessionId(null);
-        showSnackbar(t('id.recipeDeleted', {title: recipe.title, sessionLabel: ` ${t('id.sessionLabel', {current: viewedSession.number})}`}), {icon: IconTrashFilled});
-        return;
-      }
       setRecipes(prev => prev.filter(r => r.id !== id));
       showSnackbar(t('id.recipeDeleted', {title: recipe.title, sessionLabel: ''}), {icon: IconTrashFilled});
     } else if (isExploreRecipe && isAdmin) {
@@ -634,6 +644,7 @@ const handleDelete = useCallback(async () => {
         updateAvailable={updateAvailable}
         onDownloadPhoto={handleDownloadPhoto}
         onDelete={canDelete ? handleDelete : undefined}
+        onDeleteSession={isMyRecipe && (recipe?.sessions?.length ?? 0) > 0 ? handleDeleteSession : undefined}
         onRemake={isMyRecipe && recipe?.kind !== 'tip' && !viewedSession ? handleRemake : undefined}
         onImport={!isMyRecipe && !alreadyImported ? handleImport : undefined}
         onCookbookChange={isMyRecipe ? handleCookbookChange : undefined}

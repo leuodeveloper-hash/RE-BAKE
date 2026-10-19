@@ -138,11 +138,21 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
     const pubOf = new Map<string, string>();
     if (isAuthorMode || !myAuthorKey) return {homeRecipes: myRecipes, publishedIds: ids, exploreIdOf: pubOf};
     const byId = new Map(myRecipes.map(r => [r.id, r]));
-    const byTitle = new Map(myRecipes.map(r => [r.title.trim(), r]));
+    // 같은 제목이 여럿(일반 북 복사본 + 공식 북 원본)일 수 있다 — 공개본과 같은 북에 있는 쪽을 원본으로 본다.
+    // 제목 하나에 한 장만 두면 마지막(복사본)이 이겨, 공식 북 쪽 카드에서 공식 표시가 빠졌다
+    const byTitleAll = new Map<string, Recipe[]>();
+    for (const r of myRecipes) {
+      const k = r.title.trim();
+      byTitleAll.set(k, [...(byTitleAll.get(k) ?? []), r]);
+    }
+    const titleMatch = (p: Recipe) => {
+      const list = byTitleAll.get(p.title.trim());
+      return list?.find(r => r.cookbook === p.cookbook) ?? list?.[0];
+    };
     const orphans: Recipe[] = [];
     for (const p of exploreRecipesAll) {
       if (p.authorId !== myAuthorKey) continue;
-      const own = (p.sourceRecipeId && byId.get(p.sourceRecipeId)) || byTitle.get(p.title.trim());
+      const own = (p.sourceRecipeId && byId.get(p.sourceRecipeId)) || titleMatch(p);
       const id = own ? own.id : p.id;
       if (!own) orphans.push(p);
       ids.add(id);

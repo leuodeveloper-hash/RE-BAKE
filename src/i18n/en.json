@@ -1227,5 +1227,6 @@
   "widgetConfig.nearestExam": "Nearest exam",
   "widgetConfig.pastryExam": "Pastry exam",
   "widgetConfig.bakingExam": "Bread exam",
-  "widgetConfig.done": "Done"
+  "widgetConfig.done": "Done",
+  "recipeDetail.deleteSessionMenu": "Delete session {{session}}"
 }

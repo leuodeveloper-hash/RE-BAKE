@@ -59,6 +59,7 @@ import {ContentMask} from '@components/Container';
 import {BottomTabBar, type TabItem} from '@components/Navigation/BottomTabBar';
 import {sheetBottomInset} from '@components/BottomSheet/BottomSheet';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useTabBarSpace} from '@hooks/useTabBarSpace';
 import {AddRecipeSheet, PasteRecipeSheet, RecipeImagePickerSheet, type AddRecipeInput} from '@components/BottomSheet';
 import * as ImagePicker from 'expo-image-picker';
 import {ensureImagePermission} from '@utils/imagePermission';
@@ -258,6 +259,8 @@ function NavigationContent() {
   const router = useRouter();
   const pathname = usePathname();
   const insets = useSafeAreaInsets();
+  // 스낵바는 탭바(또는 아래 버튼 줄) 바로 위 — 기기 안전영역(아이폰 홈 인디케이터·안드로이드 내비 바·웹)을 반영한 같은 값
+  const tabBarSpace = useTabBarSpace();
   // 화면 진입 기록 — 경로가 바뀔 때마다 한 번
   useEffect(() => { trackScreen(pathname); }, [pathname]);
   // 마지막으로 본 화면(탭) 기억 — 앱을 다시 켜면 홈이 아니라 그 탭에서 시작(아래 복귀 effect가 읽는다).
@@ -665,7 +668,7 @@ function NavigationContent() {
       </Stack>
 
       {/* 스낵바 */}
-      <View style={tabStyles.snackbarWrapper} pointerEvents="box-none">
+      <View style={[tabStyles.snackbarWrapper, {bottom: tabBarSpace}]} pointerEvents="box-none">
         <Snackbar
           message={snackbar?.message ?? ''}
           action={snackbar?.action}
@@ -1042,7 +1045,6 @@ const createTabBarStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   snackbarWrapper: {
     position: 'absolute',
-    bottom: 100,
     left: 0,
     right: 0,
     alignItems: 'center',

@@ -72,7 +72,7 @@ import {SearchCommandBar} from '@components/SearchCommandBar';
 import {useYouTubePlayer} from '@contexts/YouTubePlayerContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {parseYouTubeVideoId} from '@utils/youtube';
-import {parseSession} from '@utils/session';
+import {parseSession, formatSession} from '@utils/session';
 import {triggerHaptic} from '@utils/haptics';
 import {buildSessionDiff, type SessionBaseline} from '@utils/sessionDiff';
 import {useThemedStyles} from '@hooks/useThemedStyles';
@@ -106,6 +106,7 @@ import {
   IconToolCaseFilled,
   IconSearch,
   IconSparkle,
+  IconTrash,
   IconFilesFilled,
   IconPhoto,
   IconEyeClosed,
@@ -248,6 +249,8 @@ export interface RecipeDetailScreenProps {
   currentSessionId?: string;
   /** 지난 회차를 보는 중 — 삭제는 그 회차 기록만 */
   viewingPastSession?: boolean;
+  /** 지금 보고 있는 회차만 지우기(회차가 둘 이상일 때) — 지금 회차면 바로 전 회차가 지금 회차가 된다 */
+  onDeleteSession?: () => void;
   onRecipeSelect?: (id: string) => void;
   /** 내 레시피를 둘러보기에 복사 (어드민 전용) */
   onCopyToExplore?: () => void;
@@ -424,6 +427,7 @@ export function RecipeDetailScreen({
   currentRecipeId,
   currentSessionId,
   viewingPastSession,
+  onDeleteSession,
   onRecipeSelect,
   onCopyToExplore,
   onSubmitToExplore,
@@ -528,6 +532,8 @@ export function RecipeDetailScreen({
   const [showTabMenu, setShowTabMenu] = useState(false);
   const [showUnlockDialog, setShowUnlockDialog] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  // 확인창이 지우는 것 — 회차 하나 / 레시피 전체
+  const [deleteTarget, setDeleteTarget] = useState<'session' | 'recipe'>('recipe');
   // PiP는 앱 루트에서 단일 인스턴스로 관리 (편집 등 화면 전환 시에도 유지)
   const {open: openYouTube, videoId: ytVideoId} = useYouTubePlayer();
 
@@ -802,6 +808,12 @@ export function RecipeDetailScreen({
       showShare: !!onShare,
       showFeedback: !!onFeedback,
     });
+    // 회차가 둘 이상이면 '이 회차 삭제'(보고 있는 회차만)를 레시피 삭제 바로 위에
+    if (onDeleteSession) {
+      const del = items.findIndex(i => i.id === 'delete');
+      const item = {id: 'deleteSession', label: t('recipeDetail.deleteSessionMenu', {session: parseSession(session).current}), icon: IconTrash, destructive: true};
+      if (del < 0) items.push(item); else items.splice(del, 0, item);
+    }
     if (compareBaseline) {
       items.unshift({
         id: 'compareDiff',
@@ -811,7 +823,7 @@ export function RecipeDetailScreen({
     }
     return items;
   },
-  [onImport, onRemake, onEdit, onDelete, onCookbookChange, onCopyToExplore, onSubmitToExplore, onShare, onFeedback, onMadeChange, isMade, onPinChange, isPinned, session, compareBaseline, showDiff, t]);
+  [onImport, onRemake, onEdit, onDelete, onDeleteSession, onCookbookChange, onCopyToExplore, onSubmitToExplore, onShare, onFeedback, onMadeChange, isMade, onPinChange, isPinned, session, compareBaseline, showDiff, t]);
 
   const cookbookSubmenu = useMemo(() => {
     if (!onCookbookChange || !availableCookbooks) return null;
@@ -873,7 +885,11 @@ export function RecipeDetailScreen({
       onRemake?.();
     } else if (id === 'edit') {
       onEdit?.();
+    } else if (id === 'deleteSession') {
+      setDeleteTarget('session');
+      setShowDeleteDialog(true);
     } else if (id === 'delete') {
+      setDeleteTarget('recipe');
       if (showDeleteConfirm) {
         setShowDeleteDialog(true);
       } else {
@@ -1153,6 +1169,10 @@ export function RecipeDetailScreen({
                 )}
                 {ratio && isFieldActive('ratio') && (
                   <Text numberOfLines={1} style={[styles.heroDescription, diffOn && diff!.specificGravityChanged && styles.hlChanged]}>{t('recipeDetail.specificGravity', {ratio})}</Text>
+                )}
+                {/* 회차 — 둘 이상일 때 지금 보는 회차/전체 */}
+                {totalSessions > 1 && (
+                  <Text numberOfLines={1} style={styles.heroDescription}>{formatSession(parseSession(session).current, totalSessions)}</Text>
                 )}
                 {totalReviewCount > 0 && (
                   <>
@@ -1975,8 +1995,8 @@ export function RecipeDetailScreen({
         icon={IconTrashTwotone}
         avatarColor="red"
         // 지난 회차를 보고 있으면 그 회차 기록만 지운다 — 레시피 전체가 아니라는 걸 알린다
-        title={viewingPastSession ? t('recipeDetail.deleteSessionTitle', {session: parseSession(session).current}) : t('recipeDetail.deleteRecipeTitle')}
-        description={viewingPastSession
+        title={deleteTarget === 'session' ? t('recipeDetail.deleteSessionTitle', {session: parseSession(session).current}) : t('recipeDetail.deleteRecipeTitle')}
+        description={deleteTarget === 'session'
           ? t('recipeDetail.deleteSessionDesc', {title: title ?? '', session: parseSession(session).current})
           : t('recipeDetail.deleteRecipeDesc', {title: title ?? ''})}
         actions={
@@ -1988,7 +2008,7 @@ export function RecipeDetailScreen({
               destructive
               onPress={() => {
                 setShowDeleteDialog(false);
-                onDelete?.();
+                if (deleteTarget === 'session') onDeleteSession?.(); else onDelete?.();
               }}
             />
           </>
