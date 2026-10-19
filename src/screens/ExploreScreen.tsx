@@ -9,6 +9,10 @@ import {IconLogoBadge} from '@components/Icon/IconIndex';
 import {NavPillButton} from '@components/Navigation';
 import {NAV_PILL_HEIGHT} from '@constants/layout';
 import {View} from 'react-native';
+import {doc, setDoc, deleteField} from 'firebase/firestore';
+import {db} from '@config/firebase';
+import type {MenuItemData} from '@components/Menu';
+import {IconLock, IconUnlock, IconBroom} from '@components/Icon/IconIndex';
 import {ShareRecipeSheet} from '@components/BottomSheet/ShareRecipeSheet';
 import React, {useCallback, useMemo, useState} from 'react';
 import {useRouter} from 'expo-router';
@@ -63,6 +67,20 @@ const makeBaseCardMenuItems = (t: (key: string, params?: Record<string, unknown>
   getRecipeMenuItems({t, showPin: true, isPinned, showImport: true, showShare: true});
 const makeAdminCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string, isPinned: boolean) =>
   getRecipeMenuItems({t, showPin: true, isPinned, showImport: true, showEdit: true, showShare: true, showDelete: true});
+
+/**
+ * 어드민 — 무료 사용자에게 이 레시피를 열지·잠글지(삭제 바로 위에 끼운다).
+ * 지금 상태가 아닌 쪽만 보이고, 정해 둔 상태면 '자동으로'(목록 순서대로)도 보인다.
+ */
+function insertLockItems(items: MenuItemData[], recipe: Recipe, t: (key: string, params?: Record<string, unknown>) => string): MenuItemData[] {
+  const lock: MenuItemData[] = [
+    ...(recipe.lockMode !== 'free' ? [{id: 'lockFree', label: t('exploreLock.free'), icon: IconUnlock}] : []),
+    ...(recipe.lockMode !== 'locked' ? [{id: 'lockLocked', label: t('exploreLock.locked'), icon: IconLock}] : []),
+    ...(recipe.lockMode ? [{id: 'lockAuto', label: t('exploreLock.auto'), icon: IconBroom}] : []),
+  ];
+  const del = items.findIndex(i => i.id === 'delete');
+  return del < 0 ? [...items, ...lock] : [...items.slice(0, del), ...lock, ...items.slice(del)];
+}
 
 export interface ExploreScreenProps {
   /** 게스트 랜딩 카드 — 팩 보기 한가운데 */
@@ -172,7 +190,7 @@ export function ExploreScreen({
   // 핀 상태가 레시피마다 달라 함수 형태로 넘긴다(고정/해제 라벨이 바뀐다)
   const cardMenuItems = useCallback(
     (recipe: Recipe) => isAdmin
-      ? makeAdminCardMenuItems(t, isPinned(recipe.id))
+      ? insertLockItems(makeAdminCardMenuItems(t, isPinned(recipe.id)), recipe, t)
       : makeBaseCardMenuItems(t, isPinned(recipe.id)),
     [isAdmin, t, isPinned],
   );
@@ -220,8 +238,15 @@ export function ExploreScreen({
 
   const lockedRecipeIds = useMemo(() => {
     if (!isFreeUser) return undefined;
+    // 어드민이 정한 것 먼저 — 'free'는 늘 열림, 'locked'는 늘 잠김. 나머지는 목록 앞 N개만 무료(자동)
     const ids = new Set<string>();
-    filteredData.slice(FREE_RECIPE_COUNT).forEach(r => ids.add(r.id));
+    let autoIndex = 0;
+    for (const r of filteredData) {
+      if (r.lockMode === 'free') continue;
+      if (r.lockMode === 'locked') { ids.add(r.id); continue; }
+      if (autoIndex >= FREE_RECIPE_COUNT) ids.add(r.id);
+      autoIndex++;
+    }
     return ids;
   }, [filteredData, isFreeUser]);
 
@@ -280,6 +305,17 @@ export function ExploreScreen({
       showSnackbar(t(id === 'pin' ? 'home.pinned' : 'home.unpinned'), {tone: 'positive'});
       return;
     }
+    if (id === 'lockFree' || id === 'lockLocked' || id === 'lockAuto') {
+      // 공식 레시피 문서에 바로 — 비우면(자동) 필드를 지운다
+      const mode = id === 'lockFree' ? 'free' : id === 'lockLocked' ? 'locked' : null;
+      setDoc(doc(db, 'explore_recipes', recipe.id), {lockMode: mode ?? deleteField()}, {merge: true})
+        .then(() => {
+          onRefresh?.();
+          showSnackbar(t(mode === 'free' ? 'exploreLock.setFree' : mode === 'locked' ? 'exploreLock.setLocked' : 'exploreLock.setAuto'), {tone: 'positive'});
+        })
+        .catch(() => showSnackbar(t('exploreLock.failed'), {tone: 'error'}));
+      return;
+    }
     if (id === 'save') {
       onImportRecipe(recipe);
     } else if (id === 'download') {
@@ -293,7 +329,7 @@ export function ExploreScreen({
     } else {
       onComingSoon();
     }
-  }, [onImportRecipe, onEditRecipe, onDeleteRecipe, onComingSoon, togglePin, showSnackbar, t]);
+  }, [onImportRecipe, onEditRecipe, onDeleteRecipe, onComingSoon, togglePin, showSnackbar, t, onRefresh]);
 
   const handleGroupRecipePress = useCallback((id: string) => {
     const r = data.find(x => x.id === id);

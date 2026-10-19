@@ -1,4 +1,13 @@
 {
+  "exploreLock.free": "Open for free",
+  "exploreLock.locked": "Lock",
+  "exploreLock.auto": "Automatic (by order)",
+  "exploreLock.setFree": "Opened for free users",
+  "exploreLock.setLocked": "Locked",
+  "exploreLock.setAuto": "Set by list order",
+  "exploreLock.failed": "Couldn't change",
+  "fieldManage.sectionActive": "In use",
+  "fieldManage.sectionAvailable": "Add more",
   "stepTemplate.saveGroup": "Save whole section",
   "stepTemplate.groupSaved": "Section saved",
   "stepTemplate.groupEmpty": "No steps to save",

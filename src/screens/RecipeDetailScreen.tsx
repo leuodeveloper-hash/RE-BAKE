@@ -53,6 +53,7 @@ import {ReviewLogSheet} from '@components/BottomSheet';
 import {Thumbnail} from '@components/Thumbnail';
 import {StepPhotos} from '@components/StepPhotos';
 import {PhotoViewer} from '@components/PhotoViewer';
+import {BrokenImageMark, useBrokenImage} from '@components/BrokenImage';
 import * as ImagePicker from 'expo-image-picker';
 import {ensureImagePermission} from '@utils/imagePermission';
 import {getPersistentUri, MAX_HERO_PHOTOS} from '@utils/imageUpload';
@@ -106,7 +107,6 @@ import {
   IconSparkle,
   IconFilesFilled,
   IconPhoto,
-  IconPhoto1,
   IconEyeClosed,
 } from '@components/Icon/IconIndex';
 
@@ -630,6 +630,7 @@ export function RecipeDetailScreen({
     onUpdate?.({imageUri: uris[0] ?? null, imageUris: uris.slice(1)});
   }, [onUpdate]);
   const heroUris = useMemo(() => heroPhotos.map(p => p.uri), [heroPhotos]);
+  const heroBroken = useBrokenImage(imageUri);
   const handleHeroAdd = useCallback(async (source: PhotoSource) => {
     if (heroUris.length >= MAX_HERO_PHOTOS) {
       showSnackbar(t('recipeDetail.heroPhotoMax', {count: MAX_HERO_PHOTOS}));
@@ -1050,7 +1051,10 @@ export function RecipeDetailScreen({
                 contentFit="cover"
                 cachePolicy="memory-disk"
                 transition={200}
+                onError={heroBroken.onError}
               />
+              {/* 깨진 사진 — 가운데 느낌표 */}
+              {heroBroken.broken ? <View pointerEvents="none" style={[styles.heroImage, heroFrame]}><BrokenImageMark size={64} /></View> : null}
               {/* 길게 누르면 전체보기 — 스텝 사진과 같은 뷰어.
                   탭이 아니라 롱프레스인 이유: 히어로는 좌우 스와이프로 이웃 레시피를
                   넘기는 영역이라, 짧은 탭까지 동작을 주면 넘기려다 뷰어가 열린다.
@@ -1172,16 +1176,25 @@ export function RecipeDetailScreen({
                 })()}
               </View>
                 {/* 여러 장이면 장수 — 메타 묶음 밖 오른쪽 끝(콘텐츠 오른쪽 끝에 맞춤). 누르면 사진 뷰어 */}
-                {heroPhotos.length > 1 && (
+                {heroPhotos.length >= 3 && (
                   // 다른 메타(리뷰 수·참고 링크)와 같은 모양 — 바탕 없이 12 아이콘 + 메타 글씨
                   // 누르면 사진 뷰어(롱프레스와 같은 곳) — 첫 장부터
                   <Pressable
                     style={[styles.reviewBadge, styles.heroCountBadge]}
                     hitSlop={8}
                     onPress={() => { triggerHaptic('light'); openHeroViewer(); }}>
-                    {/* 보조 정보라 한 단계 옅게(inverse-var) */}
-                    <IconPhoto1 width={12} height={12} color={colors['foreground/on-surface-inverse-var']} />
-                    <Text style={[styles.heroDescription, {color: colors['foreground/on-surface-inverse-var']}]}>{heroPhotos.length}</Text>
+                    {/* 커버 다음 사진들을 작은 썸네일로 겹쳐(최대 3장) — 3장부터 보여 겹친 모양이 된다 */}
+                    <View style={styles.heroStack}>
+                      {heroPhotos.slice(1, 4).map((p, i) => (
+                        <ExpoImage
+                          key={`${p.uri}-${i}`}
+                          source={{uri: p.uri}}
+                          style={[styles.heroStackThumb, {borderColor: colors['border/on-image'] as string, marginLeft: i === 0 ? 0 : -HERO_STACK_OVERLAP, zIndex: 3 - i}]}
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
+                        />
+                      ))}
+                    </View>
                   </Pressable>
                 )}
               </View>
@@ -2004,6 +2017,9 @@ export function RecipeDetailScreen({
 }
 
 const HERO_HEIGHT = 280;
+/** 사진 장수 옆 겹친 썸네일 — 크기·겹침 */
+const HERO_STACK_SIZE = 18;
+const HERO_STACK_OVERLAP = 12;
 /** 상세 보기(한번에 보기/줄 목록) 마지막 선택 */
 const BULK_VIEW_KEY = '@bakle_detail_bulk_view_v2';
 
@@ -2114,6 +2130,16 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   heroCountBadge: {
     marginLeft: Spacing.smd,
+  },
+  heroStack: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  heroStackThumb: {
+    width: HERO_STACK_SIZE,
+    height: HERO_STACK_SIZE,
+    borderRadius: 4,
+    borderWidth: 1,
   },
   // 메타 묶음(줄바꿈) + 사진 장수(오른쪽 끝 고정)
   heroMetaLine: {

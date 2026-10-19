@@ -1,5 +1,6 @@
 import {MetaLine} from '@components/MetaLine';
 import {IconThumbnail} from '@components/Thumbnail';
+import {BrokenImageMark, useBrokenImage} from '@components/BrokenImage';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   Animated,
@@ -157,6 +158,7 @@ function FadeInImage({
   // ⚠️ source 모양(string/number/object)으로는 판별 불가(웹 require는 {uri} 객체라
   //    원격으로 오판됨) → 호출부가 원본 imageUrl로 local 플래그를 명시적으로 넘긴다.
   const isRemote = !local;
+  const {broken, onError} = useBrokenImage(sourceKey as any);
   return (
     <View style={[style as any, {overflow: 'hidden'}]}>
       {/* 뒤: 원격 이미지 로딩 중 "뭉개짐" 상태로 보이는 블러 레이어 */}
@@ -182,7 +184,9 @@ function FadeInImage({
         transition={isRemote ? {duration: 400, effect: 'cross-dissolve'} : undefined}
         // 로컬 일러스트는 다운샘플 끄고 원본 해상도로 그려 또렷하게(작게 줄어든 선화 번짐 방지)
         allowDownscaling={isRemote}
+        onError={onError}
       />
+      {broken ? <BrokenImageMark /> : null}
     </View>
   );
 }

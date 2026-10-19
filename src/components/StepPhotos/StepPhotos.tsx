@@ -13,6 +13,18 @@ import {useColors} from '@contexts/ThemeContext';
 import type {StepPhoto} from '../../types/recipe';
 import {PhotoCaptionArrow} from './PhotoCaptionArrow';
 import {useUploadingUri} from '@hooks/useUploadingUri';
+import {BrokenImageMark, useBrokenImage} from '@components/BrokenImage';
+
+/** 썸네일 한 장 — 깨지면 가운데 느낌표 */
+function PhotoThumb({uri, side}: {uri: string; side: number}) {
+  const {broken, onError} = useBrokenImage(uri);
+  return (
+    <View style={{width: side, height: side, borderRadius: Radius['radius-sm'], overflow: 'hidden'}}>
+      <Image source={{uri}} style={{width: side, height: side}} resizeMode="cover" onError={onError} />
+      {broken ? <BrokenImageMark /> : null}
+    </View>
+  );
+}
 
 /** 올라가는 중(압축·업로드)이면 썸네일 위에 로딩 */
 function UploadingOverlay({uri, radius}: {uri: string; radius: number}) {
@@ -133,11 +145,7 @@ export function StepPhotos({
                 }}
                 onLongPress={editable ? () => { triggerHaptic('medium'); setManage(m => !m); } : undefined}
                 delayLongPress={300}>
-                <Image
-                  source={{uri: photo.uri}}
-                  style={{width: side, height: side, borderRadius: Radius['radius-sm']}}
-                  resizeMode="cover"
-                />
+                <PhotoThumb uri={photo.uri} side={side} />
                 <UploadingOverlay uri={photo.uri} radius={Radius['radius-sm']} />
               </Pressable>
               {editable && manage && onRemove ? (

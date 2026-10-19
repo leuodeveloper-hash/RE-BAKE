@@ -3,6 +3,7 @@ import {ScrollView, StyleSheet} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {Dialog} from './Dialog';
 import {Card} from '@components/Container';
+import {SectionHeader} from '@components/SectionHeader';
 import {ListItem} from '@components/ListItem';
 import {Button} from '@components/Button';
 import {Spacing} from '@constants/spacing';
@@ -16,8 +17,8 @@ import {
   IconDescription, IconTitleFilled,
   IconClockFilled,
   IconLeafFilled,
-  IconOpenbookFilled,
-  IconPhoto,
+  IconProcess,
+  IconPhoto, IconCoverFilled,
   IconFlow,
   IconToolCaseFilled,
   IconUserFilled,
@@ -39,7 +40,7 @@ const makeAllFields = (t: (key: string) => string): FieldDef[] => [
   {id: 'info', label: t('fieldManage.recipeInfo'), icon: IconTitleFilled, fixed: true},
   // 설명 — 기본 꺼짐. 켜면 제목 카드 안(제목 아래)에 칸이 나오고, 상세에선 제목 아래 두 줄
   {id: 'description', label: t('fieldManage.description'), icon: IconDescription, fixed: false},
-  {id: 'photo', label: t('fieldManage.photo'), icon: IconPhoto, fixed: false},
+  {id: 'photo', label: t('fieldManage.photo'), icon: IconCoverFilled, fixed: false},
   {id: 'time', label: t('fieldManage.time'), icon: IconClockFilled, fixed: false},
   {id: 'ingredients', label: t('fieldManage.ingredients'), icon: IconLeafFilled, fixed: false},
   {id: 'tools', label: t('fieldManage.tools'), icon: IconToolCaseFilled, fixed: false},
@@ -47,7 +48,7 @@ const makeAllFields = (t: (key: string) => string): FieldDef[] => [
   {id: 'servings', label: t('fieldManage.servings'), icon: IconUserFilled, fixed: false},
   {id: 'doughTemp', label: t('fieldManage.doughTemp'), icon: IconDoughTempFilled, fixed: false},
   {id: 'divideWeight', label: t('fieldManage.divideWeight'), icon: IconSplitFilled, fixed: false},
-  {id: 'method', label: t('fieldManage.method'), icon: IconOpenbookFilled, fixed: false},
+  {id: 'method', label: t('fieldManage.method'), icon: IconProcess, fixed: false},
   {id: 'ratio', label: t('fieldManage.ratio'), icon: IconWind, fixed: false},
   {id: 'cookbook', label: t('fieldManage.cookbook'), icon: IconBookFilled, fixed: false},
   {id: 'advice', label: t('fieldManage.advice'), icon: IconLogoSymbol, fixed: false},
@@ -135,7 +136,8 @@ export function FieldManageDialog({
       <ScrollView
         style={styles.scrollArea}
         showsVerticalScrollIndicator={false}>
-        {/* 활성 필드 */}
+        {/* 상세·설정과 같은 구조 — 회색 소제목 + 카드 */}
+        <SectionHeader title={t('fieldManage.sectionActive')} />
         <Card>
           {activeFields.map((field, index) => (
             <ListItem
@@ -160,7 +162,9 @@ export function FieldManageDialog({
 
         {/* 비활성 필드 (추가 가능) */}
         {inactiveOptional.length > 0 && (
-          <Card style={styles.availableCard}>
+          <>
+          <SectionHeader title={t('fieldManage.sectionAvailable')} />
+          <Card>
             {inactiveOptional.map((field, index) => (
               <ListItem
                 key={field.id}
@@ -176,6 +180,7 @@ export function FieldManageDialog({
               />
             ))}
           </Card>
+          </>
         )}
       </ScrollView>
     </Dialog>
@@ -186,7 +191,5 @@ const styles = StyleSheet.create({
   scrollArea: {
     maxHeight: 400,
   },
-  availableCard: {
-    marginTop: Spacing.smd,
-  },
+
 });

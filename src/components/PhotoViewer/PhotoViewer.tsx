@@ -12,6 +12,7 @@ import {useAuth} from '@contexts/AuthContext';
 import {loadStylePrompt, restylePhoto} from '@utils/photoRestyle';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {Button} from '@components/Button';
+import {BrokenImageMark, useBrokenImage} from '@components/BrokenImage';
 import {BottomSheet} from '@components/BottomSheet/BottomSheet';
 import {TextInput as AppTextInput} from '@components/TextInput';
 import {ForceDarkTheme, useColors} from '@contexts/ThemeContext';
@@ -64,6 +65,19 @@ function SheetText({children, muted}: {children: React.ReactNode; muted?: boolea
 function SheetChevron() {
   const c = useColors();
   return <AppIcon icon={IconChevronRight} size="xs" color={c['foreground/on-surface-muted'] as string} />;
+}
+
+/** 뷰어 사진 한 장 — 깨지면 가운데 느낌표 */
+function ViewerImage({uri, width}: {uri: string; width: number}) {
+  const {broken, onError} = useBrokenImage(uri);
+  if (broken) {
+    return (
+      <View style={[styles.image, {width}]}>
+        <BrokenImageMark size={72} style={{backgroundColor: 'transparent'}} />
+      </View>
+    );
+  }
+  return <Image source={{uri}} style={[styles.image, {width}]} resizeMode="contain" onError={onError} />;
 }
 
 /** 템플릿 불러오는 중 표시 */
@@ -229,11 +243,7 @@ export function PhotoViewer({
               {photos.map((p, i) => (
                 <Pressable key={`${p.uri}-${i}`} style={[styles.page, {width: containerWidth, height: pageHeight}]} onPress={close}>
                   <View style={[styles.imageFrame, {height: pageHeight}]}>
-                    <Image
-                      source={{uri: p.uri}}
-                      style={[styles.image, {width: Math.min(Math.max(containerWidth * 0.92, 280), MAX_CONTENT_WIDTH)}]}
-                      resizeMode="contain"
-                    />
+                    <ViewerImage uri={p.uri} width={Math.min(Math.max(containerWidth * 0.92, 280), MAX_CONTENT_WIDTH)} />
                   </View>
                 </Pressable>
               ))}
