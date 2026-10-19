@@ -355,7 +355,7 @@ function NavigationContent() {
   // 같은 버전 안내는 한 번만.
   const notifiedVersionRef = useRef<string | null>(null);
   const [appUpdate, setAppUpdate] = useState<(() => void) | null>(null);
-  useFloatingNotice('appUpdate', appUpdate ? {icon: IconRefresh, label: t('update.availableTitle'), onPress: appUpdate} : null);
+  useFloatingNotice('appUpdate', appUpdate ? {icon: IconRefresh, label: t('update.noticeLabel'), onPress: appUpdate} : null);
   useEffect(() => {
     const run = () => checkForUpdate().then(res => {
       if (!res) return;

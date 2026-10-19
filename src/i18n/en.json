@@ -1229,5 +1229,6 @@
   "widgetConfig.bakingExam": "Bread exam",
   "widgetConfig.done": "Done",
   "recipeDetail.deleteSessionMenu": "Delete session {{session}}",
-  "stampDetail.editReview": "Edit reflection"
+  "stampDetail.editReview": "Edit reflection",
+  "update.noticeLabel": "Update to new version"
 }
