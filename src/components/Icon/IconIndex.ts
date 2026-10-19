@@ -203,6 +203,7 @@ export {default as IconGlobeFilled1} from '../../../assets/icons/globe_filled-1.
 export {default as IconBadge1} from '../../../assets/icons/badge-1.svg';
 export {default as IconTalkOff} from '../../../assets/icons/talk_off.svg';
 export {default as IconDescription} from '../../../assets/icons/description.svg';
+export {default as IconDescriptionFilled} from '../../../assets/icons/description-filled.svg';
 export {default as IconBookTwotone} from '../../../assets/icons/book_twotone.svg';
 export {default as IconSettingsTwotone} from '../../../assets/icons/settings_twotone.svg';
 export {default as IconTrashTwotone} from '../../../assets/icons/trash_twotone.svg';

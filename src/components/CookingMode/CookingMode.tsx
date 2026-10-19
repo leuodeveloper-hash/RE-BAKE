@@ -71,7 +71,7 @@ import {
   IconEllipsisVertical,
   IconCheckList,
   IconNoteFilled,
-  IconLogoSymbol,
+  IconBlackNose,
   IconArrowTopRight,
   IconChevronLeft,
   IconChevronRight,
@@ -604,7 +604,7 @@ export function CookingMode({
   // Group menu items
   const groupMenuItems = useMemo(() => [
     ...groupNames.map((name, i) => ({id: String(i), label: name})),
-    ...(hasAdvice ? [{id: 'advice', label: t('cookingMode.bakeyAdvice'), icon: IconLogoSymbol}] : []),
+    ...(hasAdvice ? [{id: 'advice', label: t('cookingMode.bakeyAdvice'), icon: IconBlackNose}] : []),
   ], [groupNames, hasAdvice, t]);
 
   // Navigate to first card of a group (fade transition)
@@ -1962,7 +1962,7 @@ export function CookingMode({
                       {/* Header */}
                       <View style={styles.cardHeader}>
                         <View style={[styles.adviceTitleRow, {flex: 1}]}>
-                          <AppIcon icon={IconLogoSymbol} size="sm" color={colors['custom/yellow']} />
+                          <AppIcon icon={IconBlackNose} size="sm" color={colors['custom/yellow']} />
                           <Text style={styles.adviceTitle}>{t('cookingMode.bakeyAdvice')}</Text>
                         </View>
                         {/* + 버튼 제거 — 편집 시 하단 EditorToolbar의 추가 기능으로 통합 (중복 제거) */}

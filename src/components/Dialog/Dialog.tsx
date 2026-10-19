@@ -6,6 +6,7 @@ import {
   ImageSourcePropType,
   Modal,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   useWindowDimensions,
@@ -20,6 +21,7 @@ import type {AvatarColor} from '@components/Avatar/Avatar';
 import {IconClose} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
 import {SheetHeader} from '@components/BottomSheet/SheetHeader';
+import {EdgeFade} from '@components/Container/ContentMask';
 import {BlurView} from 'expo-blur';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {APPBAR_TOP_PADDING} from '@components/Navigation';
@@ -53,6 +55,11 @@ export interface DialogProps {
   surface?: 'bright' | 'dim';
   /** 카드 너비 (기본: 312) */
   width?: number;
+  /**
+   * 내용이 길면 이 높이까지만 보이고 안에서 스크롤 — 위아래에 가림 그라디언트(앱바·시트와 같은 EdgeFade)가
+   * 깔려 헤더·버튼 쪽에서 글이 부드럽게 사라진다.
+   */
+  scrollMaxHeight?: number;
   /** 머리 없이 내용만 꽉 채울 때 — 위·좌우 여백을 이 값 하나로(카드 같은 내용을 팝업 모서리와 같은 간격으로) */
   contentInset?: number;
   /** 배경 블러 (기본: false) */
@@ -88,6 +95,7 @@ export function Dialog({
   blurBackdrop = false,
   headerType,
   contentInset,
+  scrollMaxHeight,
   position = 'center',
   headerRight,
 }: DialogProps) {
@@ -183,7 +191,8 @@ export function Dialog({
       <Animated.View
         style={[
           styles.card,
-          {maxHeight: windowHeight * 0.85},
+          // 화면 안 — 위아래 안전영역(상태바·홈 인디케이터)을 빼고. 넘치면 내용만 스크롤(헤더·버튼은 고정)
+          {maxHeight: Math.min(windowHeight * 0.85, windowHeight - insets.top - insets.bottom - Spacing.lg * 2)},
           width != null && {width},
           surface === 'dim' && {backgroundColor: colors['surface/dim']},
           {
@@ -225,11 +234,23 @@ export function Dialog({
 
         {/* Content */}
         {/* 라벨 가운데 헤더(앱바형)면 헤더 아래·버튼 위 여백을 8로 — 기본 20은 미리보기처럼 큰 내용에서 휑했다 */}
-        {children && <View style={[
-          styles.content,
-          effectiveHeaderType === 'center' && styles.contentCompact,
-          contentInset != null && {paddingHorizontal: contentInset, paddingTop: contentInset, marginTop: 0},
-        ]}>{children}</View>}
+        {children && (scrollMaxHeight != null ? (
+          // 스크롤 내용 — 위아래 가림 그라디언트는 팝업 바탕색으로
+          // flexShrink — 화면이 낮으면 이 칸만 줄어 헤더·버튼은 늘 보인다(바텀시트와 같은 구조)
+          <View style={[effectiveHeaderType === 'center' && styles.contentCompact, {maxHeight: scrollMaxHeight, flexShrink: 1}]}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+              {children}
+            </ScrollView>
+            <EdgeFade position="top" height={Spacing.md} color={(surface === 'dim' ? colors['surface/dim'] : colors['surface/bright']) as string} />
+            <EdgeFade position="bottom" height={Spacing.md} color={(surface === 'dim' ? colors['surface/dim'] : colors['surface/bright']) as string} />
+          </View>
+        ) : (
+          <View style={[
+            styles.content,
+            effectiveHeaderType === 'center' && styles.contentCompact,
+            contentInset != null && {paddingHorizontal: contentInset, paddingTop: contentInset, marginTop: 0},
+          ]}>{children}</View>
+        ))}
 
         {/* Actions */}
         {actions && (
@@ -280,6 +301,12 @@ const createStyles = (colors: SemanticColors) =>
       marginBottom: Spacing.sm,
     },
     // 헤더 줄 아래 여백(12) 위로 4 더해 헤더와 16, 버튼과도 16
+    // 스크롤 내용 — 가림 그라디언트 높이만큼 위아래를 비워 첫·끝 줄이 가려지지 않게
+    scrollContent: {
+      gap: Spacing.sm,
+      paddingHorizontal: Spacing.lg,
+      paddingVertical: Spacing.md,
+    },
     contentCompact: {
       paddingTop: 0,
       paddingBottom: 0,

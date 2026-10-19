@@ -96,7 +96,7 @@ import {
   IconChevronRight,
   IconCornerDownRight,
   IconTrashTwotone,
-  IconLogoSymbol,
+  IconBlackNose,
   IconPenTipFilled,
   IconEditFilled,
   IconNoteFilled,
@@ -1580,7 +1580,7 @@ export function RecipeDetailScreen({
               <Card variant="yellow">
                 <ListItem
                   title={t('recipeDetail.bakeyAdvice')}
-                  leading={{type: 'icon', icon: IconLogoSymbol}}
+                  leading={{type: 'icon', icon: IconBlackNose}}
                   trailing={onEdit ? {type: 'iconButton', icon: IconEditFilled, onPress: () => editWith('advice'), variant: 'ghost-yellow', size: 'small'} : undefined}
                 />
                 <ListItem

@@ -141,7 +141,7 @@ import {
   IconCornerDownRight,
   IconEdit,
   IconTrash,
-  IconLogoSymbol,
+  IconBlackNose,
   IconBlockPlus,
   IconLink,
   IconYourubeColored,
@@ -242,6 +242,9 @@ function splitAmountUnit(raw: string): {amount: string; unit: string} {
   // 숫자·소수점·괄호·물결·대시만 남긴다
   return {amount: amount.replace(/[^0-9.()~\-\s]/g, '').trim(), unit: 'g'};
 }
+
+/** 필드 관리에서 끌 수 없는 필드 — FieldManageDialog의 fixed와 같다 */
+const ALWAYS_ON_FIELDS = ['info', 'cookbook', 'photo'];
 
 function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks, cookbookColors: cookbookColorsProp, onSetCookbookColor, initialSection, initialCookbook, isExplore, onDeleteCookbook, recipeId, onLoadVersion, initialBulk}: RecipeEditScreenProps) {
   const styles = useThemedStyles(createStyles);
@@ -626,7 +629,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
       ...(recipe?.description?.trim() ? ['description'] : []),
     ]).filter((f, i, a) => a.indexOf(f) === i),
   );
-  const isFieldActive = (id: string) => activeFieldIds.includes(id);
+  // 고정 필드(레시피명·레시피 북·이미지)는 늘 켜짐 — 예전 레시피 목록에 빠져 있어도
+  const isFieldActive = (id: string) => ALWAYS_ON_FIELDS.includes(id) || activeFieldIds.includes(id);
 
   // 재료 묶음 → 저장용 {name, amount}[] 변환. bulkMode면 bulkText 파싱, 아니면 개별 폼.
   /** 도구 묶음 → 저장용 이름 배열. bulkMode면 bulkText 파싱, 아니면 개별 폼. */
@@ -3420,7 +3424,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
             <Card variant="yellow" clip={!adviceMenuOpen}>
               <ListItem
                 title={t('recipeEdit.bakeyAdvice')}
-                leading={{type: 'icon', icon: IconLogoSymbol}}
+                leading={{type: 'icon', icon: IconBlackNose}}
               />
               <ListItem showDivider={false}>
                 <TextInput

@@ -1,5 +1,5 @@
 import React, {useState, useEffect} from 'react';
-import {ScrollView, StyleSheet} from 'react-native';
+import {StyleSheet} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {Dialog} from './Dialog';
 import {Card} from '@components/Container';
@@ -14,16 +14,16 @@ import {
   IconBookFilled,
   IconExprolerBookFilled,
   IconPenTipFilled,
-  IconDescription, IconTitleFilled,
+  IconDescriptionFilled, IconTitleFilled,
   IconClockFilled,
   IconLeafFilled,
   IconProcess,
   IconPhoto, IconCoverFilled,
   IconFlow,
   IconToolCaseFilled,
-  IconUserFilled,
+  IconUsersRoundFilled,
   IconWind,
-  IconLogoSymbol,
+  IconBlackNose,
   IconLink,
   IconImport, IconDoughTempFilled, IconSplitFilled} from '@components/Icon/IconIndex';
 
@@ -36,24 +36,24 @@ interface FieldDef {
 }
 
 const makeAllFields = (t: (key: string) => string): FieldDef[] => [
-  // 고정은 레시피 정보(제목)뿐 — 나머지는 다 끌 수 있다
+  // 고정 — 레시피명·레시피 북·이미지(비어 있어도 늘 보이는 칸이라 끌 수 없다). 순서는 디자인 그대로
   {id: 'info', label: t('fieldManage.recipeInfo'), icon: IconTitleFilled, fixed: true},
-  // 설명 — 기본 꺼짐. 켜면 제목 카드 안(제목 아래)에 칸이 나오고, 상세에선 제목 아래 두 줄
-  {id: 'description', label: t('fieldManage.description'), icon: IconDescription, fixed: false},
-  {id: 'photo', label: t('fieldManage.photo'), icon: IconCoverFilled, fixed: false},
+  {id: 'cookbook', label: t('fieldManage.cookbook'), icon: IconBookFilled, fixed: true},
+  {id: 'photo', label: t('fieldManage.photo'), icon: IconCoverFilled, fixed: true},
   {id: 'time', label: t('fieldManage.time'), icon: IconClockFilled, fixed: false},
   {id: 'ingredients', label: t('fieldManage.ingredients'), icon: IconLeafFilled, fixed: false},
   {id: 'tools', label: t('fieldManage.tools'), icon: IconToolCaseFilled, fixed: false},
   {id: 'steps', label: t('fieldManage.steps'), icon: IconFlow, fixed: false},
-  {id: 'servings', label: t('fieldManage.servings'), icon: IconUserFilled, fixed: false},
+  {id: 'servings', label: t('fieldManage.servings'), icon: IconUsersRoundFilled, fixed: false},
   {id: 'doughTemp', label: t('fieldManage.doughTemp'), icon: IconDoughTempFilled, fixed: false},
-  {id: 'divideWeight', label: t('fieldManage.divideWeight'), icon: IconSplitFilled, fixed: false},
   {id: 'method', label: t('fieldManage.method'), icon: IconProcess, fixed: false},
   {id: 'ratio', label: t('fieldManage.ratio'), icon: IconWind, fixed: false},
-  {id: 'cookbook', label: t('fieldManage.cookbook'), icon: IconBookFilled, fixed: false},
-  {id: 'advice', label: t('fieldManage.advice'), icon: IconLogoSymbol, fixed: false},
+  {id: 'advice', label: t('fieldManage.advice'), icon: IconBlackNose, fixed: false},
   {id: 'review', label: t('fieldManage.review'), icon: IconPenTipFilled, fixed: false},
   {id: 'source', label: t('fieldManage.source'), icon: IconLink, fixed: false},
+  // 설명 — 기본 꺼짐. 켜면 제목 카드 안(제목 아래)에 칸이 나오고, 상세에선 제목 아래 두 줄
+  {id: 'description', label: t('fieldManage.description'), icon: IconDescriptionFilled, fixed: false},
+  {id: 'divideWeight', label: t('fieldManage.divideWeight'), icon: IconSplitFilled, fixed: false},
   {id: 'origin', label: t('fieldManage.origin'), icon: IconImport, fixed: false},
 ];
 
@@ -115,7 +115,8 @@ export function FieldManageDialog({
   };
 
   const handleConfirm = () => {
-    onConfirm(localActiveIds);
+    // 고정 필드는 늘 켜진 것으로 저장 — 예전 레시피에 빠져 있어도 화면에 나오게
+    onConfirm([...new Set([...fixedFields.map(f => f.id), ...localActiveIds])]);
     onClose();
   };
 
@@ -127,15 +128,15 @@ export function FieldManageDialog({
       headerType="center"
       title={t('fieldManage.title')}
       surface="dim"
+      // 길면 공통 팝업이 스크롤 + 위아래 가림 그라디언트
+      scrollMaxHeight={400}
       actions={
         <>
           <Button label={t('fieldManage.cancel')} variant="soft" onPress={onClose} />
           <Button label={t('fieldManage.confirm')} variant="filled" onPress={handleConfirm} />
         </>
       }>
-      <ScrollView
-        style={styles.scrollArea}
-        showsVerticalScrollIndicator={false}>
+      <>
         {/* 상세·설정과 같은 구조 — 회색 소제목 + 카드 */}
         <SectionHeader title={t('fieldManage.sectionActive')} />
         <Card>
@@ -163,8 +164,8 @@ export function FieldManageDialog({
         {/* 비활성 필드 (추가 가능) */}
         {inactiveOptional.length > 0 && (
           <>
-          <SectionHeader title={t('fieldManage.sectionAvailable')} />
-          <Card>
+          {/* 꺼진 필드 — 소제목 없이 간격만(디자인) */}
+          <Card style={styles.availableCard}>
             {inactiveOptional.map((field, index) => (
               <ListItem
                 key={field.id}
@@ -182,14 +183,14 @@ export function FieldManageDialog({
           </Card>
           </>
         )}
-      </ScrollView>
+      </>
     </Dialog>
   );
 }
 
 const styles = StyleSheet.create({
-  scrollArea: {
-    maxHeight: 400,
+  availableCard: {
+    marginTop: Spacing.md,
   },
 
 });
