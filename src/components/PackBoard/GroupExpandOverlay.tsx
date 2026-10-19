@@ -1,4 +1,5 @@
 import {APPBAR_ITEM_GAP} from '@constants/layout';
+import {SvgProps} from 'react-native-svg';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Animated, Dimensions, Easing, StyleSheet, View} from 'react-native';
 import {FloatingNavBar, navPillStyle} from '@components/Navigation';
@@ -38,6 +39,9 @@ export interface GroupExpandOverlayProps {
   activeLabel: string;
   /** 브레드크럼 1뎁스 축 라벨 (예: '레시피 북' / '공법'). 리스트뷰 앱바와 공통 */
   axisLabel: string;
+  /** 축 아이콘·색 — 목록 앱바와 같게(들어가도 앞 아이콘이 사라지지 않게) */
+  axisIcon?: React.FC<SvgProps>;
+  axisIconColor?: string;
   /** 전체 그룹 목록 (오버레이 안에서 셀렉트로 전환). 1개면 셀렉트 숨김 */
   groups: {label: string; items: Recipe[]}[];
   /** 전체 레시피 (같은 시리즈 회차 복원용 — 회차 체인 펼침에 사용) */
@@ -60,7 +64,7 @@ export interface GroupExpandOverlayProps {
   onDownloadPdf?: (cookbook: string) => void;
 }
 
-export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, origin, onClose, onRecipePress, isAdmin, isExploreName, onAddRecipe, onEditCookbook, onDeleteCookbook, onDownloadPdf}: GroupExpandOverlayProps) {
+export function GroupExpandOverlay({activeLabel, axisLabel, axisIcon, axisIconColor, groups, allRecipes, origin, onClose, onRecipePress, isAdmin, isExploreName, onAddRecipe, onEditCookbook, onDeleteCookbook, onDownloadPdf}: GroupExpandOverlayProps) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   // 회고는 계정에 저장된다 — 레시피의 reviews만 세면 새 회고가 빠진다
@@ -241,6 +245,8 @@ export function GroupExpandOverlay({activeLabel, axisLabel, groups, allRecipes, 
               {/* 리스트뷰 앱바와 공통: [축] › [항목] 브레드크럼. 축 탭=닫기(상위로), 항목 탭=그룹 전환 */}
               <Breadcrumb
                 axisLabel={axisLabel}
+                axisIcon={axisIcon}
+                axisIconColor={axisIconColor}
                 itemLabel={active}
                 onBack={close}
                 onItemPress={showSelector ? () => setShowMethodMenu(prev => !prev) : undefined}

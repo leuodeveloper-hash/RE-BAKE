@@ -1184,6 +1184,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         <GroupExpandOverlay
           activeLabel={expandedMethod}
           axisLabel={axisLabel(t, axis, axisOverrides)}
+          axisIcon={groupFilterMenuItems.find(i => i.id === axis)?.icon}
+          axisIconColor={groupFilterMenuItems.find(i => i.id === axis)?.iconColor}
           groups={activeGroups}
           allRecipes={axis === 'method' && isAdmin ? [...recipes, ...(exploreRecipes ?? [])] : recipes}
           origin={expandedOrigin}

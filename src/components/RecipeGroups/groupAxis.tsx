@@ -65,17 +65,16 @@ export function useAxisMenuItems(availableAxes: GroupAxis[] = DEFAULT_AXES, over
 }
 
 /**
- * 2뎁스 목록 맨 위 '전체' — 그 목록(레시피북/공법)과 같은 아이콘을 붙여 다른 항목과 줄을 맞춘다(홈·둘러보기 공용)
+ * 2뎁스 목록 맨 위 '전체' — 아이콘 없이 글자만(홈·둘러보기·표지 화면 공용)
  */
 export function allMenuItem(id: string, label: string, kind: 'cookbook' | 'method', colors: ReturnType<typeof useColors>) {
-  return kind === 'method'
-    ? {id, label, icon: IconProcess, iconColor: colors['custom/lime-var']}
-    : {id, label, icon: IconBookFilled, iconColor: colors['custom/burgundy-var']};
+  // '전체'는 어느 목록이든 글자만
+  return {id, label};
 }
 
-/** 공법 목록 항목 — 앱바 2뎁스 셀렉터 메뉴. 레시피북 항목처럼 아이콘을 붙인다(홈·둘러보기 공용) */
-export function methodMenuItem(name: string, colors: ReturnType<typeof useColors>) {
-  return {id: name, label: name, icon: IconProcess, iconColor: colors['custom/lime-var']};
+/** 공법 목록 항목 — 앱바 2뎁스 셀렉터 메뉴. 글자만(같은 아이콘을 줄마다 반복하면 시끄럽다) */
+export function methodMenuItem(name: string, _colors?: ReturnType<typeof useColors>) {
+  return {id: name, label: name};
 }
 
 export const LANDING_MENU_ID = '__landing__';
