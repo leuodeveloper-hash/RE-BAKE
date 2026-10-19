@@ -1215,5 +1215,17 @@
   "adminStats.devices": "All devices",
   "adminStats.users": "Signed up",
   "adminStats.loadFailed": "Couldn't load stats.",
-  "adminStats.note": "Counted per device, from this build on. Earlier data is in Firebase Analytics."
+  "adminStats.note": "Counted per device, from this build on. Earlier data is in Firebase Analytics.",
+  "stepTemplate.tabSingle": "Steps",
+  "stepTemplate.tabGroup": "Groups",
+  "stepTemplate.emptyGroup": "No saved groups yet. Save one from the group menu.",
+  "stepTemplate.groupCount": "{{count}} steps",
+  "widgetConfig.title": "Widget settings",
+  "widgetConfig.cookbook": "Cookbook",
+  "widgetConfig.allCookbooks": "All",
+  "widgetConfig.dday": "D-day",
+  "widgetConfig.nearestExam": "Nearest exam",
+  "widgetConfig.pastryExam": "Pastry exam",
+  "widgetConfig.bakingExam": "Bread exam",
+  "widgetConfig.done": "Done"
 }

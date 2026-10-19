@@ -7,6 +7,11 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 export const ANDROID_WIDGET_NAME = 'BakleWidget';
 const SETS_KEY = '@bakle_widget_daily_sets';
 const EXAM_KEY = '@bakle_widget_exam';
+/** 종목별 시험(제과·제빵)·내 D-day 목록·레시피북별 세트 — 위젯 설정에서 고른 것을 그린다(아이폰 위젯 편집과 같은 선택지) */
+const EXAMS_KEY = '@bakle_widget_exams';
+const DDAYS_KEY = '@bakle_widget_ddays';
+const BOOK_SETS_KEY = '@bakle_widget_book_sets';
+const cfgKey = (widgetId: number) => `@bakle_widget_cfg_${widgetId}`;
 
 /** 그날의 레시피 한 세트 — seed(YYYYMMDD)로 찾는다. 사진은 원격 URL(위젯 라이브러리가 받아 그린다) */
 export interface AndroidDailySet {
@@ -32,12 +37,64 @@ export async function saveAndroidWidgetExam(exam: AndroidWidgetExam | null) {
   await AsyncStorage.setItem(EXAM_KEY, exam ? JSON.stringify(exam) : '');
 }
 
-export async function readAndroidWidgetData(): Promise<{sets: AndroidDailySet[]; exam: AndroidWidgetExam | null}> {
-  const [rawSets, rawExam] = await Promise.all([AsyncStorage.getItem(SETS_KEY), AsyncStorage.getItem(EXAM_KEY)]);
-  let sets: AndroidDailySet[] = [];
-  let exam: AndroidWidgetExam | null = null;
-  try { sets = rawSets ? JSON.parse(rawSets) : []; } catch { /* 빈 위젯 */ }
-  try { exam = rawExam ? JSON.parse(rawExam) : null; } catch { /* 배너 없음 */ }
+export type WidgetDiscipline = 'pastry' | 'baking';
+export interface AndroidWidgetDday {id: string; title: string; date: string}
+
+/** 위젯 하나의 설정 — 레시피북(''=전체)과 D-day('auto'=가까운 시험, 'exam:pastry'·'exam:baking', 그 밖은 내 D-day id) */
+export interface AndroidWidgetConfig {cookbook: string; dday: string}
+export const DEFAULT_WIDGET_CONFIG: AndroidWidgetConfig = {cookbook: '', dday: 'auto'};
+
+export async function saveAndroidWidgetExtras(extras: {
+  exams?: Record<WidgetDiscipline, AndroidWidgetExam | null>;
+  ddays?: AndroidWidgetDday[];
+  bookSets?: Record<string, AndroidDailySet[]>;
+}) {
+  const pairs: [string, string][] = [];
+  if (extras.exams) pairs.push([EXAMS_KEY, JSON.stringify(extras.exams)]);
+  if (extras.ddays) pairs.push([DDAYS_KEY, JSON.stringify(extras.ddays)]);
+  if (extras.bookSets) pairs.push([BOOK_SETS_KEY, JSON.stringify(extras.bookSets)]);
+  if (pairs.length) await AsyncStorage.multiSet(pairs);
+}
+
+const parse = <T,>(raw: string | null | undefined, fallback: T): T => {
+  try { return raw ? JSON.parse(raw) : fallback; } catch { return fallback; }
+};
+
+export async function readWidgetConfig(widgetId: number): Promise<AndroidWidgetConfig> {
+  const raw = await AsyncStorage.getItem(cfgKey(widgetId)).catch(() => null);
+  return {...DEFAULT_WIDGET_CONFIG, ...parse<Partial<AndroidWidgetConfig>>(raw, {})};
+}
+
+export async function saveWidgetConfig(widgetId: number, cfg: AndroidWidgetConfig) {
+  await AsyncStorage.setItem(cfgKey(widgetId), JSON.stringify(cfg));
+}
+
+export async function removeWidgetConfig(widgetId: number) {
+  await AsyncStorage.removeItem(cfgKey(widgetId)).catch(() => {});
+}
+
+/** 설정 화면 선택지 — 앱이 저장해 둔 레시피북·내 D-day */
+export async function readWidgetChoices(): Promise<{cookbooks: string[]; ddays: AndroidWidgetDday[]}> {
+  const [rawBooks, rawDdays] = await Promise.all([AsyncStorage.getItem(BOOK_SETS_KEY), AsyncStorage.getItem(DDAYS_KEY)]);
+  return {cookbooks: Object.keys(parse<Record<string, unknown>>(rawBooks, {})), ddays: parse<AndroidWidgetDday[]>(rawDdays, [])};
+}
+
+/** 그 위젯 설정대로 그릴 데이터 — 고른 북 세트가 없으면 전체, 고른 D-day가 없으면 배너 없음 */
+export async function readAndroidWidgetData(cfg: AndroidWidgetConfig = DEFAULT_WIDGET_CONFIG): Promise<{sets: AndroidDailySet[]; exam: AndroidWidgetExam | null}> {
+  const [[, rawSets], [, rawExam], [, rawExams], [, rawDdays], [, rawBooks]] =
+    await AsyncStorage.multiGet([SETS_KEY, EXAM_KEY, EXAMS_KEY, DDAYS_KEY, BOOK_SETS_KEY]);
+  const all = parse<AndroidDailySet[]>(rawSets, []);
+  const book = cfg.cookbook ? parse<Record<string, AndroidDailySet[]>>(rawBooks, {})[cfg.cookbook] : undefined;
+  const sets = book?.length ? book : all;
+
+  let exam: AndroidWidgetExam | null;
+  if (cfg.dday === 'auto') exam = parse<AndroidWidgetExam | null>(rawExam, null);
+  else if (cfg.dday.startsWith('exam:')) {
+    exam = parse<Record<string, AndroidWidgetExam | null>>(rawExams, {})[cfg.dday.slice(5)] ?? null;
+  } else {
+    const d = parse<AndroidWidgetDday[]>(rawDdays, []).find(x => x.id === cfg.dday);
+    exam = d ? {examDate: d.date, label: d.title, round: '', registrationStart: ''} : null;
+  }
   return {sets, exam};
 }
 

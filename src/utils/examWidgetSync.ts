@@ -106,11 +106,16 @@ export async function syncExamWidget(): Promise<void> {
       .filter(Boolean)
       .sort((a, b) => nextMomentOf(a!) - nextMomentOf(b!))[0] ?? null;
 
-    // 안드로이드는 종목 고르기가 아직 없어 급한 쪽 하나만
+    // 안드로이드 — 급한 쪽(설정 '가까운 시험')과 종목별·내 D-day를 함께 둔다(위젯 설정에서 고른다)
     if (Platform.OS === 'android') {
-      const {saveAndroidWidgetExam} = require('../widgets/android/androidWidgetData');
+      const {saveAndroidWidgetExam, saveAndroidWidgetExtras} = require('../widgets/android/androidWidgetData');
       const {refreshAndroidWidget} = require('../widgets/android/widgetTaskHandler');
       await saveAndroidWidgetExam(legacy);
+      const ddays = await loadCustomDdays();
+      await saveAndroidWidgetExtras({
+        exams: byDiscipline,
+        ddays: ddays.map(d => ({id: d.id, title: d.title, date: nextDdayDate(d)})),
+      });
       await refreshAndroidWidget();
       return;
     }
@@ -238,6 +243,14 @@ export async function getInstalledWidgetCount(): Promise<number | null> {
  * 고른 D-day의 날짜·이름이 바뀌어도 위젯이 따라가게 바꿀 때마다 다시 넣고 새로 그린다.
  */
 export function syncDdayWidget(list: {id: string; title: string; date: string}[]): void {
+  if (Platform.OS === 'android') {
+    const {saveAndroidWidgetExtras} = require('../widgets/android/androidWidgetData');
+    const {refreshAndroidWidget} = require('../widgets/android/widgetTaskHandler');
+    saveAndroidWidgetExtras({ddays: list.map(d => ({id: d.id, title: d.title, date: nextDdayDate(d)}))})
+      .then(refreshAndroidWidget)
+      .catch((e: unknown) => console.warn('[syncDdayWidget] 안드로이드 실패:', e));
+    return;
+  }
   if (Platform.OS !== 'ios') return;
   try {
     const WidgetStorage = require('../../modules/widget-storage').default;

@@ -87,21 +87,29 @@ async function widgetRotation(candidates: Recipe[]): Promise<{pool: Recipe[]; un
   return {pool, unseen};
 }
 
-/** 안드로이드 — 사진은 원격 주소 그대로(위젯 라이브러리가 받아 그린다). 레시피북 고르기는 아직 없다 */
+/** 안드로이드 — 사진은 원격 주소 그대로(위젯 라이브러리가 받아 그린다) */
 async function runAndroidWidgetSync(candidates: Recipe[]): Promise<void> {
-  const {unseen} = await widgetRotation(candidates);
+  const {pool, unseen} = await widgetRotation(candidates);
   const startOfDay = new Date();
   startOfDay.setHours(0, 0, 0, 0);
-  const sets = Array.from({length: DAYS_AHEAD}, (_, offset) => {
+  const buildSets = (list: Recipe[]) => list.length === 0 ? [] : Array.from({length: DAYS_AHEAD}, (_, offset) => {
     const day = new Date(startOfDay);
     day.setDate(day.getDate() + offset);
-    const r = unseen[offset % unseen.length];
+    const r = list[offset % list.length];
     return {seed: dateSeed(day), id: r.id, title: r.title, imageUrl: r.imageUri?.startsWith('http') ? r.imageUri : ''};
   });
+  const sets = buildSets(unseen);
+  // 레시피북별 세트 — 위젯 설정에서 북을 고르면 그 북 것만 돈다(아이폰과 같은 규칙)
+  const bookSets: Record<string, ReturnType<typeof buildSets>> = {};
+  for (const book of [...new Set(pool.map(r => r.cookbook).filter(Boolean) as string[])]) {
+    const inBook = unseen.filter(r => r.cookbook === book);
+    bookSets[book] = buildSets(inBook.length > 0 ? inBook : pool.filter(r => r.cookbook === book));
+  }
   try {
-    const {saveAndroidDailySets} = require('../widgets/android/androidWidgetData');
+    const {saveAndroidDailySets, saveAndroidWidgetExtras} = require('../widgets/android/androidWidgetData');
     const {refreshAndroidWidget} = require('../widgets/android/widgetTaskHandler');
     await saveAndroidDailySets(sets);
+    await saveAndroidWidgetExtras({bookSets});
     await refreshAndroidWidget();
   } catch (e) {
     console.warn('[widgetSync] 안드로이드 위젯 동기화 실패:', e);

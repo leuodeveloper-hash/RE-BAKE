@@ -48,7 +48,7 @@ export function BakleAndroidWidget({width, height, recipe, banner}: BakleAndroid
       clickActionData={{uri}}
       style={{height: 'match_parent', width: 'match_parent', borderRadius: 22, backgroundColor: FALLBACK_BG}}>
       {recipe.imageUrl ? (
-        <ImageWidget image={recipe.imageUrl as `https:${string}`} imageWidth={width} imageHeight={height} radius={22} />
+        <ImageWidget image={recipe.imageUrl as `https:${string}`} imageWidth={width} imageHeight={height} radius={22} resizeMode="cover" />
       ) : null}
       {/* 아래쪽 어둡게 — 글자가 사진 위에서 읽히게(아이폰과 같은 비율) */}
       <FlexWidget

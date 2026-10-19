@@ -7,6 +7,7 @@ import {ListItem} from '@components/ListItem';
 import {Button} from '@components/Button';
 import {Menu} from '@components/Menu';
 import {TextInput} from '@components/TextInput';
+import {Tabs} from '@components/Tabs/Tabs';
 import {IconStarFilled, IconEllipsisVertical, IconEdit, IconTrash, IconProcess} from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
@@ -32,6 +33,9 @@ export function StepTemplateSheet({visible, onClose, onPick, onSaveCurrent, canS
   const {t} = useTranslation();
   const {templates, updateTemplate, removeTemplate} = useStepTemplates();
   const [menuFor, setMenuFor] = useState<string | null>(null);
+  // 갈래(과정 하나) / 묶음(섹션 통째) 탭
+  const [tab, setTab] = useState<'single' | 'group'>('single');
+  const shown = templates.filter(tpl => (tab === 'group') === !!tpl.group);
   // 편집 중인 템플릿 — 있으면 시트가 편집 칸으로 바뀐다(뒤로가기로 목록)
   const [editing, setEditing] = useState<StepTemplate | null>(null);
   const [draft, setDraft] = useState({description: '', tip: '', caution: ''});
@@ -85,12 +89,18 @@ export function StepTemplateSheet({visible, onClose, onPick, onSaveCurrent, canS
         <Button label={t('stepTemplate.saveCurrent')} variant="filled" onPress={onSaveCurrent} disabled={!canSaveCurrent} style={{flex: 1}} />
       ) : undefined}>
       <View style={styles.body}>
-        {templates.length === 0 ? (
-          <Text style={styles.empty}>{t('stepTemplate.empty')}</Text>
+        <Tabs
+          tabs={[{id: 'single', label: t('stepTemplate.tabSingle')}, {id: 'group', label: t('stepTemplate.tabGroup')}]}
+          selectedId={tab}
+          onSelect={id => { setMenuFor(null); setTab(id as 'single' | 'group'); }}
+          fullWidth
+        />
+        {shown.length === 0 ? (
+          <Text style={styles.empty}>{t(tab === 'group' ? 'stepTemplate.emptyGroup' : 'stepTemplate.empty')}</Text>
         ) : (
           // 메뉴가 열리면 카드 잘라내기를 풀고 그 줄을 위로(드롭다운 3종 세트)
           <Card style={menuFor ? {overflow: 'visible'} : undefined}>
-            {templates.map((tpl, i) => {
+            {shown.map((tpl, i) => {
               const isGroup = !!tpl.group;
               const sub = isGroup
                 ? t('stepTemplate.groupSub', {count: tpl.group!.steps.length})
@@ -107,7 +117,7 @@ export function StepTemplateSheet({visible, onClose, onPick, onSaveCurrent, canS
                       : {type: 'icon', icon: isGroup ? IconProcess : IconStarFilled}}
                     trailing={{type: 'iconButton', icon: IconEllipsisVertical, variant: 'ghost-secondary', onPress: () => setMenuFor(open ? null : tpl.id)}}
                     onPress={() => onPick(tpl)}
-                    showDivider={i < templates.length - 1}
+                    showDivider={i < shown.length - 1}
                   />
                   <View pointerEvents="box-none" style={styles.menuAnchor}>
                     <Menu

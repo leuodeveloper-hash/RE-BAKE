@@ -1,10 +1,11 @@
 import React from 'react';
 import {requestWidgetUpdate, type WidgetInfo, type WidgetTaskHandlerProps} from 'react-native-android-widget';
 import {BakleAndroidWidget} from './BakleAndroidWidget';
-import {ANDROID_WIDGET_NAME, examBanner, readAndroidWidgetData, setForToday} from './androidWidgetData';
+import {ANDROID_WIDGET_NAME, examBanner, readAndroidWidgetData, readWidgetConfig, removeWidgetConfig, setForToday} from './androidWidgetData';
 
-async function render(info: WidgetInfo) {
-  const {sets, exam} = await readAndroidWidgetData();
+/** 위젯마다 고른 레시피북·D-day대로 그린다(설정 화면에서 고른다) */
+export async function render(info: WidgetInfo) {
+  const {sets, exam} = await readAndroidWidgetData(await readWidgetConfig(info.widgetId));
   return (
     <BakleAndroidWidget
       width={info.width}
@@ -22,6 +23,9 @@ export async function widgetTaskHandler(props: WidgetTaskHandlerProps) {
     case 'WIDGET_UPDATE':
     case 'WIDGET_RESIZED':
       props.renderWidget(await render(props.widgetInfo));
+      break;
+    case 'WIDGET_DELETED':
+      await removeWidgetConfig(props.widgetInfo.widgetId);
       break;
     default:
       break;

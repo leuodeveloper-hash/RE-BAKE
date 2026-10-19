@@ -152,7 +152,8 @@
               "maxResizeWidth": "420dp",
               "maxResizeHeight": "420dp",
               "resizeMode": "horizontal|vertical",
-              "updatePeriodMillis": 1800000
+              "updatePeriodMillis": 1800000,
+              "widgetFeatures": "reconfigurable|configuration_optional"
             }
           ]
         }

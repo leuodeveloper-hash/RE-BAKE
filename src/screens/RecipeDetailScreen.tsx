@@ -1179,16 +1179,16 @@ export function RecipeDetailScreen({
                 })()}
               </View>
                 {/* 여러 장이면 장수 — 메타 묶음 밖 오른쪽 끝(콘텐츠 오른쪽 끝에 맞춤). 누르면 사진 뷰어 */}
-                {heroPhotos.length >= 3 && (
+                {heroPhotos.length >= 2 && (
                   // 다른 메타(리뷰 수·참고 링크)와 같은 모양 — 바탕 없이 12 아이콘 + 메타 글씨
                   // 누르면 사진 뷰어(롱프레스와 같은 곳) — 첫 장부터
                   <Pressable
                     style={[styles.reviewBadge, styles.heroCountBadge]}
                     hitSlop={8}
                     onPress={() => { triggerHaptic('light'); openHeroViewer(); }}>
-                    {/* 커버 다음 사진들을 작은 썸네일로 겹쳐(최대 3장) — 3장부터 보여 겹친 모양이 된다 */}
+                    {/* 커버 다음 사진들을 작은 썸네일로 겹쳐(최대 2장) — 2장이면 썸네일 하나, 3장부터 두 장 겹친 모양 */}
                     <View style={styles.heroStack}>
-                      {heroPhotos.slice(1, 4).map((p, i) => (
+                      {heroPhotos.slice(1, 3).map((p, i) => (
                         <ExpoImage
                           key={`${p.uri}-${i}`}
                           source={{uri: p.uri}}

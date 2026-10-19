@@ -50,6 +50,11 @@
         <data android:scheme="exp+bakle"/>
       </intent-filter>
     </activity>
+    <activity android:name=".WidgetConfigurationActivity" android:exported="true">
+      <intent-filter>
+        <action android:name="android.appwidget.action.APPWIDGET_CONFIGURE"/>
+      </intent-filter>
+    </activity>
     <receiver android:name=".widget.BakleWidget" android:exported="false" android:label="오늘의 레시피">
       <intent-filter>
         <action android:name="android.appwidget.action.APPWIDGET_UPDATE"/>

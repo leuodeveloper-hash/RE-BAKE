@@ -1200,5 +1200,17 @@
   "adminStats.devices": "전체 기기",
   "adminStats.users": "가입자",
   "adminStats.loadFailed": "통계를 불러오지 못했어요.",
-  "adminStats.note": "기기 기준이에요. 이번 빌드부터 쌓여요. 이전 기록은 Firebase 콘솔 Analytics에서 볼 수 있어요."
+  "adminStats.note": "기기 기준이에요. 이번 빌드부터 쌓여요. 이전 기록은 Firebase 콘솔 Analytics에서 볼 수 있어요.",
+  "stepTemplate.tabSingle": "갈래",
+  "stepTemplate.tabGroup": "묶음",
+  "stepTemplate.emptyGroup": "저장한 묶음이 없어요. 묶음 메뉴의 자주 쓰는 과정으로 저장해 두세요.",
+  "stepTemplate.groupCount": "과정 {{count}}개",
+  "widgetConfig.title": "위젯 설정",
+  "widgetConfig.cookbook": "레시피북",
+  "widgetConfig.allCookbooks": "전체",
+  "widgetConfig.dday": "D-day",
+  "widgetConfig.nearestExam": "가까운 시험",
+  "widgetConfig.pastryExam": "제과기능사 시험",
+  "widgetConfig.bakingExam": "제빵기능사 시험",
+  "widgetConfig.done": "완료"
 }
