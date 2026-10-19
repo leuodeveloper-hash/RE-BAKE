@@ -1017,11 +1017,12 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                           cookbook={row.write ? row.recipe.cookbook : undefined}
                           method={row.write ? row.recipe.method : undefined}
                           trailingAction={row.write ? {label: t('retrospectiveNote.writeBadge'), onPress: row.onPress} : undefined}
+                          // 안 쓴 행 — [회고 쓰기] 버튼만 쓰기, 나머지 영역은 레시피 상세로
                           imageUrl={row.recipe.imageUri}
                           paperPreview={recipePreviewParts(row.recipe)}
                           paperTitle={row.recipe.title}
                           layout="list"
-                          onPress={row.onPress}
+                          onPress={row.write ? () => onRecipePress?.(row.recipe.id) : row.onPress}
                           hideDivider={idx === list.length - 1}
                         />
                       );
