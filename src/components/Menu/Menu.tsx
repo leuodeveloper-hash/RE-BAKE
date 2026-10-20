@@ -109,7 +109,9 @@ export function Menu({
   // 슬라이더 같은 컨트롤이 든 메뉴는 그게 들어갈 만큼(240) — 글자 길이만 보면 좁아 컨트롤이 잘렸다
   // 검색칸이 있는 메뉴만 넓게 — 이름이 짧으면 검색칸이 찌그러졌다.
   // 컨트롤(레이아웃 아이콘·탭·슬라이더)이 든 메뉴는 그 컨트롤 폭대로 늘어난다(무조건 넓히면 레이아웃 메뉴가 휑했다)
-  const menuMinWidth = Math.min(Math.max(searchable ? 260 : 200, textW + 64), MENU_MAX_WIDTH, SCREEN_W - 32);
+  // 검색창이나 직접 넣은 칸(슬라이더 등)이 있으면 넉넉하게 260 — 글자 폭 기준으로만 잡으면 아이폰에서 좁아 슬라이더가 끼었다
+  const hasCustomContent = !!sections?.some(sec => !!sec.content);
+  const menuMinWidth = Math.min(Math.max(searchable || hasCustomContent ? 260 : 200, textW + 64), MENU_MAX_WIDTH, SCREEN_W - 32);
   const colors = useColors();
   const {t} = useTranslation();
   const scale = useRef(new Animated.Value(0.95)).current;

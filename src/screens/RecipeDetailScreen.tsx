@@ -2406,9 +2406,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     // 슬라이더가 들어갈 최소 폭 — 메뉴가 이만큼 늘어난다(고정 폭이 아니라 최소라 메뉴 밖으로 안 나간다)
     alignSelf: 'stretch',
     minWidth: 232,
-    paddingHorizontal: Spacing.xs,
-    paddingTop: Spacing.xs,
-    paddingBottom: Spacing.sm,
+    // 양 끝 손잡이·그림자가 메뉴 가장자리에 잘리지 않게 좌우·위아래 여유(아이폰에서 잘렸다)
+    paddingHorizontal: Spacing.smd,
+    paddingTop: Spacing.sm,
+    paddingBottom: Spacing.smd,
   },
   scaledAmount: {
     color: colors['custom/orange'],
