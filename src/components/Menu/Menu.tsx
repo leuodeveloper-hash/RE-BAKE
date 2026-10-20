@@ -162,6 +162,10 @@ export function Menu({
       ]).start(() => {
         setShouldRender(false);
       });
+      // 닫히는 도중 다른 화면으로 넘어가면 애니메이션이 멈춰 끝 신호가 안 온다 → 그림자 상자만 남았다.
+      // 애니메이션 시간이 지나면 끝 신호와 상관없이 뺀다
+      const timer = setTimeout(() => setShouldRender(false), 220);
+      return () => clearTimeout(timer);
     }
   }, [visible, scale, opacity]);
 

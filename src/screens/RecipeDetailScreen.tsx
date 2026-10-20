@@ -1715,6 +1715,8 @@ export function RecipeDetailScreen({
               <Card>
                 <ListItem
                   title={t('recipeDetail.tabReview')}
+                  // 제목을 누르면 쓴 회고를 모아 보는 회고 노트 시트
+                  onPress={handleOpenReviewSheet}
                   leading={{type: 'icon', icon: IconPenTipFilled}}
                   trailing={onEdit || sessionReviews ? {type: 'custom', element: (
                     <View style={styles.reviewTrailingRow}>
@@ -1760,6 +1762,8 @@ export function RecipeDetailScreen({
               <Card>
                 <ListItem
                   title={t('recipeDetail.tabReview')}
+                  // 아직 회고가 없으면 쓰기로 — 만들었다는 표시가 없으면 '만들었어요' 시트부터
+                  onPress={handleWriteReview}
                   leading={{type: 'icon', icon: IconPenTipFilled}}
                   trailing={onEdit || sessionReviews ? {type: 'custom', element: (
                     <View style={styles.reviewTrailingRow}>
@@ -2110,7 +2114,8 @@ export function RecipeDetailScreen({
         visible={showReviewSheet}
         onClose={() => setShowReviewSheet(false)}
         selectedRecipe={{id: id ?? '', title: title ?? '', imageUri}}
-        sessionReviews={sessionReviews}
+        // 회차가 하나뿐이면 지금 회고를 한 줄로 — 비어 보이지 않게
+        sessionReviews={sessionReviews ?? (reviews?.length ? [{id: id ?? '', label: session ?? '', reviews}] : undefined)}
       />
     </Animated.View>
   );

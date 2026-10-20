@@ -5,6 +5,7 @@ import {computeLockedIds, useSetExploreLock} from '@hooks/useExploreLock';
 import {duplicateRecipe} from '@utils/recipeMenuItems';
 import {uploadAllImagesOrThrow} from '@hooks/useRecipeStorage';
 import {setAlbumScope} from '@components/AlbumPicker/albumPicker';
+import {useUnmadeConfirm} from '@hooks/useUnmadeConfirm';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {doc, getDoc, updateDoc, setDoc, deleteField} from 'firebase/firestore';
 import {RecipeDetailScreen} from '@screens/RecipeDetailScreen';
@@ -564,8 +565,11 @@ const handleDelete = useCallback(async () => {
    * Recipe.madeAt에 박으면 공식 레시피엔 쓸 수 없고, 경로가 둘로 갈려
    * 한쪽만 저장되는 일이 생긴다.
    */
+  const {requestUnmade, unmadeDialog} = useUnmadeConfirm();
   const handleMadeChange = useCallback((made: boolean) => {
     if (!user) { openAuthSheet(); return; }
+    // 해제 — 회고가 있으면 함께 지운다는 확인부터(공통)
+    if (!made) { requestUnmade(madeKey); return; }
     setMade(madeKey, made);
     if (made) {
       router.push(`/stamps?just=${encodeURIComponent(madeKey)}` as any);
@@ -574,13 +578,8 @@ const handleDelete = useCallback(async () => {
         label: t('home.undo'),
         onPress: () => setMade(madeKey, false),
       });
-    } else {
-      showSnackbar(t('home.unmarked'), {
-        label: t('home.undo'),
-        onPress: () => setMade(madeKey, true),
-      });
     }
-  }, [id, setMade, router, user, openAuthSheet, showSnackbar, t, madeKey]);
+  }, [id, setMade, router, user, openAuthSheet, showSnackbar, t, madeKey, requestUnmade]);
 
   // 의견은 공식(둘러보기) 레시피에만 — 내 레시피는 직접 고치면 된다
   const handleFeedback = useCallback(async (kind: string, message: string) => {
@@ -783,6 +782,8 @@ const handleDelete = useCallback(async () => {
           };
         })()}
       />
+      {/* 만들었어요 해제 — 회고가 있으면 함께 지운다는 확인 */}
+      {unmadeDialog}
       {recipe ? (
         <ShareRecipeSheet
           visible={shareOpen}

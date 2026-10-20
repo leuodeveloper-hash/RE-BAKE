@@ -82,6 +82,9 @@ import {parseYouTubeVideoId} from '@utils/youtube';
 import {triggerHaptic} from '@utils/haptics';
 import {StepTimer} from '@components/StepTimer';
 import {stepsSignature, isSummaryStale} from '@utils/stepSummary';
+import {useMadeStamps} from '@hooks/useMadeStamps';
+import {useMadeCount} from '@hooks/useMadeCount';
+import {MadeConfirmSheet} from '@components/BottomSheet/MadeConfirmSheet';
 import type {StepGroup as SavedStepGroup} from '../types/recipe';
 import {StepSummaryInput} from '@components/StepSummary';
 import {parseRecipeMarkdown, parseBulkIngredientGroups, parseBulkStepGroups, parseBulkToolGroups, toolGroupsToBulk, ingredientGroupsToBulk, stepGroupsToBulk, recipeToMarkdown} from '@utils/recipeMarkdown';
@@ -528,6 +531,11 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const {reviewOf, saveReview} = useRecipeReviews();
   // 넘어오는 recipe는 실제 Recipe라 회차 id(sessionId)가 들어 있다
   const reviewKey = recipeId ? sessionKey({id: recipeId, sessionId: (recipe as {sessionId?: string} | undefined)?.sessionId}) : null;
+  // 회고는 직접 만든 뒤에 — 아직 '만들었어요'가 없으면 회고 칸을 누를 때 만들었어요 시트부터(상세와 같다)
+  const {madeAtOf, setMade} = useMadeStamps();
+  const madeCount = useMadeCount();
+  const [showMadeSheet, setShowMadeSheet] = useState(false);
+  const isMadeNow = reviewKey ? !!madeAtOf({id: reviewKey}) : false;
   const [reviews, setReviews] = useState<ReviewData[]>(() => {
     const mine = reviewKey ? reviewOf(reviewKey) : undefined;
     return mine ? [mine] : (recipe?.reviews ?? []);
@@ -3522,28 +3530,47 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         {isFieldActive('review') && kind !== 'tip' && (
           <View onLayout={e => { sectionPositions.current['review'] = e.nativeEvent.layout.y; }}>
           <ContentContainer style={(isFieldActive('cookbook') || isFieldActive('advice')) ? styles.navItemGap : styles.section}>
+            {(() => {
+              const hasReviewText = reviews.some(rv => rv.evaluation?.trim() || rv.improvement?.trim());
+              const gated = !isMadeNow && !hasReviewText;
+              return (
+                <View>
             {/* 회고 카드 — 회고 창·만들었어요 시트와 같은 공통 ReviewFields */}
-            <ReviewFields
-              evaluationRef={(node: any) => { sectionInputRefs.current['review'] = node; }}
-              evaluation={reviews.length > 0 ? reviews[reviews.length - 1].evaluation : ''}
-              improvement={reviews.length > 0 ? reviews[reviews.length - 1].improvement : ''}
-              onChangeEvaluation={text => {
-                setReviews(prev => {
-                  if (prev.length === 0) return [{evaluation: text, improvement: ''}];
-                  const updated = [...prev];
-                  updated[updated.length - 1] = {...updated[updated.length - 1], evaluation: text};
-                  return updated;
-                });
-              }}
-              onChangeImprovement={text => {
-                setReviews(prev => {
-                  if (prev.length === 0) return [{evaluation: '', improvement: text}];
-                  const updated = [...prev];
-                  updated[updated.length - 1] = {...updated[updated.length - 1], improvement: text};
-                  return updated;
-                });
-              }}
-            />
+                <ReviewFields
+                  evaluationRef={(node: any) => { sectionInputRefs.current['review'] = node; }}
+                  evaluation={reviews.length > 0 ? reviews[reviews.length - 1].evaluation : ''}
+                  improvement={reviews.length > 0 ? reviews[reviews.length - 1].improvement : ''}
+                  onChangeEvaluation={text => {
+                    setReviews(prev => {
+                      if (prev.length === 0) return [{evaluation: text, improvement: ''}];
+                      const updated = [...prev];
+                      updated[updated.length - 1] = {...updated[updated.length - 1], evaluation: text};
+                      return updated;
+                    });
+                  }}
+                  onChangeImprovement={text => {
+                    setReviews(prev => {
+                      if (prev.length === 0) return [{evaluation: '', improvement: text}];
+                      const updated = [...prev];
+                      updated[updated.length - 1] = {...updated[updated.length - 1], improvement: text};
+                      return updated;
+                    });
+                  }}
+                />
+    
+                  {/* 아직 안 만들었으면 칸 위를 덮어, 누르면 만들었어요 시트(새 레시피는 저장 후 가능) */}
+                  {gated ? (
+                    <Pressable
+                      style={StyleSheet.absoluteFill}
+                      onPress={() => {
+                        if (reviewKey) setShowMadeSheet(true);
+                        else showSnackbar(t('recipeEdit.reviewAfterSave'));
+                      }}
+                    />
+                  ) : null}
+                </View>
+              );
+            })()}
           </ContentContainer>
           </View>
         )}
@@ -3562,6 +3589,20 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         {/* Bottom Padding */}
         <View style={{height: Spacing.xxl + safeBottom}} />
       </ScrollView>
+
+      {/* 회고 칸을 누르면 — 만들었어요(스탬프) 찍고 이어서 회고 */}
+      <MadeConfirmSheet
+        visible={showMadeSheet}
+        onClose={() => setShowMadeSheet(false)}
+        imageUri={imageUri ?? undefined}
+        stampIndex={madeCount}
+        onConfirm={() => { if (reviewKey) setMade(reviewKey, true); }}
+        onSaveReview={rv => setReviews(prev => {
+          const last = prev[prev.length - 1] ?? {evaluation: '', improvement: ''};
+          const next = {...last, evaluation: rv.evaluation ?? last.evaluation, improvement: rv.improvement ?? last.improvement};
+          return prev.length ? [...prev.slice(0, -1), next] : [next];
+        })}
+      />
 
       {/* Overlay for Menu */}
       {showMenu && (

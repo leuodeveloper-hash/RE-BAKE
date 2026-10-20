@@ -50,6 +50,7 @@ import {getRecipeMenuItems} from '@utils/recipeMenuItems';
 import {useMadeCount} from '@hooks/useMadeCount';
 import {useRecipeReviews} from '@hooks/useRecipeReviews';
 import {useMadeStamps} from '@hooks/useMadeStamps';
+import {useUnmadeConfirm} from '@hooks/useUnmadeConfirm';
 import {CookbookSelectSheet, MadeConfirmSheet, InquirySheet} from '@components/BottomSheet';
 import {sendAppInquiry} from '@utils/appInquiry';
 import type {AvatarColor} from '@components/Avatar/Avatar';
@@ -290,6 +291,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
   const madeCount = useMadeCount();
   const {reviewsOf} = useRecipeReviews();
   const {setMade, madeAtOf} = useMadeStamps();
+  const {requestUnmade, unmadeDialog} = useUnmadeConfirm();
   const [deleteTarget, setDeleteTarget] = useState<Recipe | null>(null);
 
   // 홈 타이틀 드롭다운 = 그룹화 축 선택 (공통 모듈, 전체/레시피북/공법/회고)
@@ -515,11 +517,8 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
       return;
     }
     if (id === 'unmade') {
-      setMade(sessionKey(recipe), false);
-      showSnackbar(t('home.unmarked'), {
-        label: t('home.undo'),
-        onPress: () => setMade(sessionKey(recipe), true),
-      });
+      // 회고가 있으면 함께 지운다는 확인부터(공통)
+      requestUnmade(sessionKey(recipe));
       return;
     }
     if (id === 'made') {
@@ -989,6 +988,9 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
           <Button label={t('home.delete')} variant="soft" destructive onPress={handleDeleteAll} />
         </>}
       />
+
+      {/* 만들었어요 해제 — 회고가 있으면 함께 지운다는 확인 */}
+      {unmadeDialog}
 
       {/* 레시피 삭제 확인 다이얼로그 */}
       <Dialog

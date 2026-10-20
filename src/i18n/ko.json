@@ -1230,5 +1230,10 @@
   "cookingMode.prepTabTools": "도구",
   "cookingMode.prepareTools": "도구 준비",
   "upload.notUploadedNotSaved": "사진 {{count}}장을 올리지 못해 저장하지 않았어요. 연결을 확인하고 다시 저장해 주세요.",
-  "upload.notUploadedRetry": "사진 {{count}}장을 아직 못 올렸어요. 다른 기기에서는 안 보여요. 다음에 저장할 때 다시 올려요."
+  "upload.notUploadedRetry": "사진 {{count}}장을 아직 못 올렸어요. 다른 기기에서는 안 보여요. 다음에 저장할 때 다시 올려요.",
+  "unmade.withReviewTitle": "만들었어요를 해제할까요?",
+  "unmade.withReviewDesc": "이 회차에 쓴 회고 노트도 함께 지워져요.",
+  "unmade.withReviewConfirm": "해제하고 지우기",
+  "unmade.withReviewDone": "해제하고 회고 노트를 지웠어요",
+  "recipeEdit.reviewAfterSave": "레시피를 저장하고 만들었어요를 표시한 뒤 회고를 쓸 수 있어요"
 }
