@@ -16,7 +16,9 @@ export type IconButtonStyle =
   | 'ghost-primary'
   | 'ghost-secondary'
   | 'ghost-inverse'
-  | 'ghost-yellow';
+  | 'ghost-yellow'
+  /** 켜진 토글(분할 등) — 바탕 없이 오렌지 var 아이콘 */
+  | 'ghost-accent';
 
 export type IconButtonSize = 'small' | 'medium' | 'large';
 
@@ -28,6 +30,8 @@ export interface IconButtonProps {
   disabled?: boolean;
   loading?: boolean;
   forcePressed?: boolean; // 외부에서 pressed 상태 강제 (메뉴 열림 등)
+  /** 누를 때 바탕 표시 — 토글처럼 색만 바뀌는 버튼은 false */
+  pressedBackground?: boolean;
   /** 이미지 위에 배치될 때 on-image 컬러 적용 */
   onImage?: boolean;
   /** 아이콘 색상 직접 지정 (variant 기본 색상 override) */
@@ -49,6 +53,7 @@ export function IconButton({
   disabled = false,
   loading = false,
   forcePressed = false,
+  pressedBackground = true,
   onImage = false,
   iconColor,
   style,
@@ -114,12 +119,14 @@ export function IconButton({
       case 'ghost-secondary':
       case 'ghost-inverse':
       case 'ghost-yellow':
+      case 'ghost-accent':
         baseStyle.backgroundColor = 'transparent';
         break;
     }
 
     // Pressed state (실제 pressed 또는 forcePressed)
-    if ((pressed || forcePressed) && !disabled) {
+    // 토글(ghost-accent·pressedBackground=false)은 누를 때도 바탕 없이 — 색만 바뀌는 버튼
+    if ((pressed || forcePressed) && !disabled && pressedBackground && variant !== 'ghost-accent') {
       if (variant === 'filled' || variant === 'ghost-inverse' || onImage) {
         baseStyle.backgroundColor =
           colors['state/pressed'];
@@ -155,6 +162,9 @@ export function IconButton({
     }
     if (variant === 'ghost-yellow') {
       return colors['custom/yellow'];
+    }
+    if (variant === 'ghost-accent') {
+      return colors['custom/orange-var'];
     }
     if (variant === 'ghost-inverse') {
       return colors['foreground/on-surface-inverse'];

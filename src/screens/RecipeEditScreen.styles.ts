@@ -391,7 +391,8 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
   toolHeaderTrailing: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 16,
+    // 분할 토글·+ 버튼이 같은 28 슬롯 — 사이 10(글자 스위치였을 땐 16이 필요했다)
+    gap: 10,
   },
   // 단일 그룹 헤더 + 버튼을 하단 행의 - 버튼(ListItem iconButton 슬롯 28)과 동일 슬롯에 배치해 정렬 맞춤
   // 헤더 +/- 버튼: 아이템 행 trailing 버튼과 우측 정렬이 맞도록 고정 28 슬롯 제거.

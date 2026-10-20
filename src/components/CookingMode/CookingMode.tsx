@@ -2390,7 +2390,8 @@ const createStyles = (colors: SemanticColors) =>
       // 이중으로 들어가 라벨만 안쪽으로 밀린다. 타일 쪽을 같은 12로 맞춘다.
     },
     // 준비 시트 재료/도구 탭 — 목록과 같은 좌우 여백
-  prepTabs: {paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm},
+  // 아래 재료 칸과 같은 좌우(smd) — md면 탭이 콘텐츠보다 안쪽으로 들어가 보였다. 아래는 16
+  prepTabs: {paddingHorizontal: Spacing.smd, paddingBottom: Spacing.md},
   ingredientTiles: {
       flexDirection: 'row',
       flexWrap: 'wrap',

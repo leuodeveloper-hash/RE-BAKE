@@ -1239,7 +1239,7 @@
   "recipeMenuItems.duplicate": "Duplicate",
   "recipeMenuItems.duplicateSuffix": "(copy)",
   "recipeMenuItems.duplicated": "Duplicated",
-  "recipeDetail.splitView": "Split view",
+  "recipeDetail.splitView": "Split",
   "photoViewer.restyling": "Restyling…",
   "cookingMode.prepTabIngredients": "Ingredients",
   "cookingMode.prepTabTools": "Tools",
@@ -1255,5 +1255,5 @@
   "pdfPreview.contentSummary": "Summary",
   "stepTemplate.loadMenu": "Load saved step",
   "stepTemplate.saveThisMenu": "Save this step",
-  "recipeEdit.splitWrite": "Split edit"
+  "recipeEdit.splitWrite": "Split"
 }
