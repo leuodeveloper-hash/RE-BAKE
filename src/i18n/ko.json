@@ -1239,5 +1239,6 @@
   "pdfPreview.contentFull": "전체",
   "pdfPreview.contentSummary": "요약",
   "stepTemplate.loadMenu": "자주 쓰는 과정 가져오기",
-  "stepTemplate.saveThisMenu": "이 과정 저장하기"
+  "stepTemplate.saveThisMenu": "이 과정 저장하기",
+  "recipeEdit.splitWrite": "나눠 쓰기"
 }

@@ -2499,7 +2499,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   // 한번에 쓰기는 재료 전체 단위 — 묶음이 여럿이면 첫 묶음 머리에만 스위치
                   trailing={groupIndex === 0 ? {type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
-                      <Switch label={t('recipeEdit.bulkWrite')} value={false} onValueChange={(v) => toggleIngredientBulk(group, v)} />
+                      <Switch label={t('recipeEdit.splitWrite')} value onValueChange={(v) => toggleIngredientBulk(group, !v)} />
                       <View style={styles.headerAddSlot}>
                         <IconButton icon={IconPlusCircleFilled} onPress={() => addIngredient(group.id)} variant="ghost-secondary" size="medium" />
                       </View>
@@ -2528,9 +2528,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                     <View style={styles.toolHeaderTrailing}>
                       {/* 묶음마다 개별 "한번에 쓰기" 토글 */}
                       <Switch
-                        label={t('recipeEdit.bulkWrite')}
-                        value={group.bulkMode}
-                        onValueChange={(v) => toggleIngredientBulk(group, v)}
+                        label={t('recipeEdit.splitWrite')}
+                        value={!group.bulkMode}
+                        onValueChange={(v) => toggleIngredientBulk(group, !v)}
                       />
                       {/* 한번에 쓰기 중엔 + 대신 사진 인식 — 촬영·갤러리·레시피 사진 → 영역 선택 → 이 칸에 */}
                       <View style={styles.headerAddSlot}>
@@ -2801,7 +2801,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   // 재료와 같게 — 첫 묶음 머리엔 한번에 쓰기 스위치 + 추가, 나머지는 추가만
                   trailing={groupIndex === 0 ? {type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
-                      <Switch label={t('recipeEdit.bulkWrite')} value={false} onValueChange={(v) => toggleToolBulk(group, v)} />
+                      <Switch label={t('recipeEdit.splitWrite')} value onValueChange={(v) => toggleToolBulk(group, !v)} />
                       <View style={styles.headerAddSlot}>
                         <IconButton icon={IconPlusCircleFilled} onPress={() => addTool(group.id)} variant="ghost-secondary" size="medium" />
                       </View>
@@ -2830,9 +2830,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                     <View style={styles.toolHeaderTrailing}>
                       {/* 한번에 쓰기 — 묶음 전체를 칸 하나로(재료와 동일) */}
                       <Switch
-                        label={t('recipeEdit.bulkWrite')}
-                        value={group.bulkMode}
-                        onValueChange={(v) => toggleToolBulk(group, v)}
+                        label={t('recipeEdit.splitWrite')}
+                        value={!group.bulkMode}
+                        onValueChange={(v) => toggleToolBulk(group, !v)}
                       />
                       {/* 한번에 쓰기 중엔 + 대신 사진 인식 — 촬영·갤러리·레시피 사진 → 영역 선택 → 이 칸에 */}
                       <View style={styles.headerAddSlot}>
@@ -3088,7 +3088,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   // 한번에 쓰기는 과정 전체 단위 — 묶음이 여럿이면 첫 묶음 머리에만 스위치
                   trailing={groupIndex === 0 ? {type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
-                      <Switch label={t('recipeEdit.bulkWrite')} value={false} onValueChange={(v) => toggleStepBulk(group, v)} />
+                      <Switch label={t('recipeEdit.splitWrite')} value onValueChange={(v) => toggleStepBulk(group, !v)} />
                       <View style={styles.headerAddSlot}>
                         <IconButton icon={IconPlusCircleFilled} onPress={() => setStepAddMenu(group.id)} variant="ghost-secondary" size="medium" />
                       </View>
@@ -3121,9 +3121,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                     <View style={styles.toolHeaderTrailing}>
                       {/* 묶음마다 개별 "한번에 쓰기" 토글 (재료·도구와 동일) */}
                       <Switch
-                        label={t('recipeEdit.bulkWrite')}
-                        value={group.bulkMode}
-                        onValueChange={(v) => toggleStepBulk(group, v)}
+                        label={t('recipeEdit.splitWrite')}
+                        value={!group.bulkMode}
+                        onValueChange={(v) => toggleStepBulk(group, !v)}
                       />
                       {/* 맨 위 추가 버튼 제거 — 행 드래그 핸들 롱프레스 메뉴의
                           "위에 추가 / 아래에 추가"로 대체됐다 */}

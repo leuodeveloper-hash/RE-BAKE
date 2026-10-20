@@ -2,7 +2,6 @@ import React, {useEffect, useRef, useState} from 'react';
 import {Animated, Easing, StyleSheet, Text, View, type StyleProp, type ViewStyle} from 'react-native';
 import {IconBlackNoseExclamation} from '@components/Icon/IconIndex';
 import {useColors} from '@contexts/ThemeContext';
-import {LoadingLogo} from '@components/PullIndicator';
 
 /**
  * 깨진 이미지 표시 — 이미지 자리 가운데에 블랙 노즈(앱 캐릭터).
@@ -18,7 +17,7 @@ export function BrokenImageMark({size = 40, style}: {size?: number; style?: Styl
 }
 
 /**
- * 아직 불러오는 중 — 이미지 자리에 옅게 깜빡이는 바탕(스켈레톤). 사진 뷰어(dark)만 가운데 로고 로딩.
+ * 아직 불러오는 중 — 이미지 자리에 옅게 깜빡이는 바탕(스켈레톤). 썸네일·과정 사진·상단 사진·사진 뷰어 모두 같다.
  * 이미지 위에 겹쳐 그린다(부모가 크기·모서리). 썸네일·과정 사진·상단 사진·사진 뷰어 공용.
  */
 export function ImageLoadingMark({dark, label, style}: {dark?: boolean; /** 로딩 아래 한 줄(예: 보정하는 중) */ label?: string; style?: StyleProp<ViewStyle>}) {
@@ -34,10 +33,8 @@ export function ImageLoadingMark({dark, label, style}: {dark?: boolean; /** 로�
   }, [pulse]);
   return (
     <View pointerEvents="none" style={[StyleSheet.absoluteFill, styles.mark, style]}>
-      {/* 다크(사진 위)는 사진을 어둡게 깜빡여 작업 중임을 보인다 */}
-      <Animated.View style={[StyleSheet.absoluteFill, {backgroundColor: dark ? 'rgba(0,0,0,0.45)' : colors['fill/faint'], opacity: pulse}]} />
-      {/* 썸네일·사진 자리는 깜빡이는 바탕(스켈레톤)만. 사진 뷰어(다크)는 크레파스 로고 로딩 */}
-      {dark ? <LoadingLogo color="#FFFFFF" /> : null}
+      {/* 스켈레톤 — 깜빡이는 바탕만. 다크(사진 뷰어 검은 바탕)는 옅은 흰빛으로 */}
+      <Animated.View style={[StyleSheet.absoluteFill, {backgroundColor: dark ? 'rgba(255,255,255,0.12)' : colors['fill/faint'], opacity: pulse}]} />
       {label ? <Text style={[styles.label, {color: dark ? '#FFFFFF' : (colors['foreground/on-surface-muted'] as string)}]}>{label}</Text> : null}
     </View>
   );

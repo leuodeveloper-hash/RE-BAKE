@@ -815,6 +815,16 @@ export function RecipeDetailScreen({
     AsyncStorage.setItem(SUMMARY_VIEW_KEY, v ? '1' : '0').catch(() => {});
   }, []);
   const showSummary = summaryView && hasSummary;
+  // 요약 보기 항목 — 묶음마다 과정 사진을 합치고, 사진마다 원래 과정 사진(목록·순번)을 기억해 둔다(사진 뷰어용)
+  const summaryItems = useMemo(() => {
+    const refs = new Map<unknown, {src: unknown; index: number}[]>();
+    const items = (stepGroups ?? []).map(g => {
+      const photos = g.steps.flatMap(st => normalizeStepPhotos(st.photos));
+      refs.set(photos, g.steps.flatMap(st => (st.photos ?? []).map((_, index) => ({src: st.photos as unknown, index}))));
+      return {title: g.title, summary: g.summary, timer: (stepGroups?.length ?? 0) > 1 ? g.timer : undefined, photos};
+    });
+    return {items, refs};
+  }, [stepGroups]);
   const toggleBulkView = useCallback((v: boolean) => {
     setBulkView(v);
     AsyncStorage.setItem(BULK_VIEW_KEY, v ? '1' : '0').catch(() => {});
@@ -1493,12 +1503,13 @@ export function RecipeDetailScreen({
               <Card>
                 <ListItem showDivider={false} onLongPress={onEdit ? () => editWith('steps') : undefined}>
                   <StepSummaryList
-                    items={(stepGroups ?? []).map(g => ({
-                      title: g.title, summary: g.summary, timer: stepGroups!.length > 1 ? g.timer : undefined,
-                      photos: g.steps.flatMap(st => normalizeStepPhotos(st.photos)),
-                    }))}
+                    items={summaryItems.items}
                     onPress={() => toggleSummaryView(false)}
-                    onPhotoPress={(photos, i) => openPhotoViewer(photos, i)}
+                    // 합친 사진 목록이라 원래 과정 사진(목록·순번)을 찾아 뷰어를 연다 — 합친 목록을 그대로 넘기면 뷰어가 못 찾아 안 열렸다
+                    onPhotoPress={(photos, i) => {
+                      const ref = summaryItems.refs.get(photos)?.[i];
+                      if (ref) openPhotoViewer(ref.src, ref.index);
+                    }}
                   />
                 </ListItem>
               </Card>

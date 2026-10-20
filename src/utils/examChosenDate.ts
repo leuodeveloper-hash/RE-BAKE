@@ -19,9 +19,10 @@ export function chosenDateKey(s: Pick<ExamSchedule, 'round' | 'examType'>): stri
   return `${s.round}__${isPracticalSchedule(s as ExamSchedule) ? 'practical' : 'written'}`;
 }
 
-/** 날짜를 고를 수 있는 일정인지 — 필기이면서 기간이 있을 때 */
+/** 날짜를 고를 수 있는 일정인지 — 시험 기간이 있을 때(필기·실기) */
 export function canChooseExamDate(s: ExamSchedule): boolean {
-  return !isPracticalSchedule(s) && !!s.examEndDate && s.examEndDate > s.examDate;
+  // 필기·실기 모두 — 기간 중 하루로 배정되는 시험이면 내 시험일을 고를 수 있다
+  return !!s.examEndDate && s.examEndDate > s.examDate;
 }
 
 /** 기간 안의 날짜들 ('YYYY-MM-DD') */

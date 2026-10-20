@@ -1254,5 +1254,6 @@
   "pdfPreview.contentFull": "Full",
   "pdfPreview.contentSummary": "Summary",
   "stepTemplate.loadMenu": "Load saved step",
-  "stepTemplate.saveThisMenu": "Save this step"
+  "stepTemplate.saveThisMenu": "Save this step",
+  "recipeEdit.splitWrite": "Split edit"
 }
