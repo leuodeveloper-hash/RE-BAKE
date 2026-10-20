@@ -494,6 +494,8 @@ export interface RecipeCardProps {
   trailingAction?: {label: string; onPress: () => void};
   /** list 레이아웃 제목 위 오버라인(작은 회색 글씨) — 회고 노트에서 요리명 */
   overline?: string;
+  /** 오버라인 옆 값 — 회고 노트의 회차(1/1) */
+  overlineTrailing?: string;
   /** 오버라인 앞 아이콘 */
   overlineIcon?: React.FC<SvgProps>;
   /** list 레이아웃 커스텀 서브타이틀 (제공 시 cookbook·method 대신 표시) */
@@ -559,6 +561,7 @@ export function RecipeCard({
   leadingNumber,
   customSubtitle,
   overline,
+  overlineTrailing,
   overlineIcon: OverlineIcon,
   trailingAction,
   subtitleSize = 'medium',
@@ -693,6 +696,7 @@ export function RecipeCard({
                   <OverlineIcon width={11} height={11} color={colors['foreground/on-surface-muted']} />
                 )}
                 <Text style={styles.overlineText} numberOfLines={1}>{overline}</Text>
+                {overlineTrailing ? <Text style={styles.overlineTrailing}>{overlineTrailing}</Text> : null}
               </View>
             ) : null}
             {!!title && (
@@ -1256,6 +1260,12 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 오버라인이 있으면 세 줄이 한 덩어리로 읽히게 줄 간격을 없앤다
   listContentTight: {
     gap: 0,
+  },
+  // 회차 — 요리명과 8 띄워 같은 크기·색
+  overlineTrailing: {
+    ...Typography.caption.small,
+    color: colors['foreground/on-surface-muted'],
+    marginLeft: Spacing.sm - 3,
   },
   overlineText: {
     ...Typography.caption.small,

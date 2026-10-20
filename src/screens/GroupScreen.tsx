@@ -981,14 +981,17 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                       const rows = [
                         ...retrospectives.map(recipe => {
                           const groupKey = recipe.remakeGroupId ?? recipe.id;
-                          const latest = retrospectiveSource
+                          const sessionsDesc = retrospectiveSource
                             .filter(r => (r.remakeGroupId ?? r.id) === groupKey)
-                            .sort((a, b) => parseSession(b.session).current - parseSession(a.session).current)
-                            .flatMap(r => reviewsOf(r))[0];
+                            .sort((a, b) => parseSession(b.session).current - parseSession(a.session).current);
+                          const latest = sessionsDesc.flatMap(r => reviewsOf(r))[0];
+                          // 그 회고를 적은 회차 — 요리명 옆에 1/1
+                          const latestSession = parseSession(sessionsDesc.find(r => reviewsOf(r).length > 0)?.session);
                           return {
                             key: recipe.id,
                             recipe,
                             overline: recipe.title as string | undefined,
+                            overlineTrailing: `${latestSession.current}/${latestSession.total}` as string | undefined,
                             // 마지막 회차에 적은 두 칸 — 평가 / ↳ 개선점
                             title: latest?.evaluation?.trim() || recipe.title,
                             subtitle: latest?.improvement?.trim() || undefined,
@@ -1001,6 +1004,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                           recipe: r,
                           // 안 쓴 것은 일반 레시피 행 — 제목 품목명, 메타(레시피북·공법), 오른쪽 [회고 쓰기]
                           overline: undefined as string | undefined,
+                          overlineTrailing: undefined as string | undefined,
                           title: r.title,
                           subtitle: undefined as string | undefined,
                           onPress: () => setWriteTarget(r),
@@ -1012,6 +1016,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                           key={row.key}
                           id={row.recipe.id}
                           overline={row.overline}
+                          overlineTrailing={row.overlineTrailing}
                           title={row.title}
                           customSubtitle={row.subtitle}
                           subtitleSize="large"

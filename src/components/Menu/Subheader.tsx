@@ -25,7 +25,8 @@ export function Subheader({title, trailing, style}: SubheaderProps) {
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   header: {
     height: 40,
-    paddingHorizontal: Spacing.sm,
+    // 메뉴 항목(MenuItem)과 같은 12 — 8이면 소제목만 바깥으로 삐져나와 정렬이 안 맞았다
+    paddingHorizontal: Spacing.smd,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

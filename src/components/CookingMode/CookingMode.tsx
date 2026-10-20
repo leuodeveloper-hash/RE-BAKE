@@ -1,4 +1,4 @@
-import {NOTE_BLOCK} from '@constants/noteBlock';
+import {NOTE_BLOCK, TIP_LINE_COLOR} from '@constants/noteBlock';
 import {launchCamera} from '@utils/camera';
 import {launchLibrary} from '@components/AlbumPicker/albumPicker';
 import {ocrFailMessage} from '@utils/ocrFailMessage';
@@ -1613,7 +1613,7 @@ export function CookingMode({
               <RichText style={[styles.descLarge, cookingBodyFont]}>{item.description}</RichText>
             </Pressable>
             {item.tip ? (
-              <View style={[styles.noteBlock, {borderLeftColor: colors['foreground/on-surface-muted']}]}>
+              <View style={[styles.noteBlock, {borderLeftColor: colors[TIP_LINE_COLOR]}]}>
                 <RichText style={[styles.noteInlineText, cookingBodyFont, {marginTop: 0}]}>{item.tip}</RichText>
               </View>
             ) : null}

@@ -2,6 +2,7 @@ import React, {useEffect, useRef, useState} from 'react';
 import {Animated, Easing, Pressable, StyleSheet, ViewStyle} from 'react-native';
 import {GlassContainer} from '@components/Container';
 import {Spacing} from '@constants/spacing';
+import {useColors} from '@contexts/ThemeContext';
 
 export interface PopoverProps {
   /** 표시 여부 */
@@ -26,6 +27,7 @@ export interface PopoverProps {
  * 다이얼로그(중앙)·바텀시트(하단)와 구분되는, 앵커에 붙는 표시 방식.
  */
 export function Popover({visible, onClose, style, children, minWidth = 180}: PopoverProps) {
+  const colors = useColors();
   const scale = useRef(new Animated.Value(0.95)).current;
   const opacity = useRef(new Animated.Value(0)).current;
   const [shouldRender, setShouldRender] = useState(visible);
@@ -55,7 +57,8 @@ export function Popover({visible, onClose, style, children, minWidth = 180}: Pop
       <Animated.View
         style={[style, {opacity, transform: [{scale}]}]}
         pointerEvents={visible ? 'auto' : 'none'}>
-        <GlassContainer borderRadius="lg" contentStyle={{padding: Spacing.sm, minWidth}}>
+        {/* 메뉴(Menu)와 같은 바탕 — 불투명(surface/normal) + strong 그림자. blur만이면 뒤 글자가 비쳤다 */}
+        <GlassContainer borderRadius="lg" elevation="strong" contentStyle={{padding: Spacing.xs, minWidth, backgroundColor: colors['surface/normal']}}>
           {children}
         </GlassContainer>
       </Animated.View>

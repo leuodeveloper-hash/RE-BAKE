@@ -51,7 +51,7 @@ export interface MenuSection {
   content?: React.ReactNode;
   /** 소제목 오른쪽 끝 값(예: ×0.75) */
   titleTrailing?: string;
-  /** 넓은 컨트롤(슬라이더 등)이 든 묶음 — 메뉴 최소 폭 260(아이폰에서 슬라이더가 끼지 않게) */
+  /** 넓은 컨트롤(슬라이더 등)이 든 묶음 — 메뉴 최소 폭 220(아이폰에서 슬라이더가 끼지 않게, 260은 너무 넓었다) */
   wide?: boolean;
   /** 이 묶음 위에 구분선 — 성격이 다른 묶음 사이(예: 비율 조절 ↔ 편집) */
   dividerBefore?: boolean;
@@ -113,7 +113,7 @@ export function Menu({
   // 컨트롤(레이아웃 아이콘·탭·슬라이더)이 든 메뉴는 그 컨트롤 폭대로 늘어난다(무조건 넓히면 레이아웃 메뉴가 휑했다)
   // 검색창이나 넓은 컨트롤 묶음(wide, 슬라이더)만 260 — 아이콘 탭 같은 칸까지 넓히면 뷰 메뉴가 휑하게 길어졌다
   const hasWideContent = !!sections?.some(sec => sec.wide);
-  const menuMinWidth = Math.min(Math.max(searchable || hasWideContent ? 260 : 160, textW + 64), MENU_MAX_WIDTH, SCREEN_W - 32);
+  const menuMinWidth = Math.min(Math.max(searchable ? 260 : hasWideContent ? 220 : 160, textW + 64), MENU_MAX_WIDTH, SCREEN_W - 32);
   const colors = useColors();
   const {t} = useTranslation();
   const scale = useRef(new Animated.Value(0.95)).current;

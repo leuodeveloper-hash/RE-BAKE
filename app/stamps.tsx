@@ -7,7 +7,7 @@ import {triggerHaptic} from '@utils/haptics';
 import {IconButton} from '@components/IconButton';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import {AppBar} from '@components/Navigation';
-import {ContentContainer} from '@components/Container';
+import {ContentContainer, GlassContainer} from '@components/Container';
 import {InlineBanner} from '@components/InlineBanner';
 import {EmptyState} from '@components/EmptyState';
 import {Menu} from '@components/Menu';
@@ -34,7 +34,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconList, IconLayoutGrid, IconNoteFilled, IconEyeClosed, IconPenTipFilled} from '@components/Icon/IconIndex';
+import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconList, IconLayoutGrid, IconNoteFilled, IconEyeClosed, IconPenTip} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import type {Recipe} from '../src/types/recipe';
 import {goBackOr} from '@utils/navigation';
@@ -156,10 +156,10 @@ function SlotStamp({slot, size, styles, colors, highlight, onLanded, onReview}: 
       />
       {/* 회고를 안 적었으면 오른쪽 아래 작은 떠 있는 쓰기 버튼(적은 건 표시 없음). 리스트의 작은 칸엔 없다 */}
       {!slot.reviewed && onReview && size >= 64 ? (
-        // 공통 아이콘 버튼(작게) — 채운 펜촉·세컨더리 색
-        <View style={styles.reviewButton}>
-          <IconButton icon={IconPenTipFilled} variant="soft" size="small" iconColor={colors['foreground/on-surface-var']} onPress={onReview} />
-        </View>
+        // 공통 글래스 알약(블러·그림자) 안에 아웃라인 펜촉 — 사진 위라 그림자는 strong. 스탬프 안쪽으로 살짝 들여서
+        <GlassContainer style={styles.reviewButton} elevation="strong">
+          <IconButton icon={IconPenTip} variant="ghost-secondary" size="small" onPress={onReview} />
+        </GlassContainer>
       ) : null}
     </HighlightPop>
   );
@@ -606,7 +606,7 @@ export default function StampsRoute() {
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 회고 쓰기 — 스탬프 오른쪽 아래(모양·색은 공통 IconButton small 그대로, 바깥은 자리만)
-  reviewButton: {position: 'absolute', right: -6, bottom: -6},
+  reviewButton: {position: 'absolute', right: Spacing.xs, bottom: Spacing.xs},
   container: {flex: 1, backgroundColor: colors['surface/dim']},
   safeArea: {flex: 1},
   scrollView: {flex: 1},

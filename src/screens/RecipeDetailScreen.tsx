@@ -1,4 +1,4 @@
-import {NOTE_BLOCK} from '@constants/noteBlock';
+import {NOTE_BLOCK, TIP_LINE_COLOR} from '@constants/noteBlock';
 import {launchCamera} from '@utils/camera';
 import {launchLibrary} from '@components/AlbumPicker/albumPicker';
 import {StepTimer, type StepTimerHandle} from '@components/StepTimer';
@@ -49,6 +49,7 @@ import {Menu} from '@components/Menu';
 import {Tabs} from '@components/Tabs';
 import {RichText} from '@components/RichText/RichText';
 import {EditableChip} from '@components/EditableChip';
+import {ReviewCard} from '@components/ReviewLine';
 import {OptionTile} from '@components/OptionTile';
 import {Dialog, PdfPreviewDialog, TimeDialog, ServingsDialog, UnlockDialog, NumberValueDialog} from '@components/Dialog';
 import {Button} from '@components/Button';
@@ -1584,7 +1585,7 @@ export function RecipeDetailScreen({
                             {/* 팁·주의 — 편집처럼 왼쪽 세로 라인. 한 과정에 딸린 한 덩어리라 둘 사이는 좁게(묶음 안 간격만) */}
                             {(st.tip?.trim() || st.caution?.trim()) ? <View style={[styles.bulkNotes, !st.photos?.length && styles.bulkNotesLast]}>
                             {st.tip?.trim() ? (
-                              <View style={[NOTE_BLOCK, styles.bulkNoteBlock, {borderLeftColor: colors['foreground/on-surface-muted']}]}>
+                              <View style={[NOTE_BLOCK, styles.bulkNoteBlock, {borderLeftColor: colors[TIP_LINE_COLOR]}]}>
                                 <Text style={styles.bulkNote}><RichText inline>{st.tip}</RichText></Text>
                               </View>
                             ) : null}
@@ -1777,52 +1778,24 @@ export function RecipeDetailScreen({
         >
           <ContentContainer style={styles.sectionCard}>
             {reviews && reviews.some(rv => rv.evaluation || rv.improvement) ? (
-              <Card>
-                <ListItem
-                  title={t('recipeDetail.tabReview')}
-                  // 제목을 누르면 쓴 회고를 모아 보는 회고 노트 시트
-                  onPress={handleOpenReviewSheet}
-                  leading={{type: 'icon', icon: IconPenTipFilled}}
-                  trailing={onEdit || sessionReviews ? {type: 'custom', element: (
-                    <View style={styles.reviewTrailingRow}>
-                      {sessionReviews ? (
-                        <IconButton icon={IconPenTipFilled} size="small" variant="ghost-secondary" onPress={handleOpenReviewSheet} />
-                      ) : null}
-                      {onEdit ? (
-                        <IconButton icon={IconEditFilled} size="small" variant="ghost-secondary" onPress={handleWriteReview} />
-                      ) : null}
-                    </View>
-                  )} : undefined}
-                />
-                {reviews[reviews.length - 1].evaluation ? (
-                  <ListItem
-                    titleNumberOfLines={0}
-                    showDivider={!!reviews[reviews.length - 1].improvement}
-                  >
-                    <Text style={styles.stepDescription}>{reviews[reviews.length - 1].evaluation}</Text>
-                  </ListItem>
-                ) : null}
-                {reviews[reviews.length - 1].improvement ? (
-                  <ListItem
-                    leading={{type: 'icon', icon: IconCornerDownRight}}
-                    titleNumberOfLines={0}
-                    showDivider={false}
-                  >
-                    <Text style={styles.stepDescription}>{reviews[reviews.length - 1].improvement}</Text>
-                  </ListItem>
-                ) : null}
-                {/* 회고 사진 — 과정 사진과 같은 형식(탭하면 크게) */}
-                {(reviews[reviews.length - 1].photos?.length ?? 0) > 0 ? (
-                  <ListItem showDivider={false}>
-                    <StepPhotos
-                      photos={normalizeStepPhotos(reviews[reviews.length - 1].photos!)}
-                      mode="view"
-                      paddingTop={false}
-                      onPhotoPress={i => openPhotoViewer(reviews[reviews.length - 1].photos, i)}
-                    />
-                  </ListItem>
-                ) : null}
-              </Card>
+              <ReviewCard
+                evaluation={reviews[reviews.length - 1].evaluation}
+                improvement={reviews[reviews.length - 1].improvement}
+                photos={reviews[reviews.length - 1].photos}
+                // 제목을 누르면 쓴 회고를 모아 보는 회고 노트 시트
+                onTitlePress={handleOpenReviewSheet}
+                onPhotoPress={i => openPhotoViewer(reviews[reviews.length - 1].photos, i)}
+                trailing={onEdit || sessionReviews ? {type: 'custom', element: (
+                  <View style={styles.reviewTrailingRow}>
+                    {sessionReviews ? (
+                      <IconButton icon={IconPenTipFilled} size="small" variant="ghost-secondary" onPress={handleOpenReviewSheet} />
+                    ) : null}
+                    {onEdit ? (
+                      <IconButton icon={IconEditFilled} size="small" variant="ghost-secondary" onPress={handleWriteReview} />
+                    ) : null}
+                  </View>
+                )} : undefined}
+              />
             ) : (
               <Card>
                 <ListItem
@@ -2286,7 +2259,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   // 앱바 떠 있는 요소 사이 — 공통 간격
   // 보기 메뉴 — 아이콘 칸 28(⋮와 같은 크기), 메뉴는 아이콘 밑 4에 오른쪽 맞춤
+  // ⋮는 누를 자리만큼 왼쪽으로 당겨져 있어(-8) 붙어 보인다 — 그만큼 띄운다
   viewMenuAnchor: {
+    marginRight: Spacing.md,
     overflow: 'visible' as const,
     zIndex: 1000,
   },
@@ -2477,10 +2452,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   scaleControl: {
     // 슬라이더가 들어갈 최소 폭 — 메뉴가 이만큼 늘어난다(고정 폭이 아니라 최소라 메뉴 밖으로 안 나간다)
     alignSelf: 'stretch',
-    minWidth: 232,
-    // 양 끝 손잡이·그림자가 메뉴 가장자리에 잘리지 않게 좌우·위아래 여유(아이폰에서 잘렸다)
+    minWidth: 196,
+    // 좌우는 메뉴 항목·소제목(비율 조절 · ×1.5)과 같은 12 — 양 끝 손잡이 그림자도 안 잘린다
     paddingHorizontal: Spacing.smd,
-    paddingTop: Spacing.sm,
+    // 소제목 줄(40) 바로 아래라 위는 4만(손잡이 그림자 여유)
+    paddingTop: Spacing.xs,
     paddingBottom: Spacing.smd,
   },
   scaledAmount: {

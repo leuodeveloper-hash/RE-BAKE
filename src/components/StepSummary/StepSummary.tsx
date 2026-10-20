@@ -60,7 +60,7 @@ export function StepSummaryInput({value, onChangeText, timer, stale, onConfirm, 
   );
 }
 
-/** 동그라미 번호 글자 — 본문보다 옅게(요약·한번에 보기·PDF 공통 색). 글 안에 넣으면 글꼴은 따라가고 색만 바뀐다 */
+/** 동그라미 번호 글자 — 요약·한번에 보기 공통. 글 안에 넣으면 글꼴은 따라가고 색·크기(본문 + 2)만 바뀐다 */
 export function CircledNumberText({n}: {n: number}) {
   const styles = useThemedStyles(createStyles);
   return <Text style={styles.numColor}>{`${circledNumber(n)} `}</Text>;
@@ -128,8 +128,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   list: {gap: Spacing.sm},
   line: {flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start'},
   num: {...stepLineText(colors)},
-  // 번호도 글씨와 같은 색
-  numColor: {color: colors['foreground/on-surface']},
+  // 번호도 글씨와 같은 색. ①②③ 글자는 동그라미가 글꼴 칸보다 작게 그려져 본문보다 작아 보인다 — 2 키운다(줄 간격은 그대로)
+  numColor: {color: colors['foreground/on-surface'], fontSize: Typography.body.medium.fontSize + 2},
   lineText: {flex: 1, ...stepLineText(colors)},
   lineTimer: {color: colors['foreground/on-surface-muted']},
   photos: {},

@@ -4,6 +4,7 @@ import {StyleSheet, Text, View} from 'react-native';
 import {BottomSheet} from './BottomSheet';
 import {Stamp} from '@components/Stamp';
 import {Button} from '@components/Button';
+import {ReviewCard} from '@components/ReviewLine';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
 import {useRecipeReviews} from '@hooks/useRecipeReviews';
@@ -112,14 +113,10 @@ export function StampDetailSheet({
           {dateLabel ?? t('stampDetail.notMadeYet')}
         </Text>
 
-        {/* 적은 회고 — 시트를 열면 바로 보인다 */}
+        {/* 적은 회고 — 상세 회고 칸과 같은 카드 */}
         {hasReview && (
-          <View style={styles.sessions}>
-            {/* 내용만 — 라벨 없이 적은 글 그대로 */}
-            {reviewRows.map(row => (
-              <Text key={row.label} style={styles.reviewText}>{row.text}</Text>
-            ))}
-            {reviewPhotos.length > 0 && <StepPhotos photos={reviewPhotos} mode="view" paddingTop={false} />}
+          <View style={styles.reviewCard}>
+            <ReviewCard evaluation={review?.evaluation?.trim()} improvement={review?.improvement?.trim()} photos={review?.photos as (string | StepPhoto)[] | undefined} />
           </View>
         )}
 
@@ -175,6 +172,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     textAlign: 'center',
     paddingTop: Spacing.xs,
   },
+  reviewCard: {
+    paddingTop: Spacing.lg,
+  },
   sessions: {
     paddingTop: Spacing.lg,
     gap: Spacing.sm,
@@ -188,10 +188,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     ...Typography.caption.medium,
     color: colors['foreground/on-surface-muted'],
     minWidth: 48,
-  },
-  reviewText: {
-    ...Typography.body.medium,
-    color: colors['foreground/on-surface-var'],
   },
   sessionText: {
     ...Typography.body.small,
