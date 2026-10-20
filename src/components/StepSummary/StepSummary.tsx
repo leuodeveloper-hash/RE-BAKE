@@ -128,7 +128,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   list: {gap: Spacing.sm},
   line: {flexDirection: 'row', gap: Spacing.sm, alignItems: 'flex-start'},
   num: {...stepLineText(colors)},
-  numColor: {color: colors['foreground/on-surface-muted']},
+  // 번호도 글씨와 같은 색
+  numColor: {color: colors['foreground/on-surface']},
   lineText: {flex: 1, ...stepLineText(colors)},
   lineTimer: {color: colors['foreground/on-surface-muted']},
   photos: {},
