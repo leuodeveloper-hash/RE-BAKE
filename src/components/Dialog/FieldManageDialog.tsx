@@ -36,25 +36,29 @@ interface FieldDef {
 }
 
 const makeAllFields = (t: (key: string) => string): FieldDef[] => [
-  // 고정 — 레시피명·레시피 북·이미지(비어 있어도 늘 보이는 칸이라 끌 수 없다). 순서는 디자인 그대로
+  // 순서 = 상세 화면에 나오는 순서(위에서 아래로).
+  // 고정 — 사진·레시피명·레시피 북(비어 있어도 늘 보이는 칸이라 끌 수 없다)
+  {id: 'photo', label: t('fieldManage.photo'), icon: IconCoverFilled, fixed: true},
   {id: 'info', label: t('fieldManage.recipeInfo'), icon: IconTitleFilled, fixed: true},
   {id: 'cookbook', label: t('fieldManage.cookbook'), icon: IconBookFilled, fixed: true},
-  {id: 'photo', label: t('fieldManage.photo'), icon: IconCoverFilled, fixed: true},
+  // 제목 아래 메타 줄 — 공법·비율·참고 링크
+  {id: 'method', label: t('fieldManage.method'), icon: IconProcess, fixed: false},
+  {id: 'ratio', label: t('fieldManage.ratio'), icon: IconWind, fixed: false},
+  {id: 'source', label: t('fieldManage.source'), icon: IconLink, fixed: false},
+  // 정보 칸 — 시간·분량·반죽 온도·분할 무게
   {id: 'time', label: t('fieldManage.time'), icon: IconClockFilled, fixed: false},
+  {id: 'servings', label: t('fieldManage.servings'), icon: IconUsersRoundFilled, fixed: false},
+  {id: 'doughTemp', label: t('fieldManage.doughTemp'), icon: IconDoughTempFilled, fixed: false},
+  {id: 'divideWeight', label: t('fieldManage.divideWeight'), icon: IconSplitFilled, fixed: false},
+  // 설명(제목 아래 두 줄)·출처
+  {id: 'description', label: t('fieldManage.description'), icon: IconDescriptionFilled, fixed: false},
+  {id: 'origin', label: t('fieldManage.origin'), icon: IconImport, fixed: false},
+  // 본문 섹션 — 재료·도구·과정·베이키의 조언·회고
   {id: 'ingredients', label: t('fieldManage.ingredients'), icon: IconLeafFilled, fixed: false},
   {id: 'tools', label: t('fieldManage.tools'), icon: IconToolCaseFilled, fixed: false},
   {id: 'steps', label: t('fieldManage.steps'), icon: IconFlow, fixed: false},
-  {id: 'servings', label: t('fieldManage.servings'), icon: IconUsersRoundFilled, fixed: false},
-  {id: 'doughTemp', label: t('fieldManage.doughTemp'), icon: IconDoughTempFilled, fixed: false},
-  {id: 'method', label: t('fieldManage.method'), icon: IconProcess, fixed: false},
-  {id: 'ratio', label: t('fieldManage.ratio'), icon: IconWind, fixed: false},
   {id: 'advice', label: t('fieldManage.advice'), icon: IconBlackNose, fixed: false},
   {id: 'review', label: t('fieldManage.review'), icon: IconPenTipFilled, fixed: false},
-  {id: 'source', label: t('fieldManage.source'), icon: IconLink, fixed: false},
-  // 설명 — 기본 꺼짐. 켜면 제목 카드 안(제목 아래)에 칸이 나오고, 상세에선 제목 아래 두 줄
-  {id: 'description', label: t('fieldManage.description'), icon: IconDescriptionFilled, fixed: false},
-  {id: 'divideWeight', label: t('fieldManage.divideWeight'), icon: IconSplitFilled, fixed: false},
-  {id: 'origin', label: t('fieldManage.origin'), icon: IconImport, fixed: false},
 ];
 
 export interface FieldManageDialogProps {
@@ -100,14 +104,9 @@ export function FieldManageDialog({
     setLocalActiveIds(prev => [...prev, fieldId]);
   };
 
-  // 재료/도구 중 하나는 반드시 활성
-  const PAIRED_FIELDS = ['ingredients', 'tools'];
-
-  const canRemove = (fieldId: string) => {
-    if (!PAIRED_FIELDS.includes(fieldId)) return true;
-    const otherActive = PAIRED_FIELDS.filter(id => id !== fieldId).some(id => localActiveIds.includes(id));
-    return otherActive;
-  };
+  // 고정 칸(정보·레시피북·사진) 말고는 다 뺄 수 있다 — 재료·도구가 없는 레시피도 있다
+  // (예전엔 재료·도구 중 하나는 남겨야 해서, 도구를 뺀 레시피는 재료를 못 뺐다)
+  const canRemove = (_fieldId: string) => true;
 
   const handleRemove = (fieldId: string) => {
     if (!canRemove(fieldId)) return;

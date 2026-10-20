@@ -1225,5 +1225,7 @@
   "recipeMenuItems.duplicateSuffix": "(복제)",
   "recipeMenuItems.duplicated": "복제했어요",
   "recipeDetail.splitView": "나눠 보기",
-  "photoViewer.restyling": "보정하는 중…"
+  "photoViewer.restyling": "보정하는 중…",
+  "cookingMode.prepTabIngredients": "재료",
+  "cookingMode.prepTabTools": "도구"
 }

@@ -1240,5 +1240,7 @@
   "recipeMenuItems.duplicateSuffix": "(copy)",
   "recipeMenuItems.duplicated": "Duplicated",
   "recipeDetail.splitView": "Split view",
-  "photoViewer.restyling": "Restyling…"
+  "photoViewer.restyling": "Restyling…",
+  "cookingMode.prepTabIngredients": "Ingredients",
+  "cookingMode.prepTabTools": "Tools"
 }

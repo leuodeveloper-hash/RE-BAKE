@@ -41,6 +41,7 @@ import {IconButton} from '@components/IconButton';
 import {Selector} from '@components/Selector';
 import {navPillStyle, RulerSlider, NavPillButton, FloatingNavBar, useAppBarContentTop} from '@components/Navigation';
 import {StepTimer} from '@components/StepTimer';
+import {Tabs} from '@components/Tabs/Tabs';
 import {Menu, MenuItem, type MenuItemData} from '@components/Menu';
 import {SectionHeader} from '@components/SectionHeader';
 import {SearchCommandBar} from '@components/SearchCommandBar';
@@ -150,6 +151,8 @@ export interface CookingModeProps {
   steps?: ProcessStep[];
   stepGroups?: ProcessStepGroup[];
   ingredientGroups?: IngredientGroupInput[];
+  /** 도구 — 준비 시트에서 재료와 탭으로 나눠 챙긴다 */
+  toolGroups?: {title?: string; tools: {name: string}[]}[];
   canEdit: boolean;
   onUpdate?: (data: Record<string, any>) => void;
   /** 열릴 때 시작할 카드 인덱스 */
@@ -259,6 +262,7 @@ export function CookingMode({
   steps,
   stepGroups,
   ingredientGroups,
+  toolGroups,
   canEdit,
   onUpdate,
   initialIndex = 0,
@@ -370,6 +374,24 @@ export function CookingMode({
   const [showCardOverflow, setShowCardOverflow] = useState(false);
   // 최상단 오버플로우 메뉴 (편집 / 과정 삭제)
   const [showTopOverflow, setShowTopOverflow] = useState(false);
+
+  // 준비 시트 탭 — 재료 / 도구(도구가 있을 때만 탭이 보인다)
+  const [prepTab, setPrepTab] = useState<'ingredients' | 'tools'>('ingredients');
+  const [checkedTools, setCheckedTools] = useState<Set<string>>(new Set());
+  const allToolNames = useMemo(
+    () => [...new Set((toolGroups ?? []).flatMap(g => (g.tools ?? []).map(x => x.name?.trim()).filter((n): n is string => !!n)))],
+    [toolGroups],
+  );
+  const hasToolsTab = allToolNames.length > 0;
+  const toggleTool = useCallback((name: string) => {
+    setCheckedTools(prev => {
+      const next = new Set(prev);
+      if (next.has(name)) next.delete(name); else next.add(name);
+      return next;
+    });
+  }, []);
+  const allToolsChecked = allToolNames.length > 0 && allToolNames.every(n => checkedTools.has(n));
+  const checkedToolCount = allToolNames.filter(n => checkedTools.has(n)).length;
 
   const toggleIngredient = useCallback((name: string) => {
     setCheckedIngredients(prev => {
@@ -2150,23 +2172,79 @@ export function CookingMode({
               onPress={() => setIngredientLayout(p => (p === 'grid' ? 'list' : 'grid'))}
             />
           }
-          bottomAction={
-            <>
-              <Button
-                label={allIngredientsChecked ? t('cookingMode.deselectAll') : t('cookingMode.selectAll')}
-                // 오른쪽에 남은 재료 수 — 다 챙기면 숨긴다
-                trailingText={allIngredientNames.length - checkedIngredientCount > 0 ? String(allIngredientNames.length - checkedIngredientCount) : undefined}
-                variant="soft"
-                onPress={toggleAllIngredients}
-                style={{flex: 1}}
-              />
-              {allIngredientsChecked && (
-                <Button label={t('cookingMode.prepDone')} onPress={() => { setShowIngredientList(false); setIsInitialIngredientSheet(false); }} style={{flex: 1}} />
-              )}
-            </>
-          }
+          bottomAction={(() => {
+            // 지금 탭(재료/도구)의 전체선택 · 남은 수. 준비 완료는 재료·도구를 다 챙겼을 때
+            const onTools = hasToolsTab && prepTab === 'tools';
+            const allChecked = onTools ? allToolsChecked : allIngredientsChecked;
+            const left = onTools ? allToolNames.length - checkedToolCount : allIngredientNames.length - checkedIngredientCount;
+            const toggleAll = onTools
+              ? () => setCheckedTools(allToolsChecked ? new Set() : new Set(allToolNames))
+              : toggleAllIngredients;
+            const done = allIngredientsChecked && (!hasToolsTab || allToolsChecked);
+            return (
+              <>
+                <Button
+                  label={allChecked ? t('cookingMode.deselectAll') : t('cookingMode.selectAll')}
+                  // 오른쪽에 남은 수 — 다 챙기면 숨긴다
+                  trailingText={left > 0 ? String(left) : undefined}
+                  variant="soft"
+                  onPress={toggleAll}
+                  style={{flex: 1}}
+                />
+                {done && (
+                  <Button label={t('cookingMode.prepDone')} onPress={() => { setShowIngredientList(false); setIsInitialIngredientSheet(false); }} style={{flex: 1}} />
+                )}
+              </>
+            );
+          })()}
         >
-          {ingredientGroups?.map((group, gIdx) => (
+          {/* 재료 / 도구 탭 — 도구가 있을 때만 */}
+          {hasToolsTab && (
+            <View style={styles.prepTabs}>
+              <Tabs
+                tabs={[
+                  {id: 'ingredients', label: t('cookingMode.prepTabIngredients')},
+                  {id: 'tools', label: t('cookingMode.prepTabTools')},
+                ]}
+                selectedId={prepTab}
+                onSelect={id => setPrepTab(id as 'ingredients' | 'tools')}
+                fullWidth
+              />
+            </View>
+          )}
+          {hasToolsTab && prepTab === 'tools' ? (toolGroups ?? []).map((group, gIdx) => (
+            <React.Fragment key={`tool-${gIdx}`}>
+              {(toolGroups?.length ?? 0) > 1 && group.title ? (
+                <SectionHeader title={group.title} style={styles.ingredientGroupHeader} />
+              ) : null}
+              {/* 재료와 같은 모양 — 타일(4열) / 목록 */}
+              <View style={ingredientLayout === 'grid' ? styles.ingredientTiles : styles.ingredientRows}>
+                {(group.tools ?? []).filter(x => x.name?.trim()).map(x => {
+                  const checked = checkedTools.has(x.name.trim());
+                  return ingredientLayout === 'list' ? (
+                    <MenuItem
+                      key={`tool-${gIdx}-${x.name}`}
+                      id={`tool-${gIdx}-${x.name}`}
+                      label={x.name}
+                      checked={checked}
+                      onPress={() => toggleTool(x.name.trim())}
+                    />
+                  ) : (
+                    <View key={`tool-${gIdx}-${x.name}`} style={[styles.ingredientTile, {width: tileWidth}]}>
+                      <OptionTile
+                        label={x.name}
+                        selected={checked}
+                        onPress={() => toggleTool(x.name.trim())}
+                        selectedStyle="outline"
+                        size="large"
+                        style={styles.ingredientTileFill}
+                      />
+                    </View>
+                  );
+                })}
+              </View>
+            </React.Fragment>
+          )) : ingredientGroups?.map((group, gIdx) => (
             <React.Fragment key={gIdx}>
               {(ingredientGroups?.length ?? 0) > 1 && group.title ? (
                 <SectionHeader title={group.title} style={styles.ingredientGroupHeader} />
@@ -2300,7 +2378,9 @@ const createStyles = (colors: SemanticColors) =>
       // SectionHeader가 이미 좌우 smd(12)를 갖고 있다 — 여기서 또 주면
       // 이중으로 들어가 라벨만 안쪽으로 밀린다. 타일 쪽을 같은 12로 맞춘다.
     },
-    ingredientTiles: {
+    // 준비 시트 재료/도구 탭 — 목록과 같은 좌우 여백
+  prepTabs: {paddingHorizontal: Spacing.md, paddingBottom: Spacing.sm},
+  ingredientTiles: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: TILE_GAP,

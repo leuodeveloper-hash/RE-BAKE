@@ -2358,6 +2358,39 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
           {/* 공법/비중 칩은 제목 영역으로 이동됨 */}
         </ContentContainer>
         )}
+        {/* 타입(레시피/팁) — 참고 링크 바로 위, 같은 카드 형식의 한 줄. 오른쪽은 프로필 '테마'와 같은 텍스트 탭.
+            팁(실기 준비물처럼 읽는 정보)은 만들기·회고·요리모드에서 빠진다.
+            어드민이 공식으로 올린다 — 일반 사용자에겐 숨긴다(이미 팁인 건 보여줘 되돌릴 수 있게) */}
+        {(isAdmin || kind === 'tip') && (
+          <ContentContainer style={styles.navItemGap}>
+            <Card>
+              <ListItem
+                title={t('recipeEdit.kind')}
+                leading={{type: 'custom', element: (
+                  <View style={styles.cookbookLeadingSlot}>
+                    <IconSquareAsteriskFilled width={20} height={20} color={colors['foreground/on-surface-muted']} />
+                  </View>
+                )}}
+                trailing={{type: 'custom', element: (
+                  <Tabs
+                    // 프로필 '테마' 줄과 같은 탭(기본 filled)
+                    tabs={[{id: 'recipe', label: t('recipeEdit.kindRecipe')}, {id: 'tip', label: t('recipeEdit.kindTip')}]}
+                    selectedId={kind}
+                    onSelect={id => {
+                      const next = id as 'recipe' | 'tip';
+                      setKind(next);
+                      // 팁은 재료·도구·공법·비중이 없다 — 팁으로 바꾸면 그 칸을 숨기고, 레시피로 되돌리면 다시 켠다
+                      setActiveFieldIds(prev => next === 'tip'
+                        ? prev.filter(f => !TIP_HIDDEN_FIELDS.includes(f))
+                        : [...prev, ...TIP_HIDDEN_FIELDS.filter(f => !prev.includes(f))]);
+                    }}
+                  />
+                )}}
+                showDivider={false}
+              />
+            </Card>
+          </ContentContainer>
+        )}
         <ContentContainer style={styles.navItemGap}>
           <Card>
             <ListItem
@@ -3434,39 +3467,6 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   </View>
                 )}}
                 onPress={handleCookbookPress}
-                showDivider={false}
-              />
-            </Card>
-          </ContentContainer>
-        )}
-        {/* 타입(레시피/팁) — 레시피북 바로 아래, 같은 카드 형식의 한 줄. 오른쪽은 프로필 '테마'와 같은 텍스트 탭.
-            팁(실기 준비물처럼 읽는 정보)은 만들기·회고·요리모드에서 빠진다.
-            어드민이 공식으로 올린다 — 일반 사용자에겐 숨긴다(이미 팁인 건 보여줘 되돌릴 수 있게) */}
-        {(isAdmin || kind === 'tip') && (
-          <ContentContainer style={isFieldActive('cookbook') ? styles.navItemGap : styles.section}>
-            <Card>
-              <ListItem
-                title={t('recipeEdit.kind')}
-                leading={{type: 'custom', element: (
-                  <View style={styles.cookbookLeadingSlot}>
-                    <IconSquareAsteriskFilled width={20} height={20} color={colors['foreground/on-surface-muted']} />
-                  </View>
-                )}}
-                trailing={{type: 'custom', element: (
-                  <Tabs
-                    // 프로필 '테마' 줄과 같은 탭(기본 filled)
-                    tabs={[{id: 'recipe', label: t('recipeEdit.kindRecipe')}, {id: 'tip', label: t('recipeEdit.kindTip')}]}
-                    selectedId={kind}
-                    onSelect={id => {
-                      const next = id as 'recipe' | 'tip';
-                      setKind(next);
-                      // 팁은 재료·도구·공법·비중이 없다 — 팁으로 바꾸면 그 칸을 숨기고, 레시피로 되돌리면 다시 켠다
-                      setActiveFieldIds(prev => next === 'tip'
-                        ? prev.filter(f => !TIP_HIDDEN_FIELDS.includes(f))
-                        : [...prev, ...TIP_HIDDEN_FIELDS.filter(f => !prev.includes(f))]);
-                    }}
-                  />
-                )}}
                 showDivider={false}
               />
             </Card>

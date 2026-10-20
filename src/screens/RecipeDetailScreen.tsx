@@ -10,7 +10,7 @@ const SCALE_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3];
 import {effectiveActiveFields} from '@utils/breadFieldsMigration';
 import {IconRefresh} from '@components/Icon/IconIndex';
 import {useFloatingNotice} from '@contexts/FloatingNoticeContext';
-import {StepSummaryList, CircledNumberText, stepLineText} from '@components/StepSummary';
+import {StepSummaryList, CircledNumberText, stepLineText, STEP_NUMBER_INDENT} from '@components/StepSummary';
 import {insertLockItems, isLockMenuId} from '@hooks/useExploreLock';
 import {APPBAR_ITEM_GAP} from '@constants/layout';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
@@ -1580,7 +1580,7 @@ export function RecipeDetailScreen({
                         titleNumberOfLines={0}
                         onPress={() => {
                           setCookingModeInitialIndex(groupOffset + index);
-                          if (!isTip) setShowCookingMode(true);
+                          setShowCookingMode(true);
                         }}
                         // 롱프레스 = 이 과정을 편집 (탭은 요리모드)
                         // 어느 과정을 눌렀는지까지 전달 — 편집에서 그 줄로 스크롤·포커스
@@ -1633,7 +1633,7 @@ export function RecipeDetailScreen({
                     titleNumberOfLines={0}
                     onPress={() => {
                       setCookingModeInitialIndex(index);
-                      if (!isTip) setShowCookingMode(true);
+                      setShowCookingMode(true);
                     }}
                   >
                     <Text style={styles.stepDescription}>
@@ -1689,7 +1689,7 @@ export function RecipeDetailScreen({
                       ? stepGroups.reduce((sum, g) => sum + g.steps.length, 0)
                       : (steps?.length ?? 0);
                     setCookingModeInitialIndex(totalSteps);
-                    if (!isTip) setShowCookingMode(true);
+                    setShowCookingMode(true);
                   }}
                 >
                   <RichText style={styles.adviceText}>{advice}</RichText>
@@ -1878,15 +1878,13 @@ export function RecipeDetailScreen({
         }
         right={
           <GlassContainer contentStyle={navPillStyle}>
-            {/* 팁엔 요리모드가 없다 */}
-            {!isTip && (
-              <IconButton
-                icon={IconPlayFilled}
-                onPress={locked ? () => setShowUnlockDialog(true) : () => { setCookingModeShowIngredients(true); setShowCookingMode(true); }}
-                variant="ghost-primary"
-                size="medium"
-              />
-            )}
+            {/* 요리모드 — 팁도 준비물(재료·도구)을 챙기며 따라갈 수 있다 */}
+            <IconButton
+              icon={IconPlayFilled}
+              onPress={locked ? () => setShowUnlockDialog(true) : () => { setCookingModeShowIngredients(true); setShowCookingMode(true); }}
+              variant="ghost-primary"
+              size="medium"
+            />
             <IconButton
               icon={IconEllipsisVertical}
               onPress={handleMenuPress}
@@ -2006,6 +2004,8 @@ export function RecipeDetailScreen({
         steps={steps}
         stepGroups={stepGroups}
         ingredientGroups={ingredientGroups}
+        // 준비 시트에서 재료와 함께 도구도 챙긴다(필드 관리에서 도구를 끄면 빠진다)
+        toolGroups={isFieldActive('tools') ? resolvedToolGroups : undefined}
         canEdit={canEdit}
         onUpdate={onUpdate}
         initialIndex={cookingModeInitialIndex}
@@ -2149,6 +2149,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 라인 블록 — 본문 줄 아래 4, 다음 줄과 8 띄운다. 들여쓰지 않고 본문과 같은 왼쪽에서 시작
   // 팁·주의 묶음 — 과정 줄 바로 아래, 다음 과정과는 띄우고 팁·주의 사이는 좁게
   bulkPhotos: {
+    marginLeft: STEP_NUMBER_INDENT,
     marginTop: Spacing.xs,
   },
   // 사진이 붙은 과정 아래 — 다음 과정과 16
@@ -2156,6 +2157,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     marginBottom: Spacing.md,
   },
   bulkNotes: {
+    // 과정 글 시작(번호 다음)에 맞춰 들인다
+    marginLeft: STEP_NUMBER_INDENT,
     marginTop: Spacing.xs,
     marginBottom: Spacing.sm,
     gap: Spacing.xs,

@@ -6,5 +6,6 @@ import type {ViewStyle} from 'react-native';
  */
 export const NOTE_BLOCK: ViewStyle = {
   borderLeftWidth: 2,
-  paddingLeft: 12,
+  // 라인과 글 사이 — 붙여 보이게 8
+  paddingLeft: 8,
 };
