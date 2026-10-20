@@ -1,4 +1,4 @@
-import React, {createContext, useCallback, useContext, useMemo, useState} from 'react';
+import React, {useRef, createContext, useCallback, useContext, useMemo, useState} from 'react';
 import {Linking, StyleSheet, Text, View} from 'react-native';
 import {NavPillButton, NavPillGroup} from '@components/Navigation/NavPillButton';
 import {IconButton} from '@components/IconButton';
@@ -99,10 +99,17 @@ export function RecipeLinkProvider({children}: {children: React.ReactNode}) {
   const {showSnackbar} = useSnackbar();
   const {t} = useTranslation();
   const [termEditor, setTermEditor] = useState<{term: BakingMethod | null; category?: MethodCategory} | null>(null);
+  // 시트를 닫고 바로 다른 창을 열면 아이폰이 새 창을 무시한다 — 시트가 다 내려간 뒤(onDismissed) 연다
+  const afterMethodSheet = useRef<(() => void) | null>(null);
   const openTermEditor = useCallback((term?: BakingMethod | null, category?: MethodCategory) => {
-    setMethod(null); // 시트 위에 창이 겹치지 않게 시트는 닫는다
-    setTermEditor({term: term ?? null, category});
-  }, []);
+    const next = {term: term ?? null, category};
+    if (method) {
+      afterMethodSheet.current = () => setTermEditor(next);
+      setMethod(null);
+    } else {
+      setTermEditor(next);
+    }
+  }, [method]);
   const openDictionary = useCallback(() => {
     if (!method) return;
     const name = method.m.name;
@@ -123,6 +130,7 @@ export function RecipeLinkProvider({children}: {children: React.ReactNode}) {
         onClose={() => setMethod(null)}
         onViewAll={method?.viewAll ? openDictionary : undefined}
         onEdit={isAdmin && method ? () => openTermEditor(method.m) : undefined}
+        onDismissed={() => { const next = afterMethodSheet.current; afterMethodSheet.current = null; next?.(); }}
       />
       <DictionaryTermDialog
         visible={!!termEditor}
@@ -199,7 +207,7 @@ function TipSheet({tip, onClose}: {tip: Recipe | null; onClose: () => void}) {
 }
 
 /** 사전 시트 — 공법 이름과 정리된 설명. 본문은 Text(설명 속 공법 이름이 또 링크되지 않게) */
-function MethodSheet({method, onClose, onViewAll, onEdit}: {method: BakingMethod | null; onClose: () => void; onViewAll?: () => void; onEdit?: () => void}) {
+function MethodSheet({method, onClose, onViewAll, onEdit, onDismissed}: {method: BakingMethod | null; onClose: () => void; onViewAll?: () => void; onEdit?: () => void; onDismissed?: () => void}) {
   const styles = useThemedStyles(createStyles);
   // 헤더 오른쪽 — 시트 헤더 버튼 룰(떠 있는 알약). 여럿이면 한 알약에 묶는다: 고치기(어드민) · 사전 전체
   const right = onEdit && onViewAll ? (
@@ -213,6 +221,7 @@ function MethodSheet({method, onClose, onViewAll, onEdit}: {method: BakingMethod
     <BottomSheet
       visible={!!method}
       onClose={onClose}
+      onDismissed={onDismissed}
       title={method?.name ?? ''}
       headerType="center"
       headerRight={right}>

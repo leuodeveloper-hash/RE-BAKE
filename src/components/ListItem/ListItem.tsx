@@ -60,6 +60,8 @@ export interface ListItemProps {
   showDivider?: boolean;
   /** 타이틀 최대 줄 수 (기본: 1, 0이면 무제한) */
   titleNumberOfLines?: number;
+  /** 설명 최대 줄 수 (기본: 1, 0이면 무제한) */
+  descriptionNumberOfLines?: number;
   /** 비활성화 상태 */
   disabled?: boolean;
   /** 컬러 배리언트 */
@@ -70,6 +72,8 @@ export interface ListItemProps {
   style?: ViewStyle;
   /** 행 안쪽 여백(상하좌우 같은 값) — 기본은 좌우 12·상하 8. 큰 카드형 줄(예: [+] 시트 레시피북 만들기)에서 16 등 */
   padding?: number;
+  /** 행 좌우 안쪽 여백만 — 페이지 여백 없는 리스트 화면(사전 등)은 16 */
+  paddingHorizontal?: number;
 }
 
 // ---- 슬롯 렌더러 ----
@@ -149,12 +153,14 @@ export function ListItem({
   trailingValue,
   showDivider = true,
   titleNumberOfLines = 1,
+  descriptionNumberOfLines = 1,
   disabled = false,
   variant,
   onPress,
   onLongPress,
   style,
   padding,
+  paddingHorizontal,
 }: ListItemProps) {
   const colors = useColors();
   const styles = useThemedStyles(createStyles);
@@ -183,11 +189,12 @@ export function ListItem({
           Platform.OS === 'web' && ({cursor: 'pointer'} as any),
           multiline && styles.stateLayerTop,
           padding != null && {paddingHorizontal: padding, paddingVertical: padding},
+          paddingHorizontal != null && {paddingHorizontal},
           pressed && (isYellow ? styles.stateLayerPressedYellow : styles.stateLayerPressed),
           disabled && styles.disabled,
         ],
       }
-    : {style: [styles.stateLayer, multiline && styles.stateLayerTop, padding != null && {paddingHorizontal: padding, paddingVertical: padding}, disabled && styles.disabled]};
+    : {style: [styles.stateLayer, multiline && styles.stateLayerTop, padding != null && {paddingHorizontal: padding, paddingVertical: padding}, paddingHorizontal != null && {paddingHorizontal}, disabled && styles.disabled]};
 
   return (
     // 묶음 카드 안이면 공통 Container(bright) 항목 안에 넣는다
@@ -200,7 +207,7 @@ export function ListItem({
               <Text style={[styles.title, isYellow && styles.titleYellow, resolvedVariant === 'destructive' && {color: colors['foreground/negative']}]} numberOfLines={titleNumberOfLines || undefined}>
                 {centerSlot.title}
               </Text>
-              {centerSlot.description ? <Text style={styles.description} numberOfLines={1}>{centerSlot.description}</Text> : null}
+              {centerSlot.description ? <Text style={styles.description} numberOfLines={descriptionNumberOfLines || undefined}>{centerSlot.description}</Text> : null}
             </>
           )}
         </View>

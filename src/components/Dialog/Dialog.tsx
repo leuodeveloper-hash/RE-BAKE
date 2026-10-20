@@ -25,6 +25,7 @@ import {EdgeFade} from '@components/Container/ContentMask';
 import {BlurView} from 'expo-blur';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useKeyboardHeight} from '@hooks/useKeyboardHeight';
+import {useModalGate, markModalClosing} from '@hooks/useModalGate';
 import {APPBAR_TOP_PADDING} from '@components/Navigation';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
@@ -79,7 +80,7 @@ export interface DialogProps {
 const ANIMATION_DURATION = 200;
 
 export function Dialog({
-  visible,
+  visible: visibleProp,
   onClose,
   icon,
   avatarColor,
@@ -108,6 +109,8 @@ export function Dialog({
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.95)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
+  // 아이폰 — 닫히는 창이 있으면 다 내려간 뒤 연다(겹쳐 열면 무시돼 먹통)
+  const visible = useModalGate(visibleProp);
   const [rendered, setRendered] = useState(false);
   const wasVisible = useRef(false);
 
@@ -135,6 +138,7 @@ export function Dialog({
         }),
       ]).start();
     } else if (!visible && wasVisible.current) {
+      markModalClosing();
       Animated.parallel([
         Animated.timing(backdropOpacity, {
           toValue: 0,

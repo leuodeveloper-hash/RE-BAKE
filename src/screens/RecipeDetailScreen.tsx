@@ -1069,6 +1069,7 @@ export function RecipeDetailScreen({
       // 메뉴의 다른 묶음(정렬·구분)과 같은 형식 — 회색 소제목 + 아래 컨트롤. 배율은 소제목 줄 오른쪽 끝
       title: t('ingredientScale.label'),
       titleTrailing: scaleLabel(ingScale),
+      wide: true,
       content: (
         <View style={styles.scaleControl}>
           <DotSlider
@@ -1702,7 +1703,7 @@ export function RecipeDetailScreen({
         ]))}
 
         {/* Advice Section */}
-        {isFieldActive('advice') && advice ? (
+        {isFieldActive('advice') && (advice || advicePhotos?.length) ? (
           <Animated.View
             onLayout={(e) => { sectionPositions.current.advice = e.nativeEvent.layout.y; }}
             style={{opacity: sectionAnims[2]}}
@@ -1725,7 +1726,15 @@ export function RecipeDetailScreen({
                     setShowCookingMode(true);
                   }}
                 >
-                  <RichText style={styles.adviceText}>{advice}</RichText>
+                  {!!advice && <RichText style={styles.adviceText}>{advice}</RichText>}
+                  {/* 조언 사진 — 편집과 같게 글 아래 */}
+                  {advicePhotos && advicePhotos.length > 0 && (
+                    <StepPhotos
+                      photos={normalizeStepPhotos(advicePhotos)}
+                      mode="view"
+                      onPhotoPress={i => openPhotoViewer(advicePhotos, i)}
+                    />
+                  )}
                 </ListItem>
               </Card>
             </ContentContainer>

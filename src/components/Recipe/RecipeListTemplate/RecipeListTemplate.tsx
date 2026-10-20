@@ -812,10 +812,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   listHeaderFlush: {
     paddingHorizontal: Spacing.md,
   },
-  // 리스트뷰 줄 — 줄 안쪽 8 + 여기 8 = 16(머리말과 같은 시작점)
-  listCardFlush: {
-    paddingHorizontal: Spacing.sm,
-  },
+  // 리스트뷰 줄 — 줄이 안쪽 16을 직접 갖는다(머리말과 같은 시작점)
+  listCardFlush: {},
   listContentUnderHeader: {
     paddingTop: 0,
   },

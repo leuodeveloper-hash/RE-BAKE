@@ -872,7 +872,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
           scrollEventThrottle={16}>
           <RefreshGap height={refreshGapHeight} />
           {headerExtra ? <ContentContainer style={styles.listHeaderExtra}>{headerExtra}</ContentContainer> : null}
-          <ContentContainer style={styles.sections}>
+          {/* 리스트 화면 — 페이지 좌우 여백 없음. 줄(RecipeCard)이 안쪽 16, 머리글도 16 */}
+          <ContentContainer horizontalPadding={false} style={styles.sections}>
             {/* 레시피 북 섹션 */}
             {viewMode === 'list' && showCookbookSection && (
               <View style={styles.section}>
@@ -1265,6 +1266,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   section: {},
   sectionHeader: {
     marginBottom: -Spacing.sm,
+    paddingHorizontal: Spacing.md,
   },
   retroHeader: {
     flexDirection: 'row',

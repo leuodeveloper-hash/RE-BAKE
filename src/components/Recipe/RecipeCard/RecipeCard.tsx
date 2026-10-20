@@ -1208,12 +1208,14 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   listDivider: {
     height: StyleSheet.hairlineWidth,
     backgroundColor: colors['border/normal'],
-    marginLeft: 64 + Spacing.sm + Spacing.md,
+    marginLeft: Spacing.md + 64 + Spacing.md,
   },
+  // 리스트 줄 — 좌우 16을 줄이 직접 갖는다(리스트 화면은 페이지 여백 없음)
   listContainer: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: Spacing.sm,
+    paddingVertical: Spacing.sm,
+    paddingHorizontal: Spacing.md,
     borderRadius: Radius['radius-lg'],
   },
   // 누른 줄·메뉴 연 줄 바탕 — 페이지 바탕(회색) 위라 state/pressed(8%)는 진하고 faint(3%)는 안 보여 subtle(6%)
@@ -1316,8 +1318,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     letterSpacing: -0.25,
     color: colors['foreground/on-surface'],
   },
+  // 작은 줄(검색 팝업) — 팝업 안이라 좌우 8
   listContainerSmall: {
     alignItems: 'center',
+    paddingHorizontal: Spacing.sm,
   },
   listContentSmall: {
     flex: 1,

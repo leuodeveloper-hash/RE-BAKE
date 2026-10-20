@@ -5,7 +5,8 @@ import {SafeAreaView} from 'react-native-safe-area-context';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import {FloatingNavBar, NavPillButton} from '@components/Navigation';
 import {ContentContainer} from '@components/Container';
-import {RecipeCard} from '@components/Recipe/RecipeCard/RecipeCard';
+import {ListItem} from '@components/ListItem';
+import {AppIcon} from '@components/Icon/AppIcon';
 import {Selector} from '@components/Selector';
 import {Menu} from '@components/Menu';
 import {useThemedStyles} from '@hooks/useThemedStyles';
@@ -14,7 +15,7 @@ import {useTranslation} from '@contexts/LanguageContext';
 import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
-import {IconAdd, IconClose, IconProcess} from '@components/Icon/IconIndex';
+import {IconAdd, IconClose, IconEllipsisVertical, IconProcess} from '@components/Icon/IconIndex';
 import {type MethodCategory} from '@constants/bakingMethods';
 import {useDictionary} from '@hooks/useDictionary';
 import {goBackOr} from '@utils/navigation';
@@ -66,7 +67,8 @@ export default function MethodGuideRoute() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}>
 
-          <ContentContainer>
+          {/* 리스트 화면 — 페이지 좌우 여백 없음, 줄이 안쪽 16을 갖는다 */}
+          <ContentContainer horizontalPadding={false}>
             {/* 제과/제빵 — 앱바 아래 왼쪽 토날 피커(탭 대신). 메뉴는 피커 기준 왼쪽 정렬로 아래에 */}
             <View style={styles.pickerWrap}>
               <Selector
@@ -90,19 +92,18 @@ export default function MethodGuideRoute() {
                 key={m.id ?? m.name}
                 onLayout={e => onCardLayout(m.name, e.nativeEvent.layout.y)}
                 style={m.name === target ? [styles.targetCard, {backgroundColor: highlight.interpolate({inputRange: [0, 1], outputRange: ['transparent', colors['fill/accent'] as string]})}] : undefined}>
-                <RecipeCard
-                  key={m.id ?? m.name}
+                <ListItem
                   onPress={openMethod ? () => openMethod(m, {withViewAll: false}) : undefined}
-                  // 어드민 — ⋮(길게 누르기도 같음)로 바로 고치기
-                  onMenuPress={openTermEditor ? () => openTermEditor(m) : undefined}
+                  // 어드민 — 길게 눌러 바로 고치기
+                  onLongPress={openTermEditor ? () => openTermEditor(m) : undefined}
+                  leading={{type: 'custom', element: <AppIcon icon={IconProcess} size="sm" color={colors['custom/lime-var']} />}}
                   title={m.name}
-                  customSubtitle={m.description}
+                  description={m.description}
                   // 링크로 찾아온 공법은 설명 전체를 보여준다
-                  subtitleNumberOfLines={m.name === target ? undefined : 2}
-                  layout="list"
-                  placeholderIcon={IconProcess}
-                  placeholderIconColor={colors['custom/lime-var']}
-                  hideDivider={i === methods.length - 1}
+                  descriptionNumberOfLines={m.name === target ? 0 : 2}
+                  trailing={openTermEditor ? {type: 'iconButton', icon: IconEllipsisVertical, variant: 'ghost-secondary', size: 'small', onPress: () => openTermEditor(m)} : undefined}
+                  paddingHorizontal={Spacing.md}
+                  showDivider={i !== methods.length - 1}
                 />
               </Animated.View>
             ))}
@@ -142,6 +143,7 @@ const createStyles = (_colors: SemanticColors) =>
     },
     // 피커 + 메뉴 — 메뉴가 목록 위로 뜨게(드롭다운 z-index 3종)
     pickerWrap: {
+      marginLeft: Spacing.md,
       alignSelf: 'flex-start',
       marginBottom: Spacing.md,
       zIndex: 20,

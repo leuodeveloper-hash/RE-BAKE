@@ -1,3 +1,4 @@
+import {useModalGate, markModalClosing} from '@hooks/useModalGate';
 import {LinearGradient} from 'expo-linear-gradient';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
@@ -113,7 +114,7 @@ export interface BottomSheetProps {
 }
 
 export function BottomSheet({
-  visible,
+  visible: visibleProp,
   onClose,
   onDismissed,
   children,
@@ -144,6 +145,8 @@ export function BottomSheet({
   const colors = useColors();
   const {height: windowHeight} = useWindowDimensions();
   const {top: safeTop, bottom: safeBottom} = useSafeAreaInsets();
+  // 아이폰 — 닫히는 창이 있으면 다 내려간 뒤 연다(겹쳐 열면 무시돼 먹통). 모달 없이 그리는 시트(hostAsView)는 상관없다
+  const visible = useModalGate(visibleProp, hostAsView);
   const translateY = useRef(new Animated.Value(windowHeight)).current;
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   // fade 모드 전용 시트 투명도 (slide 모드에선 항상 1로 두어 영향 없음)
@@ -208,6 +211,8 @@ export function BottomSheet({
   const animateClose = useCallback((velocity?: number) => {
     if (closingRef.current) return;
     closingRef.current = true;
+    // 끌어 내리기·바깥 누르기로 닫을 때도 — 이 시트가 내려가는 동안 다음 창은 기다린다(아이폰)
+    if (!hostAsView) markModalClosing();
     const targetY = contentHeight.current || windowHeight;
     const closeAnims = animationType === 'fade'
       ? [
@@ -235,7 +240,7 @@ export function BottomSheet({
         onCloseRef.current();
       }
     }, 500);
-  }, [translateY, backdropOpacity, sheetOpacity, animationType]);
+  }, [translateY, backdropOpacity, sheetOpacity, animationType, hostAsView]);
 
   // visible prop 변화 감지
   useEffect(() => {
@@ -268,6 +273,7 @@ export function BottomSheet({
       }
     } else if (!visible && mounted && !closingRef.current) {
       // 외부에서 visible=false로 바뀜 → 애니메이션 후 닫기
+      if (!hostAsView) markModalClosing();
       animateClose();
     }
   }, [visible]);

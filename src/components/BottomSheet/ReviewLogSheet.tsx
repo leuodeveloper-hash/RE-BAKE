@@ -408,7 +408,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   writePrompt: {
     ...Typography.caption.medium,
     color: colors['foreground/on-surface-muted'],
-    paddingHorizontal: Spacing.smd,
+    paddingHorizontal: Spacing.md,
     paddingBottom: Spacing.xs,
   },
   // 예시 회고 — 흐리게
@@ -471,8 +471,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
 
   // 콘텐츠
+  // 줄(RecipeCard)이 안쪽 16을 직접 갖는다 — 바깥 여백 없음
   content: {
-    paddingHorizontal: Spacing.xs,
     paddingBottom: Spacing.lg,
   },
 
