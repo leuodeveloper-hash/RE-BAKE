@@ -1,5 +1,5 @@
 import {Tabs} from '@components/Tabs/Tabs';
-import React, {useCallback, useState} from 'react';
+import React, {useCallback, useMemo, useState} from 'react';
 import {Platform, StyleSheet, View, useWindowDimensions} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Spacing} from '@constants/spacing';
@@ -68,7 +68,11 @@ export function PdfPreviewDialog({
   const insets = useSafeAreaInsets();
   const pvH = previewHeight(windowHeight, insets.top, insets.bottom);
   const {t} = useTranslation();
-  const html = dataList ? generateRecipeListHtml(dataList, layout, effectiveContent) : htmlProp ?? (data ? generateRecipeHtml(data, layout, effectiveContent) : '');
+  // 닫혀 있을 땐 만들지 않는다 — 레시피 전체를 HTML로 바꾸는 일이라 상세가 다시 그려질 때마다 돌면 무거웠다
+  const html = useMemo(
+    () => !visible ? '' : dataList ? generateRecipeListHtml(dataList, layout, effectiveContent) : htmlProp ?? (data ? generateRecipeHtml(data, layout, effectiveContent) : ''),
+    [visible, dataList, layout, effectiveContent, htmlProp, data],
+  );
   const pdfFilename = filenameProp ?? data?.title ?? 'recipes';
 
   // 웹 인쇄 창 — 다운로드(PDF로 저장)·프린트가 같은 창을 쓴다

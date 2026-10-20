@@ -12,6 +12,7 @@ import {IconRefresh} from '@components/Icon/IconIndex';
 import {useFloatingNotice} from '@contexts/FloatingNoticeContext';
 import {useRouter} from 'expo-router';
 import {goToRetrospective} from '@utils/navigation';
+import {LazyMount} from '@components/LazyMount';
 import {StepSummaryList, CircledNumberText, stepLineText, STEP_NUMBER_INDENT} from '@components/StepSummary';
 import {insertLockItems, isLockMenuId} from '@hooks/useExploreLock';
 import {APPBAR_ITEM_GAP} from '@constants/layout';
@@ -1924,6 +1925,7 @@ export function RecipeDetailScreen({
       )}
 
       {/* PDF 미리보기 다이얼로그 */}
+      <LazyMount when={showPdfPreview}>
       <PdfPreviewDialog
         visible={showPdfPreview}
         onClose={() => setShowPdfPreview(false)}
@@ -1947,17 +1949,21 @@ export function RecipeDetailScreen({
           stepGroups,
         }}
       />
+      </LazyMount>
 
 
       {/* 시간 다이얼로그 */}
+      <LazyMount when={showTimeDialog}>
       <TimeDialog
         visible={showTimeDialog}
         onClose={() => setShowTimeDialog(false)}
         value={time}
         onConfirm={v => onUpdate?.({time: v})}
       />
+      </LazyMount>
 
       {/* 분량 다이얼로그 */}
+      <LazyMount when={numberDialog !== null}>
       <NumberValueDialog
         visible={numberDialog !== null}
         onClose={() => setNumberDialog(null)}
@@ -1968,12 +1974,15 @@ export function RecipeDetailScreen({
         onConfirm={v => onUpdate?.(numberDialog === 'divideWeight' ? {divideWeight: v} : {doughTemp: v})}
         onDelete={() => onUpdate?.(numberDialog === 'divideWeight' ? {divideWeight: ''} : {doughTemp: ''})}
       />
+      </LazyMount>
+      <LazyMount when={showServingsDialog}>
       <ServingsDialog
         visible={showServingsDialog}
         onClose={() => setShowServingsDialog(false)}
         value={servings}
         onConfirm={v => onUpdate?.({servings: v})}
       />
+      </LazyMount>
 
       {/* 사진 전체보기 — 레시피 사진 전부(구획). 읽기 전용, 대표 사진만 여기서 더 올린다 */}
       <PhotoViewer
@@ -1997,6 +2006,7 @@ export function RecipeDetailScreen({
         onSubmit={(kind, message) => onFeedback?.(kind, message)}
       />
 
+      <LazyMount when={showMadeSheet}>
       <MadeConfirmSheet
         visible={showMadeSheet}
         onClose={() => setShowMadeSheet(false)}
@@ -2005,7 +2015,10 @@ export function RecipeDetailScreen({
         onConfirm={() => onMadeChange?.(true)}
         onSaveReview={onSaveReview}
       />
+      </LazyMount>
 
+      {/* 요리모드 — 처음 열 때 만든다(큰 부품) */}
+      <LazyMount when={showCookingMode}>
       <CookingMode
         visible={showCookingMode}
         onClose={() => { setShowCookingMode(false); setCookingModeShowIngredients(false); }}
@@ -2031,6 +2044,7 @@ export function RecipeDetailScreen({
         stampIndex={stampIndex}
         onMadeChange={() => onMadeChange?.(true)}
       />
+      </LazyMount>
 
       {/* 회차 슬라이더: 하단 탭바 자리에서 좌우 슬라이드/스냅으로 회차 전환.
           요리모드가 뜨면 상세 위에 얹히므로 회차 슬라이더는 숨긴다(상세 전용). */}
@@ -2055,6 +2069,7 @@ export function RecipeDetailScreen({
       )}
 
       {/* 잠금 해제 다이얼로그 */}
+      <LazyMount when={showUnlockDialog}>
       <UnlockDialog
         visible={showUnlockDialog}
         onClose={() => setShowUnlockDialog(false)}
@@ -2069,6 +2084,7 @@ export function RecipeDetailScreen({
           onSubscribe();
         } : undefined}
       />
+      </LazyMount>
 
       <Dialog
         visible={showDeleteDialog}
@@ -2096,6 +2112,7 @@ export function RecipeDetailScreen({
         }
       />
 
+      <LazyMount when={searchFilter !== null}>
       <SearchCommandBar
         visible={searchFilter !== null}
         onClose={() => setSearchFilter(null)}
@@ -2109,7 +2126,9 @@ export function RecipeDetailScreen({
           onRecipeSelect?.(selectedId);
         }}
       />
+      </LazyMount>
 
+      <LazyMount when={showReviewSheet}>
       <ReviewLogSheet
         visible={showReviewSheet}
         onClose={() => setShowReviewSheet(false)}
@@ -2117,6 +2136,7 @@ export function RecipeDetailScreen({
         // 회차가 하나뿐이면 지금 회고를 한 줄로 — 비어 보이지 않게
         sessionReviews={sessionReviews ?? (reviews?.length ? [{id: id ?? '', label: session ?? '', reviews}] : undefined)}
       />
+      </LazyMount>
     </Animated.View>
   );
 }
