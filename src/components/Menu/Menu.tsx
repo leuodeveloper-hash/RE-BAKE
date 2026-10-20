@@ -1,6 +1,7 @@
 import React, {useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, Dimensions, Easing, Pressable, ScrollView, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import type {SemanticColors} from '@constants/tokens';
+import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {SvgProps} from 'react-native-svg';
 import {GlassContainer} from '@components/Container';
@@ -217,6 +218,8 @@ export function Menu({
           {headerNode}
           {searchable && (
             <View style={styles.searchBar}>
+              {/* 메뉴 항목과 같은 높이·좌우 여백 — 고스트 입력은 높이 없는 칸에서 눌려 쪼그라들었다 */}
+              <View style={styles.searchField}>
               <TextInput
                 placeholder={t('menu.searchPlaceholder')}
                 value={searchQuery}
@@ -225,6 +228,7 @@ export function Menu({
                 size="small"
                 leadingIcon={<AppIcon icon={IconSearch} size="xs" color={colors['foreground/on-surface-muted']} />}
               />
+              </View>
             </View>
           )}
           <ScrollView bounces={false} showsVerticalScrollIndicator={maxHeight != null}>
@@ -323,6 +327,15 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     alignSelf: 'stretch',
     paddingHorizontal: Spacing.xs,
     paddingTop: Spacing.xs,
-    paddingBottom: Spacing.sm,
+    paddingBottom: Spacing.xs,
+  },
+  // 메뉴 항목(MenuItem)과 같은 높이 — 위아래 8 + 본문 한 줄, 좌우 12, 같은 모서리
+  searchField: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    minHeight: Spacing.sm * 2 + (Typography.body.medium.lineHeight as number),
+    paddingHorizontal: Spacing.smd,
+    borderRadius: Radius['radius-md'],
+    backgroundColor: colors['fill/faint'],
   },
 });

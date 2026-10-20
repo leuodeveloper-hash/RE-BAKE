@@ -18,6 +18,8 @@ import {triggerHaptic} from '@utils/haptics';
 import {registerAlbumPicker, type PickedAsset} from './albumPicker';
 
 const LAST_ALBUM_KEY = '@bakle_last_album';
+/** 레시피별 마지막 앨범 */
+const scopedKey = (scope: string) => `${LAST_ALBUM_KEY}:${scope}`;
 /** '모든 사진' — 앨범을 고르지 않은 상태 */
 const ALL = '__all__';
 const COLS = 4;
@@ -30,10 +32,10 @@ const PAGE = 80;
  * 앱 루트에 하나만 둔다 — 어디서든 launchLibrary()로 연다.
  */
 export function AlbumPickerHost() {
-  const [request, setRequest] = useState<{limit: number; resolve: (v: PickedAsset[] | null) => void} | null>(null);
+  const [request, setRequest] = useState<{limit: number; scope?: string; resolve: (v: PickedAsset[] | null) => void} | null>(null);
 
   useEffect(() => {
-    registerAlbumPicker(limit => new Promise(resolve => setRequest({limit, resolve})));
+    registerAlbumPicker((limit, scope) => new Promise(resolve => setRequest({limit, scope, resolve})));
     return () => registerAlbumPicker(null);
   }, []);
 
@@ -45,13 +47,13 @@ export function AlbumPickerHost() {
   return (
     <Modal visible={!!request} animationType="slide" presentationStyle="fullScreen" onRequestClose={() => finish(null)}>
       <SafeAreaProvider>
-        {request ? <AlbumPickerScreen limit={request.limit} onDone={finish} /> : null}
+        {request ? <AlbumPickerScreen limit={request.limit} scope={request.scope} onDone={finish} /> : null}
       </SafeAreaProvider>
     </Modal>
   );
 }
 
-function AlbumPickerScreen({limit, onDone}: {limit: number; onDone: (v: PickedAsset[] | null) => void}) {
+function AlbumPickerScreen({limit, scope, onDone}: {limit: number; scope?: string; onDone: (v: PickedAsset[] | null) => void}) {
   const colors = useColors();
   const {t} = useTranslation();
   const insets = useSafeAreaInsets();
@@ -75,12 +77,18 @@ function AlbumPickerScreen({limit, onDone}: {limit: number; onDone: (v: PickedAs
     (async () => {
       const p = await MediaLibrary.requestPermissionsAsync(false, ['photo']);
       if (!p.granted) { setPerm('denied'); return; }
-      setPerm(p.accessPrivileges === 'limited' ? 'limited' : 'all');
       const list = await MediaLibrary.getAlbumsAsync({includeSmartAlbums: true}).catch(() => []);
       const withPhotos = list.filter(a => (a.assetCount ?? 0) > 0).sort((a, b) => (b.assetCount ?? 0) - (a.assetCount ?? 0));
+      // 이 레시피에서 마지막으로 연 앨범 → 없으면 앱 전체 마지막 앨범.
+      // 앨범을 정한 뒤에 권한 상태를 넣는다 — 먼저 넣으면 '모든 사진'으로 한 번 불러오며 기억을 덮어썼다
+      const [scoped, last] = await Promise.all([
+        scope ? AsyncStorage.getItem(scopedKey(scope)).catch(() => null) : Promise.resolve(null),
+        AsyncStorage.getItem(LAST_ALBUM_KEY).catch(() => null),
+      ]);
+      const pick = [scoped, last].find(id => id && (id === ALL || withPhotos.some(a => a.id === id)));
       setAlbums(withPhotos);
-      const last = await AsyncStorage.getItem(LAST_ALBUM_KEY).catch(() => null);
-      setAlbumId(last && withPhotos.some(a => a.id === last) ? last : ALL);
+      setAlbumId(pick ?? ALL);
+      setPerm(p.accessPrivileges === 'limited' ? 'limited' : 'all');
     })();
   }, []);
 
@@ -110,8 +118,14 @@ function AlbumPickerScreen({limit, onDone}: {limit: number; onDone: (v: PickedAs
     cursor.current = {hasNext: true};
     setAssets([]);
     loadMore(true);
-    AsyncStorage.setItem(LAST_ALBUM_KEY, albumId).catch(() => {});
   }, [albumId, perm, loadMore]);
+
+  // 앨범을 고르면 기억 — 앱 전체 + 이 레시피(열 때 정해진 앨범은 다시 쓰지 않는다)
+  const chooseAlbum = useCallback((id: string) => {
+    setAlbumId(id);
+    AsyncStorage.setItem(LAST_ALBUM_KEY, id).catch(() => {});
+    if (scope) AsyncStorage.setItem(scopedKey(scope), id).catch(() => {});
+  }, [scope]);
 
   const toggle = (id: string) => {
     triggerHaptic('light');
@@ -134,6 +148,8 @@ function AlbumPickerScreen({limit, onDone}: {limit: number; onDone: (v: PickedAs
         const info = await MediaLibrary.getAssetInfoAsync(a, {shouldDownloadFromNetwork: true});
         out.push({uri: info.localUri ?? a.uri, width: a.width, height: a.height, type: 'image'});
       }
+      // 사진을 넣은 앨범을 이 레시피 앨범으로 — 다음에 이 레시피에서 열면 여기부터
+      if (scope) AsyncStorage.setItem(scopedKey(scope), albumId).catch(() => {});
       onDone(out);
     } finally {
       setBusy(false);
@@ -142,7 +158,8 @@ function AlbumPickerScreen({limit, onDone}: {limit: number; onDone: (v: PickedAs
 
   const albumLabel = albumId === ALL ? t('albumPicker.allPhotos') : (albums.find(a => a.id === albumId)?.title ?? t('albumPicker.allPhotos'));
   // 홈 레시피북 메뉴와 같은 형식 — 아이콘 + 이름
-  const albumItems = [{id: ALL, label: t('albumPicker.allPhotos'), icon: IconPhoto}, ...albums.map(a => ({id: a.id, label: a.title, icon: IconPhoto}))];
+  // 앨범 목록은 글자만 — 같은 사진 아이콘을 줄마다 반복하면 시끄럽고, 앨범 표지는 앨범마다 사진을 따로 읽어야 해 느리다
+  const albumItems = [{id: ALL, label: t('albumPicker.allPhotos')}, ...albums.map(a => ({id: a.id, label: a.title}))];
 
   return (
     <View style={[styles.root, {backgroundColor: colors['surface/dim']}]}>
@@ -161,7 +178,7 @@ function AlbumPickerScreen({limit, onDone}: {limit: number; onDone: (v: PickedAs
           <Menu
             items={albumItems}
             selectedId={albumId}
-            onSelect={id => { setShowAlbums(false); setSelected([]); setAlbumId(id); }}
+            onSelect={id => { setShowAlbums(false); setSelected([]); chooseAlbum(id); }}
             visible={showAlbums}
             onClose={() => setShowAlbums(false)}
             maxHeight={Math.round(height * 0.6)}

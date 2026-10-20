@@ -15,7 +15,14 @@ export interface PickedAsset {
 }
 export type PickResult = {canceled: true; assets: null} | {canceled: false; assets: PickedAsset[]};
 
-type Opener = (limit: number) => Promise<PickedAsset[] | null>;
+type Opener = (limit: number, scope?: string) => Promise<PickedAsset[] | null>;
+
+/**
+ * 지금 사진을 넣는 레시피 — 레시피마다 마지막으로 연 앨범을 따로 기억한다(없으면 앱 전체 마지막 앨범).
+ * 편집 화면·요리모드가 열릴 때 정하고 닫힐 때 비운다.
+ */
+let albumScope: string | undefined;
+export function setAlbumScope(scope: string | undefined) { albumScope = scope; }
 let opener: Opener | null = null;
 /** AlbumPickerHost가 화면에 붙으면서 등록한다 */
 export function registerAlbumPicker(fn: Opener | null) { opener = fn; }
@@ -28,6 +35,6 @@ export async function launchLibrary(options: ImagePicker.ImagePickerOptions = {}
     return r.canceled ? {canceled: true, assets: null} : {canceled: false, assets: r.assets as PickedAsset[]};
   }
   const limit = options.allowsMultipleSelection ? Math.max(1, options.selectionLimit || 10) : 1;
-  const picked = await opener(limit);
+  const picked = await opener(limit, albumScope);
   return picked && picked.length > 0 ? {canceled: false, assets: picked} : {canceled: true, assets: null};
 }

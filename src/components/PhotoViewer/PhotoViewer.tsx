@@ -1,5 +1,6 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
-import {Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions} from 'react-native';
+import {Animated, Easing, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
+import {triggerHaptic} from '@utils/haptics';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
 import {FloatingNavBar, navPillStyle, NavPillButton} from '@components/Navigation';
 import {ThumbnailSlider} from '@components/ThumbnailSlider';
@@ -12,7 +13,7 @@ import {useAuth} from '@contexts/AuthContext';
 import {loadStylePrompt, restylePhoto} from '@utils/photoRestyle';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {Button} from '@components/Button';
-import {BrokenImageMark, useBrokenImage} from '@components/BrokenImage';
+import {BrokenImageMark, ImageLoadingMark, useBrokenImage} from '@components/BrokenImage';
 import {BottomSheet} from '@components/BottomSheet/BottomSheet';
 import {TextInput as AppTextInput} from '@components/TextInput';
 import {ForceDarkTheme, useColors} from '@contexts/ThemeContext';
@@ -68,8 +69,15 @@ function SheetChevron() {
 }
 
 /** 뷰어 사진 한 장 — 깨지면 가운데 느낌표 */
-function ViewerImage({uri, width}: {uri: string; width: number}) {
-  const {broken, onError} = useBrokenImage(uri);
+function ViewerImage({uri, width, busy}: {uri: string; width: number; /** 보정 중 — 사진 위에 어둡게 깜빡임 + 로딩 */ busy?: boolean}) {
+  const {broken, loading, onError, onLoad} = useBrokenImage(uri);
+  // 새 사진(보정 결과 등)은 살짝 페이드인 — 툭 바뀌지 않게
+  const fade = useRef(new Animated.Value(0)).current;
+  useEffect(() => { fade.setValue(0); }, [uri, fade]);
+  const handleLoad = () => {
+    onLoad();
+    Animated.timing(fade, {toValue: 1, duration: 280, easing: Easing.out(Easing.quad), useNativeDriver: true}).start();
+  };
   if (broken) {
     return (
       <View style={[styles.image, {width}]}>
@@ -77,7 +85,13 @@ function ViewerImage({uri, width}: {uri: string; width: number}) {
       </View>
     );
   }
-  return <Image source={{uri}} style={[styles.image, {width}]} resizeMode="contain" onError={onError} />;
+  return (
+    <View style={[styles.image, {width}]}>
+      <Animated.Image source={{uri}} style={[StyleSheet.absoluteFill, {opacity: fade}]} resizeMode="contain" onError={onError} onLoad={handleLoad} />
+      {/* 검은 바탕 — 흰 로딩만. 보정 중이면 문구까지 */}
+      {busy || loading ? <ImageLoadingMark dark /> : null}
+    </View>
+  );
 }
 
 /** 템플릿 불러오는 중 표시 */
@@ -111,6 +125,8 @@ export function PhotoViewer({
   const {isAdmin} = useAuth();
     const canRestyle = isAdmin && !!onRestyled;
   const [restyling, setRestyling] = useState(false);
+  // 보정 중인 사진 — 그 장 위에만 작업 중 표시(넘겨 봐도 어느 장인지 보인다)
+  const [restylingIndex, setRestylingIndex] = useState<number | null>(null);
   // 보정 시트 — 프롬프트를 보여주고 고쳐서 쓴다(뷰어 모달 안에 띄운다: 시트를 또 띄우면 iOS에서 모달이 겹쳐 안 뜬다)
   const [restyleSheet, setRestyleSheet] = useState(false);
   // 이번에만 더할 요청 — 기본 템플릿 뒤에 붙는다
@@ -189,12 +205,14 @@ export function PhotoViewer({
     if (!src) return;
     setRestyleSheet(false);
     setRestyling(true);
+    setRestylingIndex(at);
     try {
       const url = await restylePhoto(src, extraDraft);
       setExtraDraft('');
       onRestyled(at, url);
       setUndo({index: at, uri: src});
       setRestyleNote({text: t('photoViewer.restyled'), error: false});
+      triggerHaptic('success');
     } catch (e: any) {
       console.warn('[PhotoViewer] 보정 실패:', e);
       const msg = String(e?.message ?? '');
@@ -203,8 +221,10 @@ export function PhotoViewer({
         : /ADMIN_ONLY|permission/i.test(msg) ? t('photoViewer.restyleAdminOnly')
         : msg.slice(0, 80);
       setRestyleNote({text: `${t('photoViewer.restyleFailed')}${reason ? `\n${reason}` : ''}`, error: true});
+      triggerHaptic('error');
     } finally {
       setRestyling(false);
+      setRestylingIndex(null);
     }
   };
 
@@ -243,26 +263,30 @@ export function PhotoViewer({
               {photos.map((p, i) => (
                 <Pressable key={`${p.uri}-${i}`} style={[styles.page, {width: containerWidth, height: pageHeight}]} onPress={close}>
                   <View style={[styles.imageFrame, {height: pageHeight}]}>
-                    <ViewerImage uri={p.uri} width={Math.min(Math.max(containerWidth * 0.92, 280), MAX_CONTENT_WIDTH)} />
+                    <ViewerImage
+                      uri={p.uri}
+                      width={Math.min(Math.max(containerWidth * 0.92, 280), MAX_CONTENT_WIDTH)}
+                      busy={restyling && restylingIndex === i}
+                    />
                   </View>
                 </Pressable>
               ))}
             </ScrollView>
             {/* 설명 — 편집 가능하면 입력칸, 아니면 있을 때만 글자 */}
             {onCaptionChange ? (
-              <TextInput
-                style={styles.captionInput}
-                value={draft}
-                onChangeText={setDraft}
-                placeholder={t('cookingMode.captionPlaceholder')}
-                placeholderTextColor="rgba(255,255,255,0.45)"
-                multiline
-                maxLength={CAPTION_MAX}
-                onBlur={commitCaption}
-                onSubmitEditing={commitCaption}
-                returnKeyType="done"
-                blurOnSubmit
-              />
+              // 공통 입력칸 고스트 — 바탕 없이 글자만(뷰어는 다크 고정이라 다크 색)
+              <View style={styles.captionInput}>
+                <AppTextInput
+                  style="ghost"
+                  value={draft}
+                  onChangeText={setDraft}
+                  placeholder={t('cookingMode.captionPlaceholder')}
+                  multiline
+                  maxLength={CAPTION_MAX}
+                  onBlur={commitCaption}
+                  inputStyle={styles.captionInputText}
+                />
+              </View>
             ) : currentCaption.trim() ? (
               <Text style={styles.captionText}>{currentCaption}</Text>
             ) : null}
@@ -361,7 +385,7 @@ export function PhotoViewer({
               bottomAction={templateView ? undefined : (
                 <>
                   <Button label={t('photoViewer.restyleCancel')} variant="soft" onPress={() => setRestyleSheet(false)} style={{flex: 1}} />
-                  <Button label={t('photoViewer.restyleRun')} variant="filled" onPress={runRestyle} disabled={restyling} style={{flex: 1}} />
+                  <Button label={t('photoViewer.restyleRun')} variant="filled" onPress={runRestyle} disabled={restyling} style={{flex: 1}} gradientShadow icon={IconSparkleFilled} />
                 </>
               )}>
               <View style={styles.sheetBody}>
@@ -372,6 +396,7 @@ export function PhotoViewer({
                   <>
                     {/* 이번에만 더할 요청 */}
                     <AppTextInput
+                      style="tonal"
                       label={t('photoViewer.restyleExtraLabel')}
                       value={extraDraft}
                       onChangeText={setExtraDraft}
@@ -532,15 +557,11 @@ const styles = StyleSheet.create({
     maxWidth: MAX_CONTENT_WIDTH,
   },
   captionInput: {
-    ...Typography.body.medium,
-    color: '#FFFFFF',
     marginTop: Spacing.md,
     width: '92%',
     maxWidth: MAX_CONTENT_WIDTH,
     minHeight: 44,
     paddingHorizontal: Spacing.md,
-    paddingVertical: Spacing.smd,
-    borderRadius: Radius['radius-md'],
-    backgroundColor: 'rgba(255,255,255,0.12)',
   },
+  captionInputText: {textAlign: 'center'},
 });

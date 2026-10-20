@@ -1,6 +1,7 @@
-import React, {useState, useCallback, useMemo} from 'react';
+import React, {useState, useCallback, useMemo, useEffect} from 'react';
 import {saveRecipeVersion} from '@utils/recipeHistory';
 import {View, StyleSheet} from 'react-native';
+import {setAlbumScope} from '@components/AlbumPicker/albumPicker';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import {doc, getDoc, setDoc, deleteField} from 'firebase/firestore';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
@@ -42,6 +43,8 @@ export default function RecipeEditRoute() {
 
   const isMyRecipe = recipes.some(r => r.id === id);
   const isExploreTarget = target === 'explore';
+  // 사진첩은 이 레시피에서 마지막으로 연 앨범부터. 닫을 땐 비우지 않는다 — 뒤의 상세가 같은 레시피라 계속 쓴다
+  useEffect(() => { setAlbumScope(id); }, [id]);
 
   const mergedCookbookColors = useMemo(() => {
     if (!isExploreTarget) return cookbookColors;

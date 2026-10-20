@@ -3,6 +3,7 @@ import {AppState, Platform, View, StyleSheet} from 'react-native';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import {computeLockedIds, useSetExploreLock} from '@hooks/useExploreLock';
 import {duplicateRecipe} from '@utils/recipeMenuItems';
+import {setAlbumScope} from '@components/AlbumPicker/albumPicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {doc, getDoc, updateDoc, setDoc, deleteField} from 'firebase/firestore';
 import {RecipeDetailScreen} from '@screens/RecipeDetailScreen';
@@ -177,6 +178,11 @@ export default function RecipeDetailRoute() {
     return () => sub.remove();
   }, [id, isMyRecipe, isExploreRecipe, user, (recipe as any)?.updatedAt]);
   const alreadyImported = recipes.some(r => r.sourceId === id);
+  // 사진첩은 이 레시피에서 마지막으로 연 앨범부터(상세·요리모드에서 사진 넣을 때)
+  useEffect(() => {
+    setAlbumScope(id);
+    return () => setAlbumScope(undefined);
+  }, [id]);
   // 둘러보기 잠금(어드민 메뉴 표시용) — 목록과 같은 규칙, 숨김 아닌 공식 레시피 순서 기준
   const exploreLockedIds = useMemo(() => computeLockedIds(exploreRecipes.filter(r => !r.hidden)), [exploreRecipes]);
   const setExploreLock = useSetExploreLock();

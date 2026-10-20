@@ -13,14 +13,15 @@ import {useColors} from '@contexts/ThemeContext';
 import type {StepPhoto} from '../../types/recipe';
 import {PhotoCaptionArrow} from './PhotoCaptionArrow';
 import {useUploadingUri} from '@hooks/useUploadingUri';
-import {BrokenImageMark, useBrokenImage} from '@components/BrokenImage';
+import {BrokenImageMark, ImageLoadingMark, useBrokenImage} from '@components/BrokenImage';
 
 /** 썸네일 한 장 — 깨지면 가운데 느낌표 */
 function PhotoThumb({uri, side}: {uri: string; side: number}) {
-  const {broken, onError} = useBrokenImage(uri);
+  const {broken, loading, onError, onLoad} = useBrokenImage(uri);
   return (
     <View style={{width: side, height: side, borderRadius: Radius['radius-sm'], overflow: 'hidden'}}>
-      <Image source={{uri}} style={{width: side, height: side}} resizeMode="cover" onError={onError} />
+      <Image source={{uri}} style={{width: side, height: side}} resizeMode="cover" onError={onError} onLoad={onLoad} />
+      {loading ? <ImageLoadingMark /> : null}
       {broken ? <BrokenImageMark /> : null}
     </View>
   );

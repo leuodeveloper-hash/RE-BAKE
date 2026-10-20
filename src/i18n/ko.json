@@ -1224,5 +1224,6 @@
   "recipeMenuItems.duplicate": "복제",
   "recipeMenuItems.duplicateSuffix": "(복제)",
   "recipeMenuItems.duplicated": "복제했어요",
-  "recipeDetail.splitView": "나눠 보기"
+  "recipeDetail.splitView": "나눠 보기",
+  "photoViewer.restyling": "보정하는 중…"
 }

@@ -3,6 +3,8 @@ import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {TextInput} from '@components/TextInput';
 import {ListItem} from '@components/ListItem';
 import {Badge} from '@components/Badge';
+import {StepPhotos} from '@components/StepPhotos/StepPhotos';
+import type {StepPhoto} from '../../types/recipe';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
 import {triggerHaptic} from '@utils/haptics';
@@ -67,27 +69,44 @@ export function CircledNumberText({n}: {n: number}) {
  * 상세 '요약 보기' — 요약의 줄마다 ①②③(묶음을 넘어 이어진다). 요약이 빈 묶음은 묶음 이름 한 줄.
  * 묶음 타이머는 그 묶음 마지막 줄 끝에. 줄을 누르면 그 묶음 번호(index)로
  */
-export function StepSummaryList({items, onPress}: {
-  items: {title: string; summary?: string; timer?: string}[];
+export function StepSummaryList({items, onPress, onPhotoPress}: {
+  /** photos — 그 묶음 과정들에 붙은 사진(과정 순서대로). 묶음 마지막 줄 아래에 붙는다 */
+  items: {title: string; summary?: string; timer?: string; photos?: StepPhoto[]}[];
   onPress?: (groupIndex: number) => void;
+  /** 사진 누르면 — 그 묶음 사진 목록과 몇 번째인지 */
+  onPhotoPress?: (photos: StepPhoto[], index: number) => void;
 }) {
   const styles = useThemedStyles(createStyles);
-  const lines = items.flatMap((g, gi) => {
-    const ls = (g.summary ?? '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    const list = ls.length ? ls : [g.title];
-    return list.map((text, li) => ({gi, text, timer: li === list.length - 1 ? g.timer : undefined}));
-  });
+  let n = 0;
   return (
     <View style={styles.list}>
-      {lines.map((l, i) => (
-        <Pressable key={i} disabled={!onPress} onPress={() => { triggerHaptic('light'); onPress?.(l.gi); }} style={styles.line}>
-          <Text style={[styles.num, styles.numColor]}>{circledNumber(i + 1)}</Text>
-          <Text style={styles.lineText}>
-            {l.text}
-            {l.timer ? <Text style={styles.lineTimer}>{`  · ${l.timer}`}</Text> : null}
-          </Text>
-        </Pressable>
-      ))}
+      {items.map((g, gi) => {
+        const ls = (g.summary ?? '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+        const list = ls.length ? ls : [g.title];
+        return (
+          <React.Fragment key={gi}>
+            {list.map((text, li) => {
+              n += 1;
+              const timer = li === list.length - 1 ? g.timer : undefined;
+              return (
+                <Pressable key={li} disabled={!onPress} onPress={() => { triggerHaptic('light'); onPress?.(gi); }} style={styles.line}>
+                  <Text style={[styles.num, styles.numColor]}>{circledNumber(n)}</Text>
+                  <Text style={styles.lineText}>
+                    {text}
+                    {timer ? <Text style={styles.lineTimer}>{`  · ${timer}`}</Text> : null}
+                  </Text>
+                </Pressable>
+              );
+            })}
+            {/* 이 묶음 과정에 붙은 사진 — 과정 순서대로, 번호 글과 줄을 맞춰 */}
+            {g.photos?.length ? (
+              <View style={styles.photos}>
+                <StepPhotos photos={g.photos} mode="view" paddingTop={false} onPhotoPress={onPhotoPress ? i => onPhotoPress(g.photos!, i) : undefined} />
+              </View>
+            ) : null}
+          </React.Fragment>
+        );
+      })}
     </View>
   );
 }
@@ -111,4 +130,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   numColor: {color: colors['foreground/on-surface-muted']},
   lineText: {flex: 1, ...stepLineText(colors)},
   lineTimer: {color: colors['foreground/on-surface-muted']},
+  // 번호 폭만큼 들여 글 시작과 맞춘다
+  photos: {paddingLeft: Spacing.lg + Spacing.xs},
 });

@@ -1239,5 +1239,6 @@
   "recipeMenuItems.duplicate": "Duplicate",
   "recipeMenuItems.duplicateSuffix": "(copy)",
   "recipeMenuItems.duplicated": "Duplicated",
-  "recipeDetail.splitView": "Split view"
+  "recipeDetail.splitView": "Split view",
+  "photoViewer.restyling": "Restyling…"
 }

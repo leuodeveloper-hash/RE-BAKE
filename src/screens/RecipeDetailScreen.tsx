@@ -55,7 +55,7 @@ import {ReviewLogSheet} from '@components/BottomSheet';
 import {Thumbnail} from '@components/Thumbnail';
 import {StepPhotos} from '@components/StepPhotos';
 import {PhotoViewer} from '@components/PhotoViewer';
-import {BrokenImageMark, useBrokenImage} from '@components/BrokenImage';
+import {BrokenImageMark, ImageLoadingMark, useBrokenImage} from '@components/BrokenImage';
 import {formatTemp, useTempUnit} from '@utils/temperature';
 import * as ImagePicker from 'expo-image-picker';
 import {ensureImagePermission} from '@utils/imagePermission';
@@ -1123,7 +1123,10 @@ export function RecipeDetailScreen({
                 cachePolicy="memory-disk"
                 transition={200}
                 onError={heroBroken.onError}
+                onLoad={heroBroken.onLoad}
               />
+              {/* 불러오는 중 */}
+              {heroBroken.loading ? <View pointerEvents="none" style={[styles.heroImage, heroFrame]}><ImageLoadingMark /></View> : null}
               {/* 깨진 사진 — 가운데 느낌표 */}
               {heroBroken.broken ? <View pointerEvents="none" style={[styles.heroImage, heroFrame]}><BrokenImageMark size={64} /></View> : null}
               {/* 길게 누르면 전체보기 — 스텝 사진과 같은 뷰어.
@@ -1486,8 +1489,12 @@ export function RecipeDetailScreen({
               <Card>
                 <ListItem showDivider={false} onLongPress={onEdit ? () => editWith('steps') : undefined}>
                   <StepSummaryList
-                    items={(stepGroups ?? []).map(g => ({title: g.title, summary: g.summary, timer: stepGroups!.length > 1 ? g.timer : undefined}))}
+                    items={(stepGroups ?? []).map(g => ({
+                      title: g.title, summary: g.summary, timer: stepGroups!.length > 1 ? g.timer : undefined,
+                      photos: g.steps.flatMap(st => normalizeStepPhotos(st.photos)),
+                    }))}
                     onPress={() => toggleSummaryView(false)}
+                    onPhotoPress={(photos, i) => openPhotoViewer(photos, i)}
                   />
                 </ListItem>
               </Card>

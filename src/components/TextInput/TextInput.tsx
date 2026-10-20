@@ -29,7 +29,8 @@ export interface TextInputProps extends Omit<RNTextInputProps, 'style'> {
   supportingText?: string;
   leadingIcon?: React.ReactNode;
   trailingIcon?: React.ReactNode;
-  style?: 'outlined' | 'ghost';
+  /** outlined: 기본 칸 · ghost: 바탕 없이 글자만 · tonal: 옅은 채움(fill/faint, 버튼 tonal과 같은 색) */
+  style?: 'outlined' | 'ghost' | 'tonal';
   size?: 'medium' | 'small';
   multiline?: boolean;
   /** 컬러 배리언트 (yellow: 조언 등 옐로우 카드 내부용) */
@@ -76,6 +77,7 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
     value, onChangeText, onSelectionChange, onBlur,
   );
   const isGhost = style === 'ghost';
+  const isTonal = style === 'tonal';
   const isSmall = size === 'small';
   const isYellow = variant === 'yellow';
   // 외부 ref와 내부 ref를 함께 채운다
@@ -138,6 +140,7 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
         style={[
           isGhost ? styles.inputContainerGhost : styles.inputContainer,
           !isGhost && isSmall && styles.inputContainerSmall,
+          isTonal && styles.inputContainerTonal,
           error && styles.inputContainerError,
         ]}>
         {leadingIcon && (
@@ -193,6 +196,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   inputContainerSmall: {
     minHeight: 40,
     paddingHorizontal: Spacing.smd,
+  },
+  inputContainerTonal: {
+    backgroundColor: colors['fill/faint'],
   },
   inputContainerGhost: {
     flexDirection: 'row',

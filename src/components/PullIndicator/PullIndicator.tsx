@@ -1,4 +1,4 @@
-import React, {useCallback, useRef, useState} from 'react';
+import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {Animated, Easing, NativeScrollEvent, NativeSyntheticEvent, StyleSheet, View} from 'react-native';
 import Svg, {Path} from 'react-native-svg';
 import * as Haptics from 'expo-haptics';
@@ -173,10 +173,24 @@ export function PullIndicator({progress, isRefreshing = false, refreshStripProgr
         transform: [{scale: isRefreshing ? 1 : 0.2 + progress * 0.8}],
       }]}
     >
+      <CrayonLogo progress={displayProgress} />
+    </View>
+  );
+}
+
+/**
+ * 로고를 크레파스로 칠하는 그림 — progress 0~1만큼 줄마다 칠해진다.
+ * 당겨서 새로고침과 로딩 표시(LoadingLogo)가 같은 그림을 쓴다.
+ */
+export function CrayonLogo({progress, color}: {progress: number; color?: string}) {
+  const colors = useColors();
+  const ink = color ?? (colors['foreground/on-surface-muted'] as string);
+  const displayProgress = progress;
+  return (
       <View style={styles.logoWrapper}>
         {/* 고스트 (연한 실루엣) */}
         <Svg width={LOGO_SIZE} height={LOGO_SIZE} viewBox="0 0 36 36" style={{position: 'absolute'}}>
-          <Path d={LOGO_PATH_D} fill={colors['foreground/on-surface-muted']} fillOpacity={0.1} />
+          <Path d={LOGO_PATH_D} fill={ink} fillOpacity={0.1} />
         </Svg>
         {/* 크레파스 스트립 마스크 */}
         {Array.from({length: STRIP_COUNT}, (_, i) => {
@@ -211,7 +225,7 @@ export function PullIndicator({progress, isRefreshing = false, refreshStripProgr
                   transform: [{translateX: counterDiag}],
                 }}>
                   <Svg width={LOGO_SIZE} height={LOGO_SIZE} viewBox="0 0 36 36">
-                    <Path d={LOGO_PATH_D} fill={colors['foreground/on-surface-muted']} />
+                    <Path d={LOGO_PATH_D} fill={ink} />
                   </Svg>
                 </View>
               </View>
@@ -219,8 +233,25 @@ export function PullIndicator({progress, isRefreshing = false, refreshStripProgr
           );
         })}
       </View>
-    </View>
   );
+}
+
+/** 로딩 — 크레파스 로고가 되풀이해 칠해진다(당겨서 새로고침과 같은 모양) */
+export function LoadingLogo({color}: {color?: string}) {
+  const [p, setP] = useState(0);
+  useEffect(() => {
+    let raf = 0;
+    const start = Date.now();
+    const tick = () => {
+      // 칠하기(DRAW_DURATION) + 다 칠한 채 잠깐 쉬기
+      const t = ((Date.now() - start) % (DRAW_DURATION + 300)) / DRAW_DURATION;
+      setP(Math.min(1, t));
+      raf = requestAnimationFrame(tick);
+    };
+    raf = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return <CrayonLogo progress={p} color={color} />;
 }
 
 const styles = StyleSheet.create({

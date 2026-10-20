@@ -1,1 +1,1 @@
-export {BrokenImageMark, useBrokenImage} from './BrokenImage';
+export {BrokenImageMark, ImageLoadingMark, useBrokenImage} from './BrokenImage';

@@ -2,6 +2,7 @@ import {LinearGradient} from 'expo-linear-gradient';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
   Animated,
+  Easing,
   GestureResponderEvent,
   Keyboard,
   Modal,
@@ -210,7 +211,9 @@ export function BottomSheet({
     const targetY = contentHeight.current || windowHeight;
     const closeAnims = animationType === 'fade'
       ? [
-          Animated.timing(sheetOpacity, {toValue: 0, duration: 180, useNativeDriver: true}),
+          // 닫힘 — 살짝 내려가며 사라진다(열림과 같은 거리)
+          Animated.timing(sheetOpacity, {toValue: 0, duration: 180, easing: Easing.in(Easing.quad), useNativeDriver: true}),
+          Animated.timing(translateY, {toValue: FADE_RISE, duration: 180, easing: Easing.in(Easing.quad), useNativeDriver: true}),
           Animated.timing(backdropOpacity, {toValue: 0, duration: 180, useNativeDriver: true}),
         ]
       : [
@@ -242,12 +245,13 @@ export function BottomSheet({
       setMounted(true);
       backdropOpacity.setValue(0);
       if (animationType === 'fade') {
-        // 같은 자리에서 페이드인 (슬라이드 없음)
-        translateY.setValue(0);
+        // 페이드인 + 살짝 떠오르기(16) — 투명도만 바뀌면 툭 나타나 덜컥거렸다. 아래에서 길게 미끄러지진 않는다
+        translateY.setValue(FADE_RISE);
         sheetOpacity.setValue(0);
         requestAnimationFrame(() => {
           Animated.parallel([
-            Animated.timing(sheetOpacity, {toValue: 1, duration: 200, useNativeDriver: true}),
+            Animated.timing(sheetOpacity, {toValue: 1, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true}),
+            Animated.spring(translateY, {toValue: 0, ...ANIMATION_CONFIG.spring}),
             Animated.timing(backdropOpacity, {toValue: 1, ...ANIMATION_CONFIG.timing}),
           ]).start();
         });
@@ -489,6 +493,9 @@ export function BottomSheet({
     </Modal>
   );
 }
+
+/** 페이드 시트가 떠오르는 거리 */
+const FADE_RISE = 16;
 
 /** 시트 최대 폭 */
 export const SHEET_MAX_WIDTH = 478;
