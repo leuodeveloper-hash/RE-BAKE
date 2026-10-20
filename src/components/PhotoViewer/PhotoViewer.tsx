@@ -385,7 +385,7 @@ export function PhotoViewer({
               bottomAction={templateView ? undefined : (
                 <>
                   <Button label={t('photoViewer.restyleCancel')} variant="soft" onPress={() => setRestyleSheet(false)} style={{flex: 1}} />
-                  <Button label={t('photoViewer.restyleRun')} variant="filled" onPress={runRestyle} disabled={restyling} style={{flex: 1}} gradientShadow icon={IconSparkleFilled} />
+                  <Button label={t('photoViewer.restyleRun')} variant="filled" onPress={runRestyle} disabled={restyling} style={{flex: 1}} icon={IconSparkleFilled} />
                 </>
               )}>
               <View style={styles.sheetBody}>
@@ -481,6 +481,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: 2,
+    // 입력칸 라벨('추가 요청')과 같은 왼쪽 선 — 공통 TextInput 라벨 들여쓰기와 같은 값
+    paddingHorizontal: Spacing.sm,
   },
   extraInput: {
     ...Typography.body.medium,
