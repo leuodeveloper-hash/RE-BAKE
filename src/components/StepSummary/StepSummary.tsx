@@ -16,8 +16,6 @@ import {Typography} from '@constants/typography';
 import {circledNumber} from '@utils/stepSummary';
 export {circledNumber};
 
-/** 동그라미 번호 + 띄어쓰기 폭 — 번호 아래 팁·주의·사진을 글 시작 위치에 맞춰 들인다 */
-export const STEP_NUMBER_INDENT = 20;
 
 /**
  * 편집 화면 — 과정 묶음 맨 위 요약 줄. 과정 줄과 같은 공통 줄(ListItem)·같은 입력 서체,
@@ -133,6 +131,5 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   numColor: {color: colors['foreground/on-surface-muted']},
   lineText: {flex: 1, ...stepLineText(colors)},
   lineTimer: {color: colors['foreground/on-surface-muted']},
-  // 번호 폭만큼 들여 글 시작과 맞춘다
-  photos: {paddingLeft: STEP_NUMBER_INDENT},
+  photos: {},
 });

@@ -13,7 +13,7 @@ import {useFloatingNotice} from '@contexts/FloatingNoticeContext';
 import {useRouter} from 'expo-router';
 import {goToRetrospective} from '@utils/navigation';
 import {LazyMount} from '@components/LazyMount';
-import {StepSummaryList, CircledNumberText, stepLineText, STEP_NUMBER_INDENT} from '@components/StepSummary';
+import {StepSummaryList, CircledNumberText, stepLineText} from '@components/StepSummary';
 import {insertLockItems, isLockMenuId} from '@hooks/useExploreLock';
 import {APPBAR_ITEM_GAP} from '@constants/layout';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
@@ -779,9 +779,10 @@ export function RecipeDetailScreen({
   const computedGroups = useMemo(() => computeBakersPercentages(ingredientGroups), [ingredientGroups]);
   // 한번에 보기 — 재료·과정을 줄 목록 대신 글 한 덩어리로. 처음은 한번에 보기, 그다음은 마지막에 본 보기로.
   // 저장 키를 새로 — 예전에 한 번 꺼 둔 기기도 한번에 보기부터 시작한다
-  const [bulkView, setBulkView] = useState(true);
+  // 기본은 나눠 보기 켜짐(과정마다 카드). 마지막에 고른 보기를 기억한다
+  const [bulkView, setBulkView] = useState(false);
   useEffect(() => {
-    AsyncStorage.getItem(BULK_VIEW_KEY).then(v => { if (v === '0') setBulkView(false); }).catch(() => {});
+    AsyncStorage.getItem(BULK_VIEW_KEY).then(v => { if (v === '1') setBulkView(true); }).catch(() => {});
   }, []);
   // 편집으로 — 한번에 보기 중이면 편집도 한번에 쓰기로
   const editWith = (section?: string) => onEdit?.(section, {bulk: bulkView});
@@ -2194,7 +2195,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   bulkNotesLast: {marginBottom: Spacing.sm},
   // 글·팁·주의 바로 아래 8에 붙인다(예전엔 20 가까이 떨어져 있었다)
   bulkPhotos: {
-    marginLeft: STEP_NUMBER_INDENT,
     marginTop: Spacing.sm,
   },
   // 사진이 붙은 과정 아래 — 다음 과정과 16
@@ -2202,8 +2202,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     marginBottom: Spacing.md,
   },
   bulkNotes: {
-    // 과정 글 시작(번호 다음)에 맞춰 들인다
-    marginLeft: STEP_NUMBER_INDENT,
     marginTop: Spacing.xs,
     gap: Spacing.xs,
   },

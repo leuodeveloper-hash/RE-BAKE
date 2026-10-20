@@ -1,6 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, {useEffect, useMemo, useState} from 'react';
-import {ScrollView, StyleSheet, View} from 'react-native';
+import {StyleSheet, View} from 'react-native';
 import {IconButton} from '@components/IconButton';
 import {ListItem} from '@components/ListItem';
 import {IconAdd, IconClose, IconBookFilled, IconExprolerBookFilled} from '@components/Icon/IconIndex';
@@ -96,6 +96,8 @@ export function LinkInputDialog({
     <Dialog
       // 입력 팝업 — 통합 검색처럼 위쪽에(키보드에 안 가리게)
       position="top"
+      // 내용이 길면(팁 고르기 목록) 팝업 안에서 스크롤 — 키보드가 올라와 남은 높이만큼만 차지한다
+      scrollMaxHeight={10000}
       visible={visible}
       onClose={onClose}
       icon={IconLink}
@@ -149,7 +151,8 @@ export function LinkInputDialog({
               clearable
               autoFocus
             />
-            <ScrollView style={styles.pickerList} keyboardShouldPersistTaps="handled" nestedScrollEnabled>
+            {/* 목록은 팝업 스크롤 하나로 — 안쪽에 스크롤을 또 두면 아이폰에서 잘 안 밀렸다 */}
+            <View>
               {candidates.map(({recipe, official}, i) => (
                 <ListItem
                   key={`${official ? 'e' : 'm'}-${recipe.id}`}
@@ -159,7 +162,7 @@ export function LinkInputDialog({
                   onPress={() => pickRecipe(recipe.id, recipe.title)}
                 />
               ))}
-            </ScrollView>
+            </View>
           </View>
         )}
       </View>
@@ -181,9 +184,6 @@ const createStyles = (_colors: SemanticColors) => StyleSheet.create({
   },
   picker: {
     gap: Spacing.sm,
-  },
-  pickerList: {
-    maxHeight: 240,
   },
 });
 

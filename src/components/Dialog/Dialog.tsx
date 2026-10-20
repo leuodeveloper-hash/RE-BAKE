@@ -24,6 +24,7 @@ import {SheetHeader} from '@components/BottomSheet/SheetHeader';
 import {EdgeFade} from '@components/Container/ContentMask';
 import {BlurView} from 'expo-blur';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
+import {useKeyboardHeight} from '@hooks/useKeyboardHeight';
 import {APPBAR_TOP_PADDING} from '@components/Navigation';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
@@ -103,6 +104,7 @@ export function Dialog({
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const {height: windowHeight} = useWindowDimensions();
+  const keyboardHeight = useKeyboardHeight();
   const backdropOpacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.95)).current;
   const contentOpacity = useRef(new Animated.Value(0)).current;
@@ -192,7 +194,8 @@ export function Dialog({
         style={[
           styles.card,
           // 화면 안 — 위아래 안전영역(상태바·홈 인디케이터)을 빼고. 넘치면 내용만 스크롤(헤더·버튼은 고정)
-          {maxHeight: Math.min(windowHeight * 0.85, windowHeight - insets.top - insets.bottom - Spacing.lg * 2)},
+          // 키보드가 올라오면 그만큼 줄인다 — 팝업이 키보드 뒤로 밀려 안 보이고 스크롤도 안 됐다(내용 칸이 줄며 스크롤)
+          {maxHeight: Math.min(windowHeight * 0.85, windowHeight - insets.top - insets.bottom - Spacing.lg * 2 - keyboardHeight - (position === 'top' ? APPBAR_TOP_PADDING : 0))},
           width != null && {width},
           surface === 'dim' && {backgroundColor: colors['surface/dim']},
           {
@@ -238,7 +241,7 @@ export function Dialog({
           // 스크롤 내용 — 위아래 가림 그라디언트는 팝업 바탕색으로
           // flexShrink — 화면이 낮으면 이 칸만 줄어 헤더·버튼은 늘 보인다(바텀시트와 같은 구조)
           <View style={[effectiveHeaderType === 'center' && styles.contentCompact, {maxHeight: scrollMaxHeight, flexShrink: 1}]}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scrollContent} keyboardShouldPersistTaps="handled">
               {children}
             </ScrollView>
             <EdgeFade position="top" height={Spacing.md} color={(surface === 'dim' ? colors['surface/dim'] : colors['surface/bright']) as string} />
