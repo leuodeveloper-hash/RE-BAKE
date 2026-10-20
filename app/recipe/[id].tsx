@@ -1,6 +1,8 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {AppState, Platform, View, StyleSheet} from 'react-native';
 import {useLocalSearchParams, useRouter} from 'expo-router';
+import {computeLockedIds, useSetExploreLock} from '@hooks/useExploreLock';
+import {duplicateRecipe} from '@utils/recipeMenuItems';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {doc, getDoc, updateDoc, setDoc, deleteField} from 'firebase/firestore';
 import {RecipeDetailScreen} from '@screens/RecipeDetailScreen';
@@ -39,7 +41,7 @@ import {useAuthSheet} from '@contexts/AuthSheetContext';
 import {useTranslation} from '@contexts/LanguageContext';
 
 export default function RecipeDetailRoute() {
-  const {id: routeId, from, locked: lockedParam, cooking: cookingParam} = useLocalSearchParams<{id: string; from?: string; locked?: string; cooking?: string}>();
+  const {id: routeId, from, locked: lockedParam, cooking: cookingParam, menu: menuParam} = useLocalSearchParams<{id: string; from?: string; locked?: string; cooking?: string; menu?: string}>();
   // 회차 전환은 화면 이동 없이 제자리(setId)로 → RulerSlider 리마운트 없이 플립 유지
   const [id, setId] = useState(routeId);
   const router = useRouter();
@@ -147,6 +149,8 @@ export default function RecipeDetailRoute() {
     return {ownForPin: undefined, exploreIdForPin: undefined};
   }, [recipe, isMyRecipe, isExploreRecipe, exploreRecipes, recipes, myAuthorKeyForPin, id]);
   const canPin = !!ownForPin || !!exploreIdForPin;
+  // 이미 둘러보기에 있는 내 레시피 — 가져온 것(sourceId) 또는 공개한 것
+  const inExplore = isMyRecipe && (!!recipe?.sourceId || !!exploreIdForPin);
   const isPinned = !!ownForPin?.pinnedAt || (!!exploreIdForPin && !!explorePins[exploreIdForPin]);
   const handlePinChange = useCallback((pinned: boolean) => {
     if (ownForPin) {
@@ -173,6 +177,9 @@ export default function RecipeDetailRoute() {
     return () => sub.remove();
   }, [id, isMyRecipe, isExploreRecipe, user, (recipe as any)?.updatedAt]);
   const alreadyImported = recipes.some(r => r.sourceId === id);
+  // 둘러보기 잠금(어드민 메뉴 표시용) — 목록과 같은 규칙, 숨김 아닌 공식 레시피 순서 기준
+  const exploreLockedIds = useMemo(() => computeLockedIds(exploreRecipes.filter(r => !r.hidden)), [exploreRecipes]);
+  const setExploreLock = useSetExploreLock();
 
   const exploreCookbookColorMap = useMemo(() => {
     const map = new Map<string, string>();
@@ -644,9 +651,18 @@ const handleDelete = useCallback(async () => {
         updateAvailable={updateAvailable}
         onDownloadPhoto={handleDownloadPhoto}
         onDelete={canDelete ? handleDelete : undefined}
+        initialMenuAction={menuParam}
+        onDuplicate={isMyRecipe && recipe ? () => {
+          const copy = duplicateRecipe(recipe, t('recipeMenuItems.duplicateSuffix'));
+          setRecipes(prev => [copy, ...prev]);
+          showSnackbar(t('recipeMenuItems.duplicated'), {tone: 'positive'});
+          router.replace(`/recipe/${copy.id}` as any);
+        } : undefined}
+        // 어드민 — 둘러보기 레시피 잠금(목록 ⋮와 같은 항목)
+        lockMenu={isExploreRecipe && isAdmin && recipe ? {lockMode: recipe.lockMode, locked: exploreLockedIds.has(recipe.id), onSelect: mid => setExploreLock(mid, recipe.id)} : undefined}
         onDeleteSession={isMyRecipe && (recipe?.sessions?.length ?? 0) > 0 ? handleDeleteSession : undefined}
         onRemake={isMyRecipe && recipe?.kind !== 'tip' && !viewedSession ? handleRemake : undefined}
-        onImport={!isMyRecipe && !alreadyImported ? handleImport : undefined}
+        onImport={!isMyRecipe ? handleImport : undefined}
         onCookbookChange={isMyRecipe ? handleCookbookChange : undefined}
         availableCookbooks={availableCookbooks}
         cookbookColors={cookbookColors}
@@ -761,8 +777,9 @@ const handleDelete = useCallback(async () => {
         recipeItems={recipeItems}
         currentRecipeId={id}
         onRecipeSelect={handleRecipeSwitch}
-        onCopyToExplore={isMyRecipe && isAdmin ? () => setShowExploreCookbookSheet(true) : undefined}
-        onSubmitToExplore={isMyRecipe && !isAdmin && user ? runSubmitToExplore : undefined}
+        // 둘러보기에서 가져왔거나 이미 공개한 레시피는 다시 올리지 않는다(목록 ⋮와 같은 규칙)
+        onCopyToExplore={isMyRecipe && isAdmin && !inExplore ? () => setShowExploreCookbookSheet(true) : undefined}
+        onSubmitToExplore={isMyRecipe && !isAdmin && user && !inExplore ? runSubmitToExplore : undefined}
         showDeleteConfirm={isMyRecipe || (isExploreRecipe && isAdmin)}
         // 내 레시피도 카드로 공유(이미지) — 링크는 공개 레시피만
         onShare={recipe?.kind !== 'tip' || isExploreRecipe ? handleShare : undefined}

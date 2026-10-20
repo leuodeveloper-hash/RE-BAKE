@@ -837,7 +837,7 @@
   "recipeEdit.addGroup": "묶음 추가",
   "recipeEdit.addGroupAbove": "위에 그룹 추가",
   "recipeEdit.addItem": "갈래 추가",
-  "recipeEdit.addPhoto": "사진 더 넣기",
+  "recipeEdit.addPhoto": "사진 추가",
   "recipeEdit.addStepAbove": "위에 추가",
   "recipeEdit.addStepBelow": "아래에 추가",
   "recipeEdit.bakeyAdvice": "베이키의 조언",
@@ -1215,5 +1215,14 @@
   "widgetConfig.done": "완료",
   "recipeDetail.deleteSessionMenu": "{{session}}회차 삭제",
   "stampDetail.editReview": "회고 수정",
-  "update.noticeLabel": "새 버전 업데이트"
+  "update.noticeLabel": "새 버전 업데이트",
+  "stepSummary.label": "요약",
+  "stepSummary.placeholder": "이 묶음을 한 줄로 (예: 픽업 - 클린업 - 발전)",
+  "stepSummary.stale": "확인",
+  "stepSummary.view": "요약",
+  "stepSummary.title": "요약",
+  "recipeMenuItems.duplicate": "복제",
+  "recipeMenuItems.duplicateSuffix": "(복제)",
+  "recipeMenuItems.duplicated": "복제했어요",
+  "recipeDetail.splitView": "나눠 보기"
 }

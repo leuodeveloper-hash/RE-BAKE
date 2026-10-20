@@ -10,6 +10,9 @@ import {NavPillButton} from '@components/Navigation';
 import {NAV_PILL_HEIGHT} from '@constants/layout';
 import {View} from 'react-native';
 import type {MenuItemData} from '@components/Menu';
+import {recipeMenuFor} from '@utils/recipeMenuItems';
+import {useAuth} from '@contexts/AuthContext';
+import {useMadeStamps} from '@hooks/useMadeStamps';
 import {computeLockedIds, insertLockItems, isLockMenuId, useSetExploreLock} from '@hooks/useExploreLock';
 import {ShareRecipeSheet} from '@components/BottomSheet/ShareRecipeSheet';
 import React, {useCallback, useMemo, useState} from 'react';
@@ -57,13 +60,6 @@ const makeExploreAxisOverrides = (t: (key: string) => string): AxisOverrides => 
 
 /** 무료로 볼 수 있는 둘러보기 레시피 수 — 정책 단일 출처는 @constants/entitlements */
 
-// 둘러보기에선 "만들었어요"를 두지 않는다 — 가져와야 요리할 수 있고,
-// 스탬프는 내 레시피에만 찍힌다(가져온 뒤 sourceId로 원본 칸이 채워진다).
-const makeBaseCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string, isPinned: boolean) =>
-  getRecipeMenuItems({t, showPin: true, isPinned, showImport: true, showShare: true});
-const makeAdminCardMenuItems = (t: (key: string, params?: Record<string, unknown>) => string, isPinned: boolean) =>
-  getRecipeMenuItems({t, showPin: true, isPinned, showImport: true, showEdit: true, showShare: true, showDelete: true});
-
 export interface ExploreScreenProps {
   /** 게스트 랜딩 카드 — 팩 보기 한가운데 */
   guestHero?: React.ReactNode;
@@ -101,6 +97,7 @@ export function ExploreScreen({
   loading = false,
   isAdmin = false,
   isOnline = true,
+  myRecipeIds = [],
   onImportRecipe,
   onRecipePress,
   onEditRecipe,
@@ -120,6 +117,8 @@ export function ExploreScreen({
   const router = useRouter();
   const {showSnackbar} = useSnackbar();
   const {pins: explorePins, togglePin, isPinned} = useExplorePins();
+  const {user} = useAuth();
+  const {madeAtOf} = useMadeStamps();
   const EXPLORE_AXIS_OVERRIDES = useMemo(() => makeExploreAxisOverrides(t), [t]);
   const {selectedExploreCookbook, setSelectedExploreCookbook} = useRecipes();
   // 홈과 동일한 그룹화 축 (전체/레시피북/공법). 'all'=평면 리스트, 그 외=GroupScreen.
@@ -218,10 +217,15 @@ export function ExploreScreen({
 
   // 핀 상태가 레시피마다 달라 함수 형태로 넘긴다(고정/해제 라벨이 바뀐다)
   const cardMenuItems = useCallback(
-    (recipe: Recipe) => isAdmin
-      ? insertLockItems(makeAdminCardMenuItems(t, isPinned(recipe.id)), recipe.lockMode, !!lockedRecipeIds?.has(recipe.id), t)
-      : makeBaseCardMenuItems(t, isPinned(recipe.id)),
-    [isAdmin, t, isPinned, lockedRecipeIds],
+    (recipe: Recipe) => {
+      // 상세 ⋮와 같은 규칙(recipeMenuFor) + 어드민 잠금
+      const items = recipeMenuFor({
+        t, mine: false, explore: true, isAdmin, signedIn: !!user, isTip: recipe.kind === 'tip',
+        isPinned: isPinned(recipe.id), isMade: !!madeAtOf(recipe), alreadyImported: myRecipeIds.includes(recipe.id),
+      });
+      return isAdmin ? insertLockItems(items, recipe.lockMode, !!lockedRecipeIds?.has(recipe.id), t) : items;
+    },
+    [isAdmin, t, isPinned, lockedRecipeIds, user, madeAtOf, myRecipeIds],
   );
 
   const handleRecipePress = useCallback((recipe: Recipe) => {
@@ -292,7 +296,8 @@ export function ExploreScreen({
     } else if (id === 'delete' && onDeleteRecipe) {
       setDeleteTarget(recipe);
     } else {
-      onComingSoon();
+      // 목록에서 바로 못 하는 항목(만들었어요·의견 보내기 등)은 상세를 열어 같은 동작
+      router.push(`/recipe/${recipe.id}?from=explore&menu=${id}` as any);
     }
   }, [onImportRecipe, onEditRecipe, onDeleteRecipe, onComingSoon, togglePin, showSnackbar, t, setExploreLock]);
 

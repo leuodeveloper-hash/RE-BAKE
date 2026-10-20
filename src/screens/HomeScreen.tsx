@@ -55,6 +55,7 @@ import {sendAppInquiry} from '@utils/appInquiry';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import {DEFAULT_AXES} from '@components/RecipeGroups/groupAxis';
 import {ShareRecipeSheet} from '@components/BottomSheet/ShareRecipeSheet';
+import {recipeMenuFor, duplicateRecipe} from '@utils/recipeMenuItems';
 import {computeLockedIds, insertLockItems, isLockMenuId, useSetExploreLock} from '@hooks/useExploreLock';
 import {
   IconTrash,
@@ -72,19 +73,6 @@ const makeMoreMenuItems = (t: (key: string) => string) => [
   {id: 'downloadAll', label: t('home.downloadPdf'), icon: IconArrowDownToLine},
   {id: 'deleteAll', label: t('home.deleteAll'), icon: IconTrash, destructive: true},
 ];
-
-const getDefaultCardMenuItems = (recipe: Recipe, t: (key: string, params?: Record<string, unknown>) => string, isMadeOf: (r: Recipe) => boolean) =>
-  getRecipeMenuItems({
-    t,
-    session: `${currentSessionNumber(recipe)}회차`,
-    showPin: true,
-    isPinned: !!recipe.pinnedAt,
-    // 상세 오버플로우와 같은 항목 — 팁은 만드는 게 아니라 읽는 정보라 만들었어요·새 회차가 빠진다
-    showMade: recipe.kind !== 'tip',
-    isMade: isMadeOf(recipe),
-    showRemake: recipe.kind !== 'tip', showEdit: true, showDelete: true, showCookbook: true,
-    showShare: true,
-  });
 
 export interface HomeScreenProps {
   /** 작성자 홈 모드: 이 authorId로 필터된 둘러보기 레시피를 표시(내 레시피 대신) */
@@ -506,6 +494,11 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
       if (pub) setExploreLock(id, pub.id);
       return;
     }
+    // 작성자 홈 카드는 둘러보기 레시피 — 공유·PDF 말고는 상세에서(핀·편집·삭제가 내 레시피 규칙과 다르다)
+    if (isAuthorMode && id !== 'share' && id !== 'download') {
+      router.push(`/recipe/${recipe.id}?from=explore&menu=${id}` as any);
+      return;
+    }
     if (id === 'pin' || id === 'unpin') {
       // pinnedAt에 시각을 남긴다 — 여러 개를 고정했을 때 핀한 순서대로 위에 쌓인다
       const pinnedAt = id === 'pin' ? new Date().toISOString() : undefined;
@@ -514,6 +507,11 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
       const pubId = exploreIdOf.get(recipe.id);
       if (pubId) setExplorePin(pubId, id === 'pin');
       showSnackbar(t(id === 'pin' ? 'home.pinned' : 'home.unpinned'), {tone: 'positive'});
+      return;
+    }
+    if (id === 'duplicate') {
+      setRecipes(prev => [duplicateRecipe(recipe, t('recipeMenuItems.duplicateSuffix')), ...prev]);
+      showSnackbar(t('recipeMenuItems.duplicated'), {tone: 'positive'});
       return;
     }
     if (id === 'unmade') {
@@ -572,6 +570,9 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
         stepGroups: recipe.stepGroups,
       });
       setShowPdfPreview(true);
+    } else {
+      // 목록에서 바로 못 하는 항목(의견 보내기·둘러보기 공개 등)은 상세를 열어 같은 동작을 한다
+      router.push(`/recipe/${recipe.id}?menu=${id}` as any);
     }
   }, [router, setRecipes, showSnackbar, canAddRecipe, t, isGuest, openAuthSheet, exploreIdOf, setExplorePin, exploreRecipeOf, setExploreLock]);
 
@@ -837,7 +838,15 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
       } : undefined}
       onRecipePress={(item) => router.push((isAuthorMode && isFreeUser && lockedRecipeIds?.has(item.id) ? `/recipe/${item.id}?from=explore&locked=1` : `/recipe/${item.id}`) as any)}
       cardMenuItems={(recipe) => {
-        const items = getDefaultCardMenuItems(recipe, t, r => !!madeAtOf(r));
+        // 상세 ⋮와 같은 규칙(recipeMenuFor) — 작성자 홈 카드는 둘러보기 레시피
+        const items = recipeMenuFor({
+          t, mine: !isAuthorMode, explore: isAuthorMode, isAdmin, signedIn: !!user,
+          isTip: recipe.kind === 'tip', session: `${currentSessionNumber(recipe)}회차`,
+          isPinned: !!recipe.pinnedAt, isMade: !!madeAtOf(recipe),
+          alreadyImported: myRecipes.some(r => r.sourceId === recipe.id),
+          // 둘러보기에서 가져왔거나 이미 공개한 레시피는 다시 둘러보기에 올리지 않는다
+          inExplore: !!recipe.sourceId || publishedIds.has(recipe.id),
+        });
         const pub = isAdmin ? exploreRecipeOf(recipe) : undefined;
         return pub ? insertLockItems(items, pub.lockMode, !!lockedRecipeIds?.has(recipe.id), t) : items;
       }}

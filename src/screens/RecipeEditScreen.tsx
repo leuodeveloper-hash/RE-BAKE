@@ -81,6 +81,9 @@ import {useYouTubePlayer} from '@contexts/YouTubePlayerContext';
 import {parseYouTubeVideoId} from '@utils/youtube';
 import {triggerHaptic} from '@utils/haptics';
 import {StepTimer} from '@components/StepTimer';
+import {stepsSignature, isSummaryStale} from '@utils/stepSummary';
+import type {StepGroup as SavedStepGroup} from '../types/recipe';
+import {StepSummaryInput} from '@components/StepSummary';
 import {parseRecipeMarkdown, parseBulkIngredientGroups, parseBulkStepGroups, parseBulkToolGroups, toolGroupsToBulk, ingredientGroupsToBulk, stepGroupsToBulk, recipeToMarkdown} from '@utils/recipeMarkdown';
 import {
   bulkTextToIngredients,
@@ -115,6 +118,7 @@ import {
   IconScanText,
   IconSparkleFilled,
   IconEllipsisVertical,
+  IconGalleryHorizontalFilled,
   IconPhoto,
   IconClockFilled,
   IconUsersRoundFilled, IconDoughTempFilled, IconSplitFilled, IconSplitTwotone, IconDoughTempTwotone,
@@ -480,6 +484,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         id: genId(),
         title: g.title,
         timer: g.timer,
+        summary: g.summary,
+        summarySig: g.summarySig,
         steps: g.steps.map(s => ({
           id: genId(),
           description: s.description,
@@ -682,9 +688,38 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         ingredients: x.ingredients.map(i => ({name: i.name, amount: i.amount ?? ''})),
       }))
     : [{title: g.title, ingredients: resolveGroupIngredients(g)}]);
-  const resolveStepGroups = () => stepGroups.flatMap(g => g.bulkMode
+  // 한번에 쓰기 중엔 묶음이 글로 합쳐진다 — 요약은 묶음 이름으로 찾아 되살린다
+  const summaryByTitle = useRef(new Map<string, {summary?: string; summarySig?: string}>(
+    (recipe?.stepGroups ?? []).filter(g => g.summary).map(g => [g.title, {summary: g.summary, summarySig: g.summarySig}]),
+  ));
+  const summaryOf = (title: string) => {
+    const v = summaryByTitle.current.get(title);
+    return v?.summary?.trim() ? {summary: v.summary.trim(), ...(v.summarySig ? {summarySig: v.summarySig} : {})} : {};
+  };
+  /**
+   * 한번에 쓰기 글에서 읽은 묶음의 요약 — 글 안 `> 요약:` 줄이 그 묶음의 요약(줄을 지우면 요약도 없다).
+   * 예전과 같으면 확인 표시 유지, 바뀌었으면 지금 과정 기준으로 확인한 것
+   */
+  const bulkSummaryOf = (x: {title: string; summary?: string; steps: {description: string; tip?: string; caution?: string}[]}) => {
+    const prev = summaryByTitle.current.get(x.title);
+    if (!x.summary?.trim()) return {};
+    const summary = x.summary.trim();
+    const summarySig = prev?.summary?.trim() === summary && prev.summarySig ? prev.summarySig : stepsSignature(x.steps);
+    return {summary, summarySig};
+  };
+  const updateStepGroupSummary = (groupId: string, v: string) => setStepGroups(prev => prev.map(g => {
+    if (g.id !== groupId) return g;
+    // 요약을 고치면 지금 과정 기준으로 확인한 것
+    const next = {...g, summary: v, summarySig: stepsSignature(resolveGroupSteps(g))};
+    summaryByTitle.current.set(g.title, {summary: next.summary, summarySig: next.summarySig});
+    return next;
+  }));
+  const confirmStepGroupSummary = (groupId: string) => updateStepGroupSummary(groupId, stepGroups.find(g => g.id === groupId)?.summary ?? '');
+
+  const resolveStepGroups = (): SavedStepGroup[] => stepGroups.flatMap<SavedStepGroup>(g => g.bulkMode
     ? parseBulkStepGroups(g.bulkText, g.title).map((x, xi) => ({
         title: x.title,
+        ...bulkSummaryOf(x),
         // 타이머 — 글 안 `> 타이머:` 줄이 우선, 없으면 첫 묶음은 머리줄 타이머. 저장 데이터엔 빈 값을 넣지 않는다
         ...((() => { const tm = x.timer ?? (xi === 0 ? g.timer : undefined); return tm ? {timer: tm} : {}; })()),
         steps: x.steps.map((st, idx) => ({
@@ -695,7 +730,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
           photos: bulkStepPhotosRef.current.get(st.description.trim()),
         })),
       }))
-    : [{title: g.title, ...(g.timer ? {timer: g.timer} : {}), steps: resolveGroupSteps(g)}]);
+    : [{title: g.title, ...(g.timer ? {timer: g.timer} : {}),
+        ...(g.summary?.trim() ? {summary: g.summary.trim(), ...(g.summarySig ? {summarySig: g.summarySig} : {})} : {}),
+        steps: resolveGroupSteps(g)}]);
 
   // 변경 감지: 현재 폼 상태를 저장 데이터 형태로 스냅샷
   const currentSnapshot = useMemo(() => JSON.stringify({
@@ -1106,6 +1143,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                                   id: gi === 0 ? group.id : genId(),
                                   title: pg.title,
                                   timer: pg.timer ?? (gi === 0 ? group.timer : undefined),
+                                  // 글 안 `> 요약:` 줄 — 그대로면 예전 확인 표시 유지, 바뀌었으면 지금 과정 기준으로 확인
+                                  ...bulkSummaryOf(pg),
                                   steps: pg.steps.map(st => ({
                                     id: genId(),
                                     description: st.description,
@@ -1127,6 +1166,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                             const merged = stepGroupsToBulk(stepGroups.map(g => ({
                               title: g.title,
                               timer: g.timer,
+                              summary: g.bulkMode ? undefined : g.summary,
                               steps: g.bulkMode ? parseBulkStepGroups(g.bulkText, g.title).flatMap(x => x.steps) : g.steps,
                             })));
                             setStepGroups([{...stepGroups[0], timer: undefined, bulkMode: true, bulkText: merged}]);
@@ -2259,7 +2299,11 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
           <View style={styles.optionTilesRow}>
             {isFieldActive('photo') && (
             <View style={styles.photoTileWrap}>
-              <Pressable style={{flex: 1}} onPress={() => setShowPhotoMenu(prev => !prev)}>
+              <Pressable
+                style={{flex: 1}}
+                onPress={() => setShowPhotoMenu(prev => !prev)}
+                // 길게 누르면 사진 뷰어(사진이 있을 때) — 상세와 같다
+                onLongPress={heroUris.length > 0 ? () => { triggerHaptic('medium'); setShowPhotoMenu(false); setHeroViewerIndex(0); } : undefined}>
                 {imageUri ? (
                   <Card style={styles.photoTileFilled}>
                     <Image
@@ -2287,10 +2331,10 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   ...photoSourceMenuItems(t),
                   // 대표가 있어야 "추가"가 의미 있다. 3장을 채우면 추가 항목을 감춘다.
                   ...(imageUri && imageUris.length < MAX_EXTRA_HERO
-                    ? [{id: 'add', label: t('recipeEdit.addPhoto'), icon: IconFilesFilled}]
+                    ? [{id: 'add', label: t('recipeEdit.addPhoto'), icon: IconAdd}]
                     : []),
                   ...(heroUris.length > 1
-                    ? [{id: 'view', label: t('recipeEdit.viewPhotos'), icon: IconPhoto}]
+                    ? [{id: 'view', label: t('recipeEdit.viewPhotos'), icon: IconGalleryHorizontalFilled}]
                     : []),
                 ]}
                 visible={showPhotoMenu}
@@ -3098,6 +3142,17 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 onClose={() => setStepGroupMenu(null)}
                 style={styles.anchoredMenuLeft}
               />
+              {/* 요약 한 줄 — 묶음 이름 아래. 한번에 쓰기 중엔 글이 합쳐져 있어 숨긴다 */}
+              {!group.bulkMode && (
+                <StepSummaryInput
+                  value={group.summary ?? ''}
+                  onChangeText={v => updateStepGroupSummary(group.id, v)}
+                  timer={stepGroups.length > 1 ? group.timer : undefined}
+                  stale={isSummaryStale({summary: group.summary, summarySig: group.summarySig, steps: resolveGroupSteps(group)})}
+                  onConfirm={() => confirmStepGroupSummary(group.id)}
+                  inputStyle={styles.cardFieldInput}
+                />
+              )}
               </View>
 
               {/* Steps — 한번에 쓰기 모드면 줄바꿈 구분 일괄 입력(묶음 항목 하나로) */}

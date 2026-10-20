@@ -21,6 +21,7 @@ import type {IngredientGroup, StepGroup, Step} from '../types/recipe';
  *   > 팁: ...               → 바로 앞 과정의 팁
  *   > 주의: ...             → 바로 앞 과정의 주의
  *   > 타이머: 40분          → 이 과정 묶음의 타이머(묶음 안 어디든)
+ *   > 요약: 픽업 - 클린업    → 이 과정 묶음의 요약 한 줄(여러 번 쓰면 줄이 늘어난다)
  */
 export interface ParsedMarkdownRecipe {
   title?: string;
@@ -138,6 +139,14 @@ export function parseRecipeMarkdown(text: string): ParsedMarkdownRecipe {
         stepGroup!.timer = timer[1].trim();
         continue;
       }
+      // 묶음 요약 — 한 줄씩 쌓인다(상세 요약 보기의 번호 하나씩)
+      const summary = body.match(/^(?:요약|summary)\s*[:：]\s*(.+)$/i);
+      if (summary && kind === 'step') {
+        if (!stepGroup) pushStepGroup('');
+        const line = summary[1].trim();
+        stepGroup!.summary = stepGroup!.summary ? `${stepGroup!.summary}\n${line}` : line;
+        continue;
+      }
       const last = stepGroup?.steps[stepGroup.steps.length - 1];
       if (!last) continue;
       const caution = body.match(/^(?:주의|경고|caution|warning)\s*[:：]?\s*(.*)$/i);
@@ -213,10 +222,15 @@ export function ingredientGroupsToBulk(groups: {title?: string; ingredients: {na
 }
 
 /** 과정 묶음들 → 한번에 쓰기 칸 하나(팁·주의는 `> 팁:` / `> 주의:` 줄로) */
-export function stepGroupsToBulk(groups: {title?: string; timer?: string; steps: {description?: string; tip?: string; caution?: string}[]}[]): string {
+/** 요약 줄들 → `> 요약:` 줄(한 줄씩) */
+const summaryLines = (summary?: string) => (summary ?? '').split(/\r?\n/).map(l => l.trim()).filter(Boolean).map(l => `> 요약: ${l}`);
+
+export function stepGroupsToBulk(groups: {title?: string; timer?: string; summary?: string; steps: {description?: string; tip?: string; caution?: string}[]}[]): string {
   const withHeading = groups.length > 1;
   return groups.map(g => {
-    const timerLine = g.timer?.trim() ? `> 타이머: ${g.timer.trim()}\n` : '';
+    // 요약·타이머 줄 다음엔 빈 줄 하나 — 과정 줄과 떨어져 보이게(읽을 땐 빈 줄을 무시한다)
+    const head = [...summaryLines(g.summary), ...(g.timer?.trim() ? [`> 타이머: ${g.timer.trim()}`] : [])];
+    const timerLine = head.length ? `${head.join('\n')}\n\n` : '';
     const body = g.steps
       .filter(s => s.description?.trim())
       .map((s, i) => [
@@ -238,7 +252,7 @@ export function recipeToMarkdown(r: {
   title?: string;
   ingredientGroups: {title?: string; ingredients: {name?: string; amount?: string; unit?: string}[]}[];
   tools?: {name?: string}[];
-  stepGroups: {title?: string; timer?: string; steps: {description?: string; tip?: string; caution?: string}[]}[];
+  stepGroups: {title?: string; timer?: string; summary?: string; steps: {description?: string; tip?: string; caution?: string}[]}[];
 }): string {
   const out: string[] = [];
   if (r.title?.trim()) out.push(`# ${r.title.trim()}`);
@@ -266,7 +280,8 @@ export function recipeToMarkdown(r: {
     for (const g of stepGroups) {
       const title = g.title?.trim() ?? '';
       if (title && title !== '과정') out.push(`### ${title}`);
-      if (g.timer?.trim()) out.push(`> 타이머: ${g.timer.trim()}`);
+      const head = [...summaryLines(g.summary), ...(g.timer?.trim() ? [`> 타이머: ${g.timer.trim()}`] : [])];
+      if (head.length) out.push(...head, '');
       g.steps.filter(s => s.description?.trim()).forEach((s, i) => {
         out.push(`${i + 1}. ${s.description!.trim()}`);
         if (s.tip?.trim()) out.push(`> 팁: ${s.tip.trim()}`);

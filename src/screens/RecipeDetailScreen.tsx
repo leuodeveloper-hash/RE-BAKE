@@ -10,6 +10,8 @@ const SCALE_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3];
 import {effectiveActiveFields} from '@utils/breadFieldsMigration';
 import {IconRefresh} from '@components/Icon/IconIndex';
 import {useFloatingNotice} from '@contexts/FloatingNoticeContext';
+import {StepSummaryList, CircledNumberText, stepLineText} from '@components/StepSummary';
+import {insertLockItems, isLockMenuId} from '@hooks/useExploreLock';
 import {APPBAR_ITEM_GAP} from '@constants/layout';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
@@ -154,6 +156,8 @@ interface ProcessStepGroup {
   title: string;
   steps: ProcessStep[];
   timer?: string;
+  /** 요약 한 줄(화이트보드식) — '요약' 보기에 번호로 */
+  summary?: string;
 }
 
 export interface RecipeDetailScreenProps {
@@ -251,6 +255,12 @@ export interface RecipeDetailScreenProps {
   viewingPastSession?: boolean;
   /** 지금 보고 있는 회차만 지우기(회차가 둘 이상일 때) — 지금 회차면 바로 전 회차가 지금 회차가 된다 */
   onDeleteSession?: () => void;
+  /** 목록 ⋮에서 고른 항목 — 상세를 열자마자 같은 동작(목록에서 바로 못 하는 의견 보내기 등) */
+  initialMenuAction?: string;
+  /** 내 레시피 복제 */
+  onDuplicate?: () => void;
+  /** 어드민 잠금 항목(둘러보기) — 목록 ⋮와 같은 항목을 상세에도 */
+  lockMenu?: {lockMode?: 'free' | 'locked'; locked: boolean; onSelect: (id: string) => void};
   onRecipeSelect?: (id: string) => void;
   /** 내 레시피를 둘러보기에 복사 (어드민 전용) */
   onCopyToExplore?: () => void;
@@ -428,6 +438,9 @@ export function RecipeDetailScreen({
   currentSessionId,
   viewingPastSession,
   onDeleteSession,
+  initialMenuAction,
+  onDuplicate,
+  lockMenu,
   onRecipeSelect,
   onCopyToExplore,
   onSubmitToExplore,
@@ -770,6 +783,15 @@ export function RecipeDetailScreen({
   // 편집으로 — 한번에 보기 중이면 편집도 한번에 쓰기로
   const editWith = (section?: string) => onEdit?.(section, {bulk: bulkView});
   const [refreshing, setRefreshing] = useState(false);
+  // 목록 ⋮에서 넘어온 항목 — 한 번만 실행(화면이 다 그려진 뒤)
+  const initialMenuDone = useRef(false);
+  useEffect(() => {
+    if (!initialMenuAction || initialMenuDone.current) return;
+    initialMenuDone.current = true;
+    const timer = setTimeout(() => handleMenuSelect(initialMenuAction), 300);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialMenuAction]);
   const handlePullRefresh = useCallback(async () => {
     setRefreshing(true);
     try { await onRefresh?.(); } finally { setRefreshing(false); }
@@ -778,6 +800,17 @@ export function RecipeDetailScreen({
   useFloatingNotice('recipeUpdated', updateAvailable && onRefresh
     ? {icon: IconRefresh, label: refreshing ? t('recipeDetail.updating') : t('recipeDetail.updated'), onPress: handlePullRefresh, loading: refreshing}
     : null);
+  // 요약 보기 — 묶음 요약을 ①②③ 한 줄씩(요약이 하나라도 있을 때만 스위치). 마지막 선택을 기억
+  const hasSummary = !!stepGroups?.some(g => g.summary?.trim());
+  const [summaryView, setSummaryView] = useState(false);
+  useEffect(() => {
+    AsyncStorage.getItem(SUMMARY_VIEW_KEY).then(v => { if (v === '1') setSummaryView(true); }).catch(() => {});
+  }, []);
+  const toggleSummaryView = useCallback((v: boolean) => {
+    setSummaryView(v);
+    AsyncStorage.setItem(SUMMARY_VIEW_KEY, v ? '1' : '0').catch(() => {});
+  }, []);
+  const showSummary = summaryView && hasSummary;
   const toggleBulkView = useCallback((v: boolean) => {
     setBulkView(v);
     AsyncStorage.setItem(BULK_VIEW_KEY, v ? '1' : '0').catch(() => {});
@@ -798,6 +831,7 @@ export function RecipeDetailScreen({
       t,
       session,
       showImport: !!onImport,
+      showDuplicate: !!onDuplicate,
       // 목록 오버플로우와 같은 항목 — 상세에서도 찍고 해제할 수 있어야 한다
       showMade: !!onMadeChange,
       isMade,
@@ -812,6 +846,11 @@ export function RecipeDetailScreen({
       showShare: !!onShare,
       showFeedback: !!onFeedback,
     });
+    // 어드민 잠금 — 목록 ⋮와 같은 항목(삭제 바로 위)
+    if (lockMenu) {
+      const withLock = insertLockItems(items, lockMenu.lockMode, lockMenu.locked, t);
+      items.splice(0, items.length, ...withLock);
+    }
     // 회차가 둘 이상이면 '이 회차 삭제'(보고 있는 회차만)를 레시피 삭제 바로 위에
     if (onDeleteSession) {
       const del = items.findIndex(i => i.id === 'delete');
@@ -827,7 +866,7 @@ export function RecipeDetailScreen({
     }
     return items;
   },
-  [onImport, onRemake, onEdit, onDelete, onDeleteSession, onCookbookChange, onCopyToExplore, onSubmitToExplore, onShare, onFeedback, onMadeChange, isMade, onPinChange, isPinned, session, compareBaseline, showDiff, t]);
+  [onImport, onDuplicate, onRemake, onEdit, onDelete, onDeleteSession, lockMenu, onCookbookChange, onCopyToExplore, onSubmitToExplore, onShare, onFeedback, onMadeChange, isMade, onPinChange, isPinned, session, compareBaseline, showDiff, t]);
 
   const cookbookSubmenu = useMemo(() => {
     if (!onCookbookChange || !availableCookbooks) return null;
@@ -846,6 +885,11 @@ export function RecipeDetailScreen({
   };
 
   const handleMenuSelect = (id: string) => {
+    if (lockMenu && isLockMenuId(id)) {
+      setShowMenu(false);
+      lockMenu.onSelect(id);
+      return;
+    }
     if (id === 'cookbook') {
       setShowCookbookSubmenu(true);
       return;
@@ -885,6 +929,8 @@ export function RecipeDetailScreen({
       } else {
         onImport?.();
       }
+    } else if (id === 'duplicate') {
+      onDuplicate?.();
     } else if (id === 'remake') {
       onRemake?.();
     } else if (id === 'edit') {
@@ -1038,7 +1084,9 @@ export function RecipeDetailScreen({
                 ) : null}
                 {/* 시간 정하기 전엔 버튼 없이(⋮ 메뉴 '타이머 설정'으로) */}
                 {hasTimer && <StepTimer ref={el => { timerRefs.current[key] = el; }} duration={timer} hideWhenUnset onMenuOpenChange={open => setMenuHeaderKey(k => (open ? key : k === key ? null : k))} />}
-                {withBulkToggle && <Switch label={t('recipeDetail.bulkView')} value={bulkView} onValueChange={toggleBulkView} />}
+                {/* 과정 — 요약이 있으면 '요약' 스위치(켜면 ①②③ 요약만). 그 옆 '나눠 보기'(켜면 과정마다 카드, 끄면 한 덩어리 글) */}
+                {withBulkToggle && sectionId === 'steps' && hasSummary && <Switch label={t('stepSummary.view')} value={summaryView} onValueChange={toggleSummaryView} />}
+                {withBulkToggle && !(sectionId === 'steps' && showSummary) && <Switch label={t('recipeDetail.splitView')} value={!bulkView} onValueChange={v => toggleBulkView(!v)} />}
               </>
             ) : undefined}
           />
@@ -1430,7 +1478,23 @@ export function RecipeDetailScreen({
         {/* Process Section */}
         {isFieldActive('steps') && <View onLayout={(e) => { sectionPositions.current.steps = e.nativeEvent.layout.y; }} />}
         {/* 한번에 보기 — 과정을 번호 붙은 글줄로(팁·주의는 바로 아래 옅게) */}
-        {isFieldActive('steps') && bulkView && stepsHasContent && [
+        {/* 요약 보기 — 묶음마다 한 줄(①②③). 줄을 누르면 자세한 과정으로 */}
+        {isFieldActive('steps') && showSummary && [
+          renderSectionHeader('step-header-summary', t('recipeDetail.tabSteps'), 'steps', undefined, true),
+          <Animated.View key="step-summary" style={{opacity: sectionAnims[1]}}>
+            <ContentContainer>
+              <Card>
+                <ListItem showDivider={false} onLongPress={onEdit ? () => editWith('steps') : undefined}>
+                  <StepSummaryList
+                    items={(stepGroups ?? []).map(g => ({title: g.title, summary: g.summary, timer: stepGroups!.length > 1 ? g.timer : undefined}))}
+                    onPress={() => toggleSummaryView(false)}
+                  />
+                </ListItem>
+              </Card>
+            </ContentContainer>
+          </Animated.View>,
+        ]}
+        {isFieldActive('steps') && !showSummary && bulkView && stepsHasContent && [
           // 타이머는 과정을 묶음으로 나눴을 때만 — 묶음 이름 옆에(아래 줄)
           renderSectionHeader('step-header-bulk', t('recipeDetail.tabSteps'), 'steps', undefined, true),
           <Animated.View key="step-bulk" style={{opacity: sectionAnims[1]}}>
@@ -1449,7 +1513,7 @@ export function RecipeDetailScreen({
                         {g.steps.filter(st => st.description?.trim()).map((st, si, arr) => (
                           // 사진이 붙은 과정은 다음 과정과 한 칸 띄운다 — 사진 바로 밑에 다음 글이 붙어 보였다
                           <View key={si} style={st.photos?.length && si < arr.length - 1 ? styles.bulkStepWithPhotos : undefined}>
-                            <Text style={styles.bulkText}>{`${si + 1}. `}<RichText inline>{st.description}</RichText></Text>
+                            <Text style={styles.bulkText}><CircledNumberText n={si + 1} /><RichText inline>{st.description}</RichText></Text>
                             {/* 팁·주의 — 편집처럼 왼쪽 세로 라인. 한 과정에 딸린 한 덩어리라 둘 사이는 좁게(묶음 안 간격만) */}
                             {(st.tip?.trim() || st.caution?.trim()) ? <View style={styles.bulkNotes}>
                             {st.tip?.trim() ? (
@@ -1482,7 +1546,7 @@ export function RecipeDetailScreen({
             </ContentContainer>
           </Animated.View>,
         ]}
-        {isFieldActive('steps') && (!bulkView || !stepsHasContent) && (!stepsHasContent ? [
+        {isFieldActive('steps') && !showSummary && (!bulkView || !stepsHasContent) && (!stepsHasContent ? [
           renderSectionHeader('step-header-empty', t('recipeDetail.tabSteps'), 'steps'),
           <Animated.View key="step-content-empty" style={{opacity: sectionAnims[1]}}>
             <ContentContainer>
@@ -2045,6 +2109,7 @@ const HERO_STACK_SIZE = 18;
 const HERO_STACK_OVERLAP = 12;
 /** 상세 보기(한번에 보기/줄 목록) 마지막 선택 */
 const BULK_VIEW_KEY = '@bakle_detail_bulk_view_v2';
+const SUMMARY_VIEW_KEY = '@bakle_detail_summary_view';
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 한번에 보기
@@ -2068,11 +2133,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     ...Typography.caption.medium,
     color: colors['foreground/on-surface-muted'],
   },
-  bulkText: {
-    ...Typography.body.medium,
-    lineHeight: 24,
-    color: colors['foreground/on-surface'],
-  },
+  // 요약 보기와 같은 서체(공통)
+  bulkText: stepLineText(colors),
   bulkNote: {
     ...Typography.body.small,
     color: colors['foreground/on-surface-muted'],

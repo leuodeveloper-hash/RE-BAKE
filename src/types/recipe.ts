@@ -23,6 +23,10 @@ export interface StepGroup {
   steps: Step[];
   /** 묶음 타이머 — 시간 칸과 같은 형식("1시간 30분", "40분"). 없으면 타이머 버튼 없음 */
   timer?: string;
+  /** 요약 한 줄 — 화이트보드처럼 이 묶음을 줄인 것("픽업 - 클린업 - 발전 - 최종"). 상세 '요약 보기'에 번호로 나온다 */
+  summary?: string;
+  /** 요약을 쓰거나 확인했을 때의 과정 내용 표시 — 과정이 바뀌면 달라져 편집 화면에 '확인'이 뜬다(utils/stepSummary) */
+  summarySig?: string;
 }
 
 export interface ToolGroup {

@@ -1,3 +1,4 @@
+import {circledNumber} from './stepSummary';
 import {convertTempsInText, getTempUnit} from './temperature';
 import {hasFlour, flourTotal, bakersPercentOf} from './bakersPercentage';
 import {stripRichText} from './richText';
@@ -230,6 +231,7 @@ const PDF_CSS = `
   .bulk-group { margin-top: 10px; margin-bottom: 4px; font-size: 11px; font-weight: 700; color: ${LABEL_VAR}; }
   .bulk-group:first-child { margin-top: 0; }
   .bulk-text { font-size: 13px; color: #1a1a1a; line-height: 1.6; }
+  .step-num { color: #8a8a85; }
   /* 과정 줄 사이 — 한 과정씩 떨어져 보이게 */
   .bulk-step + .bulk-step, .step-tip + .bulk-step, .step-caution + .bulk-step { margin-top: 10px; }
   /* 과정은 번호 붙은 글줄 — 문단처럼 붙여 쓴다(줄 사이 선·큰 간격 없이) */
@@ -356,7 +358,7 @@ function buildBulkHtml(data: RecipePdfData): string {
     for (const g of sg) {
       if (sg.length > 1 && g.title) out.push(`<div class="bulk-group">${escapeHtml(g.title)}</div>`);
       g.steps.filter(st => st.description?.trim()).forEach((st, i) => {
-        out.push(`<div class="bulk-text bulk-step">${i + 1}. ${escapeHtml(stripRichText(st.description, {maskSecret: true}))}</div>`);
+        out.push(`<div class="bulk-text bulk-step"><span class="step-num">${circledNumber(i + 1)}</span> ${escapeHtml(stripRichText(st.description, {maskSecret: true}))}</div>`);
         if (st.tip) out.push(`<div class="step-tip">* ${escapeHtml(st.tip)}</div>`);
         if (st.caution) out.push(`<div class="step-caution">! ${escapeHtml(st.caution)}</div>`);
       });

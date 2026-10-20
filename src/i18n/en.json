@@ -852,7 +852,7 @@
   "recipeEdit.addGroup": "Add group",
   "recipeEdit.addGroupAbove": "Add group above",
   "recipeEdit.addItem": "Add item",
-  "recipeEdit.addPhoto": "Add another photo",
+  "recipeEdit.addPhoto": "Add photo",
   "recipeEdit.addStepAbove": "Add above",
   "recipeEdit.addStepBelow": "Add below",
   "recipeEdit.bakeyAdvice": "Bakey's advice",
@@ -1230,5 +1230,14 @@
   "widgetConfig.done": "Done",
   "recipeDetail.deleteSessionMenu": "Delete session {{session}}",
   "stampDetail.editReview": "Edit reflection",
-  "update.noticeLabel": "Update to new version"
+  "update.noticeLabel": "Update to new version",
+  "stepSummary.label": "Summary",
+  "stepSummary.placeholder": "This group in one line",
+  "stepSummary.stale": "Check",
+  "stepSummary.view": "Summary",
+  "stepSummary.title": "Summary",
+  "recipeMenuItems.duplicate": "Duplicate",
+  "recipeMenuItems.duplicateSuffix": "(copy)",
+  "recipeMenuItems.duplicated": "Duplicated",
+  "recipeDetail.splitView": "Split view"
 }

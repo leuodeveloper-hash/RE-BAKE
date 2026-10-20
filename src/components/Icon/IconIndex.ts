@@ -12,6 +12,8 @@ export {default as IconUser} from '../../../assets/icons/user.svg';
 export {default as IconHomeFilled} from '../../../assets/icons/home_filled.svg';
 export {default as IconSearch} from '../../../assets/icons/search.svg';
 export {default as IconAdd} from '../../../assets/icons/add.svg';
+export {default as IconGalleryHorizontal} from '../../../assets/icons/gallery-horizontal.svg';
+export {default as IconGalleryHorizontalFilled} from '../../../assets/icons/gallery-horizontal-filled.svg';
 export {default as IconClose} from '../../../assets/icons/close.svg';
 export {default as IconCloseCircleFilled} from '../../../assets/icons/close_circle_filled.svg';
 export {default as IconArrowLeft} from '../../../assets/icons/arrow_left.svg';
