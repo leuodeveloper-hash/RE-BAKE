@@ -11,3 +11,8 @@ export function goBackOr(router: Pick<Router, 'canGoBack' | 'back' | 'replace'>,
   if (router.canGoBack()) router.back();
   else router.replace(fallback as any);
 }
+
+/** 회고 노트로 — 목록·상세의 회고 표시(펜촉+수)를 누르면 여기로. 내 레시피 탭의 회고 노트 보기 */
+export function goToRetrospective(router: Pick<Router, 'navigate'>) {
+  router.navigate('/recipes?axis=retrospective' as any);
+}

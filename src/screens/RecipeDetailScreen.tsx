@@ -10,6 +10,8 @@ const SCALE_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3];
 import {effectiveActiveFields} from '@utils/breadFieldsMigration';
 import {IconRefresh} from '@components/Icon/IconIndex';
 import {useFloatingNotice} from '@contexts/FloatingNoticeContext';
+import {useRouter} from 'expo-router';
+import {goToRetrospective} from '@utils/navigation';
 import {StepSummaryList, CircledNumberText, stepLineText, STEP_NUMBER_INDENT} from '@components/StepSummary';
 import {insertLockItems, isLockMenuId} from '@hooks/useExploreLock';
 import {APPBAR_ITEM_GAP} from '@constants/layout';
@@ -802,6 +804,7 @@ export function RecipeDetailScreen({
     : null);
   // 요약 보기 — 묶음 요약을 ①②③ 한 줄씩(요약이 하나라도 있을 때만 스위치). 마지막 선택을 기억
   const hasSummary = !!stepGroups?.some(g => g.summary?.trim());
+  const router = useRouter();
   const [summaryView, setSummaryView] = useState(false);
   useEffect(() => {
     AsyncStorage.getItem(SUMMARY_VIEW_KEY).then(v => { if (v === '1') setSummaryView(true); }).catch(() => {});
@@ -1231,7 +1234,7 @@ export function RecipeDetailScreen({
                 )}
                 {totalReviewCount > 0 && (
                   <>
-                    <Pressable style={styles.reviewBadge} onPress={sessionReviews ? handleOpenReviewSheet : undefined}>
+                    <Pressable style={styles.reviewBadge} hitSlop={8} onPress={() => { triggerHaptic('light'); goToRetrospective(router); }}>
                       <IconPenTipFilled width={12} height={12} color={colors['foreground/on-surface-inverse']} />
                       <Text style={styles.heroDescription}>{reviewLabel}</Text>
                     </Pressable>

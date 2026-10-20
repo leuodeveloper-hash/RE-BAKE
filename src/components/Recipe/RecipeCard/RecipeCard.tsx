@@ -1,5 +1,7 @@
 import {MetaLine} from '@components/MetaLine';
 import {IconThumbnail} from '@components/Thumbnail';
+import {useRouter} from 'expo-router';
+import {goToRetrospective} from '@utils/navigation';
 import {BrokenImageMark, ImageLoadingMark, useBrokenImage} from '@components/BrokenImage';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {
@@ -576,6 +578,9 @@ export function RecipeCard({
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const menuButtonRef = useRef<View>(null);
+  const router = useRouter();
+  // 회고 표시(펜촉+수) — 누르면 회고 노트로
+  const openRetrospective = useCallback(() => { triggerHaptic('light'); goToRetrospective(router); }, [router]);
   const hasImage = !!imageUrl;
   // 메타 줄 세그먼트: 각 항목이 자기 링크로 이동(핸들→작성자, 레시피북→북, 공법→공법).
   // 색은 전부 동일(muted). 링크 여부와 무관하게 톤 통일.
@@ -740,10 +745,11 @@ export function RecipeCard({
                 {renderMeta(styles.listSubtitle, {wrap: true})}
                 <MetaLinkIcon show={hasReference} size={12} color={colors['foreground/on-surface-muted']} />
                 {reviewCount > 0 && (
-                  <View style={styles.reviewBadge}>
+                  // 누르면 회고 노트로
+                  <Pressable style={styles.reviewBadge} hitSlop={8} onPress={openRetrospective}>
                     <IconPenTipFilled width={12} height={12} color={colors['foreground/on-surface-muted']} />
                     <Text style={styles.reviewBadgeText}>{reviewCount}</Text>
-                  </View>
+                  </Pressable>
                 )}
               </View>
             )}
@@ -830,10 +836,10 @@ export function RecipeCard({
             {renderMeta(styles.photoListSubtitle)}
             <MetaLinkIcon show={hasReference} size={10} color="rgba(255,255,255,0.7)" />
             {reviewCount > 0 && (
-              <View style={styles.gridReviewBadge}>
+              <Pressable style={styles.gridReviewBadge} hitSlop={8} onPress={openRetrospective}>
                 <IconPenTipFilled width={10} height={10} color="rgba(255,255,255,0.7)" />
                 <Text style={styles.photoListSubtitle}>{reviewCount}</Text>
-              </View>
+              </Pressable>
             )}
           </View>
         </View>

@@ -8,7 +8,7 @@ export default function MyRecipesRoute() {
   const colors = useColors();
   // ?axis=cookbook — 설정의 공식 레시피북 칸에서 오면 레시피북 보기로(같은 내 홈 화면)
   const {axis} = useLocalSearchParams<{axis?: string}>();
-  const initialAxis = axis === 'cookbook' || axis === 'method' ? axis : undefined;
+  const initialAxis = axis === 'cookbook' || axis === 'method' || axis === 'retrospective' ? axis : undefined;
   // 한 번 반영하면 주소에서 지운다 — 남아 있으면 새로고침할 때마다 그 축으로 돌아가 마지막 선택을 덮었다
   const router = useRouter();
   React.useEffect(() => {
