@@ -3,7 +3,7 @@ import {AppState, Platform, View, StyleSheet} from 'react-native';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import {computeLockedIds, useSetExploreLock} from '@hooks/useExploreLock';
 import {duplicateRecipe} from '@utils/recipeMenuItems';
-import {uploadLocalImages} from '@hooks/useRecipeStorage';
+import {uploadAllImagesOrThrow} from '@hooks/useRecipeStorage';
 import {setAlbumScope} from '@components/AlbumPicker/albumPicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {doc, getDoc, updateDoc, setDoc, deleteField} from 'firebase/firestore';
@@ -27,7 +27,7 @@ import {OFFICIAL_AUTHOR_ID, OFFICIAL_AUTHOR_HANDLE, OFFICIAL_AUTHOR_DISPLAY_NAME
 import {parseSession, formatSession, sortSessionGroup} from '@utils/session';
 import {shareRecipe} from '@utils/shareRecipe';
 import {getSharedRecipe} from '@utils/sharedRecipeCache';
-import {uploadRecipeImage, isLocalUri} from '@utils/imageUpload';
+import {uploadRecipeImage, isLocalUri, isImagesNotUploaded} from '@utils/imageUpload';
 import {getCookbookColorKey} from '@components/ColorPicker';
 import {DEFAULT_COOKBOOK_COLOR} from '@contexts/RecipeContext';
 import {IconTrashFilled, IconExprolerBookFilled, IconExprolerBookTwotone} from '@components/Icon/IconIndex';
@@ -484,7 +484,7 @@ const handleDelete = useCallback(async () => {
         : recipeData.steps;
 
       // 묶음 과정·추가 상단·조언 사진까지 — 내 레시피 저장과 같은 업로드(빠진 사진이 폰 주소로 남지 않게)
-      const fullyUploaded = await uploadLocalImages({...recipeData, id: exploreId, imageUri: uploadedImageUri, steps: uploadedSteps} as any);
+      const fullyUploaded = await uploadAllImagesOrThrow({...recipeData, id: exploreId, imageUri: uploadedImageUri, steps: uploadedSteps} as any);
       const exploreRecipe = {
         ...fullyUploaded,
         imageUri: uploadedImageUri,
@@ -500,8 +500,8 @@ const handleDelete = useCallback(async () => {
       };
       await setDoc(doc(db, 'explore_recipes', exploreId), strip(exploreRecipe));
       showSnackbar(t('id.copiedToExplore'), {tone: 'positive'});
-    } catch {
-      showSnackbar(t('id.copyFailed'), {tone: 'error'});
+    } catch (e: any) {
+      showSnackbar(isImagesNotUploaded(e) ? t('upload.notUploadedNotSaved', {count: e.count}) : t('id.copyFailed'), {tone: 'error'});
     }
   }, [recipe, showSnackbar, t, isAdmin, user, handle, avatarSeed]);
 
@@ -688,46 +688,8 @@ const handleDelete = useCallback(async () => {
             // 로컬 이미지 → Storage 업로드 후 Firestore 저장
             (async () => {
               try {
-                const uploaded = {...data};
-                // 스텝 사진: string(uri) 또는 {uri, caption} 둘 다 지원. uri만 업로드하고 caption 유지.
-                const photoUri = (p: any): string => (typeof p === 'string' ? p : p?.uri);
-                const hasLocalPhoto = (photos: any[]) => photos?.some((p: any) => isLocalUri(photoUri(p)));
-                const uploadPhotos = async (photos: any[]) =>
-                  Promise.all(photos.map(async (p, i) => {
-                    const uri = photoUri(p);
-                    const nextUri = isLocalUri(uri) ? await uploadRecipeImage(uri, `explore_${id}_p${Date.now()}_${i}`) : uri;
-                    return typeof p === 'string' ? nextUri : {...p, uri: nextUri};
-                  }));
-                // 상단 사진(상세 뷰어에서 바로 올린 것 포함)
-                if (typeof uploaded.imageUri === 'string' && isLocalUri(uploaded.imageUri)) {
-                  uploaded.imageUri = await uploadRecipeImage(uploaded.imageUri, `explore_${id}_h${Date.now()}`);
-                }
-                if (Array.isArray(uploaded.imageUris) && uploaded.imageUris.some((u: string) => isLocalUri(u))) {
-                  uploaded.imageUris = await uploadPhotos(uploaded.imageUris);
-                }
-                if (uploaded.stepGroups) {
-                  uploaded.stepGroups = await Promise.all(
-                    uploaded.stepGroups.map(async (g: any) => ({
-                      ...g,
-                      steps: await Promise.all(g.steps.map(async (s: any) =>
-                        hasLocalPhoto(s.photos)
-                          ? {...s, photos: await uploadPhotos(s.photos)}
-                          : s,
-                      )),
-                    })),
-                  );
-                }
-                if (uploaded.steps) {
-                  uploaded.steps = await Promise.all(
-                    uploaded.steps.map(async (s: any) =>
-                      hasLocalPhoto(s.photos)
-                        ? {...s, photos: await uploadPhotos(s.photos)}
-                        : s,
-                    ),
-                  );
-                }
-                // Firestore는 undefined 값을 거부한다(throw) → 저장 전 undefined 필드 제거.
-                // (예: 캡션 없는 사진 {uri, caption: undefined} 등)
+                // 사진은 공통 업로드(대표·추가·과정·조언) — 하나라도 못 올리면 저장하지 않고 알린다
+                const uploaded = await uploadAllImagesOrThrow({...data, id: id!} as any);
                 const stripUndefined = (v: any): any => {
                   if (Array.isArray(v)) return v.map(stripUndefined);
                   if (v && typeof v === 'object') {
@@ -748,7 +710,7 @@ const handleDelete = useCallback(async () => {
                 await exploreReload();
               } catch (e: any) {
                 console.warn('[explore update] 실패 code=', e?.code, 'msg=', e?.message, e);
-                showSnackbar(t('id.updateFailed') + (e?.code ? ` (${e.code})` : ''), {tone: 'error'});
+                showSnackbar(isImagesNotUploaded(e) ? t('upload.notUploadedNotSaved', {count: e.count}) : t('id.updateFailed') + (e?.code ? ` (${e.code})` : ''), {tone: 'error'});
               }
             })();
           }

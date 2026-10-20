@@ -5,6 +5,8 @@ import {doc, getDoc, setDoc} from 'firebase/firestore';
 import {db} from '@config/firebase';
 import {useAuth} from '@contexts/AuthContext';
 import {isLocalUri, uploadImageTo} from '@utils/imageUpload';
+import {useSnackbar} from '@contexts/SnackbarContext';
+import {translate, deviceLanguage} from '../i18n';
 import type {ReviewData} from '@components/Dialog/ReviewDialog';
 
 const CACHE_KEY = 'recipe_reviews';
@@ -27,6 +29,10 @@ function isReviewMap(v: unknown): v is RecipeReviews {
  * AsyncStorage는 그 캐시.
  */
 function useRecipeReviewsState() {
+  // 회고 사진을 못 올리면 바로 알린다(레시피 사진과 같은 규칙)
+  const {showSnackbar} = useSnackbar();
+  const showSnackbarRef = useRef(showSnackbar);
+  showSnackbarRef.current = showSnackbar;
   const {user} = useAuth();
   const [reviews, setReviews] = useState<RecipeReviews>({});
   const [loaded, setLoaded] = useState(false);
@@ -130,6 +136,9 @@ function useRecipeReviewsState() {
           return uri;
         }
       }));
+      // 못 올린 사진이 있으면 바로 알린다 — 다음에 회고를 저장할 때 다시 올린다
+      const left = uploaded.filter(isLocalUri).length;
+      if (left > 0) showSnackbarRef.current(translate(deviceLanguage(), 'upload.notUploadedRetry', {count: left}), {tone: 'error'});
       setReviews(prev => {
         if (!prev[recipeId]) return prev;
         const next = {...prev, [recipeId]: {...prev[recipeId], photos: uploaded}};

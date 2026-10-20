@@ -192,3 +192,24 @@ export function isLocalUri(uri: string): boolean {
 
 /** 레시피 상단(대표+추가) 사진 최대 장수 — 편집 화면·상세 뷰어 공용 */
 export const MAX_HERO_PHOTOS = 3;
+
+/** 폰·브라우저 안 사진 주소인지 — 다른 기기에서는 열리지 않는다 */
+const LOCAL_IMAGE_RE = /^(file:|ph:|content:|assets-library:|blob:|data:image)/i;
+
+/**
+ * 레시피 안에 남은 폰 안 사진 주소를 모두 찾는다(대표·추가·과정·조언·회고 사진 어디든).
+ * 서버에 저장하기 직전 검사용 — 하나라도 있으면 업로드가 빠졌거나 실패한 것.
+ */
+export function findLocalImageUris(value: unknown, out: string[] = []): string[] {
+  if (typeof value === 'string') {
+    if (LOCAL_IMAGE_RE.test(value)) out.push(value);
+  } else if (Array.isArray(value)) {
+    for (const v of value) findLocalImageUris(v, out);
+  } else if (value && typeof value === 'object') {
+    for (const v of Object.values(value)) findLocalImageUris(v, out);
+  }
+  return out;
+}
+
+/** 사진 못 올림 오류인지 — 저장 실패 안내를 사진 문구로 바꿀 때 */
+export const isImagesNotUploaded = (e: any): e is {code: 'images-not-uploaded'; count: number} => e?.code === 'images-not-uploaded';

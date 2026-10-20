@@ -13,8 +13,8 @@ import {useAuth} from '@contexts/AuthContext';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {db} from '@config/firebase';
-import {uploadRecipeImage, deleteRecipeImage, isLocalUri} from '@utils/imageUpload';
-import {uploadLocalImages} from '@hooks/useRecipeStorage';
+import {uploadRecipeImage, deleteRecipeImage, isLocalUri, isImagesNotUploaded} from '@utils/imageUpload';
+import {uploadAllImagesOrThrow} from '@hooks/useRecipeStorage';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 
 const DEFAULT_EXPLORE_COOKBOOKS = ['제과기능사', '제빵기능사'];
@@ -121,7 +121,7 @@ export default function RecipeEditRoute() {
       try {
         // 과정·조언 사진도 서버에 올린다 — 내 레시피 저장과 같은 함수.
         // (빠져 있어서 공식 레시피의 과정 사진이 폰 안 주소(file://)로 저장돼 다른 기기에서 안 보였다)
-        const uploaded = await uploadLocalImages({...data, id: id!} as any);
+        const uploaded = await uploadAllImagesOrThrow({...data, id: id!} as any);
         const {imageSource: _imgSrc, ...rest} = uploaded as any;
         const serializable = stripUndefined(rest);
         // merge:true는 undefined(삭제된 필드)를 무시하므로 → 비운 optional 필드는 deleteField()로 명시해 실제 삭제.
@@ -144,7 +144,8 @@ export default function RecipeEditRoute() {
         await reloadExplore();
       } catch (e: any) {
         console.error('Explore recipe save failed:', e);
-        showSnackbar(t('id.saveFailed', {message: e?.message ?? e}), {tone: 'error'});
+        // 사진을 다 못 올렸으면 저장하지 않고 바로 알린다(공식 레시피에 폰 주소가 섞이면 안 된다)
+        showSnackbar(isImagesNotUploaded(e) ? t('upload.notUploadedNotSaved', {count: e.count}) : t('id.saveFailed', {message: e?.message ?? e}), {tone: 'error'});
         return;
       }
     } else if (isMyRecipe) {

@@ -1243,5 +1243,7 @@
   "photoViewer.restyling": "Restyling…",
   "cookingMode.prepTabIngredients": "Ingredients",
   "cookingMode.prepTabTools": "Tools",
-  "cookingMode.prepareTools": "Prepare tools"
+  "cookingMode.prepareTools": "Prepare tools",
+  "upload.notUploadedNotSaved": "Couldn't upload {{count}} photo(s), so nothing was saved. Check your connection and try again.",
+  "upload.notUploadedRetry": "{{count}} photo(s) not uploaded yet. They won't show on other devices. We'll retry next time you save."
 }

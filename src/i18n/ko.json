@@ -1228,5 +1228,7 @@
   "photoViewer.restyling": "보정하는 중…",
   "cookingMode.prepTabIngredients": "재료",
   "cookingMode.prepTabTools": "도구",
-  "cookingMode.prepareTools": "도구 준비"
+  "cookingMode.prepareTools": "도구 준비",
+  "upload.notUploadedNotSaved": "사진 {{count}}장을 올리지 못해 저장하지 않았어요. 연결을 확인하고 다시 저장해 주세요.",
+  "upload.notUploadedRetry": "사진 {{count}}장을 아직 못 올렸어요. 다른 기기에서는 안 보여요. 다음에 저장할 때 다시 올려요."
 }

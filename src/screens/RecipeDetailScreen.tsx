@@ -1522,7 +1522,7 @@ export function RecipeDetailScreen({
                           <View key={si} style={st.photos?.length && si < arr.length - 1 ? styles.bulkStepWithPhotos : undefined}>
                             <Text style={styles.bulkText}><CircledNumberText n={si + 1} /><RichText inline>{st.description}</RichText></Text>
                             {/* 팁·주의 — 편집처럼 왼쪽 세로 라인. 한 과정에 딸린 한 덩어리라 둘 사이는 좁게(묶음 안 간격만) */}
-                            {(st.tip?.trim() || st.caution?.trim()) ? <View style={styles.bulkNotes}>
+                            {(st.tip?.trim() || st.caution?.trim()) ? <View style={[styles.bulkNotes, !st.photos?.length && styles.bulkNotesLast]}>
                             {st.tip?.trim() ? (
                               <View style={[NOTE_BLOCK, styles.bulkNoteBlock, {borderLeftColor: colors['foreground/on-surface-muted']}]}>
                                 <Text style={styles.bulkNote}><RichText inline>{st.tip}</RichText></Text>
@@ -1539,6 +1539,8 @@ export function RecipeDetailScreen({
                                 <StepPhotos
                                   photos={normalizeStepPhotos(st.photos)}
                                   mode="view"
+                                  // 위 여백은 bulkPhotos가 정한다(팁·주의 바로 아래 붙게)
+                                  paddingTop={false}
                                   onPhotoPress={i => openPhotoViewer(st.photos, i)}
                                 />
                               </View>
@@ -2149,9 +2151,12 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   // 라인 블록 — 본문 줄 아래 4, 다음 줄과 8 띄운다. 들여쓰지 않고 본문과 같은 왼쪽에서 시작
   // 팁·주의 묶음 — 과정 줄 바로 아래, 다음 과정과는 띄우고 팁·주의 사이는 좁게
+  // 사진이 없으면 팁·주의 아래 8 띄우고 다음 과정
+  bulkNotesLast: {marginBottom: Spacing.sm},
+  // 글·팁·주의 바로 아래 8에 붙인다(예전엔 20 가까이 떨어져 있었다)
   bulkPhotos: {
     marginLeft: STEP_NUMBER_INDENT,
-    marginTop: Spacing.xs,
+    marginTop: Spacing.sm,
   },
   // 사진이 붙은 과정 아래 — 다음 과정과 16
   bulkStepWithPhotos: {
@@ -2161,7 +2166,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     // 과정 글 시작(번호 다음)에 맞춰 들인다
     marginLeft: STEP_NUMBER_INDENT,
     marginTop: Spacing.xs,
-    marginBottom: Spacing.sm,
     gap: Spacing.xs,
   },
   bulkNoteBlock: {},

@@ -1,5 +1,5 @@
 import React, {useCallback, useMemo} from 'react';
-import {uploadLocalImages} from '@hooks/useRecipeStorage';
+import {uploadAllImagesOrThrow} from '@hooks/useRecipeStorage';
 import {View, StyleSheet} from 'react-native';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
@@ -13,7 +13,7 @@ import {useAuth} from '@contexts/AuthContext';
 import {OFFICIAL_AUTHOR_ID, OFFICIAL_AUTHOR_HANDLE, OFFICIAL_AUTHOR_DISPLAY_NAME} from '../../src/types/author';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {useTranslation} from '@contexts/LanguageContext';
-import {uploadRecipeImage, isLocalUri} from '@utils/imageUpload';
+import {uploadRecipeImage, isLocalUri, isImagesNotUploaded} from '@utils/imageUpload';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 
 const DEFAULT_EXPLORE_COOKBOOKS = ['제과기능사', '제빵기능사'];
@@ -110,7 +110,7 @@ export default function RecipeNewRoute() {
     if (isExploreTarget) {
       try {
         // 과정·조언 사진까지 서버에 올린다(내 레시피 저장과 같은 함수) — 폰 안 주소로 남으면 다른 기기에서 안 보인다
-        const uploaded = await uploadLocalImages(newRecipe as any);
+        const uploaded = await uploadAllImagesOrThrow(newRecipe as any);
         const {imageSource, ...rest} = uploaded as any;
         // 둘러보기에 올리는 건 어드민 — 작성자는 공식(베이키)으로 박제한다.
         // 없으면 상세가 '내 레시피'로 보고 올린 어드민 계정 이름을 띄웠다.
@@ -123,8 +123,8 @@ export default function RecipeNewRoute() {
         });
         await setDoc(doc(db, 'explore_recipes', id), serializable);
         showSnackbar(t('edit.recipeAddedToExplore'), {tone: 'positive'});
-      } catch {
-        showSnackbar(t('edit.saveFailed'), {tone: 'error'});
+      } catch (e: any) {
+        showSnackbar(isImagesNotUploaded(e) ? t('upload.notUploadedNotSaved', {count: e.count}) : t('edit.saveFailed'), {tone: 'error'});
       }
     } else {
       setRecipes(prev => [...prev, newRecipe]);

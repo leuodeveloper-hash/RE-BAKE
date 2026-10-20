@@ -20,7 +20,8 @@ import {addToQueue, hasPendingOps, processQueue} from '@utils/syncQueue';
 import {stableStringify} from '@utils/stableStringify';
 import {RECIPES_STORAGE_KEY, LOCAL_EDITS_KEY} from '@utils/accountCache';
 import {getDeviceName} from '@utils/deviceInfo';
-import {uploadRecipeImage, isLocalUri} from '@utils/imageUpload';
+import {uploadRecipeImage, isLocalUri, findLocalImageUris} from '@utils/imageUpload';
+import {translate, deviceLanguage} from '../i18n';
 import {useOnlineStatus} from './useOnlineStatus';
 import {ENTITLEMENTS, type Tier} from '@constants/entitlements';
 
@@ -175,6 +176,19 @@ export async function uploadLocalImages(recipe: Recipe): Promise<Recipe> {
   return changed ? updated : recipe;
 }
 
+/**
+ * 공식(둘러보기) 레시피 저장 전 — 사진을 전부 올리고, 하나라도 못 올렸으면 저장하지 않는다.
+ * 모든 사용자가 보는 데이터라 폰 안 주소가 섞이면 안 된다. 실패하면 code 'images-not-uploaded'(count 포함)로 던진다.
+ */
+export async function uploadAllImagesOrThrow<T extends {id: string}>(recipe: T): Promise<T> {
+  const uploaded = (await uploadLocalImages(recipe as any)) as unknown as T;
+  const left = findLocalImageUris(uploaded);
+  if (left.length > 0) {
+    throw Object.assign(new Error(`images-not-uploaded:${left.length}`), {code: 'images-not-uploaded', count: left.length});
+  }
+  return uploaded;
+}
+
 /** undefined 값을 재귀적으로 제거 (Firestore는 undefined 미지원) */
 function stripUndefined(obj: any): any {
   if (Array.isArray(obj)) return obj.map(stripUndefined);
@@ -249,6 +263,9 @@ async function guardedWrites(
   }));
   return {toWrite, copies, remotes};
 }
+
+/** 사진을 못 올렸을 때 안내 — 이 훅은 번역 훅 밖이라 기기 언어로 */
+const t_notUploaded = (count: number) => translate(deviceLanguage(), 'upload.notUploadedRetry', {count});
 
 /** Firestore에 레시피 배열을 동기화 (batch write) */
 async function syncToFirestore(uid: string, recipes: Recipe[]) {
@@ -457,6 +474,10 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
       const uploaded = cloudRef.current.photoCloudBackup
         ? await Promise.all(changed.map(uploadLocalImages))
         : changed;
+      if (cloudRef.current.photoCloudBackup) {
+        const left = uploaded.reduce((n, r) => n + findLocalImageUris(r).length, 0);
+        if (left > 0) showSnackbarRef.current?.(t_notUploaded(left));
+      }
       const byId = new Map(uploaded.map(r => [r.id, r]));
       const merged = [
         ...cloudRecipes.map(r => byId.get(r.id) ?? r),
@@ -526,7 +547,9 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
           const prevById = new Map(prev.map(r => [r.id, stableStringify(r)]));
           // 이 기기가 고치기 시작한 판(base) = 고치기 직전 updatedAt
           const bases = new Map(prev.map(r => [r.id, r.updatedAt]));
-          const changed = next.filter(r => prevById.get(r.id) !== stableStringify(r));
+          // 바뀐 레시피 + 아직 못 올린 사진이 남은 레시피(사진 백업 중이면 저장할 때마다 다시 올려 본다)
+          const changed = next.filter(r => prevById.get(r.id) !== stableStringify(r)
+            || (backupNow && findLocalImageUris(r).length > 0));
 
           (async () => {
             try {
@@ -535,6 +558,11 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
                 ? await Promise.all(changed.map(uploadLocalImages))
                 : changed;
               const hasUploads = JSON.stringify(uploadedChanged) !== JSON.stringify(changed);
+              // 사진을 다 못 올렸으면 바로 알린다 — 조용히 넘어가면 다른 기기에서 사진이 안 보이는 걸 늦게 안다
+              if (backupNow) {
+                const left = uploadedChanged.reduce((n, r) => n + findLocalImageUris(r).length, 0);
+                if (left > 0) showSnackbarRef.current?.(t_notUploaded(left));
+              }
               if (hasUploads) {
                 const byId = new Map(uploadedChanged.map(r => [r.id, r]));
                 const uploaded = next.map(r => byId.get(r.id) ?? r);
