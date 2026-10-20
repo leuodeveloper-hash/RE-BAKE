@@ -258,7 +258,8 @@ export function OcrCropModal({
           </View>
           <BottomActionBar background="#000000">
             <View style={styles.barBtn}>
-              <Button label={t('ocrCrop.cancel')} variant="ghost" onPress={onCancel} disabled={processing} />
+              {/* 취소 — 글자만(ghost)이면 검은 바 위에서 안 보여 버튼이 오른쪽 하나뿐인 것 같았다. 사진 뷰어 보정 시트와 같은 soft + filled 쌍 */}
+              <Button label={t('ocrCrop.cancel')} variant="soft" onPress={onCancel} disabled={processing} />
             </View>
             <View style={styles.barBtn}>
               <Button

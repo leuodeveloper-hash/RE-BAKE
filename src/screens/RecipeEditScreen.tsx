@@ -827,6 +827,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   // 닫기(X) 버튼의 실제 위치 — 팝오버를 이 버튼 아래에 붙인다.
   // 하드코딩한 좌표는 노치 높이·화면 폭에 따라 어긋났다.
+  // [+] 메뉴를 연 버튼 쪽 — 왼쪽 아이콘(묶음 하나일 때)으로 열면 왼쪽 아래, + 버튼이면 오른쪽 아래
+  const [addMenuAnchor, setAddMenuAnchor] = useState<'left' | 'right'>('right');
   const [closeBtnRect, setCloseBtnRect] = useState<{x: number; y: number; height: number} | null>(null);
   const closeBtnViewRef = useRef<View>(null);
   const requestClose = useCallback(() => {
@@ -2523,28 +2525,28 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 <ListItem
                   // 묶음 카드 맨 위 항목 — 잘라내기를 풀어도(메뉴 열림) 위 모서리 라운딩 유지
                   style={CARD_FIRST}
-                  leading={{type: 'iconButton', icon: IconLeafFilled, onPress: () => setIngAddMenu(group.id), variant: 'ghost-secondary'}}
+                  leading={{type: 'iconButton', icon: IconLeafFilled, onPress: () => { setAddMenuAnchor('left'); setIngAddMenu(group.id); }, variant: 'ghost-secondary'}}
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
                       {/* 묶음마다 개별 "한번에 쓰기" 토글 */}
                       <View style={styles.splitSwitch}><Switch label={t('recipeEdit.splitWrite')} value={!group.bulkMode} onValueChange={split => toggleIngredientBulk(group, !split)} /></View>
                       {/* 한번에 쓰기 중엔 + 대신 사진 인식 — 촬영·갤러리·레시피 사진 → 영역 선택 → 이 칸에 */}
+                      {/* 사진 인식 — 분할이어도 늘 보인다(분할이면 읽은 줄을 칸마다 넣는다) */}
                       <View style={styles.headerAddSlot}>
-                        {group.bulkMode ? (
-                          <IconButton icon={IconScanText} onPress={() => setBulkScanMenu(bulkScanMenu === group.id ? null : group.id)} variant="ghost-secondary" size="medium" forcePressed={bulkScanMenu === group.id} />
-                        ) : (
-                          <IconButton icon={IconPlusCircleFilled} onPress={() => addIngredient(group.id)} variant="ghost-secondary" size="medium" />
-                        )}
-                        {group.bulkMode && (
-                          <Menu
+                        <IconButton icon={IconScanText} onPress={() => setBulkScanMenu(bulkScanMenu === group.id ? null : group.id)} variant="ghost-secondary" size="medium" forcePressed={bulkScanMenu === group.id} />
+                        <Menu
                             items={ocrReader.menuItems}
                             visible={bulkScanMenu === group.id}
                             onSelect={id => { setBulkScanMenu(null); ocrTargetRef.current = {field: 'ingredients', bulkGroupId: group.id}; ocrReader.start(id); }}
                             onClose={() => setBulkScanMenu(null)}
                             style={styles.bulkScanMenu}
                           />
-                        )}
                       </View>
+                      {!group.bulkMode && (
+                        <View style={styles.headerAddSlot}>
+                          <IconButton icon={IconPlusCircleFilled} onPress={() => addIngredient(group.id)} variant="ghost-secondary" size="medium" />
+                        </View>
+                      )}
                     </View>
                   )}}>
                   <View style={styles.breadcrumbRow}>
@@ -2821,28 +2823,28 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 <ListItem
                   // 묶음 카드 맨 위 항목 — 잘라내기를 풀어도(메뉴 열림) 위 모서리 라운딩 유지
                   style={CARD_FIRST}
-                  leading={{type: 'iconButton', icon: IconToolCaseFilled, onPress: () => setToolAddMenu(group.id), variant: 'ghost-secondary'}}
+                  leading={{type: 'iconButton', icon: IconToolCaseFilled, onPress: () => { setAddMenuAnchor('left'); setToolAddMenu(group.id); }, variant: 'ghost-secondary'}}
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
                       {/* 한번에 쓰기 — 묶음 전체를 칸 하나로(재료와 동일) */}
                       <View style={styles.splitSwitch}><Switch label={t('recipeEdit.splitWrite')} value={!group.bulkMode} onValueChange={split => toggleToolBulk(group, !split)} /></View>
                       {/* 한번에 쓰기 중엔 + 대신 사진 인식 — 촬영·갤러리·레시피 사진 → 영역 선택 → 이 칸에 */}
+                      {/* 사진 인식 — 분할이어도 늘 보인다(분할이면 읽은 줄을 칸마다 넣는다) */}
                       <View style={styles.headerAddSlot}>
-                        {group.bulkMode ? (
-                          <IconButton icon={IconScanText} onPress={() => setBulkScanMenu(bulkScanMenu === group.id ? null : group.id)} variant="ghost-secondary" size="medium" forcePressed={bulkScanMenu === group.id} />
-                        ) : (
-                          <IconButton icon={IconPlusCircleFilled} onPress={() => addTool(group.id)} variant="ghost-secondary" size="medium" />
-                        )}
-                        {group.bulkMode && (
-                          <Menu
+                        <IconButton icon={IconScanText} onPress={() => setBulkScanMenu(bulkScanMenu === group.id ? null : group.id)} variant="ghost-secondary" size="medium" forcePressed={bulkScanMenu === group.id} />
+                        <Menu
                             items={ocrReader.menuItems}
                             visible={bulkScanMenu === group.id}
                             onSelect={id => { setBulkScanMenu(null); ocrTargetRef.current = {field: 'tools', bulkGroupId: group.id}; ocrReader.start(id); }}
                             onClose={() => setBulkScanMenu(null)}
                             style={styles.bulkScanMenu}
                           />
-                        )}
                       </View>
+                      {!group.bulkMode && (
+                        <View style={styles.headerAddSlot}>
+                          <IconButton icon={IconPlusCircleFilled} onPress={() => addTool(group.id)} variant="ghost-secondary" size="medium" />
+                        </View>
+                      )}
                     </View>
                   )}}>
                   <View style={styles.breadcrumbRow}>
@@ -3082,11 +3084,11 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                     <View style={styles.toolHeaderTrailing}>
                       <View style={styles.splitSwitch}><Switch label={t('recipeEdit.splitWrite')} value={true} onValueChange={split => toggleStepBulk(group, !split)} /></View>
                       <View style={styles.headerAddSlot}>
-                        <IconButton icon={IconPlusCircleFilled} onPress={() => setStepAddMenu(group.id)} variant="ghost-secondary" size="medium" />
+                        <IconButton icon={IconPlusCircleFilled} onPress={() => { setAddMenuAnchor('right'); setStepAddMenu(group.id); }} variant="ghost-secondary" size="medium" />
                       </View>
                     </View>
                   )} : {type: 'iconButton', icon: IconPlusCircleFilled,
-                    onPress: () => setStepAddMenu(group.id), variant: 'ghost-secondary'}}>
+                    onPress: () => { setAddMenuAnchor('right'); setStepAddMenu(group.id); }, variant: 'ghost-secondary'}}>
                   <View style={styles.breadcrumbRow}>
                     <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.stepsLabel')}</Text>
                     <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
@@ -3108,15 +3110,15 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   style={CARD_FIRST}
                   // 묶음이 하나면 이동할 곳이 없으므로, 아이콘 버튼엔 추가 메뉴를 붙인다
                   leading={{type: 'iconButton', icon: IconFlow,
-                    onPress: () => setStepAddMenu(group.id), variant: 'ghost-secondary'}}
+                    onPress: () => { setAddMenuAnchor('left'); setStepAddMenu(group.id); }, variant: 'ghost-secondary'}}
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
                       {/* 묶음마다 개별 "한번에 쓰기" 토글 (재료·도구와 동일) */}
                       <View style={styles.splitSwitch}><Switch label={t('recipeEdit.splitWrite')} value={!group.bulkMode} onValueChange={split => toggleStepBulk(group, !split)} /></View>
                       {/* 맨 위 추가 버튼 제거 — 행 드래그 핸들 롱프레스 메뉴의
                           "위에 추가 / 아래에 추가"로 대체됐다 */}
-                      {/* 한번에 쓰기 중엔 사진 인식 — 촬영·갤러리·레시피 사진 → 영역 선택 → 이 칸에(재료·도구와 같은 자리) */}
-                      {group.bulkMode && (
+                      {/* 사진 인식 — 분할이어도 늘 보인다. 촬영·갤러리·레시피 사진 → 영역 선택 → 이 묶음에(재료·도구와 같은 자리) */}
+                      {(
                         <View style={styles.headerAddSlot}>
                           <IconButton icon={IconScanText} onPress={() => setBulkScanMenu(bulkScanMenu === group.id ? null : group.id)} variant="ghost-secondary" size="medium" forcePressed={bulkScanMenu === group.id} />
                           <Menu
@@ -3160,7 +3162,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   setStepAddMenu(null);
                 }}
                 onClose={() => setStepAddMenu(null)}
-                style={styles.anchoredMenuRight}
+                style={addMenuAnchor === 'left' ? styles.anchoredMenuLeft : styles.anchoredMenuRight}
               />
               <Menu
                 items={[

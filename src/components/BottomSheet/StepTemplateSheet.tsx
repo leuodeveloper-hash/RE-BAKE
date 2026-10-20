@@ -8,7 +8,7 @@ import {Button} from '@components/Button';
 import {Menu} from '@components/Menu';
 import {TextInput} from '@components/TextInput';
 import {Tabs} from '@components/Tabs/Tabs';
-import {IconStarFilled, IconEllipsisVertical, IconEdit, IconTrash, IconProcess} from '@components/Icon/IconIndex';
+import {IconStarFilled, IconEllipsisVertical, IconEdit, IconTrash, IconFlow} from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useTranslation} from '@contexts/LanguageContext';
 import {useStepTemplates, type StepTemplate} from '@hooks/useStepTemplates';
@@ -34,7 +34,7 @@ export function StepTemplateSheet({visible, onClose, onPick, onSaveCurrent, canS
   const {templates, updateTemplate, removeTemplate} = useStepTemplates();
   const [menuFor, setMenuFor] = useState<string | null>(null);
   // 갈래(과정 하나) / 묶음(섹션 통째) 탭
-  const [tab, setTab] = useState<'single' | 'group'>('single');
+  const [tab, setTab] = useState<'single' | 'group'>('group');
   const shown = templates.filter(tpl => (tab === 'group') === !!tpl.group);
   // 편집 중인 템플릿 — 있으면 시트가 편집 칸으로 바뀐다(뒤로가기로 목록)
   const [editing, setEditing] = useState<StepTemplate | null>(null);
@@ -90,7 +90,7 @@ export function StepTemplateSheet({visible, onClose, onPick, onSaveCurrent, canS
       ) : undefined}>
       <View style={styles.body}>
         <Tabs
-          tabs={[{id: 'single', label: t('stepTemplate.tabSingle')}, {id: 'group', label: t('stepTemplate.tabGroup')}]}
+          tabs={[{id: 'group', label: t('stepTemplate.tabGroup')}, {id: 'single', label: t('stepTemplate.tabSingle')}]}
           selectedId={tab}
           onSelect={id => { setMenuFor(null); setTab(id as 'single' | 'group'); }}
           fullWidth
@@ -114,7 +114,7 @@ export function StepTemplateSheet({visible, onClose, onPick, onSaveCurrent, canS
                     description={sub || (tpl.photos?.length ? t('stepTemplate.photoCount', {count: tpl.photos.length}) : undefined)}
                     leading={thumb
                       ? {type: 'custom', element: <ExpoImage source={{uri: thumb}} style={styles.thumb} contentFit="cover" />}
-                      : {type: 'icon', icon: isGroup ? IconProcess : IconStarFilled}}
+                      : {type: 'icon', icon: isGroup ? IconFlow : IconStarFilled}}
                     trailing={{type: 'iconButton', icon: IconEllipsisVertical, variant: 'ghost-secondary', onPress: () => setMenuFor(open ? null : tpl.id)}}
                     onPress={() => onPick(tpl)}
                     showDivider={i < shown.length - 1}
