@@ -1235,5 +1235,7 @@
   "unmade.withReviewDesc": "이 회차에 쓴 회고 노트도 함께 지워져요.",
   "unmade.withReviewConfirm": "해제하고 지우기",
   "unmade.withReviewDone": "해제하고 회고 노트를 지웠어요",
-  "recipeEdit.reviewAfterSave": "레시피를 저장하고 만들었어요를 표시한 뒤 회고를 쓸 수 있어요"
+  "recipeEdit.reviewAfterSave": "레시피를 저장하고 만들었어요를 표시한 뒤 회고를 쓸 수 있어요",
+  "pdfPreview.contentFull": "전체",
+  "pdfPreview.contentSummary": "요약"
 }

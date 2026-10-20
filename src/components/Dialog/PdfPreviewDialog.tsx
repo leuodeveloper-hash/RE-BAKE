@@ -1,4 +1,5 @@
-import React, {useCallback} from 'react';
+import {Tabs} from '@components/Tabs/Tabs';
+import React, {useCallback, useState} from 'react';
 import {Platform, StyleSheet, View, useWindowDimensions} from 'react-native';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {Spacing} from '@constants/spacing';
@@ -13,6 +14,8 @@ import {
   RecipePdfData,
   generateRecipeHtml,
   generateRecipeListHtml,
+  hasStepSummary,
+  type RecipePdfContent,
   type RecipePdfLayout,
 } from '@utils/generateRecipeHtml';
 
@@ -56,12 +59,16 @@ export function PdfPreviewDialog({
 }: PdfPreviewDialogProps) {
   // PDF는 '한번에 보기' 레이아웃 하나로 — 글줄이라 레시피 하나가 종이 한 장에 들어간다
   const layout: RecipePdfLayout = 'bulk';
+  // 전체 / 요약 — 과정 요약이 있는 레시피만 탭이 보인다
+  const [content, setContent] = useState<RecipePdfContent>('full');
+  const canSummary = dataList ? dataList.some(hasStepSummary) : !!data && hasStepSummary(data);
+  const effectiveContent: RecipePdfContent = canSummary ? content : 'full';
   const styles = useThemedStyles(createStyles);
   const {height: windowHeight} = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const pvH = previewHeight(windowHeight, insets.top, insets.bottom);
   const {t} = useTranslation();
-  const html = dataList ? generateRecipeListHtml(dataList, layout) : htmlProp ?? (data ? generateRecipeHtml(data, layout) : '');
+  const html = dataList ? generateRecipeListHtml(dataList, layout, effectiveContent) : htmlProp ?? (data ? generateRecipeHtml(data, layout, effectiveContent) : '');
   const pdfFilename = filenameProp ?? data?.title ?? 'recipes';
 
   // 웹 인쇄 창 — 다운로드(PDF로 저장)·프린트가 같은 창을 쓴다
@@ -151,6 +158,16 @@ export function PdfPreviewDialog({
           <Button label={t('pdfPreview.download')} variant="filled" onPress={handleDownload} />
         </>
       }>
+      {canSummary ? (
+        <View style={styles.contentTabs}>
+          <Tabs
+            tabs={[{id: 'full', label: t('pdfPreview.contentFull')}, {id: 'summary', label: t('pdfPreview.contentSummary')}]}
+            selectedId={content}
+            onSelect={id => setContent(id as RecipePdfContent)}
+            fullWidth
+          />
+        </View>
+      ) : null}
       <View style={[styles.previewContainer, {height: pvH}]}>
         {visible && html ? (
           <RecipeHtmlPreview
@@ -167,6 +184,7 @@ export function PdfPreviewDialog({
 
 const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
+    contentTabs: {width: CONTENT_WIDTH, marginBottom: Spacing.sm},
     previewContainer: {
       width: CONTENT_WIDTH,
       borderRadius: Radius['radius-md'],

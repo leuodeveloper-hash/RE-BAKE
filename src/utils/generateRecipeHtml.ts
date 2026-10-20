@@ -30,7 +30,16 @@ export interface PdfStep {
 export interface PdfStepGroup {
   title: string;
   steps: PdfStep[];
+  /** 요약 한 줄(여러 줄) — '요약' PDF에서 과정 대신 ①②③으로 */
+  summary?: string;
+  timer?: string;
 }
+
+/** PDF 내용 — 전체(과정 전부) / 요약(과정 대신 묶음 요약 ①②③) */
+export type RecipePdfContent = 'full' | 'summary';
+
+/** 요약이 하나라도 있는지 — 있으면 미리보기에 전체/요약 탭 */
+export const hasStepSummary = (data: RecipePdfData) => !!data.stepGroups?.some(g => g.summary?.trim());
 
 export interface RecipePdfData {
   title: string;
@@ -232,8 +241,8 @@ const PDF_CSS = `
   .bulk-group:first-child { margin-top: 0; }
   .bulk-text { font-size: 13px; color: #1a1a1a; line-height: 1.6; }
   .step-num { color: #8a8a85; }
-  /* 과정 줄 사이 — 한 과정씩 떨어져 보이게 */
-  .bulk-step + .bulk-step, .step-tip + .bulk-step, .step-caution + .bulk-step { margin-top: 10px; }
+  /* 과정 줄 사이 — 살짝만 띄운다(10은 너무 떨어져 보였다). 줄 간격(1.6)이 이미 있어 4면 충분 */
+  .bulk-step + .bulk-step, .step-tip + .bulk-step, .step-caution + .bulk-step { margin-top: 4px; }
   /* 과정은 번호 붙은 글줄 — 문단처럼 붙여 쓴다(줄 사이 선·큰 간격 없이) */
   .step-row { display: flex; gap: 6px; padding: 2px 0; }
   /* 번호는 원 없이 글줄 그대로 '1.' */
@@ -266,7 +275,7 @@ ${inner}
 </html>`;
 }
 
-export function generateRecipeListHtml(recipes: RecipePdfData[], layout: RecipePdfLayout = 'card'): string {
+export function generateRecipeListHtml(recipes: RecipePdfData[], layout: RecipePdfLayout = 'card', content: RecipePdfContent = 'full'): string {
   const recipeSections = recipes
     .map(data => {
       const subtitle = buildSubtitle(data);
@@ -278,7 +287,7 @@ export function generateRecipeListHtml(recipes: RecipePdfData[], layout: RecipeP
       </div>
       ${data.description?.trim() ? `<div class="description">${escapeHtml(stripRichText(data.description, {maskSecret: true}))}</div>` : ''}
       ${buildMetaHtml(data)}
-      ${layout === 'bulk' ? buildBulkHtml(data) : `${data.ingredientGroups.length > 0 ? buildIngredientsHtml(data) : ''}
+      ${layout === 'bulk' ? buildBulkHtml(data, content) : `${data.ingredientGroups.length > 0 ? buildIngredientsHtml(data) : ''}
       ${buildToolsHtml(data)}
       ${buildProcessHtml(data)}`}
       ${data.advice?.trim() ? `<div class="section"><div class="section-title">베이키의 조언</div><div class="bulk"><div class="bulk-text">${escapeHtml(stripRichText(data.advice, {maskSecret: true}))}</div></div></div>` : ''}
@@ -336,7 +345,7 @@ export function recipeToPdfData(recipe: {
 export type RecipePdfLayout = 'card' | 'bulk';
 
 /** 한번에 보기 — 재료는 '이름 분량, …' 한 줄, 도구도 한 줄, 과정은 '1. …' 줄과 팁·주의 옅은 줄. 묶음은 작은 이름 줄 */
-function buildBulkHtml(data: RecipePdfData): string {
+function buildBulkHtml(data: RecipePdfData, content: RecipePdfContent = 'full'): string {
   const amt = (a?: string) => (a && /\d/.test(a) ? ` ${escapeHtml(a)}` : '');
   const out: string[] = [];
   const ing = data.ingredientGroups.filter(g => g.ingredients.length > 0);
@@ -353,6 +362,22 @@ function buildBulkHtml(data: RecipePdfData): string {
   }
   const groups = data.stepGroups && data.stepGroups.length ? data.stepGroups : (data.steps ? [{title: '', steps: data.steps}] : []);
   const sg = groups.filter(g => g.steps.length > 0);
+  // 요약 — 묶음 요약 줄을 ①②③으로 이어 번호(요약이 빈 묶음은 묶음 이름). 상세 '요약 보기'와 같은 규칙
+  if (content === 'summary' && hasStepSummary(data)) {
+    out.push('<div class="section"><div class="section-title">과정 요약</div><div class="bulk">');
+    let n = 0;
+    for (const g of sg as PdfStepGroup[]) {
+      const lines = (g.summary ?? '').split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+      const list = lines.length ? lines : [g.title];
+      list.forEach((line, li) => {
+        n += 1;
+        const timer = li === list.length - 1 && sg.length > 1 && g.timer ? ` <span class="step-num">· ${escapeHtml(g.timer)}</span>` : '';
+        out.push(`<div class="bulk-text bulk-step"><span class="step-num">${circledNumber(n)}</span> ${escapeHtml(stripRichText(line, {maskSecret: true}))}${timer}</div>`);
+      });
+    }
+    out.push('</div></div>');
+    return out.join('');
+  }
   if (sg.length) {
     out.push('<div class="section"><div class="section-title">과정</div><div class="bulk">');
     for (const g of sg) {
@@ -372,6 +397,6 @@ function buildBulkHtml(data: RecipePdfData): string {
  * 레시피 하나 PDF — 여러 레시피와 같은 함수로 만든다(종이 한 장 칸·페이지 나눔·레이아웃이 한 곳에서 관리).
  * 따로 만들던 때는 종이 칸이 없어 상세 미리보기만 페이지로 안 보였다.
  */
-export function generateRecipeHtml(data: RecipePdfData, layout: RecipePdfLayout = 'card'): string {
-  return generateRecipeListHtml([data], layout);
+export function generateRecipeHtml(data: RecipePdfData, layout: RecipePdfLayout = 'card', content: RecipePdfContent = 'full'): string {
+  return generateRecipeListHtml([data], layout, content);
 }

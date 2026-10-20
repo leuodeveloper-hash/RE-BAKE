@@ -1250,5 +1250,7 @@
   "unmade.withReviewDesc": "The review note for this session will be deleted too.",
   "unmade.withReviewConfirm": "Unmark and delete",
   "unmade.withReviewDone": "Unmarked and deleted the review note",
-  "recipeEdit.reviewAfterSave": "Save the recipe and mark it as made to write a review"
+  "recipeEdit.reviewAfterSave": "Save the recipe and mark it as made to write a review",
+  "pdfPreview.contentFull": "Full",
+  "pdfPreview.contentSummary": "Summary"
 }
