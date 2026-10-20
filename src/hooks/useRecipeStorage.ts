@@ -75,7 +75,7 @@ function validateExportData(data: unknown): data is RecipeExportData {
 }
 
 /** 레시피 내 로컬 이미지를 Firebase Storage에 업로드하고 URL로 교체 */
-async function uploadLocalImages(recipe: Recipe): Promise<Recipe> {
+export async function uploadLocalImages(recipe: Recipe): Promise<Recipe> {
   let updated = {...recipe};
   let changed = false;
 

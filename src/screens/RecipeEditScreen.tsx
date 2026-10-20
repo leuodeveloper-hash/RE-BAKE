@@ -220,6 +220,7 @@ const noOutline: any = {outlineStyle: 'none'};
  * 입력칸마다 핸들러를 달 필요가 없다.
  */
 /** 팁이면 숨기는 칸 — 공법·비중·재료·도구 */
+// 팁으로 바꿀 때 끄는 칸 — 단, 값이 비어 있을 때만(내용이 있는 칸은 남긴다: 준비물 팁의 재료·도구 등)
 const TIP_HIDDEN_FIELDS = ['method', 'ratio', 'ingredients', 'tools'];
 
 export function RecipeEditScreen(props: RecipeEditScreenProps) {
@@ -2379,9 +2380,15 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                     onSelect={id => {
                       const next = id as 'recipe' | 'tip';
                       setKind(next);
-                      // 팁은 재료·도구·공법·비중이 없다 — 팁으로 바꾸면 그 칸을 숨기고, 레시피로 되돌리면 다시 켠다
+                                            // 팁 — 비어 있는 칸만 끈다(새로 쓰는 팁은 다 비어 있어 기본으로 꺼진다). 레시피로 되돌리면 다시 켠다
+                      const filled: Record<string, boolean> = {
+                        method: !!method?.trim(),
+                        ratio: !!ratio?.trim(),
+                        ingredients: ingredientGroups.some(g => g.bulkMode ? !!g.bulkText.trim() : g.ingredients.some(i => i.name.trim())),
+                        tools: toolGroups.some(g => g.bulkMode ? !!g.bulkText.trim() : g.tools.some(x => x.name.trim())),
+                      };
                       setActiveFieldIds(prev => next === 'tip'
-                        ? prev.filter(f => !TIP_HIDDEN_FIELDS.includes(f))
+                        ? prev.filter(f => !TIP_HIDDEN_FIELDS.includes(f) || filled[f])
                         : [...prev, ...TIP_HIDDEN_FIELDS.filter(f => !prev.includes(f))]);
                     }}
                   />

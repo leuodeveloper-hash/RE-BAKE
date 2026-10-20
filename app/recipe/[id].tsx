@@ -3,6 +3,7 @@ import {AppState, Platform, View, StyleSheet} from 'react-native';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import {computeLockedIds, useSetExploreLock} from '@hooks/useExploreLock';
 import {duplicateRecipe} from '@utils/recipeMenuItems';
+import {uploadLocalImages} from '@hooks/useRecipeStorage';
 import {setAlbumScope} from '@components/AlbumPicker/albumPicker';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import {doc, getDoc, updateDoc, setDoc, deleteField} from 'firebase/firestore';
@@ -482,8 +483,10 @@ const handleDelete = useCallback(async () => {
           }))
         : recipeData.steps;
 
+      // 묶음 과정·추가 상단·조언 사진까지 — 내 레시피 저장과 같은 업로드(빠진 사진이 폰 주소로 남지 않게)
+      const fullyUploaded = await uploadLocalImages({...recipeData, id: exploreId, imageUri: uploadedImageUri, steps: uploadedSteps} as any);
       const exploreRecipe = {
-        ...recipeData,
+        ...fullyUploaded,
         imageUri: uploadedImageUri,
         steps: uploadedSteps,
         cookbook: cookbookName === '__none__' ? '' : cookbookName,

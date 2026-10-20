@@ -14,6 +14,7 @@ import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {useTranslation} from '@contexts/LanguageContext';
 import {db} from '@config/firebase';
 import {uploadRecipeImage, deleteRecipeImage, isLocalUri} from '@utils/imageUpload';
+import {uploadLocalImages} from '@hooks/useRecipeStorage';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 
 const DEFAULT_EXPLORE_COOKBOOKS = ['제과기능사', '제빵기능사'];
@@ -118,7 +119,10 @@ export default function RecipeEditRoute() {
     if (isExploreTarget && isAdmin) {
       // 둘러보기 레시피 편집 → explore_recipes에 저장
       try {
-        const {imageSource: _imgSrc, ...rest} = data;
+        // 과정·조언 사진도 서버에 올린다 — 내 레시피 저장과 같은 함수.
+        // (빠져 있어서 공식 레시피의 과정 사진이 폰 안 주소(file://)로 저장돼 다른 기기에서 안 보였다)
+        const uploaded = await uploadLocalImages({...data, id: id!} as any);
+        const {imageSource: _imgSrc, ...rest} = uploaded as any;
         const serializable = stripUndefined(rest);
         // merge:true는 undefined(삭제된 필드)를 무시하므로 → 비운 optional 필드는 deleteField()로 명시해 실제 삭제.
         const OPTIONAL_FIELDS = ['sourceUrl', 'referenceUrl', 'advice', 'advicePhotos', 'kind', 'imageUri', 'imageUris', 'ratio', 'time', 'servings', 'method'] as const;

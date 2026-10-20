@@ -1227,5 +1227,6 @@
   "recipeDetail.splitView": "나눠 보기",
   "photoViewer.restyling": "보정하는 중…",
   "cookingMode.prepTabIngredients": "재료",
-  "cookingMode.prepTabTools": "도구"
+  "cookingMode.prepTabTools": "도구",
+  "cookingMode.prepareTools": "도구 준비"
 }

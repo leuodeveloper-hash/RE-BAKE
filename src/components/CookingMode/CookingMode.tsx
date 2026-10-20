@@ -382,7 +382,7 @@ export function CookingMode({
     () => [...new Set((toolGroups ?? []).flatMap(g => (g.tools ?? []).map(x => x.name?.trim()).filter((n): n is string => !!n)))],
     [toolGroups],
   );
-  const hasToolsTab = allToolNames.length > 0;
+  const hasTools = allToolNames.length > 0;
   const toggleTool = useCallback((name: string) => {
     setCheckedTools(prev => {
       const next = new Set(prev);
@@ -408,6 +408,10 @@ export function CookingMode({
   }, [ingredientGroups]);
 
   const allIngredientsChecked = allIngredientNames.length > 0 && allIngredientNames.every(n => checkedIngredients.has(n));
+  // 재료·도구가 둘 다 있을 때만 탭. 하나만 있으면 그것만(재료를 끈 팁은 도구만)
+  const hasIngredients = allIngredientNames.length > 0;
+  const hasToolsTab = hasTools && hasIngredients;
+  const showingTools = hasTools && (!hasIngredients || prepTab === 'tools');
   // 전체선택 버튼에 붙는 진행 수 — 몇 개 챙겼는지 한눈에
   const checkedIngredientCount = allIngredientNames.filter(n => checkedIngredients.has(n)).length;
 
@@ -655,8 +659,12 @@ export function CookingMode({
       setCurrentIndex(startIdx);
       setIsEditing(false);
       setCheckedIngredients(new Set());
-      setShowIngredientList(initialShowIngredients);
-      setIsInitialIngredientSheet(initialShowIngredients);
+      setCheckedTools(new Set());
+      setPrepTab('ingredients');
+      // 챙길 게 없으면(재료·도구 둘 다 끔) 준비 시트를 띄우지 않는다
+      const openPrep = initialShowIngredients && (allIngredientNames.length > 0 || allToolNames.length > 0);
+      setShowIngredientList(openPrep);
+      setIsInitialIngredientSheet(openPrep);
       setTimeout(() => {
         scrollToIndex(startIdx, false);
         // 스크롤 위치 안정화 후 콘텐츠 표시
@@ -2163,7 +2171,10 @@ export function CookingMode({
         <BottomSheet
           visible={showIngredientList}
           onClose={() => { setShowIngredientList(false); setIsInitialIngredientSheet(false); }}
-          title={isInitialIngredientSheet ? t('cookingMode.prepareIngredients') : t('cookingMode.ingredients')}
+          // 도구만 있으면(재료를 끈 팁 등) '도구'로
+          title={hasIngredients
+            ? (isInitialIngredientSheet ? t('cookingMode.prepareIngredients') : t('cookingMode.ingredients'))
+            : (isInitialIngredientSheet ? t('cookingMode.prepareTools') : t('cookingMode.prepTabTools'))}
           headerType="center"
           headerRight={
             // 시트 헤더 버튼 룰 — 닫기(X)와 같은 떠 있는 알약
@@ -2174,13 +2185,13 @@ export function CookingMode({
           }
           bottomAction={(() => {
             // 지금 탭(재료/도구)의 전체선택 · 남은 수. 준비 완료는 재료·도구를 다 챙겼을 때
-            const onTools = hasToolsTab && prepTab === 'tools';
+            const onTools = showingTools;
             const allChecked = onTools ? allToolsChecked : allIngredientsChecked;
             const left = onTools ? allToolNames.length - checkedToolCount : allIngredientNames.length - checkedIngredientCount;
             const toggleAll = onTools
               ? () => setCheckedTools(allToolsChecked ? new Set() : new Set(allToolNames))
               : toggleAllIngredients;
-            const done = allIngredientsChecked && (!hasToolsTab || allToolsChecked);
+            const done = (!hasIngredients || allIngredientsChecked) && (!hasTools || allToolsChecked);
             return (
               <>
                 <Button
@@ -2212,7 +2223,7 @@ export function CookingMode({
               />
             </View>
           )}
-          {hasToolsTab && prepTab === 'tools' ? (toolGroups ?? []).map((group, gIdx) => (
+          {showingTools ? (toolGroups ?? []).map((group, gIdx) => (
             <React.Fragment key={`tool-${gIdx}`}>
               {(toolGroups?.length ?? 0) > 1 && group.title ? (
                 <SectionHeader title={group.title} style={styles.ingredientGroupHeader} />

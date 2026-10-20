@@ -1242,5 +1242,6 @@
   "recipeDetail.splitView": "Split view",
   "photoViewer.restyling": "Restyling…",
   "cookingMode.prepTabIngredients": "Ingredients",
-  "cookingMode.prepTabTools": "Tools"
+  "cookingMode.prepTabTools": "Tools",
+  "cookingMode.prepareTools": "Prepare tools"
 }

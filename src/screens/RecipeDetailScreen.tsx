@@ -2003,7 +2003,8 @@ export function RecipeDetailScreen({
         title={title ?? ''}
         steps={steps}
         stepGroups={stepGroups}
-        ingredientGroups={ingredientGroups}
+        // 필드 관리에서 끈 칸은 요리모드 준비 시트에서도 뺀다
+        ingredientGroups={isFieldActive('ingredients') ? ingredientGroups : undefined}
         // 준비 시트에서 재료와 함께 도구도 챙긴다(필드 관리에서 도구를 끄면 빠진다)
         toolGroups={isFieldActive('tools') ? resolvedToolGroups : undefined}
         canEdit={canEdit}
