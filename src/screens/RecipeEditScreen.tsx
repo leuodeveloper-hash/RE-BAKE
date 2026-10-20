@@ -3185,7 +3185,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 onClose={() => setStepGroupMenu(null)}
                 style={styles.anchoredMenuLeft}
               />
-              {/* 요약 한 줄 — 묶음 이름 아래. 한번에 쓰기 중엔 글이 합쳐져 있어 숨긴다 */}
+              </View>
+              {/* 요약 한 줄 — 묶음 이름 아래(머리줄 칸 밖 — 안에 두면 묶음 메뉴가 요약 줄 아래로 밀렸다). 한번에 쓰기 중엔 숨긴다 */}
               {!group.bulkMode && (
                 <StepSummaryInput
                   value={group.summary ?? ''}
@@ -3196,7 +3197,6 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   inputStyle={styles.cardFieldInput}
                 />
               )}
-              </View>
 
               {/* Steps — 한번에 쓰기 모드면 줄바꿈 구분 일괄 입력(묶음 항목 하나로) */}
               {group.bulkMode ? (<CardItem style={CARD_LAST}>

@@ -141,7 +141,10 @@ export function SectionHeader({
           {actionExtra}
           {hasMenu ? (
             <View style={styles.menuAnchor}>
-              <IconButton icon={IconEllipsisVertical} variant="ghost-secondary" size="small" forcePressed={menuOpen} onPress={() => setMenuOpen(v => !v)} />
+              {/* 편집 머리줄 버튼과 같은 크기(아이콘 20) — 28 칸에 넘치게 둬 머리줄 높이는 그대로 */}
+              <View style={styles.iconSlot}>
+                <IconButton icon={IconEllipsisVertical} variant="ghost-secondary" size="medium" forcePressed={menuOpen} onPress={() => setMenuOpen(v => !v)} />
+              </View>
               <Menu
                 // 묶음(비율 조절 등)이 위, 항목(편집 등)은 아래
                 // 항목(편집 등)이 위, 컨트롤(비율 조절 등)은 아래 — 사이에 구분선
@@ -166,7 +169,11 @@ export function SectionHeader({
   );
 }
 
+const ICON_SLOT = {width: 28, height: 28, alignItems: 'center' as const, justifyContent: 'center' as const};
+
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  // 아이콘 버튼 칸 — 편집 머리줄 버튼 칸(28)과 같다. 버튼(40)은 넘쳐도 줄 높이는 그대로
+  iconSlot: {width: 28, height: 28, alignItems: 'center', justifyContent: 'center'},
   containerMenuOpen: {
     zIndex: 1000,
     elevation: 1000,
@@ -188,7 +195,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: Spacing.md,
+    // 아이콘 버튼 칸(28) 사이 10 — 편집 머리줄과 같다
+    gap: 10,
   },
   container: {
     // 고정 높이가 아니라 최소 높이 — 게이지·아이콘이 들어가면 줄이 커진다

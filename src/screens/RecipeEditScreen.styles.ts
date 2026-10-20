@@ -195,9 +195,9 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   anchoredMenuLeft: {
     position: 'absolute' as const,
-    top: '100%' as any,
+    // 묶음 아이콘 기준 — 머리줄(48) 가운데 아이콘(20) 아래 4. 칸 맨 아래(100%) 기준이면 칸 높이에 따라 밀렸다
+    top: 48 / 2 + 20 / 2 + 4,
     left: Spacing.md,
-    marginTop: MENU_GAP,
     zIndex: 9999,
     elevation: 24,
   },
