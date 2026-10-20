@@ -5,7 +5,7 @@ import {Button} from '@components/Button';
 import {TextInput} from '@components/TextInput';
 import {Tabs} from '@components/Tabs';
 import {NavPillButton} from '@components/Navigation/NavPillButton';
-import {IconProcess, IconTrash} from '@components/Icon/IconIndex';
+import {IconTrash} from '@components/Icon/IconIndex';
 import {useTranslation} from '@contexts/LanguageContext';
 import {Spacing} from '@constants/spacing';
 import type {BakingMethod, MethodCategory} from '@constants/bakingMethods';
@@ -48,8 +48,8 @@ export function DictionaryTermDialog({visible, onClose, term, initialCategory, o
       position="top"
       visible={visible}
       onClose={onClose}
-      icon={IconProcess}
-      avatarColor="lime"
+      // 머리는 일반 시트 헤더(라벨 가운데 · 왼쪽 X · 오른쪽 삭제 알약)
+      headerType="center"
       title={editId ? t('dictionary.editTitle') : t('dictionary.createTitle')}
       headerRight={editId && onDelete ? (
         <NavPillButton icon={IconTrash} onPress={() => { onDelete(editId); onClose(); }} />

@@ -124,6 +124,8 @@ export {default as IconBlackNoseExclamation} from '../../../assets/icons/black-n
 export {default as IconMic} from '../../../assets/icons/mic.svg';
 export {default as IconMicFilled} from '../../../assets/icons/mic_filled.svg';
 export {default as IconBroom} from '../../../assets/icons/broom.svg';
+export {default as IconFlash} from '../../../assets/icons/flash.svg';
+export {default as IconFlashFilled} from '../../../assets/icons/flash-filled.svg';
 export {default as IconSparkle} from '../../../assets/icons/sparkle.svg';
 export {default as IconSparkleFilled} from '../../../assets/icons/sparkle-filled.svg';
 export {default as IconFire} from '../../../assets/icons/fire.svg';
