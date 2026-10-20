@@ -1237,5 +1237,7 @@
   "unmade.withReviewDone": "해제하고 회고 노트를 지웠어요",
   "recipeEdit.reviewAfterSave": "레시피를 저장하고 만들었어요를 표시한 뒤 회고를 쓸 수 있어요",
   "pdfPreview.contentFull": "전체",
-  "pdfPreview.contentSummary": "요약"
+  "pdfPreview.contentSummary": "요약",
+  "stepTemplate.loadMenu": "자주 쓰는 과정 가져오기",
+  "stepTemplate.saveThisMenu": "이 과정 저장하기"
 }

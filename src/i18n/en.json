@@ -1252,5 +1252,7 @@
   "unmade.withReviewDone": "Unmarked and deleted the review note",
   "recipeEdit.reviewAfterSave": "Save the recipe and mark it as made to write a review",
   "pdfPreview.contentFull": "Full",
-  "pdfPreview.contentSummary": "Summary"
+  "pdfPreview.contentSummary": "Summary",
+  "stepTemplate.loadMenu": "Load saved step",
+  "stepTemplate.saveThisMenu": "Save this step"
 }

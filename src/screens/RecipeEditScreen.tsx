@@ -3153,11 +3153,15 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 items={[
                   {id: 'step', label: t('recipeEdit.addItem'), icon: IconAdd},
                   {id: 'group', label: t('recipeEdit.addGroup'), icon: IconBlockPlus},
-                  {id: 'saveTemplate', label: t('stepTemplate.saveGroup'), icon: IconStarFilled},
+                  // 자주 쓰는 과정 — 가져오기(이 묶음 아래로) / 이 과정(묶음) 저장하기
+                  {id: 'loadTemplate', label: t('stepTemplate.loadMenu'), icon: IconImport},
+                  {id: 'saveTemplate', label: t('stepTemplate.saveThisMenu'), icon: IconStarFilled},
                 ]}
                 visible={stepAddMenu === group.id}
                 onSelect={(id) => {
-                  if (id === 'saveTemplate') {
+                  if (id === 'loadTemplate') {
+                    setTemplateTarget({groupId: group.id, stepId: group.steps[group.steps.length - 1]?.id ?? ''});
+                  } else if (id === 'saveTemplate') {
                     saveGroupAsTemplate(group);
                   } else if (id === 'step') {
                     const newId = addStep(group.id);
@@ -3175,13 +3179,15 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   {id: 'addAbove', label: t('recipeEdit.addGroupAbove'), icon: IconBlockPlus},
                   {id: 'up', label: t('recipeEdit.moveGroupUp'), icon: IconArrowTop, disabled: groupIndex === 0},
                   {id: 'down', label: t('recipeEdit.moveGroupDown'), icon: IconArrowBottom, disabled: groupIndex === stepGroups.length - 1},
-                  {id: 'saveTemplate', label: t('stepTemplate.saveGroup'), icon: IconStarFilled},
+                  {id: 'loadTemplate', label: t('stepTemplate.loadMenu'), icon: IconImport},
+                  {id: 'saveTemplate', label: t('stepTemplate.saveThisMenu'), icon: IconStarFilled},
                   // 마지막 묶음은 지우면 과정이 통째로 사라지므로 막는다
                   {id: 'delete', label: t('recipeEdit.deleteGroup'), icon: IconTrash, destructive: true, disabled: stepGroups.length <= 1},
                 ]}
                 visible={stepGroupMenu === group.id}
                 onSelect={(id) => {
                   if (id === 'saveTemplate') saveGroupAsTemplate(group);
+                  else if (id === 'loadTemplate') setTemplateTarget({groupId: group.id, stepId: group.steps[group.steps.length - 1]?.id ?? ''});
                   else if (id === 'addAbove') insertStepGroupAbove(group.id);
                   else if (id === 'delete') removeStepGroup(group.id);
                   else moveStepGroup(group.id, id === 'up' ? -1 : 1);
