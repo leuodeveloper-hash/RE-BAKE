@@ -399,6 +399,10 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // (28 슬롯에 medium 버튼을 가두면 아이템 버튼보다 안쪽으로 들어가 보였음)
   // 행의 +/- 버튼(ListItem iconButtonSlot)과 같은 28 슬롯 기준 — 크기를 안 주면
   // 버튼 실제 크기(40)만큼 벌어져 헤더 +와 행 -의 중심선이 세로로 어긋난다.
+  // 분할 스위치 — 옆 아이콘 버튼(+·사진 인식)과 떨어지게 머리줄 간격(10)에 8 더
+  splitSwitch: {
+    marginRight: Spacing.sm,
+  },
   headerAddSlot: {
     width: 28,
     height: 28,

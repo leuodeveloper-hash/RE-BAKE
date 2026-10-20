@@ -88,6 +88,11 @@ export function usePageContentPadding() {
 // pill 바로 아래에서 짧게 페이드아웃 — 콘텐츠 침범 방지 (이전 66 → 24)
 const GRADIENT_EXTENSION = Spacing.xxl; // 사라지는 구간을 길게 — 짧으면 경계가 보인다
 
+/** 앱바 알약 하나에 붙는 메뉴 자리 — 알약 바로 밑 4에 띄운다(줄 높이를 밀지 않게). 좌우 메뉴 슬롯과 같은 규칙 */
+export function NavMenuAnchor({children}: {children: React.ReactNode}) {
+  return <View style={styles.leftMenuContainer} pointerEvents="box-none">{children}</View>;
+}
+
 export function FloatingNavBar({left, right, title, center, centerMenu, leftMenu, rightMenu, leftFull, tintColor, style}: FloatingNavBarProps) {
   const colors = useColors();
   const insets = useSafeAreaInsets();

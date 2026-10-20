@@ -13,7 +13,6 @@ import {useFloatingNotice} from '@contexts/FloatingNoticeContext';
 import {useRouter} from 'expo-router';
 import {goToRetrospective} from '@utils/navigation';
 import {LazyMount} from '@components/LazyMount';
-import {SplitToggle} from '@components/SplitToggle';
 import {StepSummaryList, CircledNumberText, stepLineText} from '@components/StepSummary';
 import {insertLockItems, isLockMenuId} from '@hooks/useExploreLock';
 import {APPBAR_ITEM_GAP} from '@constants/layout';
@@ -40,7 +39,7 @@ import {useSafeAreaInsets} from 'react-native-safe-area-context';
 import {useSafeBottom} from '@hooks/useSafeBottom';
 import {LinearGradient} from 'expo-linear-gradient';
 import {Image as ExpoImage} from 'expo-image';
-import {FloatingNavBar, navPillStyle, NavPillButton, RulerSlider} from '@components/Navigation';
+import {FloatingNavBar, NavMenuAnchor, navPillStyle, NavPillButton, RulerSlider} from '@components/Navigation';
 import {GlassContainer, ContentContainer, Card, ContentMask} from '@components/Container';
 import {IconButton} from '@components/IconButton';
 import {SectionHeader} from '@components/SectionHeader';
@@ -1087,6 +1086,7 @@ export function RecipeDetailScreen({
           <SectionHeader
             title={label}
             // 과정 — 요약이 있으면 '과정' 글자 바로 옆에 '요약' 스위치(켜면 ①②③ 요약만)
+            // 과정 — 분할이 꺼져 있고 요약이 있으면 '과정' 글자 옆에 '요약' 스위치
             titleTrailing={withBulkToggle && sectionId === 'steps' && hasSummary && bulkSteps
               ? <Switch label={t('stepSummary.view')} value={summaryView} onValueChange={toggleSummaryView} />
               : undefined}
@@ -1112,12 +1112,16 @@ export function RecipeDetailScreen({
                 ) : null}
                 {/* 시간 정하기 전엔 버튼 없이(⋮ 메뉴 '타이머 설정'으로) */}
                 {hasTimer && <StepTimer ref={el => { timerRefs.current[key] = el; }} duration={timer} hideWhenUnset onMenuOpenChange={open => setMenuHeaderKey(k => (open ? key : k === key ? null : k))} />}
-                {/* 나눠 보기 토글 — 재료·과정 각자. 머리줄 ⋮와 같은 고스트 아이콘(작게), 편집 툴바 '묶음 나누기' 아이콘, 켜짐이면 눌린 모양 */}
-                {withBulkToggle && (sectionId === 'ingredients' || sectionId === 'steps') && !(sectionId === 'steps' && showSummary) && (() => {
-                  const sec = sectionId as 'ingredients' | 'steps';
-                  const bulk = sec === 'ingredients' ? bulkIngredients : bulkSteps;
-                  return <SplitToggle split={!bulk} onChange={split => toggleBulkView(sec, !split)} />;
-                })()}
+                {/* 분할 — ⋮ 바로 옆(재료·과정 각자). 요약 보기 중인 과정엔 없음. ⋮는 누를 자리만큼 당겨져 있어 스위치 쪽에 8 더 */}
+                {withBulkToggle && (sectionId === 'ingredients' || sectionId === 'steps') && !(sectionId === 'steps' && showSummary) && (
+                  <View style={styles.splitSwitch}>
+                    <Switch
+                      label={t('recipeDetail.splitView')}
+                      value={!(sectionId === 'ingredients' ? bulkIngredients : bulkSteps)}
+                      onValueChange={split => toggleBulkView(sectionId as 'ingredients' | 'steps', !split)}
+                    />
+                  </View>
+                )}
               </>
             ) : undefined}
           />
@@ -1899,12 +1903,15 @@ export function RecipeDetailScreen({
                     onPress={locked ? undefined : () => setShowTabMenu(prev => !prev)}
                   />
                 </GlassContainer>
-                <Menu
-                  items={SECTION_TABS}
-                  selectedId={activeTab}
-                  onSelect={id => { setShowTabMenu(false); handleTabPress(id); }}
-                  visible={showTabMenu}
-                />
+                {/* 알약 밑에 띄운다 — 줄 안에 두면 메뉴 높이만큼 줄이 커져 X가 내려앉았다 */}
+                <NavMenuAnchor>
+                  <Menu
+                    items={SECTION_TABS}
+                    selectedId={activeTab}
+                    onSelect={id => { setShowTabMenu(false); handleTabPress(id); }}
+                    visible={showTabMenu}
+                  />
+                </NavMenuAnchor>
               </View>
             ) : (
               <GlassContainer contentStyle={styles.tabPillContent}>
@@ -2254,6 +2261,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     marginBottom: 0,
   },
   // 앱바 떠 있는 요소 사이 — 공통 간격
+  splitSwitch: {
+    marginRight: Spacing.sm,
+  },
   navLeftRow: {
     flexDirection: 'row' as const,
     alignItems: 'center' as const,
