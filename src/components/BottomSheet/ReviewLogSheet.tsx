@@ -27,6 +27,8 @@ import {
 export interface ReviewLogSheetProps {
   visible: boolean;
   onClose: () => void;
+  /** 시트가 화면에서 완전히 내려간 뒤 — 다음 시트는 여기서 연다(아이폰은 겹쳐 열면 무시한다) */
+  onDismissed?: () => void;
   /** Depth 1용: 회고가 있는 레시피 목록 */
   recipes?: Recipe[];
   /** 다회차 그룹 계산용 전체 레시피 */
@@ -47,6 +49,7 @@ export interface ReviewLogSheetProps {
 export function ReviewLogSheet({
   visible,
   onClose,
+  onDismissed,
   recipes,
   allRecipes,
   selectedRecipe: selectedRecipeProp,
@@ -230,7 +233,7 @@ export function ReviewLogSheet({
   );
 
   return (
-    <BottomSheet visible={visible} onClose={onClose} header={headerNode}>
+    <BottomSheet visible={visible} onClose={onClose} onDismissed={onDismissed} header={headerNode}>
       {mode === 'list' ? (
         /* ---- Depth 1: 레시피 목록 ---- */
         <View style={styles.content}>

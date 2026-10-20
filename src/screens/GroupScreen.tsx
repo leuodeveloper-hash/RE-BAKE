@@ -9,7 +9,7 @@ import {useLandingMenu, allMenuItem, methodMenuItem} from '@components/RecipeGro
 /** 2뎁스 메뉴 맨 위 '전체' */
 const GROUP_ALL_ID = '__all__';
 import {EdgeFade} from '@components/Container/ContentMask';
-import React, {useCallback, useEffect, useMemo, useState} from 'react';
+import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {useExploreRecipeContext} from '@contexts/ExploreRecipeContext';
 import {useAuth} from '@contexts/AuthContext';
 import {Dimensions, Pressable, ScrollView, StyleSheet, Text, View} from 'react-native';
@@ -190,6 +190,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
   const [deleteTarget, setDeleteTarget] = useState('');
   const [deleteTargetIsExplore, setDeleteTargetIsExplore] = useState(false);
   const [exploreCookbookMenuTarget, setExploreCookbookMenuTarget] = useState<string | null>(null);
+  // 회고 시트를 닫은 뒤 열 시트(쓰기·수정) — 아이폰은 시트가 내려가기 전에 새 시트를 열면 무시한다
+  const afterReviewSheet = useRef<(() => void) | null>(null);
   const [showReviewSheet, setShowReviewSheet] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
   const [expandedMethod, setExpandedMethod] = useState<string | null>(null);
@@ -1155,15 +1157,17 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         visible={showReviewSheet}
         onClose={() => { setShowReviewSheet(false); setRetroTarget(null); }}
         writeCandidates={reviewCandidates}
-        onWriteReview={r => { setShowReviewSheet(false); setWriteTarget(r); }}
+        // 다음 시트(회고 쓰기·수정)는 이 시트가 다 내려간 뒤에 연다 — 아이폰은 겹쳐 열면 무시해 안 떴다
+        onDismissed={() => { const next = afterReviewSheet.current; afterReviewSheet.current = null; next?.(); }}
+        onWriteReview={r => { afterReviewSheet.current = () => setWriteTarget(r); setShowReviewSheet(false); }}
         onEditReview={key => {
           // key는 회차 id — 그 회차를 가진 레시피를 찾는다
           const r = retrospectiveSource.find(x => allSessionKeys(x).includes(key) || x.id === key);
           if (!r) return;
           setWriteSessionKey(allSessionKeys(r).includes(key) ? key : null);
-          // 시트 두 장을 겹치면 iOS에서 위 시트가 안 뜰 수 있다 — 상세를 닫고 수정 시트를 연다
+          // 시트 두 장을 겹치면 iOS에서 위 시트가 안 뜬다 — 이 시트가 다 내려간 뒤(onDismissed) 수정 시트를 연다
+          afterReviewSheet.current = () => setWriteTarget(r);
           setShowReviewSheet(false);
-          setWriteTarget(r);
         }}
         selectedRecipe={retroTarget ? {id: retroTarget.id, title: retroTarget.title, imageUri: retroTarget.imageUri} : undefined}
         sessionReviews={retroTarget ? [
