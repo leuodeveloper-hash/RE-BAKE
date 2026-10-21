@@ -13,7 +13,7 @@ import {useFloatingNotice} from '@contexts/FloatingNoticeContext';
 import {useRouter} from 'expo-router';
 import {goToRetrospective} from '@utils/navigation';
 import {LazyMount} from '@components/LazyMount';
-import {StepSummaryList, CircledNumberText, stepLineText} from '@components/StepSummary';
+import {StepSummaryList, CircledNumberText, stepLineText, summaryLineCount} from '@components/StepSummary';
 import {insertLockItems, isLockMenuId} from '@hooks/useExploreLock';
 import {APPBAR_ITEM_GAP} from '@constants/layout';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
@@ -50,7 +50,7 @@ import {Tabs} from '@components/Tabs';
 import {RichText} from '@components/RichText/RichText';
 import {EditableChip} from '@components/EditableChip';
 import {ReviewCard} from '@components/ReviewLine';
-import {ViewModeButton} from '@components/ViewModeButton';
+import {ViewModeButton, SummaryToggle} from '@components/ViewModeButton';
 import {OptionTile} from '@components/OptionTile';
 import {Dialog, PdfPreviewDialog, TimeDialog, ServingsDialog, UnlockDialog, NumberValueDialog} from '@components/Dialog';
 import {Button} from '@components/Button';
@@ -823,8 +823,8 @@ export function RecipeDetailScreen({
     setSummaryView(v);
     AsyncStorage.setItem(SUMMARY_VIEW_KEY, v ? '1' : '0').catch(() => {});
   }, []);
-  // 요약은 한번에 보기(나눠 보기 꺼짐)에서만 — 나눠 보기는 과정마다 카드라 요약 자리가 없다
-  const showSummary = summaryView && hasSummary && bulkViews.steps;
+  // 요약 — 보기와 따로 켠다. 문장뷰면 한 카드에 이어서, 묶음뷰면 묶음마다 카드(번호는 이어진다)
+  const showSummary = summaryView && hasSummary;
   // 요약 보기 항목 — 묶음마다 과정 사진을 합치고, 사진마다 원래 과정 사진(목록·순번)을 기억해 둔다(사진 뷰어용)
   const summaryItems = useMemo(() => {
     const refs = new Map<unknown, {src: unknown; index: number}[]>();
@@ -1109,7 +1109,11 @@ export function RecipeDetailScreen({
                 ) : null}
                 {/* 시간 정하기 전엔 버튼 없이(⋮ 메뉴 '타이머 설정'으로) */}
                 {hasTimer && <StepTimer ref={el => { timerRefs.current[key] = el; }} duration={timer} hideWhenUnset onMenuOpenChange={open => setMenuHeaderKey(k => (open ? key : k === key ? null : k))} />}
-                {/* 보기 — ⋮ 옆(공통 ViewModeButton). 재료·과정 각자, 요약뷰는 과정·요약 있을 때 */}
+                {/* 요약 — 보기 버튼 옆 따로(과정·요약 있을 때). 켜면 한 덩어리 위에 ①②③ 요약만 */}
+                {withBulkToggle && sectionId === 'steps' && hasSummary && (
+                  <SummaryToggle value={showSummary} onChange={toggleSummaryView} />
+                )}
+                {/* 보기 — ⋮ 옆(공통 ViewModeButton). 재료·과정 각자. 고르면 요약은 꺼진다 */}
                 {withBulkToggle && (sectionId === 'ingredients' || sectionId === 'steps') && (() => {
                   const sec = sectionId as 'ingredients' | 'steps';
                   const bulk = sec === 'ingredients' ? bulkIngredients : bulkSteps;
@@ -1117,13 +1121,11 @@ export function RecipeDetailScreen({
                   return (
                     <View style={styles.viewMenuAnchor}>
                       <ViewModeButton
-                        value={!bulk ? 'split' : sec === 'steps' && showSummary ? 'summary' : 'all'}
-                        withSummary={sec === 'steps' && hasSummary}
+                        value={!bulk ? 'split' : 'all'}
                         open={menuHeaderKey === viewKey}
                         onOpenChange={o => setMenuHeaderKey(k => (o ? viewKey : k === viewKey ? null : k))}
                         onChange={mode => {
                           toggleBulkView(sec, mode !== 'split');
-                          if (sec === 'steps') toggleSummaryView(mode === 'summary');
                         }}
                       />
                     </View>
@@ -1524,7 +1526,30 @@ export function RecipeDetailScreen({
         {isFieldActive('steps') && <View onLayout={(e) => { sectionPositions.current.steps = e.nativeEvent.layout.y; }} />}
         {/* 한번에 보기 — 과정을 번호 붙은 글줄로(팁·주의는 바로 아래 옅게) */}
         {/* 요약 보기 — 묶음마다 한 줄(①②③). 줄을 누르면 자세한 과정으로 */}
-        {isFieldActive('steps') && showSummary && [
+        {/* 요약 + 묶음뷰 — 묶음마다 머리줄 + 카드, 번호는 앞 묶음에 이어서 */}
+        {isFieldActive('steps') && showSummary && !bulkSteps && summaryItems.items.flatMap((item, gi) => {
+          const start = summaryItems.items.slice(0, gi).reduce((n, g) => n + summaryLineCount(g), 0);
+          return [
+            renderSectionHeader(`step-header-summary-${gi}`, t('recipeDetail.tabSteps'), 'steps', item.title, gi === 0),
+            <Animated.View key={`step-summary-${gi}`} style={{opacity: sectionAnims[1]}}>
+              <ContentContainer>
+                <Card>
+                  <ListItem showDivider={false} onLongPress={onEdit ? () => editWith('steps') : undefined}>
+                    <StepSummaryList
+                      items={[{...item, timer: undefined}]}
+                      startNumber={start}
+                      onPhotoPress={(photos, i) => {
+                        const ref = summaryItems.refs.get(photos)?.[i];
+                        if (ref) openPhotoViewer(ref.src, ref.index);
+                      }}
+                    />
+                  </ListItem>
+                </Card>
+              </ContentContainer>
+            </Animated.View>,
+          ];
+        })}
+        {isFieldActive('steps') && showSummary && bulkSteps && [
           renderSectionHeader('step-header-summary', t('recipeDetail.tabSteps'), 'steps', undefined, true),
           <Animated.View key="step-summary" style={{opacity: sectionAnims[1]}}>
             <ContentContainer>
