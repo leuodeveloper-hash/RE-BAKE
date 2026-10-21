@@ -157,20 +157,28 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   content: {
     gap: Spacing.md,
   },
+  // 드롭다운 z-index 3종 — 줄·단위 칸을 위로, 넘쳐도 안 잘리게
   row: {
     flexDirection: 'row',
     alignItems: 'flex-end',
     gap: Spacing.sm,
+    zIndex: 10,
+    elevation: 10,
+    overflow: 'visible' as const,
   },
   inputWrap: {
     flex: 1,
   },
   unitWrap: {
     position: 'relative' as const,
+    zIndex: 10,
+    overflow: 'visible' as const,
   },
   unitWrapFull: {
     flex: 1,
     position: 'relative' as const,
+    zIndex: 10,
+    overflow: 'visible' as const,
   },
   unitLabel: {
     ...Typography.caption.medium,
@@ -178,12 +186,14 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingHorizontal: Spacing.sm,
     marginBottom: Spacing.xs,
   },
+  // 단위 메뉴 — 셀렉터 아래로(위로 열면 팝업 머리에 가려 잘렸다)
   unitMenu: {
     position: 'absolute' as const,
-    bottom: '100%' as unknown as number,
+    top: '100%' as unknown as number,
     right: 0,
     zIndex: 10,
-    marginBottom: Spacing.xs,
+    elevation: 10,
+    marginTop: Spacing.xs,
   },
   noAmountHint: {
     ...Typography.body.small,

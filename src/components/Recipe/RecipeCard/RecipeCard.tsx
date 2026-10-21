@@ -790,7 +790,7 @@ export function RecipeCard({
             </View>
           ) : null}
         </Pressable>
-        {!isSmall && !hideDivider && <View style={styles.listDivider} />}
+        {/* 줄 사이 선 없음 — 구분(틈·바탕)은 감싸는 컨테이너가 정한다(리스트 아이템 자체 스펙이 아니다) */}
       </View>
     );
   }
@@ -1223,12 +1223,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // List 레이아웃
   listWrapper: {
     position: 'relative',
-  },
-  // 줄과 줄 사이 — 회색 페이지 바탕 위라 border/muted(10%)는 거의 안 보여 한 단계 진하게
-  listDivider: {
-    height: StyleSheet.hairlineWidth,
-    backgroundColor: colors['border/normal'],
-    marginLeft: Spacing.md + 64 + Spacing.md,
   },
   // 리스트 줄 — 좌우 16을 줄이 직접 갖는다(리스트 화면은 페이지 여백 없음)
   listContainer: {
