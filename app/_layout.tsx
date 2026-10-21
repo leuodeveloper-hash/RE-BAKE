@@ -1,6 +1,6 @@
 import '../global.css';
 import {launchLibrary} from '@components/AlbumPicker/albumPicker';
-import {AlbumPickerHost} from '@components/AlbumPicker';
+import {AlbumPickerHost, VideoCaptureHost} from '@components/AlbumPicker';
 import {checkShareDomain} from '@config/share';
 
 // 공유 링크 주소 확인 — bakle.app이 안 열리면 원래 주소(bakle.web.app)로 링크를 만든다
@@ -682,6 +682,8 @@ function NavigationContent() {
 
       {/* 앱 안 사진첩 — 사진 고르기는 전부 여기(마지막 앨범 기억) */}
       <AlbumPickerHost />
+      {/* 웹 — 고른 영상에서 장면 고르기 */}
+      <VideoCaptureHost />
 
       {/* 강제 업데이트 — 닫을 수 없다. 스토어로만 나갈 수 있다 */}
       <UpdateDialog visible={!!forcedUpdate} onUpdate={() => forcedUpdate?.()} />

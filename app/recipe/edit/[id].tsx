@@ -1,4 +1,4 @@
-import React, {useState, useCallback, useMemo, useEffect} from 'react';
+import React, {useState, useCallback, useMemo, useEffect, useRef} from 'react';
 import {saveRecipeVersion} from '@utils/recipeHistory';
 import {View, StyleSheet} from 'react-native';
 import {setAlbumScope} from '@components/AlbumPicker/albumPicker';
@@ -71,8 +71,13 @@ export default function RecipeEditRoute() {
   }, [isExploreTarget, setCookbookColor, reloadExplore]);
 
   // 레시피 찾기: 로컬 → explore 구독
-  const recipe = findRecipeById(id)
+  const foundRecipe = findRecipeById(id)
     ?? exploreRecipes.find(r => r.id === id);
+  // 저장 중 둘러보기 목록을 다시 읽는 동안 잠깐 못 찾아도 마지막 판을 쓴다 —
+  // 비면 편집 화면이 내려갔다 다시 올라와 맨 위로 튄 뒤에 저장되는 것처럼 보였다
+  const lastRecipeRef = useRef(foundRecipe);
+  if (foundRecipe) lastRecipeRef.current = foundRecipe;
+  const recipe = foundRecipe ?? lastRecipeRef.current;
 
   const navigateBack = useCallback(() => {
     if (router.canGoBack()) {

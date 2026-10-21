@@ -1258,5 +1258,7 @@
   "pdfPreview.contentSummary": "Summary",
   "stepTemplate.loadMenu": "Load saved step",
   "stepTemplate.saveThisMenu": "Save this step",
-  "recipeEdit.splitWrite": "Split"
+  "recipeEdit.splitWrite": "Split",
+  "videoCapture.title": "Pick a frame",
+  "videoCapture.capture": "Use selected frame"
 }

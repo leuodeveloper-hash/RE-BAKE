@@ -16,6 +16,7 @@ import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
 import {triggerHaptic} from '@utils/haptics';
 import {registerAlbumPicker, type PickedAsset} from './albumPicker';
+import {VideoFrameCapture, formatClock, type CapturedFrame} from '@components/VideoFrameCapture';
 
 const LAST_ALBUM_KEY = '@bakle_last_album';
 /** 레시피별 마지막 앨범 */
@@ -69,13 +70,16 @@ function AlbumPickerScreen({limit, scope, onDone}: {limit: number; scope?: strin
   const [assets, setAssets] = useState<MediaLibrary.Asset[]>([]);
   const [selected, setSelected] = useState<string[]>([]);
   const [busy, setBusy] = useState(false);
+  // 영상에서 고른 장면 — 영상 id → 캡처한 사진. 장면 고르기 화면에 띄울 영상
+  const [frames, setFrames] = useState<Record<string, CapturedFrame>>({});
+  const [capturing, setCapturing] = useState<{id: string; uri: string; durationMs: number} | null>(null);
   const cursor = useRef<{after?: string; hasNext: boolean}>({hasNext: true});
   const loading = useRef(false);
 
   // 권한 → 앨범 목록 → 마지막 앨범
   useEffect(() => {
     (async () => {
-      const p = await MediaLibrary.requestPermissionsAsync(false, ['photo']);
+      const p = await MediaLibrary.requestPermissionsAsync(false, ['photo', 'video']);
       if (!p.granted) { setPerm('denied'); return; }
       const list = await MediaLibrary.getAlbumsAsync({includeSmartAlbums: true}).catch(() => []);
       const withPhotos = list.filter(a => (a.assetCount ?? 0) > 0).sort((a, b) => (b.assetCount ?? 0) - (a.assetCount ?? 0));
@@ -99,7 +103,8 @@ function AlbumPickerScreen({limit, scope, onDone}: {limit: number; scope?: strin
       const page = await MediaLibrary.getAssetsAsync({
         first: PAGE,
         after: reset ? undefined : cursor.current.after,
-        mediaType: MediaLibrary.MediaType.photo,
+        // 영상도 — 누르면 장면을 골라 사진처럼 넣는다
+        mediaType: [MediaLibrary.MediaType.photo, MediaLibrary.MediaType.video],
         sortBy: [[MediaLibrary.SortBy.creationTime, false]],
         ...(albumId !== ALL ? {album: albumId} : {}),
       });
@@ -127,6 +132,19 @@ function AlbumPickerScreen({limit, scope, onDone}: {limit: number; scope?: strin
     if (scope) AsyncStorage.setItem(scopedKey(scope), id).catch(() => {});
   }, [scope]);
 
+  // 영상 — 고른 적 없으면 장면 고르기 화면(아이폰 ph:// 영상은 파일 경로로 바꿔야 장면을 뽑는다)
+  const openVideo = async (a: MediaLibrary.Asset) => {
+    triggerHaptic('light');
+    // 이미 장면을 넣은 영상을 다시 누르면 빼고 장면도 지운다 — 다시 누르면 새로 고른다
+    if (selected.includes(a.id)) {
+      setSelected(prev => prev.filter(x => x !== a.id));
+      setFrames(prev => { const n = {...prev}; delete n[a.id]; return n; });
+      return;
+    }
+    const info = await MediaLibrary.getAssetInfoAsync(a, {shouldDownloadFromNetwork: true}).catch(() => null);
+    setCapturing({id: a.id, uri: info?.localUri ?? a.uri, durationMs: (a.duration ?? 0) * 1000});
+  };
+
   const toggle = (id: string) => {
     triggerHaptic('light');
     setSelected(prev => {
@@ -145,6 +163,8 @@ function AlbumPickerScreen({limit, scope, onDone}: {limit: number; scope?: strin
       for (const id of selected) {
         const a = assets.find(x => x.id === id);
         if (!a) continue;
+        // 영상은 고른 장면을 사진으로
+        if (frames[id]) { out.push({uri: frames[id].uri, width: frames[id].width, height: frames[id].height, type: 'image'}); continue; }
         const info = await MediaLibrary.getAssetInfoAsync(a, {shouldDownloadFromNetwork: true});
         out.push({uri: info.localUri ?? a.uri, width: a.width, height: a.height, type: 'image'});
       }
@@ -211,8 +231,12 @@ function AlbumPickerScreen({limit, scope, onDone}: {limit: number; scope?: strin
             renderItem={({item}) => {
               const order = selected.indexOf(item.id);
               return (
-                <Pressable onPress={() => toggle(item.id)} style={{width: cell, height: cell}}>
-                  <ExpoImage source={{uri: item.uri}} style={StyleSheet.absoluteFill} contentFit="cover" recyclingKey={item.id} />
+                <Pressable onPress={() => (item.mediaType === MediaLibrary.MediaType.video ? openVideo(item) : toggle(item.id))} style={{width: cell, height: cell}}>
+                  {/* 영상은 고른 장면이 있으면 그 장면을 보여준다 */}
+                  <ExpoImage source={{uri: frames[item.id]?.uri ?? item.uri}} style={StyleSheet.absoluteFill} contentFit="cover" recyclingKey={item.id + (frames[item.id] ? ':f' : '')} />
+                  {item.mediaType === MediaLibrary.MediaType.video ? (
+                    <Text style={styles.duration}>{formatClock((item.duration ?? 0) * 1000)}</Text>
+                  ) : null}
                   {order >= 0 ? (
                     <View style={[styles.check, {backgroundColor: colors['surface/inverse'], borderColor: '#fff'}]}>
                       <Text style={[styles.checkText, {color: colors['foreground/on-surface-inverse']}]}>{limit === 1 ? '✓' : order + 1}</Text>
@@ -235,6 +259,24 @@ function AlbumPickerScreen({limit, scope, onDone}: {limit: number; scope?: strin
           </View>
         </>
       )}
+      {/* 장면 고르기 — 사진첩 위에 덮는다(Modal 안 Modal은 아이폰이 무시) */}
+      {capturing ? (
+        <VideoFrameCapture
+          uri={capturing.uri}
+          durationMs={capturing.durationMs}
+          onCancel={() => setCapturing(null)}
+          onCapture={frame => {
+            const id = capturing.id;
+            // 고른 컷은 폰 사진첩에도 남긴다(촬영과 같게 — 저장 실패해도 넣기는 그대로)
+            MediaLibrary.requestPermissionsAsync(true)
+              .then(p => (p.granted ? MediaLibrary.saveToLibraryAsync(frame.uri) : undefined))
+              .catch(e => console.warn('[AlbumPicker] 컷 사진첩 저장 실패:', e));
+            setFrames(prev => ({...prev, [id]: frame}));
+            setSelected(prev => (prev.includes(id) ? prev : limit === 1 ? [id] : prev.length >= limit ? prev : [...prev, id]));
+            setCapturing(null);
+          }}
+        />
+      ) : null}
     </View>
   );
 }
@@ -248,5 +290,7 @@ const styles = StyleSheet.create({
   check: {position: 'absolute', top: 6, right: 6, width: 22, height: 22, borderRadius: 11, borderWidth: 1.5, alignItems: 'center', justifyContent: 'center'},
   checkEmpty: {borderColor: 'rgba(255,255,255,0.9)', backgroundColor: 'rgba(0,0,0,0.15)'},
   checkText: {...Typography.caption.medium, fontWeight: '700'},
+  // 영상 길이 — 왼쪽 아래
+  duration: {position: 'absolute', left: 6, bottom: 4, ...Typography.caption.small, color: '#fff', textShadowColor: 'rgba(0,0,0,0.6)', textShadowRadius: 3},
   bottom: {position: 'absolute', left: 0, right: 0, bottom: 0, paddingHorizontal: Spacing.md, paddingTop: Spacing.sm},
 });

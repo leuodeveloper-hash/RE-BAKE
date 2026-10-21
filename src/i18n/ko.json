@@ -1243,5 +1243,7 @@
   "pdfPreview.contentSummary": "요약",
   "stepTemplate.loadMenu": "자주 쓰는 과정 가져오기",
   "stepTemplate.saveThisMenu": "이 과정 저장하기",
-  "recipeEdit.splitWrite": "분할"
+  "recipeEdit.splitWrite": "분할",
+  "videoCapture.title": "장면 고르기",
+  "videoCapture.capture": "선택한 컷 넣기"
 }
