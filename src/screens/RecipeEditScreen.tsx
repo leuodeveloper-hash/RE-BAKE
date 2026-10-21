@@ -3892,8 +3892,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 forcePressed={showMenu}
               />
             </GlassContainer>
-            {/* 저장 — 다른 앱바 알약과 같은 공통 버튼(44). 따로 large로 두면 혼자 커 보였다 */}
-            <NavPillButton icon={IconTick} variant="filled" disabled={!canSave} loading={saving} onPress={handleSave} />
+            {/* 저장 — 유리 알약(여백 2) 없이 채운 버튼만, 한 단계 크게(48) */}
+            <IconButton icon={IconTick} variant="filled" size="large" disabled={!canSave} loading={saving} onPress={() => handleSave()} />
           </>
         }
       />

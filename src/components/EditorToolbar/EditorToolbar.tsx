@@ -155,7 +155,7 @@ export function EditorToolbar({
         )
       }
       right={
-        <IconButton icon={IconTick} onPress={onDone} variant="ghost-primary" size="large" disabled={doneDisabled} />
+        <IconButton icon={IconTick} onPress={onDone} variant="ghost-primary" size="medium" disabled={doneDisabled} />
       }
     />
   );

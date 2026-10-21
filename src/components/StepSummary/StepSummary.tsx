@@ -121,8 +121,8 @@ export function StepSummaryList({items, onPress, onPhotoPress}: {
 
 /** 과정 글 한 줄 서체 — 요약 보기·한번에(합쳐) 보기가 같은 크기·줄 간격 */
 export const stepLineText = (colors: SemanticColors) => ({
+  // 공통 본문 서체 그대로(행간도) — 따로 넓히면 묶음뷰 과정 줄과 달라 보였다
   ...Typography.body.medium,
-  lineHeight: 24,
   color: colors['foreground/on-surface'],
 });
 

@@ -81,6 +81,9 @@ export function SlideToConfirm({
       onStartShouldSetPanResponder: () => !disabled && (!doneRef.current || !!onUndoRef.current),
       onMoveShouldSetPanResponder: (_, g) =>
         !disabled && (!doneRef.current || !!onUndoRef.current) && Math.abs(g.dx) > 2,
+      // 바텀시트 안 — 미는 중에 시트(아래로 끌어 닫기)나 스크롤이 손을 뺏으면 손잡이가 원위치로 튀며 삐걱였다
+      onPanResponderTerminationRequest: () => false,
+      onShouldBlockNativeResponder: () => true,
       onPanResponderMove: (_, g) => {
         const max = maxRef.current;
         // 완료 상태면 손잡이가 오른쪽 끝(max)에서 시작 → 왼쪽으로만 이동

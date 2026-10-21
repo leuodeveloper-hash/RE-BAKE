@@ -89,9 +89,8 @@ export function MadeConfirmSheet({
         <Text style={styles.title}>
           {stamped ? t('madeSheet.reviewTitle') : t('madeSheet.title')}
         </Text>
-        <Text style={styles.description}>
-          {stamped ? t('madeSheet.reviewDescription') : t('madeSheet.description')}
-        </Text>
+        {/* 회고 단계는 제목(회고 노트)만 — 설명 없이 */}
+        {!stamped && <Text style={styles.description}>{t('madeSheet.description')}</Text>}
 
         {stamped ? (
           <>
