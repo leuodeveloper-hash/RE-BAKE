@@ -22,6 +22,8 @@ const STAMP_SIZE = 140;
 export interface StampDetailSheetProps {
   visible: boolean;
   onClose: () => void;
+  /** 시트가 다 내려간 뒤 — 이어서 다른 창(회고 쓰기)을 열 때. 겹쳐 열면 아이폰에서 먹통 */
+  onDismissed?: () => void;
   /** 대상 레시피. 아직 안 만든 칸이면 madeAt이 없다 */
   recipe?: Recipe;
   /** 만든 시각(ISO). 없으면 "아직 안 만든 칸" 상태로 보여준다 */
@@ -47,6 +49,7 @@ export interface StampDetailSheetProps {
 export function StampDetailSheet({
   visible,
   onClose,
+  onDismissed,
   recipe,
   madeAt,
   stampIndex = 0,
@@ -92,7 +95,7 @@ export function StampDetailSheet({
   const hasReview = reviewRows.length > 0 || reviewPhotos.length > 0;
 
   return (
-    <BottomSheet visible={visible} onClose={onClose}>
+    <BottomSheet visible={visible} onClose={onClose} onDismissed={onDismissed}>
       <View style={styles.body}>
         <View style={styles.stampWrap}>
           {/* 아직 안 만든 칸도 찍었을 때와 같게 보여준다 — 무엇이 채워지는지 알려준다 */}
@@ -116,7 +119,7 @@ export function StampDetailSheet({
         {/* 적은 회고 — 상세 회고 칸과 같은 카드 */}
         {hasReview && (
           <View style={styles.reviewCard}>
-            <ReviewCard evaluation={review?.evaluation?.trim()} improvement={review?.improvement?.trim()} photos={review?.photos as (string | StepPhoto)[] | undefined} />
+            <ReviewCard grouped evaluation={review?.evaluation?.trim()} improvement={review?.improvement?.trim()} photos={review?.photos as (string | StepPhoto)[] | undefined} />
           </View>
         )}
 

@@ -2,9 +2,10 @@ import React from 'react';
 import {SvgProps} from 'react-native-svg';
 import {useColors} from '@contexts/ThemeContext';
 
-export type AppIconSize = 'xs' | 'sm' | 'md' | 'lg';
+export type AppIconSize = 'xxs' | 'xs' | 'sm' | 'md' | 'lg';
 
 const ICON_SIZE_MAP: Record<AppIconSize, number> = {
+  xxs: 14,
   xs: 16,
   sm: 20,
   md: 24,

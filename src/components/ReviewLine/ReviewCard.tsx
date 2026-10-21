@@ -15,24 +15,28 @@ import type {StepPhoto} from '../../types/recipe';
  * 회고 카드 — 상세 회고 칸과 스탬프 시트가 같은 모양.
  * 머리(회고 · 펜촉) / 평가 / ↳ 다음 개선 점 / 사진
  */
-export function ReviewCard({evaluation, improvement, photos, onTitlePress, trailing, onPhotoPress}: {
+export function ReviewCard({evaluation, improvement, photos, onTitlePress, trailing, onPhotoPress, grouped}: {
   evaluation?: string;
   improvement?: string;
   photos?: (string | StepPhoto)[];
   onTitlePress?: () => void;
   trailing?: ListItemElementType;
   onPhotoPress?: (index: number) => void;
+  /** 로그인 칸처럼 줄마다 바탕 + 줄 사이 1 틈(묶음 카드), 회고 머리줄 없이 — 스탬프 시트 */
+  grouped?: boolean;
 }) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   return (
-    <Card>
-      <ListItem
-        title={t('recipeDetail.tabReview')}
-        onPress={onTitlePress}
-        leading={{type: 'icon', icon: IconPenTipFilled}}
-        trailing={trailing}
-      />
+    <Card group={grouped}>
+      {!grouped && (
+        <ListItem
+          title={t('recipeDetail.tabReview')}
+          onPress={onTitlePress}
+          leading={{type: 'icon', icon: IconPenTipFilled}}
+          trailing={trailing}
+        />
+      )}
       {evaluation ? (
         <ListItem titleNumberOfLines={0} showDivider={!!improvement}>
           <Text style={styles.text}>{evaluation}</Text>

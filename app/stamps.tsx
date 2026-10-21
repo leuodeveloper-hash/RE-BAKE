@@ -34,7 +34,7 @@ import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
 import {Typography} from '@constants/typography';
-import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconList, IconLayoutGrid, IconNoteFilled, IconEyeClosed, IconPenTip} from '@components/Icon/IconIndex';
+import {IconClose, IconFilter, IconBookFilled, IconExprolerBookFilled, IconClockFilled, IconList, IconLayoutGrid, IconNoteFilled, IconEyeClosed, IconPenTipFilled} from '@components/Icon/IconIndex';
 import {parseSession} from '@utils/session';
 import type {Recipe} from '../src/types/recipe';
 import {goBackOr} from '@utils/navigation';
@@ -157,8 +157,8 @@ function SlotStamp({slot, size, styles, colors, highlight, onLanded, onReview}: 
       {/* 회고를 안 적었으면 오른쪽 아래 작은 떠 있는 쓰기 버튼(적은 건 표시 없음). 리스트의 작은 칸엔 없다 */}
       {!slot.reviewed && onReview && size >= 64 ? (
         // 공통 글래스 알약(블러·그림자) 안에 아웃라인 펜촉 — 사진 위라 그림자는 strong. 스탬프 안쪽으로 살짝 들여서
-        <GlassContainer style={styles.reviewButton} elevation="strong">
-          <IconButton icon={IconPenTip} variant="ghost-secondary" size="small" onPress={onReview} />
+        <GlassContainer style={styles.reviewButton}>
+          <IconButton icon={IconPenTipFilled} variant="ghost-light-blue" size="xsmall" onPress={onReview} />
         </GlassContainer>
       ) : null}
     </HighlightPop>
@@ -194,6 +194,8 @@ export default function StampsRoute() {
   const [selected, setSelected] = useState<StampSlot | null>(null);
   // 회고는 편집 화면까지 가지 않고 이 자리에서 쓴다
   const [reviewTarget, setReviewTarget] = useState<Recipe | null>(null);
+  // 스탬프 시트가 내려간 뒤 열 회고
+  const afterSheetReview = useRef<Recipe | null>(null);
   // 그리드가 기본 — 스탬프가 늘어선 모습 자체가 이 화면의 내용이다
   const [layout, setLayout] = useState<'list' | 'grid'>('grid');
   // 빈 칸까지 보이면 길어진다 — 모은 것만 보고 싶을 때
@@ -597,7 +599,9 @@ export default function StampsRoute() {
           if (id) router.push(`/recipe/${id}` as any);
         }}
         // 시트를 닫지 않는다 — 회고를 쓰고 나면 보던 스탬프로 돌아온다
-        onWriteReview={() => { if (selected) setReviewTarget(selected.mine ?? selected.recipe); }}
+        // 회고 쓰기 — 이 시트를 먼저 닫고 다 내려간 뒤에 회고 창(시트 위에 시트를 겹쳐 열면 아이폰에서 먹통)
+        onWriteReview={() => { if (selected) { afterSheetReview.current = selected.mine ?? selected.recipe; setSelected(null); } }}
+        onDismissed={() => { const r = afterSheetReview.current; afterSheetReview.current = null; if (r) setReviewTarget(r); }}
       />
 
     </View>
@@ -606,7 +610,8 @@ export default function StampsRoute() {
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 회고 쓰기 — 스탬프 오른쪽 아래(모양·색은 공통 IconButton small 그대로, 바깥은 자리만)
-  reviewButton: {position: 'absolute', right: Spacing.xs, bottom: Spacing.xs},
+  // 작은 떠 있는 버튼(24) — 공통 그림자는 큰 알약용이라 버튼 밑에 숨어 안 보였다. 슬라이더 손잡이와 같은 짧고 진한 그림자
+  reviewButton: {position: 'absolute', right: Spacing.xs, bottom: Spacing.xs, boxShadow: '0px 1px 4px rgba(0, 0, 0, 0.28)'} as any,
   container: {flex: 1, backgroundColor: colors['surface/dim']},
   safeArea: {flex: 1},
   scrollView: {flex: 1},

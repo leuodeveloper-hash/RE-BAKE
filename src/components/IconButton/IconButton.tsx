@@ -18,9 +18,12 @@ export type IconButtonStyle =
   | 'ghost-inverse'
   | 'ghost-yellow'
   /** 켜진 토글(분할 등) — 바탕 없이 오렌지 var 아이콘 */
-  | 'ghost-accent';
+  | 'ghost-accent'
+  /** 바탕 없이 라이트 블루 var 아이콘(스탬프 회고 쓰기 등 — 회고 색) */
+  | 'ghost-light-blue';
 
-export type IconButtonSize = 'small' | 'medium' | 'large';
+/** xsmall — 사진 위 작은 떠 있는 버튼(스탬프 회고 쓰기 등) */
+export type IconButtonSize = 'xsmall' | 'small' | 'medium' | 'large';
 
 export interface IconButtonProps {
   icon: React.FC<SvgProps>;
@@ -40,6 +43,7 @@ export interface IconButtonProps {
 }
 
 const SIZE_CONFIG = {
+  xsmall: {container: 24, touchArea: 36, icon: 14},
   small: {container: 28, touchArea: 40, icon: 16},
   medium: {container: 40, touchArea: 48, icon: 20},
   large: {container: 48, touchArea: 56, icon: 20},
@@ -64,6 +68,8 @@ export function IconButton({
 
   const getIconSize = (): AppIconSize => {
     switch (size) {
+      case 'xsmall':
+        return 'xxs';
       case 'small':
         return 'xs';
       case 'large':
@@ -120,6 +126,7 @@ export function IconButton({
       case 'ghost-inverse':
       case 'ghost-yellow':
       case 'ghost-accent':
+      case 'ghost-light-blue':
         baseStyle.backgroundColor = 'transparent';
         break;
     }
@@ -165,6 +172,9 @@ export function IconButton({
     }
     if (variant === 'ghost-accent') {
       return colors['custom/orange-var'];
+    }
+    if (variant === 'ghost-light-blue') {
+      return colors['custom/light-blue-var'];
     }
     if (variant === 'ghost-inverse') {
       return colors['foreground/on-surface-inverse'];
