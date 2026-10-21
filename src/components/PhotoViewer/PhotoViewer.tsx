@@ -262,13 +262,25 @@ export function PhotoViewer({
               }}>
               {photos.map((p, i) => (
                 <Pressable key={`${p.uri}-${i}`} style={[styles.page, {width: containerWidth, height: pageHeight}]} onPress={close}>
-                  <View style={[styles.imageFrame, {height: pageHeight}]}>
+                  {/* 두 손가락으로 벌려 확대(아이폰 스크롤 뷰 기본 확대 — 최대 4배, 두 번 톡 없이 손가락만).
+                      안드로이드·웹 스크롤 뷰엔 확대가 없어 그대로 */}
+                  <ScrollView
+                    style={{width: containerWidth, height: pageHeight}}
+                    contentContainerStyle={[styles.imageFrame, {width: containerWidth, height: pageHeight}]}
+                    maximumZoomScale={Platform.OS === 'ios' ? 4 : 1}
+                    minimumZoomScale={1}
+                    bouncesZoom
+                    centerContent
+                    showsHorizontalScrollIndicator={false}
+                    showsVerticalScrollIndicator={false}
+                    // 다른 장으로 넘기면 확대가 풀리게 — 지금 장만 확대를 받는다
+                    scrollEnabled={i === index}>
                     <ViewerImage
                       uri={p.uri}
                       width={Math.min(Math.max(containerWidth * 0.92, 280), MAX_CONTENT_WIDTH)}
                       busy={restyling && restylingIndex === i}
                     />
-                  </View>
+                  </ScrollView>
                 </Pressable>
               ))}
             </ScrollView>

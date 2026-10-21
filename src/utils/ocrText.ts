@@ -93,6 +93,19 @@ const NUM_CELL = /^\(?[\d０-９][\d０-９.,]*\)?(?:\([\d０-９.,]+\))?\s*(?:g
  * 표는 칸마다 따로 읽혀 단위가 옆 칸·다음 줄로 떨어지기 쉽다. 떨어진 단위가 재료 이름이 되거나
  * 숫자만 남아 분량이 비었다.
  */
+/**
+ * 소수점 바로잡기 — 사진 글자 인식이 소수점을 흘리는 모양들.
+ *  "2 . 5"·"2 .5"·"2. 5" → "2.5", 가운뎃점 "2·5" → "2.5",
+ *  쉼표 "2,5"·"0,25"(뒤가 세 자리가 아니면 소수점) → "2.5". "2,107"(세 자리)은 천 단위 그대로
+ */
+export function fixDecimals(line: string): string {
+  return line
+    .replace(/(\d)\s*[·ㆍ•∙]\s*(\d)/g, '$1.$2')
+    .replace(/(\d)\s+\.\s*(\d)/g, '$1.$2')
+    .replace(/(\d)\.\s+(\d)(?!\d*\s*[.)])/g, '$1.$2')
+    .replace(/(\d),(\d{1,2})(?!\d)/g, '$1.$2');
+}
+
 export function joinNumberUnits(lines: string[]): string[] {
   const UNIT = '(?:g|kg|ml|mL|l|L|그램|킬로그램|%)';
   const out: string[] = [];
@@ -110,7 +123,7 @@ export function joinNumberUnits(lines: string[]): string[] {
 
 /** 배합표면 재료(이름 + 무게)들, 아니면 null */
 export function parseIngredientTable(lines: string[]): ParsedIngredient[] | null {
-  const cleaned = joinNumberUnits(lines.map(l => stripOcrNoise(l))).filter(Boolean);
+  const cleaned = joinNumberUnits(lines.map(l => fixDecimals(stripOcrNoise(l)))).filter(Boolean);
   const headIdx = cleaned.findIndex(l => TABLE_HEAD.test(l) && TABLE_HEAD_AMOUNT.test(l));
   // 머리가 여러 줄로 쪼개진 경우(재료명 / 무게(g)가 따로 읽힘)도 앞쪽 몇 줄 안에서 찾는다
   const headLooseIdx = headIdx >= 0 ? headIdx
@@ -159,7 +172,8 @@ export function parseIngredientTable(lines: string[]): ParsedIngredient[] | null
 
   // 무게 칸 정리 — 5(4)는 앞 숫자, 단위가 없으면 머리의 g
   const weight = (raw: string) => {
-    const n = raw.replace(/\(.*\)/, '').replace(/,/g, '').replace(/\s+/g, '');
+    // 쉼표는 천 단위(뒤 세 자리)만 지운다 — 나머지는 소수점(2,5 → 2.5)
+    const n = fixDecimals(raw.replace(/\(.*\)/, '')).replace(/,(?=\d{3}(?!\d))/g, '').replace(/\s+/g, '');
     if (/%$/.test(n)) return undefined;
     return /[a-z]$/i.test(n) ? n : grams ? `${n}g` : n;
   };
@@ -191,7 +205,13 @@ export function parseIngredientTable(lines: string[]): ParsedIngredient[] | null
     const w = cells.slice(lastName + 1).filter(c => c.kind === 'num').slice(0, names.length);
     names.forEach((c, i) => out.push({name: c.text, amount: w[i] ? weight(w[i].text) : undefined}));
   }
-  return out.filter(i => i.name.length > 0 && i.name.length <= 40);
+  return fatsLast(out.filter(i => i.name.length > 0 && i.name.length <= 40));
+}
+
+/** 유지(버터·쇼트닝·마가린 등) — 반죽 끝(클린업 단계)에 넣으니 재료 목록도 맨 뒤로 */
+const FAT_NAME = /버터|쇼트닝|마가린|유지|라드|식용유|올리브\s*오일|오일/;
+export function fatsLast<T extends {name: string}>(items: T[]): T[] {
+  return [...items.filter(i => !FAT_NAME.test(i.name)), ...items.filter(i => FAT_NAME.test(i.name))];
 }
 
 /** 이름과 숫자가 번갈아 나오면 줄 단위 읽기 — 이름이 연달아 둘 이상 나오는 일이 드물면 */

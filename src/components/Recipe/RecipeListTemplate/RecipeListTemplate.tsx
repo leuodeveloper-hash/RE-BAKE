@@ -1,4 +1,5 @@
 import {EdgeFade} from '@components/Container/ContentMask';
+import {useAddSheet} from '@contexts/AddSheetContext';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
 import {Animated, Dimensions, Easing, FlatList, Pressable, StyleSheet, View} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -348,6 +349,7 @@ export function RecipeListTemplate({
   children,
 }: RecipeListTemplateProps) {
   const styles = useThemedStyles(createStyles);
+  const {openSearch} = useAddSheet();
   const {t} = useTranslation();
   // 회고는 계정에 저장된다 — 레시피의 reviews만 세면 새 회고가 빠진다
   const {reviewsOf} = useRecipeReviews();
@@ -610,8 +612,9 @@ export function RecipeListTemplate({
         title={item.title}
         authorHandle={authorHandle}
         onAuthorPress={authorHandle && onAuthorPress ? () => onAuthorPress(authorHandle) : undefined}
-        onCookbookPress={item.cookbook && onCookbookPress ? () => onCookbookPress(item.cookbook) : undefined}
-        onMethodPress={item.method && onMethodPress ? () => onMethodPress(item.method!) : undefined}
+        // 메타데이터(레시피북·공법)를 누르면 그 글로 검색 창 — 목록을 몰래 거르면 지금 어디가 걸러졌는지 몰랐다
+        onCookbookPress={item.cookbook ? () => openSearch(item.cookbook) : undefined}
+        onMethodPress={item.method ? () => openSearch(item.method!) : undefined}
         cookbook={item.cookbook}
         method={item.method}
         specificGravity={item.specificGravity}
@@ -645,7 +648,7 @@ export function RecipeListTemplate({
         ) : card}
       </View>
     );
-  }, [activeLayout, styles, onRecipePress, cardMenuItems, handleCardMenuPress, lockedRecipeIds, pinnedMap, cardMenuTarget, authorHandle, onAuthorPress, onCookbookPress, onMethodPress, madeMap, reviewsOf, publishedIds]);
+  }, [activeLayout, styles, onRecipePress, cardMenuItems, handleCardMenuPress, lockedRecipeIds, pinnedMap, cardMenuTarget, authorHandle, onAuthorPress, openSearch, madeMap, reviewsOf, publishedIds]);
 
   return (
     <>

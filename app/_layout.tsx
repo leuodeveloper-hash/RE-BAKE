@@ -892,7 +892,7 @@ const FREE_EXPLORE_COUNT = 3;
 // 검색 탭에서 띄우는 통합 검색 모달: 내 레시피 + 둘러보기 레시피 통합 검색
 function GlobalSearchSheet() {
   const router = useRouter();
-  const {showSearchSheet, setShowSearchSheet} = useAddSheet();
+  const {showSearchSheet, setShowSearchSheet, searchQuery} = useAddSheet();
   const {recipes} = useRecipes();
   const {recipes: exploreRecipes} = useExploreRecipeContext();
   const {isAdmin} = useAuth();
@@ -944,6 +944,8 @@ function GlobalSearchSheet() {
     <SearchCommandBar
       visible={showSearchSheet}
       onClose={() => setShowSearchSheet(false)}
+      // 메타데이터를 눌러 열면 그 글로 걸러진 채로
+      initialQuery={searchQuery}
       items={items}
       onSelect={handleSelect}
       placeholder={t('layout.searchPlaceholder')}

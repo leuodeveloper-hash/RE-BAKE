@@ -1,4 +1,4 @@
-import React, {createContext, useContext, useMemo, useRef, useState} from 'react';
+import React, {createContext, useCallback, useContext, useMemo, useRef, useState} from 'react';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 
 export interface CookbookEditTarget {
@@ -16,6 +16,10 @@ interface AddSheetContextValue {
   /** 통합 검색 모달 표시 (검색 탭에서 토글) */
   showSearchSheet: boolean;
   setShowSearchSheet: (show: boolean) => void;
+  /** 검색 창을 이 글로 바로 연다 — 목록 메타데이터(레시피북·공법)를 눌렀을 때 */
+  openSearch: (query?: string) => void;
+  /** 검색 창을 열 때 넣어 둘 글 */
+  searchQuery: string;
   hideTabBar: boolean;
   setHideTabBar: (hide: boolean) => void;
   hideContentMask: boolean;
@@ -36,7 +40,11 @@ const AddSheetContext = createContext<AddSheetContextValue | null>(null);
 
 export function AddSheetProvider({children}: {children: React.ReactNode}) {
   const [showAddSheet, setShowAddSheet] = useState(false);
-  const [showSearchSheet, setShowSearchSheet] = useState(false);
+  const [showSearchSheet, setShowSearchSheetState] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  // 그냥 열면 빈 검색, openSearch(글)이면 그 글로
+  const setShowSearchSheet = useCallback((show: boolean) => { if (show) setSearchQuery(''); setShowSearchSheetState(show); }, []);
+  const openSearch = useCallback((query?: string) => { setSearchQuery(query ?? ''); setShowSearchSheetState(true); }, []);
   const [hideTabBar, setHideTabBar] = useState(false);
   const [hideContentMask, setHideContentMask] = useState(false);
   const [showCookbookDialog, setShowCookbookDialog] = useState(false);
@@ -49,6 +57,8 @@ export function AddSheetProvider({children}: {children: React.ReactNode}) {
     setShowAddSheet,
     showSearchSheet,
     setShowSearchSheet,
+    openSearch,
+    searchQuery,
     hideTabBar,
     setHideTabBar,
     hideContentMask,
@@ -60,7 +70,7 @@ export function AddSheetProvider({children}: {children: React.ReactNode}) {
     cookbookInitialOfficial,
     setCookbookInitialOfficial,
     onCookbookCreatedRef,
-  }), [showAddSheet, showSearchSheet, hideTabBar, hideContentMask, showCookbookDialog, cookbookEditTarget, cookbookInitialOfficial]);
+  }), [showAddSheet, showSearchSheet, searchQuery, setShowSearchSheet, openSearch, hideTabBar, hideContentMask, showCookbookDialog, cookbookEditTarget, cookbookInitialOfficial]);
 
   return (
     <AddSheetContext.Provider value={value}>{children}</AddSheetContext.Provider>
