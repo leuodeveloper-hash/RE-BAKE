@@ -1114,7 +1114,7 @@ export function RecipeDetailScreen({
                   <SummaryToggle value={showSummary} onChange={toggleSummaryView} />
                 )}
                 {/* 보기 토글(묶음뷰 ↔ 문장뷰) — ⋮ 옆(공통 ViewModeButton). 재료·과정 각자 */}
-                {withBulkToggle && (sectionId === 'ingredients' || (sectionId === 'steps' && !showSummary)) && (() => {
+                {withBulkToggle && (sectionId === 'ingredients' || sectionId === 'steps') && (() => {
                   const sec = sectionId as 'ingredients' | 'steps';
                   const bulk = sec === 'ingredients' ? bulkIngredients : bulkSteps;
                   return (
@@ -1123,6 +1123,8 @@ export function RecipeDetailScreen({
                         value={!bulk ? 'split' : 'all'}
                         onChange={mode => {
                           toggleBulkView(sec, mode !== 'split');
+                          // 요약 보던 중이면 보기를 고르는 순간 요약은 풀린다
+                          if (sec === 'steps' && showSummary) toggleSummaryView(false);
                         }}
                       />
                     </View>
