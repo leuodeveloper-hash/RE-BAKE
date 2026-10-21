@@ -12,6 +12,7 @@ import {TextInput} from '@components/TextInput';
 import {IconSearch, IconLockFilled, IconCloseCircleFilled} from '@components/Icon/IconIndex';
 import {AppIcon} from '@components/Icon/AppIcon';
 import {MenuItem} from '@components/Menu/MenuItem';
+import {ListItem} from '@components/ListItem';
 import {RecipeCard} from '@components/Recipe/RecipeCard';
 import {searchMethods} from '@constants/bakingMethods';
 import {useRecipeLink} from '@contexts/RecipeLinkContext';
@@ -283,15 +284,14 @@ export function SearchCommandBar({
                       <>
                         <Text style={styles.recentHeader}>{t('methodGuide.title')}</Text>
                         {dictMatches.map(m => (
-                          <RecipeCard
+                          // 사전 — 아이콘 없이 글만(이름 · 설명 한 줄)
+                          <ListItem
                             key={`dict-${m.name}`}
+                            // 글 칸이 이미 좌우 8을 갖는다 — 줄 여백 0이면 글이 레시피 썸네일 왼쪽 끝(팝업 4 + 8)과 맞는다
+                            paddingHorizontal={0}
                             title={m.name}
-                            customSubtitle={m.description}
-                            subtitleNumberOfLines={1}
-                            layout="list"
-                            size="small"
-                            placeholderIcon={IconProcess}
-                            placeholderIconColor={colors['custom/lime-var'] as string}
+                            description={m.description}
+                            showDivider={false}
                             onPress={() => {
                               onClose();
                               // 검색 창(Modal)이 닫힌 뒤에 시트 — 겹쳐 뜨면 iOS에서 시트가 안 보인다

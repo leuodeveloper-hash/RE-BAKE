@@ -4,6 +4,7 @@ import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
 import {TextInput} from '@components/TextInput';
 import {Tabs} from '@components/Tabs';
+import {InputGroup} from '@components/InputGroup';
 import {NavPillButton} from '@components/Navigation/NavPillButton';
 import {IconTrash} from '@components/Icon/IconIndex';
 import {useTranslation} from '@contexts/LanguageContext';
@@ -73,14 +74,11 @@ export function DictionaryTermDialog({visible, onClose, term, initialCategory, o
           onSelect={id => setCategory(id as MethodCategory)}
           fullWidth
         />
-        <TextInput label={t('dictionary.nameLabel')} value={name} onChangeText={setName} placeholder={t('dictionary.namePlaceholder')} />
-        <TextInput
-          label={t('dictionary.descriptionLabel')}
-          value={description}
-          onChangeText={setDescription}
-          placeholder={t('dictionary.descriptionPlaceholder')}
-          multiline
-        />
+        {/* 로그인 칸처럼 레이블 없이 한 덩어리(InputGroup) — 이름 / 설명 */}
+        <InputGroup>
+          <TextInput style="ghost" value={name} onChangeText={setName} placeholder={t('dictionary.namePlaceholder')} />
+          <TextInput style="ghost" value={description} onChangeText={setDescription} placeholder={t('dictionary.descriptionPlaceholder')} multiline />
+        </InputGroup>
       </View>
     </Dialog>
   );
