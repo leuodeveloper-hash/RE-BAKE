@@ -8,7 +8,7 @@ import {DotSlider} from '@components/DotSlider';
 /** 재료 비율 조정 눈금 — ×1이 한가운데(줄이기 3칸 · 늘리기 3칸) */
 const SCALE_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3];
 import {effectiveActiveFields} from '@utils/breadFieldsMigration';
-import {IconRefresh, IconSliceVertical, IconList, IconFlash} from '@components/Icon/IconIndex';
+import {IconRefresh} from '@components/Icon/IconIndex';
 import {useFloatingNotice} from '@contexts/FloatingNoticeContext';
 import {useRouter} from 'expo-router';
 import {goToRetrospective} from '@utils/navigation';
@@ -50,6 +50,7 @@ import {Tabs} from '@components/Tabs';
 import {RichText} from '@components/RichText/RichText';
 import {EditableChip} from '@components/EditableChip';
 import {ReviewCard} from '@components/ReviewLine';
+import {ViewModeButton} from '@components/ViewModeButton';
 import {OptionTile} from '@components/OptionTile';
 import {Dialog, PdfPreviewDialog, TimeDialog, ServingsDialog, UnlockDialog, NumberValueDialog} from '@components/Dialog';
 import {Button} from '@components/Button';
@@ -1108,41 +1109,22 @@ export function RecipeDetailScreen({
                 ) : null}
                 {/* 시간 정하기 전엔 버튼 없이(⋮ 메뉴 '타이머 설정'으로) */}
                 {hasTimer && <StepTimer ref={el => { timerRefs.current[key] = el; }} duration={timer} hideWhenUnset onMenuOpenChange={open => setMenuHeaderKey(k => (open ? key : k === key ? null : k))} />}
-                {/* 보기 — ⋮ 옆 아이콘 버튼, 누르면 묶음뷰 / 갈래뷰 / 요약뷰(과정·요약 있을 때). 재료·과정 각자 */}
+                {/* 보기 — ⋮ 옆(공통 ViewModeButton). 재료·과정 각자, 요약뷰는 과정·요약 있을 때 */}
                 {withBulkToggle && (sectionId === 'ingredients' || sectionId === 'steps') && (() => {
                   const sec = sectionId as 'ingredients' | 'steps';
                   const bulk = sec === 'ingredients' ? bulkIngredients : bulkSteps;
-                  const current = !bulk ? 'split' : sec === 'steps' && showSummary ? 'summary' : 'all';
-                  const items = [
-                    // 묶음 = 묶음마다 나눈 칸, 갈래 = 줄 목록 아이콘, 요약 = 플래시(빠르게 훑기)
-                    {id: 'split', label: t('recipeDetail.bundleView'), icon: IconSliceVertical},
-                    {id: 'all', label: t('recipeDetail.branchView'), icon: IconList},
-                    ...(sec === 'steps' && hasSummary ? [{id: 'summary', label: t('recipeDetail.summaryView'), icon: IconFlash}] : []),
-                  ];
                   const viewKey = `${key}:view`;
                   return (
                     <View style={styles.viewMenuAnchor}>
-                      <View style={styles.viewIconSlot}>
-                        {/* 버튼은 지금 보기의 아이콘 */}
-                        <IconButton
-                          icon={items.find(i => i.id === current)?.icon ?? IconSliceVertical}
-                          variant="ghost-secondary"
-                          size="medium"
-                          forcePressed={menuHeaderKey === viewKey}
-                          onPress={() => setMenuHeaderKey(k => (k === viewKey ? null : viewKey))}
-                        />
-                      </View>
-                      <Menu
-                        items={items}
-                        selectedId={current}
-                        visible={menuHeaderKey === viewKey}
-                        onClose={() => setMenuHeaderKey(null)}
-                        onSelect={id => {
-                          setMenuHeaderKey(null);
-                          toggleBulkView(sec, id !== 'split');
-                          if (sec === 'steps') toggleSummaryView(id === 'summary');
+                      <ViewModeButton
+                        value={!bulk ? 'split' : sec === 'steps' && showSummary ? 'summary' : 'all'}
+                        withSummary={sec === 'steps' && hasSummary}
+                        open={menuHeaderKey === viewKey}
+                        onOpenChange={o => setMenuHeaderKey(k => (o ? viewKey : k === viewKey ? null : k))}
+                        onChange={mode => {
+                          toggleBulkView(sec, mode !== 'split');
+                          if (sec === 'steps') toggleSummaryView(mode === 'summary');
                         }}
-                        style={styles.viewMenu}
                       />
                     </View>
                   );
@@ -2258,26 +2240,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     marginBottom: 0,
   },
   // 앱바 떠 있는 요소 사이 — 공통 간격
-  // 보기 메뉴 — 아이콘 칸 28(⋮와 같은 크기), 메뉴는 아이콘 밑 4에 오른쪽 맞춤
   // ⋮는 누를 자리만큼 왼쪽으로 당겨져 있어(-8) 붙어 보인다 — 그만큼 띄운다
   viewMenuAnchor: {
     marginRight: Spacing.md,
-    overflow: 'visible' as const,
     zIndex: 1000,
-  },
-  viewIconSlot: {
-    width: 28,
-    height: 28,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-  },
-  viewMenu: {
-    position: 'absolute' as const,
-    top: '100%' as const,
-    right: 0,
-    marginTop: Spacing.xs,
-    zIndex: 1000,
-    elevation: 1000,
   },
   navLeftRow: {
     flexDirection: 'row' as const,

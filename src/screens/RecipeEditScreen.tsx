@@ -87,6 +87,7 @@ import {useMadeCount} from '@hooks/useMadeCount';
 import {MadeConfirmSheet} from '@components/BottomSheet/MadeConfirmSheet';
 import type {StepGroup as SavedStepGroup} from '../types/recipe';
 import {StepSummaryInput} from '@components/StepSummary';
+import {ViewModeButton} from '@components/ViewModeButton';
 import {parseRecipeMarkdown, parseBulkIngredientGroups, parseBulkStepGroups, parseBulkToolGroups, toolGroupsToBulk, ingredientGroupsToBulk, stepGroupsToBulk, recipeToMarkdown} from '@utils/recipeMarkdown';
 import {
   bulkTextToIngredients,
@@ -827,6 +828,10 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const [showDiscardConfirm, setShowDiscardConfirm] = useState(false);
   // 닫기(X) 버튼의 실제 위치 — 팝오버를 이 버튼 아래에 붙인다.
   // 하드코딩한 좌표는 노치 높이·화면 폭에 따라 어긋났다.
+  // 보기 버튼 메뉴(묶음뷰·문장뷰·요약뷰) — 열린 머리줄 키
+  const [viewMenuKey, setViewMenuKey] = useState<string | null>(null);
+  // 과정 요약뷰 — 묶음마다 요약 한 줄만 보이고 그 자리에서 고친다(상세 요약뷰와 같은 보기)
+  const [stepSummaryEdit, setStepSummaryEdit] = useState(false);
   // [+] 메뉴를 연 버튼 쪽 — 왼쪽 아이콘(묶음 하나일 때)으로 열면 왼쪽 아래, + 버튼이면 오른쪽 아래
   const [addMenuAnchor, setAddMenuAnchor] = useState<'left' | 'right'>('right');
   const [closeBtnRect, setCloseBtnRect] = useState<{x: number; y: number; height: number} | null>(null);
@@ -2481,17 +2486,17 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
 
         {/* 재료 Groups */}
         {/* 섹션 안 메뉴가 열리면 섹션 통째로 다음 섹션보다 위로(다음 박스에 메뉴가 가리지 않게) */}
-        {isFieldActive('ingredients') && <View style={(ingGroupMenu || ingAddMenu || ingRowMenu || ingredientGroups.some(g => g.id === bulkScanMenu)) ? styles.sectionMenuOpen : undefined} onLayout={e => { sectionPositions.current['ingredients'] = e.nativeEvent.layout.y; }}>
+        {isFieldActive('ingredients') && <View style={(ingGroupMenu || ingAddMenu || ingRowMenu || ingredientGroups.some(g => g.id === bulkScanMenu) || viewMenuKey?.startsWith("ing:")) ? styles.sectionMenuOpen : undefined} onLayout={e => { sectionPositions.current['ingredients'] = e.nativeEvent.layout.y; }}>
         {ingredientGroups.map((group, groupIndex) => {
           const ingGroupHasDragging = drag.draggingId !== null && group.ingredients.some(i => i.id === drag.draggingId);
           return (
-          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(ingGroupMenu === group.id || ingAddMenu === group.id || ingRowMenu?.groupId === group.id || bulkScanMenu === group.id ? {zIndex: 9999} : ingGroupHasDragging ? {zIndex: 100} : undefined)}}>
+          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(ingGroupMenu === group.id || ingAddMenu === group.id || ingRowMenu?.groupId === group.id || bulkScanMenu === group.id || !!viewMenuKey?.endsWith(`:${group.id}`) ? {zIndex: 9999} : ingGroupHasDragging ? {zIndex: 100} : undefined)}}>
             {/* 섹션 묶음(과정과 같은 구조) — 끌 때는 잘라내기 유지, 메뉴 열 때만 푼다 */}
             <Card group style={ingGroupMenu === group.id || ingAddMenu === group.id
-              || ingRowMenu?.groupId === group.id || bulkScanMenu === group.id
+              || ingRowMenu?.groupId === group.id || bulkScanMenu === group.id || !!viewMenuKey?.endsWith(`:${group.id}`)
               ? {overflow: 'visible'} : undefined}>
               {/* Group Header — 메뉴가 헤더 바로 아래에 붙도록 relative 래퍼로 감싼다 */}
-              <View style={{position: 'relative', zIndex: (ingGroupMenu === group.id || ingAddMenu === group.id || bulkScanMenu === group.id) ? 9999 : undefined}}>
+              <View style={{position: 'relative', zIndex: (ingGroupMenu === group.id || ingAddMenu === group.id || bulkScanMenu === group.id || !!viewMenuKey?.endsWith(`:${group.id}`)) ? 9999 : undefined}}>
               {ingredientGroups.length >= 2 ? (
                 <ListItem
                   // 묶음 카드 맨 위 항목 — 잘라내기를 풀어도(메뉴 열림) 위 모서리 라운딩 유지
@@ -2501,7 +2506,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   // 한번에 쓰기는 재료 전체 단위 — 묶음이 여럿이면 첫 묶음 머리에만 스위치
                   trailing={groupIndex === 0 ? {type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
-                      <View style={styles.splitSwitch}><Switch label={t('recipeEdit.splitWrite')} value={true} onValueChange={split => toggleIngredientBulk(group, !split)} /></View>
+                      <View style={styles.splitSwitch}><ViewModeButton value={group.bulkMode ? 'all' : 'split'} open={viewMenuKey === `ing:${group.id}`} onOpenChange={o => setViewMenuKey(o ? `ing:${group.id}` : null)} onChange={mode => { if ((mode === 'all') !== !!group.bulkMode) toggleIngredientBulk(group, mode === 'all'); }} /></View>
                       <View style={styles.headerAddSlot}>
                         <IconButton icon={IconPlusCircleFilled} onPress={() => addIngredient(group.id)} variant="ghost-secondary" size="medium" />
                       </View>
@@ -2529,7 +2534,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
                       {/* 묶음마다 개별 "한번에 쓰기" 토글 */}
-                      <View style={styles.splitSwitch}><Switch label={t('recipeEdit.splitWrite')} value={!group.bulkMode} onValueChange={split => toggleIngredientBulk(group, !split)} /></View>
+                      <View style={styles.splitSwitch}><ViewModeButton value={group.bulkMode ? 'all' : 'split'} open={viewMenuKey === `ing:${group.id}`} onOpenChange={o => setViewMenuKey(o ? `ing:${group.id}` : null)} onChange={mode => { if ((mode === 'all') !== !!group.bulkMode) toggleIngredientBulk(group, mode === 'all'); }} /></View>
                       {/* 한번에 쓰기 중엔 + 대신 사진 인식 — 촬영·갤러리·레시피 사진 → 영역 선택 → 이 칸에 */}
                       {/* 사진 인식 — 분할이어도 늘 보인다(분할이면 읽은 줄을 칸마다 넣는다) */}
                       <View style={styles.headerAddSlot}>
@@ -2779,17 +2784,17 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         </View>}
 
         {/* 도구 Groups */}
-        <View style={(toolGroupMenu || toolAddMenu || toolRowMenu || toolGroups.some(g => g.id === bulkScanMenu)) ? styles.sectionMenuOpen : undefined} onLayout={e => { sectionPositions.current['tools'] = e.nativeEvent.layout.y; }}>
+        <View style={(toolGroupMenu || toolAddMenu || toolRowMenu || toolGroups.some(g => g.id === bulkScanMenu) || viewMenuKey?.startsWith("tool:")) ? styles.sectionMenuOpen : undefined} onLayout={e => { sectionPositions.current['tools'] = e.nativeEvent.layout.y; }}>
         {toolGroups.map((group, groupIndex) => {
           const toolGroupHasDragging = drag.draggingId !== null && group.tools.some(t => t.id === drag.draggingId);
           return (
-          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(toolGroupMenu === group.id || toolAddMenu === group.id || toolRowMenu?.groupId === group.id || bulkScanMenu === group.id ? {zIndex: 9999} : toolGroupHasDragging ? {zIndex: 100} : undefined)}}>
+          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(toolGroupMenu === group.id || toolAddMenu === group.id || toolRowMenu?.groupId === group.id || bulkScanMenu === group.id || !!viewMenuKey?.endsWith(`:${group.id}`) ? {zIndex: 9999} : toolGroupHasDragging ? {zIndex: 100} : undefined)}}>
             {/* 섹션 묶음(과정과 같은 구조) — 끌 때는 잘라내기 유지, 메뉴 열 때만 푼다 */}
             <Card group style={toolGroupMenu === group.id || toolAddMenu === group.id
-              || toolRowMenu?.groupId === group.id || bulkScanMenu === group.id
+              || toolRowMenu?.groupId === group.id || bulkScanMenu === group.id || !!viewMenuKey?.endsWith(`:${group.id}`)
               ? {overflow: 'visible'} : undefined}>
               {/* Group Header — 메뉴가 헤더 바로 아래에 붙도록 relative 래퍼로 감싼다 */}
-              <View style={{position: 'relative', zIndex: (toolGroupMenu === group.id || toolAddMenu === group.id || bulkScanMenu === group.id) ? 9999 : undefined}}>
+              <View style={{position: 'relative', zIndex: (toolGroupMenu === group.id || toolAddMenu === group.id || bulkScanMenu === group.id || !!viewMenuKey?.endsWith(`:${group.id}`)) ? 9999 : undefined}}>
               {toolGroups.length >= 2 ? (
                 <ListItem
                   // 묶음 카드 맨 위 항목 — 잘라내기를 풀어도(메뉴 열림) 위 모서리 라운딩 유지
@@ -2799,7 +2804,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   // 재료와 같게 — 첫 묶음 머리엔 한번에 쓰기 스위치 + 추가, 나머지는 추가만
                   trailing={groupIndex === 0 ? {type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
-                      <View style={styles.splitSwitch}><Switch label={t('recipeEdit.splitWrite')} value={true} onValueChange={split => toggleToolBulk(group, !split)} /></View>
+                      <View style={styles.splitSwitch}><ViewModeButton value={group.bulkMode ? 'all' : 'split'} open={viewMenuKey === `tool:${group.id}`} onOpenChange={o => setViewMenuKey(o ? `tool:${group.id}` : null)} onChange={mode => { if ((mode === 'all') !== !!group.bulkMode) toggleToolBulk(group, mode === 'all'); }} /></View>
                       <View style={styles.headerAddSlot}>
                         <IconButton icon={IconPlusCircleFilled} onPress={() => addTool(group.id)} variant="ghost-secondary" size="medium" />
                       </View>
@@ -2827,7 +2832,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
                       {/* 한번에 쓰기 — 묶음 전체를 칸 하나로(재료와 동일) */}
-                      <View style={styles.splitSwitch}><Switch label={t('recipeEdit.splitWrite')} value={!group.bulkMode} onValueChange={split => toggleToolBulk(group, !split)} /></View>
+                      <View style={styles.splitSwitch}><ViewModeButton value={group.bulkMode ? 'all' : 'split'} open={viewMenuKey === `tool:${group.id}`} onOpenChange={o => setViewMenuKey(o ? `tool:${group.id}` : null)} onChange={mode => { if ((mode === 'all') !== !!group.bulkMode) toggleToolBulk(group, mode === 'all'); }} /></View>
                       {/* 한번에 쓰기 중엔 + 대신 사진 인식 — 촬영·갤러리·레시피 사진 → 영역 선택 → 이 칸에 */}
                       {/* 사진 인식 — 분할이어도 늘 보인다(분할이면 읽은 줄을 칸마다 넣는다) */}
                       <View style={styles.headerAddSlot}>
@@ -3053,20 +3058,20 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         {/* 과정 Groups */}
         {/* 과정도 필드 관리에서 끌 수 있다(필수는 제목뿐) */}
         {isFieldActive('steps') && (
-        <View style={(stepAddMenu || stepGroupMenu || stepRowMenu || stepPhotoMenu || stepGroups.some(g => g.id === bulkScanMenu)) ? styles.sectionMenuOpen : undefined} onLayout={e => { sectionPositions.current['steps'] = e.nativeEvent.layout.y; }}>
+        <View style={(stepAddMenu || stepGroupMenu || stepRowMenu || stepPhotoMenu || stepGroups.some(g => g.id === bulkScanMenu) || viewMenuKey?.startsWith("step:")) ? styles.sectionMenuOpen : undefined} onLayout={e => { sectionPositions.current['steps'] = e.nativeEvent.layout.y; }}>
         {stepGroups.map((group, groupIndex) => {
           const groupHasDragging = drag.draggingId !== null && group.steps.some(s => s.id === drag.draggingId);
           return (
-          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(stepAddMenu === group.id || stepGroupMenu === group.id || stepRowMenu?.groupId === group.id || stepPhotoMenu?.groupId === group.id || bulkScanMenu === group.id ? {zIndex: 9999} : groupHasDragging ? {zIndex: 100} : undefined)}}>
+          <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(stepAddMenu === group.id || stepGroupMenu === group.id || stepRowMenu?.groupId === group.id || stepPhotoMenu?.groupId === group.id || bulkScanMenu === group.id || !!viewMenuKey?.endsWith(`:${group.id}`) ? {zIndex: 9999} : groupHasDragging ? {zIndex: 100} : undefined)}}>
             {/* 섹션 묶음 — 머리·과정 줄·버튼 줄이 각자 바탕을 갖고 1px 간격으로 나뉜다(선 없음) */}
             {/* 끌어 옮기는 동안엔 잘라내기를 풀지 않는다 — 풀면 모서리 라운딩이 순간 사라져 카드가 살짝 움직여 보였다.
                 (메뉴는 카드 밖으로 나와야 해서 메뉴가 열릴 때만 푼다) */}
             <Card group style={stepAddMenu === group.id || stepGroupMenu === group.id
-              || stepRowMenu?.groupId === group.id || stepPhotoMenu?.groupId === group.id || bulkScanMenu === group.id
+              || stepRowMenu?.groupId === group.id || stepPhotoMenu?.groupId === group.id || bulkScanMenu === group.id || !!viewMenuKey?.endsWith(`:${group.id}`)
               ? {overflow: 'visible'} : undefined}>
               {/* Group Header — editable when 2+ groups, non-first gets minus button */}
               {/* 묶음 헤더 박스 롱프레스 → 위/아래 이동 메뉴 (묶음 2개 이상일 때만 의미) */}
-              <View style={{position: 'relative', zIndex: (stepGroupMenu === group.id || stepAddMenu === group.id || bulkScanMenu === group.id) ? 9999 : undefined}}>
+              <View style={{position: 'relative', zIndex: (stepGroupMenu === group.id || stepAddMenu === group.id || bulkScanMenu === group.id || !!viewMenuKey?.endsWith(`:${group.id}`)) ? 9999 : undefined}}>
               <Pressable
                 onLongPress={stepGroups.length >= 2 ? () => { triggerHaptic('light'); setStepGroupMenu(group.id); } : undefined}
                 delayLongPress={300}>
@@ -3082,7 +3087,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   // 한번에 쓰기는 과정 전체 단위 — 묶음이 여럿이면 첫 묶음 머리에만 스위치
                   trailing={groupIndex === 0 ? {type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
-                      <View style={styles.splitSwitch}><Switch label={t('recipeEdit.splitWrite')} value={true} onValueChange={split => toggleStepBulk(group, !split)} /></View>
+                      <View style={styles.splitSwitch}><ViewModeButton value={group.bulkMode ? 'all' : stepSummaryEdit ? 'summary' : 'split'} withSummary open={viewMenuKey === `step:${group.id}`} onOpenChange={o => setViewMenuKey(o ? `step:${group.id}` : null)} onChange={mode => { if ((mode === 'all') !== !!group.bulkMode) toggleStepBulk(group, mode === 'all'); setStepSummaryEdit(mode === 'summary'); }} /></View>
                       <View style={styles.headerAddSlot}>
                         <IconButton icon={IconPlusCircleFilled} onPress={() => { setAddMenuAnchor('right'); setStepAddMenu(group.id); }} variant="ghost-secondary" size="medium" />
                       </View>
@@ -3114,7 +3119,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
                       {/* 묶음마다 개별 "한번에 쓰기" 토글 (재료·도구와 동일) */}
-                      <View style={styles.splitSwitch}><Switch label={t('recipeEdit.splitWrite')} value={!group.bulkMode} onValueChange={split => toggleStepBulk(group, !split)} /></View>
+                      <View style={styles.splitSwitch}><ViewModeButton value={group.bulkMode ? 'all' : stepSummaryEdit ? 'summary' : 'split'} withSummary open={viewMenuKey === `step:${group.id}`} onOpenChange={o => setViewMenuKey(o ? `step:${group.id}` : null)} onChange={mode => { if ((mode === 'all') !== !!group.bulkMode) toggleStepBulk(group, mode === 'all'); setStepSummaryEdit(mode === 'summary'); }} /></View>
                       {/* 맨 위 추가 버튼 제거 — 행 드래그 핸들 롱프레스 메뉴의
                           "위에 추가 / 아래에 추가"로 대체됐다 */}
                       {/* 사진 인식 — 분할이어도 늘 보인다. 촬영·갤러리·레시피 사진 → 영역 선택 → 이 묶음에(재료·도구와 같은 자리) */}
@@ -3188,7 +3193,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
               />
               </View>
               {/* 요약 한 줄 — 묶음 이름 아래(머리줄 칸 밖 — 안에 두면 묶음 메뉴가 요약 줄 아래로 밀렸다). 한번에 쓰기 중엔 숨긴다 */}
-              {!group.bulkMode && (
+              {!group.bulkMode && stepSummaryEdit && (
                 <StepSummaryInput
                   value={group.summary ?? ''}
                   onChangeText={v => updateStepGroupSummary(group.id, v)}
@@ -3227,7 +3232,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 </View>
                   {/* 쓰기 규칙 — 공통(텍스트 시트와 같은 규칙·정렬) */}
                   <WritingRules kind="steps" asRow />
-              </CardItem>) : (
+              </CardItem>) : stepSummaryEdit ? null : (
               <>
               {/* Steps — 줄 안 메뉴(사진 빈 칸 등)가 열리거나 줄을 끄는 동안 이 묶음 줄들을 아래 '묶음 추가' 줄보다 위로 */}
               <View style={[styles.dragArea, {gap: CARD_GROUP_GAP}, (stepPhotoMenu?.groupId === group.id || stepRowMenu?.groupId === group.id || groupHasDragging) && {zIndex: 9999, elevation: 9999}]}>

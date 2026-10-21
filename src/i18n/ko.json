@@ -1225,7 +1225,7 @@
   "recipeMenuItems.duplicateSuffix": "(복제)",
   "recipeMenuItems.duplicated": "복제했어요",
   "recipeDetail.bundleView": "묶음뷰",
-  "recipeDetail.branchView": "갈래뷰",
+  "recipeDetail.sentenceView": "문장뷰",
   "recipeDetail.summaryView": "요약뷰",
   "recipeDetail.splitView": "분할",
   "photoViewer.restyling": "보정하는 중…",
