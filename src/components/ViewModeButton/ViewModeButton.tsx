@@ -1,47 +1,22 @@
 import React from 'react';
 import {StyleSheet, View} from 'react-native';
 import {IconButton} from '@components/IconButton';
-import {Menu} from '@components/Menu';
 import {IconSliceVertical, IconDescription, IconFlash, IconFlashFilled} from '@components/Icon/IconIndex';
-import {useTranslation} from '@contexts/LanguageContext';
-import {Spacing} from '@constants/spacing';
 
 export type ViewMode = 'split' | 'all';
 
 /**
- * 보기 버튼 — 묶음뷰 / 문장뷰. 상세 머리줄·편집 머리줄 공통(요약은 옆 SummaryToggle).
- * 버튼 아이콘은 지금 보기, 누르면 메뉴(아이콘 밑 4·오른쪽 맞춤). ⋮ 옆이면 띄우게 marginRight는 쓰는 곳에서.
+ * 보기 토글 — 묶음뷰 ↔ 문장뷰. 상세 머리줄·편집 머리줄 공통(요약은 옆 SummaryToggle).
+ * 아이콘은 지금 보기(묶음 = 세로 나누기, 문장 = 설명), 누르면 다른 보기로 바로 바뀐다
  */
-export function ViewModeButton({value, onChange, open, onOpenChange}: {
-  value: ViewMode;
-  onChange: (mode: ViewMode) => void;
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-}) {
-  const {t} = useTranslation();
-  const items = [
-    // 묶음 = 묶음마다 나눈 칸, 문장 = 설명 칸과 같은 아이콘
-    {id: 'split', label: t('recipeDetail.bundleView'), icon: IconSliceVertical},
-    {id: 'all', label: t('recipeDetail.sentenceView'), icon: IconDescription},
-  ];
+export function ViewModeButton({value, onChange}: {value: ViewMode; onChange: (mode: ViewMode) => void}) {
   return (
-    <View style={styles.anchor}>
-      <View style={styles.slot}>
-        <IconButton
-          icon={items.find(i => i.id === value)?.icon ?? IconSliceVertical}
-          variant="ghost-secondary"
-          size="medium"
-          forcePressed={open}
-          onPress={() => onOpenChange(!open)}
-        />
-      </View>
-      <Menu
-        items={items}
-        selectedId={value}
-        visible={open}
-        onClose={() => onOpenChange(false)}
-        onSelect={id => { onOpenChange(false); onChange(id as ViewMode); }}
-        style={styles.menu}
+    <View style={styles.slot}>
+      <IconButton
+        icon={value === 'split' ? IconSliceVertical : IconDescription}
+        variant="ghost-secondary"
+        size="medium"
+        onPress={() => onChange(value === 'split' ? 'all' : 'split')}
       />
     </View>
   );
@@ -65,8 +40,6 @@ export function SummaryToggle({value, onChange}: {value: boolean; onChange: (v: 
 }
 
 const styles = StyleSheet.create({
-  anchor: {overflow: 'visible', zIndex: 1000},
   // 아이콘 칸 20(높이 28) — 머리줄 아이콘 버튼 공통 칸, 칸 사이는 16
   slot: {width: 20, height: 28, alignItems: 'center', justifyContent: 'center'},
-  menu: {position: 'absolute', top: '100%', right: 0, marginTop: Spacing.xs, zIndex: 1000, elevation: 1000},
 });

@@ -1083,7 +1083,7 @@ export function RecipeDetailScreen({
       ),
     }] : undefined;
     return (
-      <View key={key} style={[styles.stickyHeader, (menuHeaderKey === key || menuHeaderKey === `${key}:view` || headerMenuKey === key) && styles.stickyHeaderMenuOpen]}>
+      <View key={key} style={[styles.stickyHeader, (menuHeaderKey === key || headerMenuKey === key) && styles.stickyHeaderMenuOpen]}>
         <ContentContainer>
           <SectionHeader
             title={label}
@@ -1113,17 +1113,14 @@ export function RecipeDetailScreen({
                 {withBulkToggle && sectionId === 'steps' && hasSummary && (
                   <SummaryToggle value={showSummary} onChange={toggleSummaryView} />
                 )}
-                {/* 보기 — ⋮ 옆(공통 ViewModeButton). 재료·과정 각자. 고르면 요약은 꺼진다 */}
+                {/* 보기 토글(묶음뷰 ↔ 문장뷰) — ⋮ 옆(공통 ViewModeButton). 재료·과정 각자 */}
                 {withBulkToggle && (sectionId === 'ingredients' || sectionId === 'steps') && (() => {
                   const sec = sectionId as 'ingredients' | 'steps';
                   const bulk = sec === 'ingredients' ? bulkIngredients : bulkSteps;
-                  const viewKey = `${key}:view`;
                   return (
                     <View style={styles.viewMenuAnchor}>
                       <ViewModeButton
                         value={!bulk ? 'split' : 'all'}
-                        open={menuHeaderKey === viewKey}
-                        onOpenChange={o => setMenuHeaderKey(k => (o ? viewKey : k === viewKey ? null : k))}
                         onChange={mode => {
                           toggleBulkView(sec, mode !== 'split');
                         }}
