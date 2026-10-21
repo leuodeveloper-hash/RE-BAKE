@@ -66,7 +66,7 @@ export function SummaryToggle({value, onChange}: {value: boolean; onChange: (v: 
 
 const styles = StyleSheet.create({
   anchor: {overflow: 'visible', zIndex: 1000},
-  // 아이콘 칸 28 — ⋮·+와 같은 크기
-  slot: {width: 28, height: 28, alignItems: 'center', justifyContent: 'center'},
+  // 아이콘 칸 20(높이 28) — 머리줄 아이콘 버튼 공통 칸, 칸 사이는 16
+  slot: {width: 20, height: 28, alignItems: 'center', justifyContent: 'center'},
   menu: {position: 'absolute', top: '100%', right: 0, marginTop: Spacing.xs, zIndex: 1000, elevation: 1000},
 });

@@ -494,6 +494,8 @@ export interface RecipeCardProps {
   trailingAction?: {label: string; onPress: () => void};
   /** list 레이아웃 제목 위 오버라인(작은 회색 글씨) — 회고 노트에서 요리명 */
   overline?: string;
+  /** 리스트 썸네일만 눌렀을 때(줄 누름과 따로) — 회고 줄: 줄은 회고, 썸네일은 레시피 보기 */
+  onThumbnailPress?: () => void;
   /** 오버라인 옆 값 — 회고 노트의 회차(1/1) */
   overlineTrailing?: string;
   /** 오버라인 앞 아이콘 */
@@ -562,6 +564,7 @@ export function RecipeCard({
   customSubtitle,
   overline,
   overlineTrailing,
+  onThumbnailPress,
   overlineIcon: OverlineIcon,
   trailingAction,
   subtitleSize = 'medium',
@@ -678,14 +681,27 @@ export function RecipeCard({
           )}
 
           {/* 썸네일 — 공통 목록 썸네일(사진·미리보기면 라인·그림자, 없으면 아이콘) */}
-          <ListThumbnail
-            size={isSmall ? 44 : 64}
-            imageUrl={hasImage ? imageUrl : undefined}
-            paperTitle={paperTitle || title}
-            paperPreview={paperPreview}
-            icon={PlaceholderIcon !== IconPhoto ? PlaceholderIcon : undefined}
-            iconColor={placeholderIconColor}
-          />
+          {onThumbnailPress ? (
+            <Pressable hitSlop={4} onPress={() => { triggerHaptic('light'); onThumbnailPress(); }}>
+              <ListThumbnail
+                size={isSmall ? 44 : 64}
+                imageUrl={hasImage ? imageUrl : undefined}
+                paperTitle={paperTitle || title}
+                paperPreview={paperPreview}
+                icon={PlaceholderIcon !== IconPhoto ? PlaceholderIcon : undefined}
+                iconColor={placeholderIconColor}
+              />
+            </Pressable>
+          ) : (
+            <ListThumbnail
+              size={isSmall ? 44 : 64}
+              imageUrl={hasImage ? imageUrl : undefined}
+              paperTitle={paperTitle || title}
+              paperPreview={paperPreview}
+              icon={PlaceholderIcon !== IconPhoto ? PlaceholderIcon : undefined}
+              iconColor={placeholderIconColor}
+            />
+          )}
 
           {/* 콘텐츠 */}
           <View style={[isSmall ? styles.listContentSmall : styles.listContent, overline ? styles.listContentTight : null]}>

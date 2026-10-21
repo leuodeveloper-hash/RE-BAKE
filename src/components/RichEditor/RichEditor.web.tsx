@@ -1,4 +1,5 @@
 import React, {forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef} from 'react';
+import {autoSymbols} from '@utils/autoSymbols';
 import {StyleSheet, TextStyle} from 'react-native';
 import {useColors} from '@contexts/ThemeContext';
 import {Typography} from '@constants/typography';
@@ -106,7 +107,10 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   const emit = useCallback(() => {
     const el = elRef.current;
     if (!el) return '';
-    const src = toSource(el);
+    let src = toSource(el);
+    // '도씨' → ℃ — 칸 글도 바로 바꾸고 커서는 끝으로
+    const fixed = autoSymbols(src);
+    if (fixed !== src) { el.innerHTML = toHtml(fixed); setCaret(fixed.length); src = fixed; }
     lastEmitRef.current = src;
     onChangeText(src);
     return src;

@@ -445,6 +445,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
     [exploreAll],
   );
 
+  // 회고 노트 피커(리스트·팩뷰 공통) — 전체 / 회고한 것 / 회고할 것
+  const [retroFilter, setRetroFilter] = useState<'all' | 'done' | 'todo'>('all');
   const retrospectivePacks = useMemo<PackBoardItem[]>(() => {
     // 회고 쓰기 팩 — 회고가 있어도 늘 뒤에 붙인다(만들었거나 최근 추가한, 회고 없는 레시피 3개)
     const writePacks: PackBoardItem[] = reviewCandidates.map(r => ({
@@ -508,7 +510,9 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
       };
     });
     // 리스트와 같은 순서 — 쓴 회고 먼저, 써야 할 것(회고를 기다려요)은 뒤에
-    if (reviewedPacks.length + writePacks.length > 0) return [...reviewedPacks, ...writePacks];
+    if (reviewedPacks.length + writePacks.length > 0) {
+      return [...(retroFilter === 'todo' ? [] : reviewedPacks), ...(retroFilter === 'done' ? [] : writePacks)];
+    }
     {
       // 레시피가 하나도 없으면 예시 회고(흐리게) — 누르면 레시피 목록으로
       return [{
@@ -527,7 +531,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         onPress: () => onAxisChange('all'),
       }];
     }
-  }, [retrospectives, retrospectiveSource, reviewsOf, reviewCandidates, onAxisChange, madeAtOf, t, exampleRecipe]);
+  }, [retrospectives, retrospectiveSource, reviewsOf, reviewCandidates, onAxisChange, madeAtOf, t, exampleRecipe, retroFilter]);
 
   // 활성 축에 따른 팩 목록
   const activePacks = axis === 'cookbook' ? cookbookPacks : axis === 'method' ? methodPacks : retrospectivePacks;
@@ -695,6 +699,12 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
   const showCookbookSection = axis === 'cookbook';
   const showMethodSection = axis === 'method';
   const showRetrospectiveSection = axis === 'retrospective';
+  // 앱바 2뎁스 셀렉터 항목(레시피북·공법의 '전체 ⌄'와 같은 자리)
+  const retroFilterItems = [
+    {id: 'all', label: t('retrospectiveNote.filterAll')},
+    {id: 'done', label: t('retrospectiveNote.filterDone')},
+    {id: 'todo', label: t('retrospectiveNote.filterTodo')},
+  ];
   const anyMenuOpen = showGroupFilterMenu || showMoreMenu || !!cookbookMenuTarget || !!exploreCookbookMenuTarget;
 
   return (
@@ -705,20 +715,17 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         onLeftPress={onBack}
         titleNode={
           // 레시피 축과 같은 모양: [축 아이콘(축 메뉴)] [항목 ⌄]
-          // 레시피북·공법은 '전체'에서 하나를 골라 들어간다. 회고 노트는 2뎁스(고를 항목)가 없어 축 아이콘만
+          // 레시피북·공법은 '전체'에서 하나를 골라 들어간다. 회고 노트는 전체 / 회고한 것 / 회고할 것
           <Breadcrumb
             leadingNode={authorBadge}
             axisLabel={axisLabel(t, axis, axisOverrides)}
             axisIcon={groupFilterMenuItems.find(i => i.id === axis)?.icon}
             axisIconColor={groupFilterMenuItems.find(i => i.id === axis)?.iconColor}
-            // 회고 노트는 2뎁스가 없다 — 축 아이콘만
-            iconOnly={axis === 'retrospective'}
-            itemLabel={axis === 'retrospective' ? undefined : t('home.all')}
+            itemLabel={axis === 'retrospective' ? retroFilterItems.find(x => x.id === retroFilter)?.label : t('home.all')}
             onAxisPress={() => { setShowItemMenu(false); handleTitlePress(); }}
             // 고를 항목(북·공법)이 없으면 셀렉터를 열지 않는다 — 빈 메뉴만 떴다
             itemDisabled={(axis === 'cookbook' ? cookbooks.length + (showAddButton ? 1 : 0) : axis === 'method' ? methodGroups.length : 1) === 0}
             onItemPress={() => {
-              if (axis === 'retrospective') { handleTitlePress(); return; }
               setShowGroupFilterMenu(false);
               setShowLayoutMenu(false);
               setShowMoreMenu(false);
@@ -768,10 +775,12 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                 ]
                 : axis === 'method'
                   ? [allMenuItem(GROUP_ALL_ID, t('home.all'), 'method', colors), ...methodGroups.map(g => methodMenuItem(g.method, colors))]
-                  : []}
-              visible={showItemMenu && axis !== 'retrospective'}
+                  : retroFilterItems}
+              selectedId={axis === 'retrospective' ? retroFilter : undefined}
+              visible={showItemMenu}
               onSelect={id => {
                 setShowItemMenu(false);
+                if (axis === 'retrospective') { setRetroFilter(id as 'all' | 'done' | 'todo'); return; }
                 if (id === GROUP_ALL_ID) return;
                 if (id === '__add_cookbook__') {
                   setCookbookEditTarget(null);
@@ -1017,6 +1026,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                           id={row.recipe.id}
                           overline={row.overline}
                           overlineTrailing={row.overlineTrailing}
+                          // 썸네일은 레시피 보기(줄은 회고)
+                          onThumbnailPress={() => onRecipePress?.(row.recipe.id)}
                           title={row.title}
                           customSubtitle={row.subtitle}
                           subtitleSize="large"
@@ -1034,8 +1045,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
                           hideDivider={idx === list.length - 1}
                         />
                       );
-                      const waiting = rows.filter(r => r.write);
-                      const written = rows.filter(r => !r.write);
+                      const waiting = retroFilter === 'done' ? [] : rows.filter(r => r.write);
+                      const written = retroFilter === 'todo' ? [] : rows.filter(r => !r.write);
                       return (
                         <>
                           {/* 쓴 회고 먼저, 남겨야 할 회고는 뒤에 */}

@@ -1,4 +1,5 @@
 import React, {useCallback, useMemo, useRef} from 'react';
+import {autoSymbols} from '@utils/autoSymbols';
 import {
   View,
   TextInput as RNTextInput,
@@ -93,7 +94,8 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
 
   const handleChangeText = useCallback((v: string) => {
     onTextChanged();
-    onChangeText?.(v);
+    // '도씨'를 쓰면 바로 ℃로
+    onChangeText?.(autoSymbols(v));
   }, [onTextChanged, onChangeText]);
 
   const handleContentSize = useCallback((e: any) => {

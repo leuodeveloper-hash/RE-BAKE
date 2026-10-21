@@ -2265,9 +2265,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     marginBottom: 0,
   },
   // 앱바 떠 있는 요소 사이 — 공통 간격
-  // ⋮는 누를 자리만큼 왼쪽으로 당겨져 있어(-8) 붙어 보인다 — 그만큼 띄운다
   viewMenuAnchor: {
-    marginRight: Spacing.md,
     zIndex: 1000,
   },
   navLeftRow: {

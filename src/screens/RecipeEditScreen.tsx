@@ -2068,10 +2068,14 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
 
   // 슬래시 메뉴 선택 핸들러
   // target: 슬래시 메뉴 말고 다른 곳(빈 사진 칸)에서 바로 부를 때 대상 과정
+  // 방금 만든 팁·주의 칸 — 그 칩을 열어 바로 쓰게(autoFocus)
+  const [newNote, setNewNote] = useState<{stepId: string; kind: 'tip' | 'caution'} | null>(null);
   const handleSlashMenuSelect = async (menuId: string, target?: {groupId: string; stepId: string}) => {
     const t0 = target ?? slashMenu;
     if (!t0) return;
     const {groupId, stepId} = t0;
+    // 팁·주의를 새로 만들면 그 칸에 바로 커서
+    if (menuId === 'tip' || menuId === 'caution') setNewNote({stepId, kind: menuId});
 
     if (menuId === 'template') {
       setSlashMenu(null);
@@ -2436,6 +2440,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
               // 유튜브 주소면 유튜브 아이콘으로 — 무엇이 걸린 링크인지 한눈에 보이게
               leading={{type: 'icon', icon: referenceYouTubeId ? IconYourubeColored : IconLink}}
               showDivider={false}
+              // 지우기 — 줄 끝 아이콘 버튼 칸(28)에 두어 위아래 카드 머리줄 아이콘과 세로 줄을 맞춘다
+              trailing={isUrlLike(referenceUrl) ? {type: 'iconButton', icon: IconClose, variant: 'ghost-secondary', size: 'medium', onPress: () => setReferenceUrl('')} : undefined}
             >
               <View style={styles.referenceLinkRow}>
                 <View style={{flex: 1, minWidth: 0}}>
@@ -2447,9 +2453,6 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                     onOpen={referenceYouTubeId ? () => openYouTube(referenceYouTubeId) : undefined}
                   />
                 </View>
-                {isUrlLike(referenceUrl) ? (
-                  <IconButton icon={IconClose} size="small" variant="ghost-secondary" onPress={() => setReferenceUrl('')} />
-                ) : null}
               </View>
             </ListItem>
           </Card>
@@ -3388,6 +3391,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                             <EditableChip
                               label={step.tip}
                               variant="tip"
+                              autoFocus={newNote?.stepId === step.id && newNote.kind === 'tip'}
                               onChangeText={v => updateStepTip(group.id, step.id, v)}
                               onRemove={() => removeStepTip(group.id, step.id)}
                             />
@@ -3399,6 +3403,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                               label={step.caution}
                               variant="yellow"
                               placeholder={t('recipeEdit.cautionPlaceholder')}
+                              autoFocus={newNote?.stepId === step.id && newNote.kind === 'caution'}
                               onChangeText={v => updateStepCaution(group.id, step.id, v)}
                               onRemove={() => removeStepCaution(group.id, step.id)}
                             />

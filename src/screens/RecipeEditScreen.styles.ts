@@ -391,8 +391,9 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
   toolHeaderTrailing: {
     flexDirection: 'row',
     alignItems: 'center',
-    // 분할 토글·+ 버튼이 같은 28 슬롯 — 사이 10(글자 스위치였을 땐 16이 필요했다)
-    gap: 10,
+    // 아이콘 버튼은 20 칸, 칸과 칸 사이 20 — 누른 바탕(40)이 옆 버튼과 겹치지 않게. 끝 칸이 아래 줄 - 버튼(28 칸) 가운데와 맞게 오른쪽 4
+    gap: 20,
+    paddingRight: 4,
   },
   // 단일 그룹 헤더 + 버튼을 하단 행의 - 버튼(ListItem iconButton 슬롯 28)과 동일 슬롯에 배치해 정렬 맞춤
   // 헤더 +/- 버튼: 아이템 행 trailing 버튼과 우측 정렬이 맞도록 고정 28 슬롯 제거.
@@ -404,12 +405,10 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
     overflow: 'visible',
     zIndex: 1000,
   },
-  // 분할 스위치 — 옆 아이콘 버튼(+·사진 인식)과 떨어지게 머리줄 간격(10)에 8 더
-  splitSwitch: {
-    marginRight: Spacing.sm,
-  },
+  // 보기 버튼 — 옆 아이콘 버튼(+·사진 인식)과 떨어지게 머리줄 간격(10)에 6 더
+  splitSwitch: {},
   headerAddSlot: {
-    width: 28,
+    width: 20,
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',

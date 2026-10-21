@@ -918,6 +918,8 @@
   "recipeEdit.pasteMark.meta": "Method:",
   "recipeEdit.pasteMark.timer": "> Timer:",
   "recipeEdit.pasteRule.timer": "Group timer (e.g. 40분)",
+  "recipeEdit.pasteMark.summary": "> Summary:",
+  "recipeEdit.pasteRule.summary": "Group summary line",
   "recipeEdit.pasteMark.tip": "> Tip:",
   "recipeEdit.pasteMarkdown": "Fill with text",
   "recipeEdit.pastePlaceholder": "# Butter cookies\nCookbook: Cookies\nMethod: Creaming\nTime: 40 min\nServings: 20\n\n## Ingredients\n### Dough\n- Cake flour 200g\n- Butter 120g\n- Sugar 80g\n### Topping\n- Sliced almonds 30g\n\n## Tools\n- Bowl, whisk, oven\n\n## Steps\n### Dough\n1. Soften the butter\n2. Add sugar and mix\n> Tip: leave butter out for 30 minutes\n### Bake\n1. Bake at 170°C for 12 minutes\n> Caution: preheat the oven",
@@ -1260,5 +1262,8 @@
   "stepTemplate.saveThisMenu": "Save this step",
   "recipeEdit.splitWrite": "Split",
   "videoCapture.title": "Pick a frame",
-  "videoCapture.capture": "Use selected frame"
+  "videoCapture.capture": "Use selected frame",
+  "retrospectiveNote.filterAll": "All",
+  "retrospectiveNote.filterDone": "Reviewed",
+  "retrospectiveNote.filterTodo": "To review"
 }

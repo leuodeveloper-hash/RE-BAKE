@@ -173,14 +173,13 @@ const ICON_SLOT = {width: 28, height: 28, alignItems: 'center' as const, justify
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 아이콘 버튼 칸 — 편집 머리줄 버튼 칸(28)과 같다. 버튼(40)은 넘쳐도 줄 높이는 그대로
-  iconSlot: {width: 28, height: 28, alignItems: 'center', justifyContent: 'center'},
+  // 아이콘 버튼 칸 20(높이 28) — 칸 사이 16(편집 머리줄과 같다)
+  iconSlot: {width: 20, height: 28, alignItems: 'center', justifyContent: 'center'},
   containerMenuOpen: {
     zIndex: 1000,
     elevation: 1000,
   },
   menuAnchor: {
-    // ⋮ 버튼은 아이콘 둘레에 누를 자리(여백)가 있어 간격(16)이 더 벌어져 보인다 — 그만큼 당긴다
-    marginLeft: -Spacing.sm,
     overflow: 'visible',
     zIndex: 1000,
   },
@@ -195,8 +194,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   actionRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    // 아이콘 버튼 칸(28) 사이 10 — 편집 머리줄과 같다
-    gap: 10,
+    // 아이콘 버튼 칸(20) 사이 20 — 누른 바탕(40)이 안 겹치게, 편집 머리줄과 같다. 끝 칸이 아래 줄과 맞게 오른쪽 4
+    gap: 20,
+    paddingRight: 4,
   },
   container: {
     // 고정 높이가 아니라 최소 높이 — 게이지·아이콘이 들어가면 줄이 커진다

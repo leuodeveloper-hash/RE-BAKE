@@ -903,6 +903,8 @@
   "recipeEdit.pasteMark.meta": "공법:",
   "recipeEdit.pasteMark.timer": "> 타이머:",
   "recipeEdit.pasteRule.timer": "묶음 타이머(예: 40분)",
+  "recipeEdit.pasteMark.summary": "> 요약:",
+  "recipeEdit.pasteRule.summary": "묶음 요약 한 줄",
   "recipeEdit.pasteMark.tip": "> 팁:",
   "recipeEdit.pasteMarkdown": "텍스트로 채우기",
   "recipeEdit.pastePlaceholder": "# 버터 쿠키\n레시피북: 쿠키\n공법: 크림법\n시간: 40분\n분량: 20개\n\n## 재료\n### 반죽\n- 박력분 200g\n- 버터 120g\n- 설탕 80g\n### 토핑\n- 아몬드 슬라이스 30g\n\n## 도구\n- 볼, 거품기, 오븐\n\n## 과정\n### 반죽\n1. 버터를 부드럽게 푼다\n2. 설탕을 넣고 섞는다\n> 팁: 버터는 실온에 30분 둔다\n### 굽기\n1. 170도에서 12분 굽는다\n> 주의: 오븐은 미리 예열한다",
@@ -1245,5 +1247,8 @@
   "stepTemplate.saveThisMenu": "이 과정 저장하기",
   "recipeEdit.splitWrite": "분할",
   "videoCapture.title": "장면 고르기",
-  "videoCapture.capture": "선택한 컷 넣기"
+  "videoCapture.capture": "선택한 컷 넣기",
+  "retrospectiveNote.filterAll": "전체",
+  "retrospectiveNote.filterDone": "회고한 것",
+  "retrospectiveNote.filterTodo": "회고할 것"
 }

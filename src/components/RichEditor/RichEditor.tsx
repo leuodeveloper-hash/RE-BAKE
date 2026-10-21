@@ -1,4 +1,5 @@
 import React, {forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState} from 'react';
+import {autoSymbols} from '@utils/autoSymbols';
 import {StyleProp, StyleSheet, TextStyle, View} from 'react-native';
 import {WebView} from 'react-native-webview';
 import {useColors} from '@contexts/ThemeContext';
@@ -134,8 +135,9 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
         pendingRef.current = [];
         break;
       case EDITOR_MSG.change:
+        // '도씨' → ℃ — 바뀌면 lastFromWeb과 달라져 아래 효과가 칸에 바로 다시 넣는다
         lastFromWebRef.current = payload.value;
-        onChangeText(payload.value);
+        onChangeText(autoSymbols(payload.value));
         if (payload.submit) onSubmit?.(payload.rest ?? '');
         if (payload.backspaceAtStart) onBackspaceAtStart?.();
         break;
