@@ -2,7 +2,7 @@ import React from 'react';
 import {StyleSheet, View} from 'react-native';
 import {IconButton} from '@components/IconButton';
 import {Menu} from '@components/Menu';
-import {IconSliceVertical, IconDescriptionFilled, IconFlash, IconFlashFilled} from '@components/Icon/IconIndex';
+import {IconSliceVertical, IconDescription, IconFlash, IconFlashFilled} from '@components/Icon/IconIndex';
 import {useTranslation} from '@contexts/LanguageContext';
 import {Spacing} from '@constants/spacing';
 
@@ -22,7 +22,7 @@ export function ViewModeButton({value, onChange, open, onOpenChange}: {
   const items = [
     // 묶음 = 묶음마다 나눈 칸, 문장 = 설명 칸과 같은 아이콘
     {id: 'split', label: t('recipeDetail.bundleView'), icon: IconSliceVertical},
-    {id: 'all', label: t('recipeDetail.sentenceView'), icon: IconDescriptionFilled},
+    {id: 'all', label: t('recipeDetail.sentenceView'), icon: IconDescription},
   ];
   return (
     <View style={styles.anchor}>
