@@ -152,12 +152,11 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   const css = useMemo(() => `
     [data-rich="${scopeId}"] { outline: none; white-space: pre-wrap; word-break: break-word; }
     [data-rich="${scopeId}"] a {
-      background: ${colors['custom/yellow-var']}33;
-      color: ${colors['custom/yellow-var']};
-      text-decoration: underline;
-      text-decoration-color: ${colors['border/normal']};
-      border-radius: 3px;
-      padding: 1px 2px;
+      /* 보기(RichText linkTextStyle)와 같은 링크 — 바탕 없이 글자 색 그대로 + 보더 색 대시 밑줄 */
+      color: inherit;
+      text-decoration: underline dashed;
+      text-decoration-color: ${colors['border/strong']};
+      text-underline-offset: 4px;
       cursor: pointer;
     }
     [data-rich="${scopeId}"]:empty::before {

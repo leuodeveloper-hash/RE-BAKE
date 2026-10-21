@@ -77,9 +77,10 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
     text: (flat?.color as string) ?? colors['foreground/on-surface'],
     placeholder: colors['foreground/on-surface-muted'],
     surface: colors['surface/bright'],
-    linkBg: colors['custom/yellow-var'] + '33',
-    linkColor: colors['custom/yellow-var'],
-    linkUnderline: colors['border/normal'],
+    // 보기(RichText linkTextStyle)와 같은 링크 — 바탕 없이 글자 색 그대로 + 보더 색 대시 밑줄
+    linkBg: 'transparent',
+    linkColor: 'inherit',
+    linkUnderline: colors['border/strong'],
     caret: colors['foreground/on-surface'],
     selection: colors['custom/yellow-var'] + '40',
     fontSize: (flat?.fontSize as number) ?? Typography.body.medium.fontSize,

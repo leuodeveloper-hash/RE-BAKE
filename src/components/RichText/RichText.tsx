@@ -16,8 +16,8 @@ import type {SemanticColors} from '@constants/tokens';
  */
 export const linkTextStyle = (colors: SemanticColors, opts?: {onImage?: boolean}): TextStyle => ({
   textDecorationLine: 'underline',
-  // 점(dotted)은 너무 자잘해 대시(dashed)로 — 끊긴 선이지만 마디가 굵직하다
-  textDecorationStyle: 'dashed',
+  // 웹은 대시(dashed). 아이폰 대시는 마디가 웹보다 훨씬 굵고 길어 보여 점(dotted)으로 — 비슷한 크기로 맞춘다
+  textDecorationStyle: Platform.OS === 'ios' ? 'dotted' : 'dashed',
   // 밑줄을 글자에서 띄운다(웹만 — iOS·안드로이드 글자 밑줄은 간격을 정할 수 없다)
   ...(Platform.OS === 'web' ? ({textUnderlineOffset: 4} as any) : null),
   // 사진 위(상세 히어로 등)에선 회색 보더가 안 보여 사진 위 전용 보더 색

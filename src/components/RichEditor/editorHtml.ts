@@ -108,10 +108,9 @@ export function buildEditorHtml(theme: EditorTheme, placeholder: string, initial
   #editor a {
     background: ${theme.linkBg};
     color: ${theme.linkColor};
-    text-decoration: underline;
+    text-decoration: underline dashed;
     text-decoration-color: ${theme.linkUnderline};
-    border-radius: 3px;
-    padding: 1px 2px;
+    text-underline-offset: 4px;
     cursor: pointer;
   }
   #editor:empty::before {
