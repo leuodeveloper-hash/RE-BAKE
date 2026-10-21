@@ -333,8 +333,10 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
     // 높이는 위에서 고정했으니 아이폰만 lineHeight를 빼고 칸 가운데에 그린다
     ...(Platform.OS === 'ios' ? {lineHeight: undefined} : null),
   },
+  // 묶음 타이머(28 원) — 오른쪽 보기 버튼(20 칸)과 가운데끼리 40, 머리줄 아이콘 사이와 같게(줄 안 간격 4 + 12)
   groupTimer: {
     marginLeft: Spacing.xs,
+    marginRight: Spacing.smd,
   },
   breadcrumbPrefix: {
     fontFamily: Typography.body.medium.fontFamily,

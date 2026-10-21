@@ -47,7 +47,7 @@ import {SectionHeader} from '@components/SectionHeader';
 import {SearchCommandBar} from '@components/SearchCommandBar';
 import {Button} from '@components/Button';
 import {EditableChip} from '@components/EditableChip/EditableChip';
-import {AddSlot} from '@components/AddSlot';
+import {PhotoAddSlot} from '@components/AddSlot';
 import {displayAmount} from '@utils/scaleAmount';
 import {RichText} from '@components/RichText/RichText';
 import {StepPhotos} from '@components/StepPhotos';
@@ -56,29 +56,7 @@ import {normalizeStepPhotos} from '@utils/stepPhotos';
 import type {StepPhoto} from '../../types/recipe';
 import {BottomActionBar} from '@components/BottomActionBar';
 import {AppIcon} from '@components/Icon/AppIcon';
-import {
-  IconAdd,
-  IconClose,
-  IconEdit,
-  IconTick,
-  IconAstriks,
-  IconCircleAlertFilled,
-  IconCameraFilled,
-  IconCamera,
-  IconPhoto,
-  IconTrash,
-  IconUndo,
-  IconRedo,
-  IconEllipsisVertical,
-  IconCheckList,
-  IconNoteFilled,
-  IconBlackNose,
-  IconArrowTopRight,
-  IconChevronLeft,
-  IconChevronRight,
-  IconList,
-  IconLayoutGrid,
-} from '@components/Icon/IconIndex';
+import {IconAdd, IconClose, IconEdit, IconTick, IconAstriks, IconCircleAlertFilled, IconCameraFilled, IconCamera, IconPhoto, IconTrash, IconUndo, IconRedo, IconEllipsisVertical, IconCheckList, IconNoteFilled, IconBlackNose, IconArrowTopRight, IconChevronLeft, IconChevronRight, IconList, IconLayoutGrid} from '@components/Icon/IconIndex';
 import {KEYBOARD_TOOLBAR_HEIGHT} from '@components/KeyboardToolbar';
 import {EditorToolbar} from '@components/EditorToolbar';
 import {useYouTubePlayer} from '@contexts/YouTubePlayerContext';
@@ -506,6 +484,8 @@ export function CookingMode({
   // 사진 있는 스텝은 면(페이지)이 더 넓음: [텍스트][사진 일렬·기울임].
   // 좁은 화면에선 사진이 잘려 보이고 슬라이드로 노출, 넓은 화면이면 다 보임. 눈금은 스텝 단위 스냅.
   const PAD = 28;
+  // 묶음 타이머 줄(본문 위) — 알약 28 + 아래 12
+  const TIMER_ROW = 40;
   const PHOTO_W = 180;
   // Figma 컬럼 = 198.21 × 440. 카드(180)보다 높이가 훨씬 커서 위/아래로 벌어진다.
   // 높이를 카드 크기로만 주면 컬럼이 눌려 카드끼리 붙어 보인다.
@@ -1335,23 +1315,21 @@ export function CookingMode({
   }, [onUpdate, stepGroups, steps]);
 
   // 보기 모드에서 사진 바로 등록 (편집 진입 없이 원본 데이터 갱신)
-  const addStepPhoto = useCallback(async (card: CookingCard) => {
+  // 과정 사진 추가(보기 모드) — 편집 과정 사진 칸과 같게 촬영 / 갤러리. 갤러리는 앱 안 사진첩(영상은 거기서 컷 골라 넣기)
+  const addStepPhoto = useCallback(async (card: CookingCard, source: 'camera' | 'gallery' = 'gallery') => {
     try {
     await dismissKeyboardAndWait();
-    const permOk = await ensureImagePermission('mediaLibrary', {
-      deniedMessage: t('cookingMode.photoPermission'),
+    const permOk = await ensureImagePermission(source === 'camera' ? 'camera' : 'mediaLibrary', {
+      deniedMessage: t(source === 'camera' ? 'cookingMode.cameraPermission' : 'cookingMode.photoPermission'),
       showSnackbar,
-      settingsTitle: t('permission.photoTitle'),
-      settingsBody: t('permission.photoBody'),
+      settingsTitle: t(source === 'camera' ? 'permission.cameraTitle' : 'permission.photoTitle'),
+      settingsBody: t(source === 'camera' ? 'permission.cameraBody' : 'permission.photoBody'),
       settingsConfirmLabel: t('permission.openSettings'),
       settingsCancelLabel: t('permission.cancel'),
     });
     if (!permOk) return;
-    const result = await launchLibrary({
-      mediaTypes: ['images', 'videos'],
-      quality: 0.8,
-      base64: Platform.OS === 'web',
-    });
+    const options = {mediaTypes: ['images'] as ImagePicker.MediaType[], quality: 0.8, base64: Platform.OS === 'web'};
+    const result = source === 'camera' ? await launchCamera(options) : await launchLibrary(options);
     if (result.canceled || result.assets.length === 0) return;
     const asset = result.assets[0];
     // 영상(시네마틱 포함) 선택 시 → 프레임(썸네일) 추출해서 사진으로 사용
@@ -1417,11 +1395,6 @@ export function CookingMode({
     const lifts = [0, 0, 0];
     // 권한(canEdit) 있을 때만 사진 추가(+) 버튼 노출 — 어드민/내 레시피 아니면 아예 안 보임.
     const showAdd = photos.length < 3 && canEdit;
-    const onAdd = () => {
-      if (!canEdit) return; // showAdd로 이미 숨김 — 방어
-      if (editing) pickPhoto('gallery', item.globalIndex, item.photos);
-      else addStepPhoto(item);
-    };
     const onReplace = (i: number) => {
       if (editing) replacePhoto(item.globalIndex, i, item.photos);
       else replaceStepPhotoView(item, i);
@@ -1571,15 +1544,20 @@ export function CookingMode({
               justifyContent: isNarrow ? 'flex-start' : (photos.length % 2 === 0 ? 'flex-start' : 'flex-end'),
               zIndex: photos.length,
             }]}>
-            {/* 공통 더하기 칸(점선 + +) — 과정 사진 빈 칸과 같은 컴포넌트 */}
-            <AddSlot
+            {/* 공통 사진 넣기 칸(점선 + · 촬영/갤러리 메뉴) — 과정 사진 칸과 같은 컴포넌트, 크기·바탕만 요리모드 것 */}
+            <PhotoAddSlot
               size={photoW}
               radius={16}
               iconSize="md"
               // 요리모드 배경이 surface/dim이라 한 단계 어두운 바탕
               background={colors['surface/container-high'] as string}
-              onPress={onAdd}
-              style={{transform: [{rotate: `${tilts[photos.length] ?? 4.16}deg`}]}}
+              containerStyle={{transform: [{rotate: `${tilts[photos.length] ?? 4.16}deg`}]}}
+              onSelect={id => {
+                if (!canEdit) return;
+                const src = id as 'camera' | 'gallery';
+                if (editing) pickPhoto(src, item.globalIndex, item.photos);
+                else addStepPhoto(item, src);
+              }}
             />
           </View>
         ) : null}
@@ -1602,9 +1580,9 @@ export function CookingMode({
             style={{flex: 1}}
             contentContainerStyle={[
               styles.viewScrollContent,
-              // 편집과 동일 — 앱바·눈금바 자리를 콘텐츠 패딩으로 확보
+              // 편집과 동일 — 앱바·눈금바 자리를 콘텐츠 패딩으로 확보. 묶음 타이머가 있으면 본문 위 그 자리만큼 더
               {
-                paddingTop: contentTop,
+                paddingTop: contentTop + (stepGroups?.[item.groupIndex]?.timer ? TIMER_ROW : 0),
                 paddingBottom: RULER_BAR_H + 24,
               },
             ]}
@@ -1647,7 +1625,7 @@ export function CookingMode({
         {!isNarrow && renderPhotoStack(item, false)}
       </View>
     );
-  }, [renderPhotoStack, styles, textColW, sideInset, canEdit, handleDoubleTap, checkedIngredients, toggleIngredient, colors, cookingBodyFont, isNarrow]);
+  }, [renderPhotoStack, styles, textColW, sideInset, canEdit, handleDoubleTap, checkedIngredients, toggleIngredient, colors, cookingBodyFont, isNarrow, stepGroups, contentTop]);
 
   // Render a single card (only active card can be edited)
   const renderCard = useCallback((item: CookingCard, isActive = false) => {
@@ -1893,13 +1871,6 @@ export function CookingMode({
               </GlassContainer>
             ) : (
               <GlassContainer contentStyle={navPillStyle}>
-                {/* 과정 묶음 타이머(묶음이 둘 이상일 때만) — 맨 왼쪽. 지금 과정의 묶음 것만 보이고, 다른 묶음 타이머는 숨긴 채 계속 돈다
-                    (발효 돌려 두고 다음 묶음으로 넘어가도 멈추지 않게) */}
-                {(stepGroups?.length ?? 0) > 1 && stepGroups!.map((g, gi) => (
-                  <View key={gi} style={[styles.navTimer, currentCard?.groupIndex !== gi && styles.navTimerHidden]}>
-                    <StepTimer duration={g.timer} />
-                  </View>
-                ))}
                 {referenceUrl && (
                   <IconButton
                     icon={IconArrowTopRight}
@@ -1950,6 +1921,16 @@ export function CookingMode({
         <Animated.View
           style={{flex: 1, opacity: contentReady ? fadeAnim : 0}}
           onLayout={e => setContainerWidth(e.nativeEvent.layout.width)}>
+          {/* 묶음 타이머 — 시간이 정해진 묶음이면 본문 위(앱바 알약 안이면 좌우로 길고 길게 누르기 메뉴가 잘렸다).
+              지금 카드 묶음 것만 보이고 다른 묶음 타이머는 숨긴 채 계속 돈다(발효 돌려 두고 넘어가도 멈추지 않게) */}
+          {!isEditing && (stepGroups ?? []).map((g, gi) => (g.timer ? (
+            <View
+              key={`timer-${gi}`}
+              pointerEvents="box-none"
+              style={[styles.bodyTimer, {top: contentTop, left: PAD + sideInset}, (isOnAdviceCard || currentCard?.groupIndex !== gi) && styles.navTimerHidden]}>
+              <StepTimer duration={g.timer} />
+            </View>
+          ) : null))}
           {/* 여백은 각 카드의 스크롤 콘텐츠가 패딩으로 갖는다(스페이서 없음) —
               스크롤 영역이 화면 전체를 써야 마스크 그라디언트가 자연스럽게 걸린다. */}
           <Animated.ScrollView
@@ -2039,13 +2020,13 @@ export function CookingMode({
                           "이미지 등록이 안 된다"고 느껴졌다. 스텝 카드와 같은 흐름. */}
                       {!isEditing && canEdit && !!onUpdate && viewAdvicePhotos.length < MAX_PHOTOS && (
                         // 과정 사진과 같은 공통 추가 칸(점선 + +) — 라벨 없이, 조언 사진과 같은 크기. 노랑 카드 안이라 노랑 점선
-                        <AddSlot
+                        <PhotoAddSlot
                           variant="yellow"
                           size={containerWidth >= TABLET_BREAKPOINT ? 140 : 96}
                           radius={16}
                           iconSize="md"
-                          onPress={() => addAdvicePhotoView('gallery')}
-                          style={styles.adviceAddPhoto}
+                          onSelect={id => addAdvicePhotoView(id as 'camera' | 'gallery')}
+                          containerStyle={styles.adviceAddPhoto}
                         />
                       )}
                       {/* Add menu */}
@@ -2379,8 +2360,9 @@ export function CookingMode({
 const createStyles = (colors: SemanticColors) =>
   StyleSheet.create({
     // 앱바 알약 안 타이머 — 양옆 아이콘 버튼과 띄움
-    navTimer: {
-      marginHorizontal: Spacing.xs,
+    bodyTimer: {
+      position: 'absolute',
+      zIndex: 5,
     },
     navTimerHidden: {
       display: 'none',

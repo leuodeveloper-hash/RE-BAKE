@@ -1,5 +1,5 @@
-import {AddSlot} from '@components/AddSlot';
-import {Menu, type MenuItemData} from '@components/Menu/Menu';
+import {AddSlot, PhotoAddSlot} from '@components/AddSlot';
+import {type MenuItemData} from '@components/Menu/Menu';
 import React, {useState} from 'react';
 import {triggerHaptic} from '@utils/haptics';
 import {ActivityIndicator, Image, Pressable, StyleSheet, Text, View} from 'react-native';
@@ -102,12 +102,6 @@ export function StepPhotos({
   onAddSelect,
   onAddMenuOpenChange,
 }: StepPhotosProps) {
-  const [addMenuOpen, setAddMenuOpenState] = useState(false);
-  const setAddMenuOpen = (v: boolean | ((p: boolean) => boolean)) => setAddMenuOpenState(prev => {
-    const next = typeof v === 'function' ? v(prev) : v;
-    if (next !== prev) onAddMenuOpenChange?.(next);
-    return next;
-  });
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const editable = mode === 'edit';
@@ -170,49 +164,18 @@ export function StepPhotos({
       })}
       {(onAdd || addMenuItems?.length) ? (
         // 빈 썸네일 — 사진과 같은 크기·모서리, 점선 테두리 + 더하기(+). 메뉴가 있으면 눌러서 촬영/갤러리 고르기
-        <View style={[styles.addAnchor, addMenuOpen && styles.addAnchorOpen]}>
-          {/* 공통 더하기 칸(점선 + +) — 요리모드 사진 추가 카드와 같은 컴포넌트 */}
-          <AddSlot
-            size={size}
-            radius={Radius['radius-sm']}
-            onPress={() => {
-              if (addMenuItems && addMenuItems.length > 1) setAddMenuOpen(v => !v);
-              else if (addMenuItems?.length === 1) onAddSelect?.(addMenuItems[0].id);
-              else onAdd?.();
-            }}
-          />
-          {addMenuItems && addMenuItems.length > 1 ? (
-            <Menu
-              items={addMenuItems}
-              visible={addMenuOpen}
-              onSelect={id => { setAddMenuOpen(false); onAddSelect?.(id); }}
-              onClose={() => setAddMenuOpen(false)}
-              style={styles.addMenu}
-            />
-          ) : null}
-        </View>
+        addMenuItems?.length ? (
+          // 공통 사진 넣기 칸(점선 + · 촬영/갤러리 메뉴) — 요리모드·조언 사진과 같은 컴포넌트
+          <PhotoAddSlot size={size} radius={Radius['radius-sm']} items={addMenuItems} onSelect={id => onAddSelect?.(id)} onOpenChange={onAddMenuOpenChange} />
+        ) : (
+          <AddSlot size={size} radius={Radius['radius-sm']} onPress={onAdd} />
+        )
       ) : null}
     </Pressable>
   );
 }
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
-  // 빈 칸 메뉴 — 아래 행에 가리지 않게(드롭다운 z-index)
-  addAnchor: {
-    overflow: 'visible',
-  },
-  addAnchorOpen: {
-    zIndex: 1000,
-    elevation: 1000,
-  },
-  addMenu: {
-    position: 'absolute',
-    top: '100%',
-    left: 0,
-    marginTop: Spacing.xs,
-    zIndex: 1000,
-    elevation: 1000,
-  },
   container: {
     flexDirection: 'row',
     flexWrap: 'wrap',

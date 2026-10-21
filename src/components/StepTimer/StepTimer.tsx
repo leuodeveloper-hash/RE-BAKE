@@ -39,7 +39,8 @@ function clock(sec: number): string {
   const m = Math.floor((sec % 3600) / 60);
   const s = sec % 60;
   const pad = (n: number) => String(n).padStart(2, '0');
-  return `${pad(h)}:${pad(m)}:${pad(s)}`;
+  // 1시간 안쪽은 분:초만 — 00:40:00이면 알약이 좌우로 너무 길었다
+  return h > 0 ? `${h}:${pad(m)}:${pad(s)}` : `${pad(m)}:${pad(s)}`;
 }
 
 type Phase = 'idle' | 'running' | 'paused' | 'done';
