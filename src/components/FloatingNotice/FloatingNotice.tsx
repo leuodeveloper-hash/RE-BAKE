@@ -1,7 +1,7 @@
 import React from 'react';
 import {StyleSheet, View} from 'react-native';
 import {Button} from '@components/Button';
-import {NavPillGroup} from '@components/Navigation/NavPillButton';
+import {GlassContainer} from '@components/Container';
 import {SvgProps} from 'react-native-svg';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {withAlpha} from '@utils/color';
@@ -45,11 +45,12 @@ export const noticeLabelStyle = {...Typography.caption.large, fontWeight: '600' 
 export function FloatingNotice({items, bottom = 110}: FloatingNoticeProps) {
   const styles = useThemedStyles(createStyles);
   if (items.length === 0) return null;
-  // 떠 있는 유리 컨테이너(앱바 알약과 같은 NavPillGroup) 안에 고스트 스몰 둥근 버튼 — 앱바 버튼들과 같은 타입
+  // 떠 있는 유리 컨테이너 안에 고스트 스몰 둥근 버튼(사방 4)
   return (
     <View pointerEvents="box-none" style={[styles.wrap, {bottom}]}>
       {items.map(item => (
-        <NavPillGroup key={item.label}>
+        // 사방 4 — 앱바 알약(높이 44·여백 2)에 작은 버튼(32)을 넣으면 위아래 6·좌우 2로 달라 보였다
+        <GlassContainer key={item.label} contentStyle={styles.pill}>
           <Button
             label={item.label}
             icon={item.icon}
@@ -59,7 +60,7 @@ export function FloatingNotice({items, bottom = 110}: FloatingNoticeProps) {
             disabled={item.loading}
             onPress={item.onPress}
           />
-        </NavPillGroup>
+        </GlassContainer>
       ))}
     </View>
   );
@@ -74,5 +75,8 @@ const createStyles = (_colors: SemanticColors) => StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
     gap: Spacing.sm,
+  },
+  pill: {
+    padding: 4,
   },
 });
