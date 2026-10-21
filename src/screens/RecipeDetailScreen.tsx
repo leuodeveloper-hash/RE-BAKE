@@ -13,7 +13,7 @@ import {useFloatingNotice} from '@contexts/FloatingNoticeContext';
 import {useRouter} from 'expo-router';
 import {goToRetrospective} from '@utils/navigation';
 import {LazyMount} from '@components/LazyMount';
-import {StepSummaryList, CircledNumberText, stepLineText, summaryLineCount} from '@components/StepSummary';
+import {StepSummaryList, CircledNumberText, stepLineText} from '@components/StepSummary';
 import {insertLockItems, isLockMenuId} from '@hooks/useExploreLock';
 import {APPBAR_ITEM_GAP} from '@constants/layout';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
@@ -823,7 +823,7 @@ export function RecipeDetailScreen({
     setSummaryView(v);
     AsyncStorage.setItem(SUMMARY_VIEW_KEY, v ? '1' : '0').catch(() => {});
   }, []);
-  // 요약 — 보기와 따로 켠다. 문장뷰면 한 카드에 이어서, 묶음뷰면 묶음마다 카드(번호는 이어진다)
+  // 요약 — 보기와 따로 켠다. 늘 한 카드에 이어서(묶음마다 나누지 않는다)
   const showSummary = summaryView && hasSummary;
   // 요약 보기 항목 — 묶음마다 과정 사진을 합치고, 사진마다 원래 과정 사진(목록·순번)을 기억해 둔다(사진 뷰어용)
   const summaryItems = useMemo(() => {
@@ -1114,7 +1114,7 @@ export function RecipeDetailScreen({
                   <SummaryToggle value={showSummary} onChange={toggleSummaryView} />
                 )}
                 {/* 보기 토글(묶음뷰 ↔ 문장뷰) — ⋮ 옆(공통 ViewModeButton). 재료·과정 각자 */}
-                {withBulkToggle && (sectionId === 'ingredients' || sectionId === 'steps') && (() => {
+                {withBulkToggle && (sectionId === 'ingredients' || (sectionId === 'steps' && !showSummary)) && (() => {
                   const sec = sectionId as 'ingredients' | 'steps';
                   const bulk = sec === 'ingredients' ? bulkIngredients : bulkSteps;
                   return (
@@ -1523,30 +1523,8 @@ export function RecipeDetailScreen({
         {isFieldActive('steps') && <View onLayout={(e) => { sectionPositions.current.steps = e.nativeEvent.layout.y; }} />}
         {/* 한번에 보기 — 과정을 번호 붙은 글줄로(팁·주의는 바로 아래 옅게) */}
         {/* 요약 보기 — 묶음마다 한 줄(①②③). 줄을 누르면 자세한 과정으로 */}
-        {/* 요약 + 묶음뷰 — 묶음마다 머리줄 + 카드, 번호는 앞 묶음에 이어서 */}
-        {isFieldActive('steps') && showSummary && !bulkSteps && summaryItems.items.flatMap((item, gi) => {
-          const start = summaryItems.items.slice(0, gi).reduce((n, g) => n + summaryLineCount(g), 0);
-          return [
-            renderSectionHeader(`step-header-summary-${gi}`, t('recipeDetail.tabSteps'), 'steps', item.title, gi === 0),
-            <Animated.View key={`step-summary-${gi}`} style={{opacity: sectionAnims[1]}}>
-              <ContentContainer>
-                <Card>
-                  <ListItem showDivider={false} onLongPress={onEdit ? () => editWith('steps') : undefined}>
-                    <StepSummaryList
-                      items={[{...item, timer: undefined}]}
-                      startNumber={start}
-                      onPhotoPress={(photos, i) => {
-                        const ref = summaryItems.refs.get(photos)?.[i];
-                        if (ref) openPhotoViewer(ref.src, ref.index);
-                      }}
-                    />
-                  </ListItem>
-                </Card>
-              </ContentContainer>
-            </Animated.View>,
-          ];
-        })}
-        {isFieldActive('steps') && showSummary && bulkSteps && [
+        {/* 요약 — 보기와 상관없이 한 카드에 ①②③ 이어서 */}
+        {isFieldActive('steps') && showSummary && [
           renderSectionHeader('step-header-summary', t('recipeDetail.tabSteps'), 'steps', undefined, true),
           <Animated.View key="step-summary" style={{opacity: sectionAnims[1]}}>
             <ContentContainer>

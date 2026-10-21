@@ -77,17 +77,15 @@ export function CircledNumberText({n}: {n: number}) {
  * 상세 '요약 보기' — 요약의 줄마다 ①②③(묶음을 넘어 이어진다). 요약이 빈 묶음은 묶음 이름 한 줄.
  * 묶음 타이머는 그 묶음 마지막 줄 끝에. 줄을 누르면 그 묶음 번호(index)로
  */
-export function StepSummaryList({items, onPress, onPhotoPress, startNumber = 0}: {
+export function StepSummaryList({items, onPress, onPhotoPress}: {
   /** photos — 그 묶음 과정들에 붙은 사진(과정 순서대로). 묶음 마지막 줄 아래에 붙는다 */
   items: {title: string; summary?: string; timer?: string; photos?: StepPhoto[]}[];
   onPress?: (groupIndex: number) => void;
   /** 사진 누르면 — 그 묶음 사진 목록과 몇 번째인지 */
   onPhotoPress?: (photos: StepPhoto[], index: number) => void;
-  /** 앞 묶음까지의 줄 수 — 묶음뷰에서 묶음마다 따로 그려도 ①②③이 이어지게 */
-  startNumber?: number;
 }) {
   const styles = useThemedStyles(createStyles);
-  let n = startNumber;
+  let n = 0;
   return (
     <View style={styles.list}>
       {items.map((g, gi) => {
@@ -145,6 +143,3 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   photos: {},
 });
 
-/** 요약 줄 수(빈 요약은 묶음 이름 한 줄) — 묶음뷰에서 번호를 이어 붙일 때 */
-export const summaryLineCount = (g: {title: string; summary?: string}) =>
-  Math.max(1, (g.summary ?? '').split(/\r?\n/).map(l => l.trim()).filter(Boolean).length);
