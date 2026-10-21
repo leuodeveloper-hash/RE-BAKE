@@ -1555,7 +1555,8 @@ export function RecipeDetailScreen({
                 <ListItem showDivider={false} onLongPress={onEdit ? () => editWith('steps') : undefined}>
                   <View style={styles.bulkBody}>
                     {(stepGroups?.length ? stepGroups : [{title: '', steps: steps ?? []}]).map((g, gi, arr) => (
-                      <View key={gi}>
+                      // 과정(문장)과 과정 사이만 띄운다 — 행간(줄 안)은 공통 본문 그대로
+                      <View key={gi} style={styles.bulkSentences}>
                         {arr.length > 1 ? (
                           <View style={styles.bulkGroupTitleRow}>
                             {g.title ? <Text style={styles.bulkGroupTitle}>{g.title}</Text> : null}
@@ -2183,6 +2184,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   bulkBody: {
     flex: 1,
     gap: Spacing.lg,
+  },
+  // 문장뷰 — 과정 줄 사이 간격(예전엔 행간을 넓혀 한 문장 안 줄까지 벌어졌다)
+  bulkSentences: {
+    gap: Spacing.xs,
   },
   // 한번에 보기 묶음 이름 줄 — 타이머 + 이름
   bulkGroupTitleRow: {
