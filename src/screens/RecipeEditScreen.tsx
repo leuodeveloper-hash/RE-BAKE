@@ -70,7 +70,7 @@ import {ensureImagePermission} from '@utils/imagePermission';
 import {applyLink, expandToLink, stripRichText} from '@utils/richText';
 import {LinkTargetProvider, useLinkTarget} from '@contexts/LinkTargetContext';
 import {UrlField, isUrlLike} from '@components/UrlField/UrlField';
-import {LinkInputDialog} from '@components/Dialog';
+import {LinkInputDialog, TextPromptDialog} from '@components/Dialog';
 import {WritingRules} from '@components/WritingRules';
 import {Tooltip} from '@components/Tooltip';
 import {getCookbookColorKey} from '@components/ColorPicker';
@@ -666,10 +666,15 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
 
   /** 과정 묶음 → 저장용 설명 배열. bulkMode면 bulkText 파싱, 아니면 개별 폼. */
   /** 묶음(섹션) 통째로 자주 쓰는 과정에 저장 — 이름·타이머·과정 전부 */
+  // 자주 쓰는 과정으로 저장 — 먼저 묶음 이름을 정한다(지금 묶음 이름이 기본)
+  const [templateNameFor, setTemplateNameFor] = useState<StepGroup | null>(null);
   const saveGroupAsTemplate = (g: StepGroup) => {
+    if (resolveGroupSteps(g).length === 0) { showSnackbar(t('stepTemplate.groupEmpty')); return; }
+    setTemplateNameFor(g);
+  };
+  const confirmGroupTemplate = (g: StepGroup, name: string) => {
     const steps = resolveGroupSteps(g).map(({description, tip, caution, photos}: any) => ({description, tip, caution, photos}));
-    if (steps.length === 0) { showSnackbar(t('stepTemplate.groupEmpty')); return; }
-    addGroupTemplate({title: g.title || t('recipeEdit.stepsLabel'), timer: g.timer, steps})
+    addGroupTemplate({title: name || g.title || t('recipeEdit.stepsLabel'), timer: g.timer, steps})
       .then(() => showSnackbar(t('stepTemplate.groupSaved'), {tone: 'positive'}))
       .catch(() => showSnackbar(t('stepTemplate.saveFailed'), {tone: 'error'}));
   };
@@ -3730,6 +3735,17 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
           />
         </View>
       </Popover>
+
+      {/* 자주 쓰는 과정 저장 — 묶음 이름 정하기 */}
+      <TextPromptDialog
+        visible={!!templateNameFor}
+        title={t('stepTemplate.nameTitle')}
+        initialValue={templateNameFor?.title || t('recipeEdit.stepsLabel')}
+        placeholder={t('recipeEdit.groupNamePlaceholder')}
+        confirmLabel={t('stepTemplate.nameSave')}
+        onClose={() => setTemplateNameFor(null)}
+        onConfirm={name => { if (templateNameFor) confirmGroupTemplate(templateNameFor, name); }}
+      />
 
       {/* 필드관리 다이얼로그 */}
       {/* 사진에서 글 읽기 창들(레시피 사진 고르기·영역 선택) — 화면에 붙어 툴바가 사라져도 유지 */}

@@ -102,6 +102,8 @@ export interface RecipePackProps {
   example?: boolean;
   /** note 전용: 사진 카드 형태 — [사진+태그+뱃지] 위, [날짜·회고·→] 아래. 레시피별 회고 팩용 */
   photoCard?: boolean;
+  /** 회고 노트 사진 카드 — 썸네일만 눌렀을 때(카드 순서) */
+  onThumbPress?: (index: number) => void;
   /** 'book' = 레시피 북 전용 책 형태, 'note' = 회고 노트 형태(PackBoard에서 RetrospectiveNote로 렌더) */
   variant?: 'default' | 'book' | 'note';
   /** 책 표지 하단 좌측 부가정보 (예: "3개의 레시피") */

@@ -1265,5 +1265,7 @@
   "videoCapture.capture": "Use selected frame",
   "retrospectiveNote.filterAll": "All",
   "retrospectiveNote.filterDone": "Reviewed",
-  "retrospectiveNote.filterTodo": "To review"
+  "retrospectiveNote.filterTodo": "To review",
+  "stepTemplate.nameTitle": "Saved step name",
+  "stepTemplate.nameSave": "Save"
 }

@@ -463,6 +463,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         paperPreview: [t('retrospectiveNote.writePrompt'), t('retrospectiveNote.writeAction')],
       }],
       onCardPress: () => setWriteTarget(r),
+      // 썸네일은 레시피 보기(리스트 줄과 같게)
+      onThumbPress: () => onRecipePress?.(r.id),
     }));
     // 레시피(다시 만들기 묶음)마다 노트 팩 하나. 종이에는 회고 내용을, ‹ ›로 회차를 넘긴다.
     // 라벨은 회고를 쓴 회차 / 전체 회차 — 회차마다 회고가 하나라 "1/3 회고".
@@ -507,6 +509,8 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         metaText: t('reviewLog.reviewSessionRatio', {reviews: cards.length, sessions: sessions.length}),
         // 카드엔 마지막 회차 회고, 누르면 회차별 회고 상세(거기서 회고 줄을 누르면 수정)
         onPress: () => { setRetroTarget(recipe); setShowReviewSheet(true); },
+        // 썸네일은 그 회차 레시피 보기
+        onThumbPress: (i: number) => onRecipePress?.(cards[i]?.id ?? recipe.id),
       };
     });
     // 리스트와 같은 순서 — 쓴 회고 먼저, 써야 할 것(회고를 기다려요)은 뒤에
@@ -531,7 +535,7 @@ export function GroupScreen({recipes, retrospectiveExtraRecipes, cookbookColors,
         onPress: () => onAxisChange('all'),
       }];
     }
-  }, [retrospectives, retrospectiveSource, reviewsOf, reviewCandidates, onAxisChange, madeAtOf, t, exampleRecipe, retroFilter]);
+  }, [retrospectives, retrospectiveSource, reviewsOf, reviewCandidates, onAxisChange, madeAtOf, t, exampleRecipe, retroFilter, onRecipePress]);
 
   // 활성 축에 따른 팩 목록
   const activePacks = axis === 'cookbook' ? cookbookPacks : axis === 'method' ? methodPacks : retrospectivePacks;

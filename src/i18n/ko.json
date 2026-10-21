@@ -1250,5 +1250,7 @@
   "videoCapture.capture": "선택한 컷 넣기",
   "retrospectiveNote.filterAll": "전체",
   "retrospectiveNote.filterDone": "회고한 것",
-  "retrospectiveNote.filterTodo": "회고할 것"
+  "retrospectiveNote.filterTodo": "회고할 것",
+  "stepTemplate.nameTitle": "자주 쓰는 과정 이름",
+  "stepTemplate.nameSave": "저장"
 }

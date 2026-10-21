@@ -44,6 +44,8 @@ export interface RetrospectiveNoteProps {
   example?: boolean;
   /** 사진 카드 형태 — [사진·태그·뱃지] 위, [날짜·회고·→] 아래 (첫 카드만) */
   photoCard?: boolean;
+  /** 사진 카드의 썸네일만 눌렀을 때(카드 순서) — 레시피 보기. 종이(글)는 onCardPress */
+  onThumbPress?: (index: number) => void;
 }
 
 export function RetrospectiveNote({
@@ -55,6 +57,7 @@ export function RetrospectiveNote({
   onCardPress,
   example,
   photoCard,
+  onThumbPress,
 }: RetrospectiveNoteProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
@@ -100,8 +103,11 @@ export function RetrospectiveNote({
         onPress={handlePress}
         style={({pressed}) => [styles.container, {width: NOTE_WIDTH}, pressed && {opacity: 0.9}]}>
         <View style={[styles.noteCard, styles.photoNoteCard, noteShadow, {width: NOTE_SIZE, transform: [{rotate: `${rotate}deg`}]}, example && styles.paperExample]}>
-          {/* 1) 썸네일 */}
-          <View style={styles.thumbBox}>
+          {/* 1) 썸네일 — 누르면 레시피 보기(onThumbPress), 아래 글은 회고 */}
+          <Pressable
+            style={styles.thumbBox}
+            disabled={!onThumbPress}
+            onPress={() => { triggerHaptic('light'); onThumbPress?.(Math.min(index, total - 1)); }}>
             {current.imageUrl ? (
               <Image
                 source={typeof current.imageUrl === 'string' ? {uri: current.imageUrl} : current.imageUrl}
@@ -128,7 +134,7 @@ export function RetrospectiveNote({
               ) : null}
               <Text style={styles.thumbTitle} numberOfLines={1}>{current.title}</Text>
             </View>
-          </View>
+          </Pressable>
           {/* 2) 글 */}
           <View style={[styles.textBlock, paperShadow]}>
             {meta ? <Text style={styles.blockMeta} numberOfLines={1}>{meta}</Text> : null}
