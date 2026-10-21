@@ -90,6 +90,7 @@ import {StepSummaryInput} from '@components/StepSummary';
 import {ViewModeButton} from '@components/ViewModeButton';
 import {summarizeFromOcr} from '@utils/summarizeSteps';
 import {useDictionary} from '@hooks/useDictionary';
+import {useEscapeKey} from '@hooks/useEscapeKey';
 import {parseRecipeMarkdown, parseBulkIngredientGroups, parseBulkStepGroups, parseBulkToolGroups, toolGroupsToBulk, ingredientGroupsToBulk, stepGroupsToBulk, recipeToMarkdown} from '@utils/recipeMarkdown';
 import {
   bulkTextToIngredients,
@@ -846,6 +847,12 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
     if (isDirty && hasContent) setShowDiscardConfirm(true);
     else onClose?.();
   }, [isDirty, hasTitle, hasIngredient, hasStep, imageUri, sourceUrl, onClose]);
+  // 웹 ESC — 바로 나가지 않고 닫기와 같게(저장 안 한 변경이 있으면 저장/버리기 팝오버). 팝오버가 떠 있으면 그것만 닫는다
+  useEscapeKey(useCallback(() => {
+    if (showDiscardConfirm) { setShowDiscardConfirm(false); return true; }
+    requestClose();
+    return true;
+  }, [showDiscardConfirm, requestClose]));
 
   // 저장 실행 — 저장 버튼과 닫기 팝오버 "저장" 공용. 필수 필드 없으면 해당 위치로 스크롤/포커스.
   // stay: 저장하고 편집 화면에 남는다(입력 툴바 저장) — 아니면 저장 후 나간다

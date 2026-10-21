@@ -260,6 +260,20 @@ const splashStyles = StyleSheet.create({
 function NavigationContent() {
   const router = useRouter();
   const pathname = usePathname();
+  // 웹 ESC = 뒤로 가기. 앞에서 처리한 곳(요리모드·편집 등 useEscapeKey)이 있거나 팝업·시트(모달)가 떠 있으면
+  // 그쪽이 닫는다. 입력 중이면 입력만 빠져나온다
+  useEffect(() => {
+    if (Platform.OS !== 'web') return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      if (document.querySelector('[aria-modal="true"]')) return;
+      const el = document.activeElement as HTMLElement | null;
+      if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) { el.blur(); return; }
+      if (router.canGoBack()) { e.preventDefault(); router.back(); }
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [router]);
   const insets = useSafeAreaInsets();
   // 스낵바는 탭바(또는 아래 버튼 줄) 바로 위 — 기기 안전영역(아이폰 홈 인디케이터·안드로이드 내비 바·웹)을 반영한 같은 값
   const tabBarSpace = useTabBarSpace();
