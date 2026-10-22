@@ -110,6 +110,7 @@ import {
   IconTrashTwotone,
   IconBlackNose,
   IconPenTipFilled,
+  IconPhotoFilled,
   IconEditFilled,
   IconNoteFilled,
   IconArrowTopRight,
@@ -485,7 +486,7 @@ export function RecipeDetailScreen({
   const heroFrame = {left: (windowWidth - heroFrameWidth) / 2, width: heroFrameWidth};
   const colors = useColors();
   const canEdit = !!onUpdate;
-  const SECTION_TABS = useMemo(() => makeSectionTabs(t), [t]);
+  const ALL_SECTION_TABS = useMemo(() => makeSectionTabs(t), [t]);
   const title = titleProp ?? t('recipeDetail.defaultTitle');
 
   // 1회차와 비교 토글 + diff — 기본 켜짐 (compareBaseline 있는 2회차+에서만 실제 표시)
@@ -506,6 +507,10 @@ export function RecipeDetailScreen({
   // 켜진 칸 — 편집 화면과 같은 규칙(제빵 레시피는 반죽 온도·분할 무게 항상 켜짐)
   const effectiveFields = effectiveActiveFields(activeFieldIds, {cookbook, kind: isTip ? 'tip' : 'recipe'});
   const isFieldActive = (id: string) => !effectiveFields || effectiveFields.includes(id);
+  // 앱바 섹션 이동(재료·과정·회고) — 끈 필드·팁의 회고는 목록에서 뺀다(가도 아무것도 없다)
+  const SECTION_TABS = ALL_SECTION_TABS.filter(tab => isFieldActive(tab.id) && !(tab.id === 'review' && isTip));
+  const firstTabRef = useRef('ingredients');
+  firstTabRef.current = SECTION_TABS[0]?.id ?? 'ingredients';
 
   // toolGroups 우선, 없으면 tools를 단일 그룹으로 래핑
   const resolvedToolGroups: ToolGroupInput[] = useMemo(() => {
@@ -585,6 +590,10 @@ export function RecipeDetailScreen({
   );
 
   const [showHeroAddMenu, setShowHeroAddMenu] = useState(false);
+  // 사진 없는 상단 — 높이를 줄이고 사진 위 흰 글씨 대신 기본 글씨색(그림자 없이). 내용·동작은 같고 겉모양만 바뀐다
+  const plainHero = !imageUri;
+  const heroInk = plainHero ? colors['foreground/on-surface-muted'] : colors['foreground/on-surface-inverse'];
+  const heroDesc = [styles.heroDescription, plainHero ? styles.heroDescriptionPlain : styles.heroTextShadow];
   /** 뷰어 사진 전체 — src는 어느 묶음에서 왔는지(그 묶음의 몇 번째 사진을 눌렀는지 찾을 때) */
   const allPhotos = useMemo(() => {
     const out: {uri: string; caption?: string; section: string; src: unknown}[] = [];
@@ -757,7 +766,7 @@ export function RecipeDetailScreen({
 
     const positions = sectionPositions.current;
     const navOffset = 100;
-    let newTab = 'ingredients';
+    let newTab = firstTabRef.current;
     if (positions.review > 0 && y + navOffset >= positions.review) newTab = 'review';
     else if (positions.steps > 0 && y + navOffset >= positions.steps) newTab = 'steps';
     if (newTab !== activeTabRef.current) {
@@ -1190,7 +1199,7 @@ export function RecipeDetailScreen({
         refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={handlePullRefresh} /> : undefined}
       >
         {/* Hero Section — 상단 이미지 좌우 스와이프 시 이웃 레시피로 이동 */}
-        <View style={styles.heroSection} {...heroPanResponder.panHandlers}>
+        <View style={[styles.heroSection, plainHero && styles.heroSectionPlain]} {...heroPanResponder.panHandlers}>
           {imageUri ? (
             <>
               {/* expo-image: memory-disk 캐시 + transition 페이드인으로 로딩 시 깜빡임 방지
@@ -1256,19 +1265,19 @@ export function RecipeDetailScreen({
           {/* 사진이 없으면 상단을 길게 눌러 바로 올린다(뷰어의 [+]와 같은 동작).
               감싸는 Pressable이라 작성자·레시피북 같은 안쪽 버튼은 그대로 눌린다. */}
           <Pressable
-            style={styles.heroContentWrapper}
+            style={[styles.heroContentWrapper, plainHero && styles.heroContentWrapperPlain]}
             disabled={!!imageUri || !canEdit}
             onLongPress={() => { triggerHaptic('medium'); setShowHeroAddMenu(true); }}>
             <ContentContainer style={styles.heroContent}>
               <View style={styles.heroTitleRow}>
-                <Text style={styles.heroTitle}>
+                <Text style={[styles.heroTitle, plainHero ? styles.heroTitlePlain : styles.heroTextShadow]}>
                   {title}
                   {sessionNumber > 0 && (
-                    <Text style={styles.heroTitleSession}> #{sessionNumber}</Text>
+                    <Text style={[styles.heroTitleSession, plainHero && styles.heroTitlePlain]}> #{sessionNumber}</Text>
                   )}
                 </Text>
                 {hidden && (
-                  <IconEyeClosed width={18} height={18} color={colors['foreground/on-surface-inverse']} />
+                  <IconEyeClosed width={18} height={18} color={heroInk} />
                 )}
               </View>
               {/* 메타 + 사진 장수 — 메타만 줄바꿈되고, 사진 장수는 오른쪽 끝(마지막 줄 높이)에 붙어 있는다 */}
@@ -1277,42 +1286,42 @@ export function RecipeDetailScreen({
                 {authorHandle && (
                   <>
                     <Pressable onPress={onAuthorPress} disabled={!onAuthorPress}>
-                      <Text style={styles.heroDescription} numberOfLines={1}>{authorHandle}</Text>
+                      <Text style={heroDesc} numberOfLines={1}>{authorHandle}</Text>
                     </Pressable>
                   </>
                 )}
                 {recipeItems ? (
                   <Pressable style={styles.heroDescriptionTappable} onPress={() => setSearchFilter('cookbook')}>
-                    <Text style={[styles.heroDescription, {flexShrink: 1}]} numberOfLines={1}>{cookbook}</Text>
-                    <IconSearch width={12} height={12} color={colors['foreground/on-surface-inverse']} />
+                    <Text style={[heroDesc, {flexShrink: 1}]} numberOfLines={1}>{cookbook}</Text>
+                    <IconSearch width={12} height={12} color={heroInk} />
                   </Pressable>
                 ) : (
-                  <Text style={styles.heroDescription}>{cookbook}</Text>
+                  <Text style={heroDesc}>{cookbook}</Text>
                 )}
                 {method && isFieldActive('method') && (
                   <>
                     {recipeItems ? (
                       <Pressable style={styles.heroDescriptionTappable} onPress={() => setSearchFilter('method')}>
-                        <Text style={[styles.heroDescription, diffOn && diff!.methodChanged && styles.hlChanged, {flexShrink: 1}]} numberOfLines={1}>{method}</Text>
-                        <IconSearch width={12} height={12} color={colors['foreground/on-surface-inverse']} />
+                        <Text style={[heroDesc, diffOn && diff!.methodChanged && styles.hlChanged, {flexShrink: 1}]} numberOfLines={1}>{method}</Text>
+                        <IconSearch width={12} height={12} color={heroInk} />
                       </Pressable>
                     ) : (
-                      <Text style={[styles.heroDescription, diffOn && diff!.methodChanged && styles.hlChanged]}>{method}</Text>
+                      <Text style={[heroDesc, diffOn && diff!.methodChanged && styles.hlChanged]}>{method}</Text>
                     )}
                   </>
                 )}
                 {ratio && isFieldActive('ratio') && (
-                  <Text numberOfLines={1} style={[styles.heroDescription, diffOn && diff!.specificGravityChanged && styles.hlChanged]}>{t('recipeDetail.specificGravity', {ratio})}</Text>
+                  <Text numberOfLines={1} style={[heroDesc, diffOn && diff!.specificGravityChanged && styles.hlChanged]}>{t('recipeDetail.specificGravity', {ratio})}</Text>
                 )}
                 {/* 회차 — 둘 이상일 때 지금 보는 회차/전체 */}
                 {totalSessions > 1 && (
-                  <Text numberOfLines={1} style={styles.heroDescription}>{formatSession(parseSession(session).current, totalSessions)}</Text>
+                  <Text numberOfLines={1} style={heroDesc}>{formatSession(parseSession(session).current, totalSessions)}</Text>
                 )}
                 {totalReviewCount > 0 && (
                   <>
                     <Pressable style={styles.reviewBadge} hitSlop={8} onPress={() => { triggerHaptic('light'); goToRetrospective(router); }}>
-                      <IconPenTipFilled width={12} height={12} color={colors['foreground/on-surface-inverse']} />
-                      <Text style={styles.heroDescription}>{reviewLabel}</Text>
+                      <IconPenTipFilled width={12} height={12} color={heroInk} />
+                      <Text style={heroDesc}>{reviewLabel}</Text>
                     </Pressable>
                   </>
                 )}
@@ -1325,13 +1334,17 @@ export function RecipeDetailScreen({
                       style={[styles.reviewBadge, referenceOpen && {opacity: 0.4}]}
                       onPress={referenceOpen ? undefined : handleOpenReference}
                       disabled={referenceOpen}>
-                      <Text style={styles.heroDescription}>{t('recipeDetail.referenceLink')}</Text>
-                      <IconArrowTopRight width={12} height={12} color={colors['foreground/on-surface-inverse']} />
+                      <Text style={heroDesc}>{t('recipeDetail.referenceLink')}</Text>
+                      <IconArrowTopRight width={12} height={12} color={heroInk} />
                     </Pressable>
                   </>
                   );
                 })()}
               </View>
+                {/* 사진 없을 때 — 길게 누르기만으론 안 보여 토날(soft) 보조 버튼으로 알려 준다(편집 권한 있을 때) */}
+                {plainHero && canEdit && (
+                  <Button label={t('recipeEdit.addPhoto')} icon={IconPhotoFilled} variant="soft" secondary size="small" onPress={() => setShowHeroAddMenu(true)} />
+                )}
                 {/* 여러 장이면 장수 — 메타 묶음 밖 오른쪽 끝(콘텐츠 오른쪽 끝에 맞춤). 누르면 사진 뷰어 */}
                 {heroPhotos.length >= 2 && (
                   // 다른 메타(리뷰 수·참고 링크)와 같은 모양 — 바탕 없이 12 아이콘 + 메타 글씨
@@ -1359,22 +1372,25 @@ export function RecipeDetailScreen({
           </Pressable>
         </View>
 
-        {/* 빈 상단 사진 자리 — 길게 누르면 촬영/갤러리 (편집 화면과 같은 메뉴) */}
-        {!imageUri && canEdit && (
-          <View style={{zIndex: 100, elevation: 100}}>
+
+        {/* 사진 추가 메뉴 — 상단 영역 밖(안에 두면 아래 내용에 가려 안 보였다). 콘텐츠 폭 안에서
+            사진 추가 버튼 오른쪽 끝·바로 밑 4에 맞춘다. 높이 0 자리라 레이아웃을 밀지 않는다 */}
+        {plainHero && canEdit && (
+          <ContentContainer style={styles.heroAddMenuAnchor}>
             <Menu
               items={photoSourceMenuItems(t)}
               visible={showHeroAddMenu}
               onSelect={id => { setShowHeroAddMenu(false); handleHeroAdd(id as PhotoSource); }}
               onClose={() => setShowHeroAddMenu(false)}
-              style={{right: Spacing.md, top: -Spacing.md}}
+              style={styles.heroAddMenu}
             />
-          </View>
+          </ContentContainer>
         )}
 
         {/* Meta Info Cards */}
         <Animated.View style={{opacity: sectionAnims[0]}}>
-          <ContentContainer style={styles.metaSection}>
+          {/* 위로 40 끌어올려 상단 아래 끝과 겹친다 — 빈 자리는 터치를 통과시켜야 그 밑 메타 줄(검색·사진 추가)이 눌린다 */}
+          <ContentContainer style={styles.metaSection} pointerEvents="box-none">
             {metaInfo.map((info, index) => (
               <OptionTile key={index} icon={info.icon} label={info.label} onPress={info.onPress} />
             ))}
@@ -2225,6 +2241,8 @@ export function RecipeDetailScreen({
 }
 
 const HERO_HEIGHT = 280;
+/** 사진 없을 때 상단 — 앱바 아래 제목·메타만큼(아예 납작하면 넘길 때 출렁여 여백을 조금 남긴다) */
+const HERO_HEIGHT_PLAIN = 200;
 /** 사진 장수 옆 겹친 썸네일 — 크기·겹침 */
 const HERO_STACK_SIZE = 18;
 const HERO_STACK_OVERLAP = 12;
@@ -2298,6 +2316,16 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
 
   // Hero Section
+  heroSectionPlain: {height: HERO_HEIGHT_PLAIN},
+  // 사진 추가 메뉴 자리 — 높이 0, 아래 내용보다 위(드롭다운 z-index)
+  heroAddMenuAnchor: {height: 0, zIndex: 100, elevation: 100, overflow: 'visible'},
+  // 버튼은 상단 아래 끝에서 lg(24) 위에 있다 → 그 바로 밑 4. 오른쪽은 상단 글줄 좌우 여백(28)과 같게
+  heroAddMenu: {position: 'absolute', top: -Spacing.lg + Spacing.xs, right: 28, zIndex: 100},
+  heroContentWrapperPlain: {bottom: Spacing.lg},
+  heroTitlePlain: {color: colors['foreground/on-surface']},
+  // 사진 위 글자 그림자 — 사진 있을 때만 붙인다(웹은 덮어써 끄는 게 안 먹어 처음부터 따로 둔다)
+  heroTextShadow: {textShadowColor: 'rgba(0, 0, 0, 0.25)', textShadowOffset: {width: 0, height: 1}, textShadowRadius: 4},
+  heroDescriptionPlain: {color: colors['foreground/on-surface-muted']},
   heroSection: {
     height: HERO_HEIGHT,
     position: 'relative',
@@ -2399,9 +2427,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     lineHeight: Typography.headline.small.lineHeight,
     letterSpacing: Typography.headline.small.letterSpacing,
     color: colors['foreground/on-surface-inverse'],
-    textShadowColor: 'rgba(0, 0, 0, 0.25)',
-    textShadowOffset: {width: 0, height: 1},
-    textShadowRadius: 4,
   },
   heroTitleSession: {
     fontFamily: Typography.headline.small.fontFamily,
@@ -2416,9 +2441,6 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     lineHeight: Typography.body.medium.lineHeight,
     letterSpacing: Typography.body.medium.letterSpacing,
     color: colors['foreground/on-surface-inverse'],
-    textShadowColor: 'rgba(0, 0, 0, 0.25)',
-    textShadowOffset: {width: 0, height: 1},
-    textShadowRadius: 4,
   },
   heroDescriptionTappable: {
     flexDirection: 'row' as const,

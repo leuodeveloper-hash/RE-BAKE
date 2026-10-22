@@ -1,5 +1,5 @@
 import React from 'react';
-import {StyleSheet, type StyleProp, type ViewStyle} from 'react-native';
+import {StyleSheet, View, type StyleProp, type ViewStyle} from 'react-native';
 import {LinearGradient} from 'expo-linear-gradient';
 import {useColors} from '@contexts/ThemeContext';
 import {EDGE_FADE_ALPHAS, EDGE_FADE_LOCATIONS} from '@constants/fade';
@@ -42,13 +42,14 @@ export function EdgeFade({position, height, color, style}: EdgeFadeProps) {
   const colorStops = alphas.map(a => `rgba(${r}, ${g}, ${b}, ${a * base})`) as unknown as [string, string, ...string[]];
 
   // 웹·앱 같은 그라디언트 하나(블러 없음). style을 주면 위치·크기는 그쪽이 정한다
+  // 터치는 통과 — 웹은 LinearGradient에 준 pointerEvents가 안 먹어, 앱바 밑 가림 띠가 그 아래 글자(상세 제목·메타)의 탭을 가로챘다.
+  // 감싸는 View에 걸어야 웹·앱 모두 통과한다
   return (
-    <LinearGradient
-      colors={colorStops}
-      locations={maskLocations}
+    <View
       style={style ?? [styles.maskContainer, position === 'top' ? {top: 0} : {bottom: 0}, {height}]}
-      pointerEvents="none"
-    />
+      pointerEvents="none">
+      <LinearGradient colors={colorStops} locations={maskLocations} style={StyleSheet.absoluteFill} />
+    </View>
   );
 }
 

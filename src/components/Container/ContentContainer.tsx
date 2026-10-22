@@ -25,6 +25,8 @@ export interface ContentContainerProps {
   horizontalPadding?: boolean;
   /** 남은 높이를 채운다 — 안에 빈 상태(EmptyState)가 있을 때 상하 중앙에 오게 */
   fill?: boolean;
+  /** 터치 — 'box-none'이면 빈 자리는 아래로 통과(다른 요소와 겹쳐 놓을 때) */
+  pointerEvents?: 'box-none' | 'auto';
 }
 
 /**
@@ -37,9 +39,11 @@ export function ContentContainer({
   style,
   horizontalPadding = true,
   fill,
+  pointerEvents,
 }: ContentContainerProps) {
   return (
     <View
+      pointerEvents={pointerEvents}
       style={[
         styles.container,
         horizontalPadding && styles.horizontalPadding,

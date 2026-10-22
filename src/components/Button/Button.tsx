@@ -27,6 +27,8 @@ export interface ButtonProps {
   destructive?: boolean;
   /** 강조 액션 (파란색 스타일) */
   accent?: boolean;
+  /** 보조(세컨더리) — 글자·아이콘을 흐린 색으로(IconButton ghost-secondary와 같은 색) */
+  secondary?: boolean;
   /** 그라디언트 그림자 (플로팅 CTA용) */
   gradientShadow?: boolean;
   style?: ViewStyle;
@@ -56,6 +58,7 @@ export function Button({
   loading = false,
   destructive = false,
   accent = false,
+  secondary = false,
   gradientShadow = false,
   style,
   icon: Icon,
@@ -128,6 +131,7 @@ export function Button({
     if (destructive && variant === 'filled') return colors['foreground/on-negative'];
     if (destructive) return colors['foreground/negative'];
     if (accent) return colors['foreground/accent'];
+    if (secondary && variant !== 'filled') return colors['foreground/on-surface-muted'];
     if (variant === 'filled') return colors['foreground/on-surface-inverse'];
     return colors['foreground/on-surface'];
   };
