@@ -168,7 +168,7 @@ import {
   IconArrowTopRight,
   IconMic,
   IconChoose,
-  IconLayoutPanelTop,
+  IconColumn2,
 } from '@components/Icon/IconIndex';
 
 // ---- Types ----
@@ -273,7 +273,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const EDIT_MENU_ITEMS = useMemo(() => [
     ...makeEditMenuItems(t).filter(m => m.id !== 'versions' || !!recipeId),
     // 옆에 다른 레시피 띄우기(보기 전용) — 보면서 고치게
-    ...(onOpenSide ? [{id: 'open-side', label: t('recipeDetail.openSide'), icon: IconLayoutPanelTop}] : []),
+    ...(onOpenSide ? [{id: 'open-side', label: t('recipeDetail.openSide'), icon: IconColumn2}] : []),
   ], [t, recipeId, onOpenSide]);
   const COOKBOOK_SHEET_MENU_ITEMS = useMemo(() => makeCookbookSheetMenuItems(t), [t]);
   const SLASH_MENU_ITEMS = useMemo(() => makeSlashMenuItems(t), [t]);

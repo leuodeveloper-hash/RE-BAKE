@@ -9,7 +9,7 @@ import {DotSlider} from '@components/DotSlider';
 /** 재료 비율 조정 눈금 — ×1이 한가운데(줄이기 3칸 · 늘리기 3칸) */
 const SCALE_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3];
 import {effectiveActiveFields} from '@utils/breadFieldsMigration';
-import {IconRefresh, IconFlow, IconLayoutPanelTop} from '@components/Icon/IconIndex';
+import {IconRefresh, IconFlow, IconColumn2} from '@components/Icon/IconIndex';
 import {useFloatingNotice} from '@contexts/FloatingNoticeContext';
 import {useRouter} from 'expo-router';
 import {goToRetrospective} from '@utils/navigation';
@@ -892,7 +892,7 @@ export function RecipeDetailScreen({
     // 옆에 띄우기 — 다른 레시피를 나란히(검색해서 고른다)
     if (onOpenSide) {
       const del = items.findIndex(i => i.id === 'delete');
-      const item = {id: 'openSide', label: t('recipeDetail.openSide'), icon: IconLayoutPanelTop};
+      const item = {id: 'openSide', label: t('recipeDetail.openSide'), icon: IconColumn2};
       if (del < 0) items.push(item); else items.splice(del, 0, item);
     }
     // 과정 템플릿 보기·편집·삭제(넣기는 편집 화면에서) — 삭제 위에
