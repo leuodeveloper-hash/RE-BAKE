@@ -3892,8 +3892,10 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 forcePressed={showMenu}
               />
             </GlassContainer>
-            {/* 저장 — 유리 알약(여백 2) 없이 채운 버튼만, 한 단계 크게(48) */}
-            <IconButton icon={IconTick} variant="filled" size="large" disabled={!canSave} loading={saving} onPress={() => handleSave()} />
+            {/* 저장 — 떠 있는 유리 컨테이너(그림자)에 여백 없이, 채운 큰 버튼(44)이 알약 높이를 꽉 채운다 */}
+            <GlassContainer>
+              <IconButton icon={IconTick} variant="filled" size="large" disabled={!canSave} loading={saving} onPress={() => handleSave()} />
+            </GlassContainer>
           </>
         }
       />

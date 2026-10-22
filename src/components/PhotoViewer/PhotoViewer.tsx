@@ -265,8 +265,10 @@ export function PhotoViewer({
                   {/* 두 손가락으로 벌려 확대(아이폰 스크롤 뷰 기본 확대 — 최대 4배, 두 번 톡 없이 손가락만).
                       안드로이드·웹 스크롤 뷰엔 확대가 없어 그대로 */}
                   <ScrollView
-                    style={{width: containerWidth, height: pageHeight}}
-                    contentContainerStyle={[styles.imageFrame, {width: containerWidth, height: pageHeight}]}
+                    // 확대 칸도 콘텐츠 최대 폭까지만 — 쪽(page)이 가운데로 놓는다
+                    style={{width: Math.min(containerWidth, MAX_CONTENT_WIDTH), height: pageHeight}}
+                    // 확대 칸이 화면 폭을 꽉 채우니 사진은 가운데로(예전엔 칸이 사진 폭만 해서 바깥 쪽이 가운데 정렬했다)
+                    contentContainerStyle={[styles.imageFrame, styles.zoomContent, {width: Math.min(containerWidth, MAX_CONTENT_WIDTH), height: pageHeight}]}
                     maximumZoomScale={Platform.OS === 'ios' ? 4 : 1}
                     minimumZoomScale={1}
                     bouncesZoom
@@ -557,6 +559,9 @@ const styles = StyleSheet.create({
   imageFrame: {
     height: '74%',
     justifyContent: 'center',
+  },
+  zoomContent: {
+    alignItems: 'center',
   },
   image: {
     height: '100%',
