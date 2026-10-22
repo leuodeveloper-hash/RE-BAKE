@@ -1,6 +1,8 @@
 import React, {useState, useCallback, useMemo, useEffect, useRef} from 'react';
 import {saveRecipeVersion} from '@utils/recipeHistory';
-import {View, StyleSheet} from 'react-native';
+import {View, StyleSheet, useWindowDimensions} from 'react-native';
+import {useAddSheet} from '@contexts/AddSheetContext';
+import {RecipeDetailPane} from '../[id]';
 import {setAlbumScope} from '@components/AlbumPicker/albumPicker';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import {doc, getDoc, setDoc, deleteField} from 'firebase/firestore';
@@ -33,8 +35,10 @@ function stripUndefined(obj: any): any {
 }
 
 export default function RecipeEditRoute() {
-  const {id, section, target, bulk} = useLocalSearchParams<{id: string; section?: string; target?: string; bulk?: string}>();
+  const {id, section, target, bulk, side} = useLocalSearchParams<{id: string; section?: string; target?: string; bulk?: string; side?: string}>();
   const router = useRouter();
+  const {width} = useWindowDimensions();
+  const {openSearch} = useAddSheet();
   const {t} = useTranslation();
   const colors = useColors();
   const {findRecipeById, recipes, setRecipes, availableCookbooks, cookbookColors, setCookbookColor} = useRecipes();
@@ -183,7 +187,9 @@ export default function RecipeEditRoute() {
 
   return (
     <SafeAreaProvider>
-      <View style={[styles.container, {backgroundColor: colors['surface/dim']}]}>
+      {/* 옆에 다른 레시피(?side=id) — 넓으면 좌우, 좁으면 위아래. 옆 칸은 보기 전용 */}
+      <View style={[styles.container, {backgroundColor: colors['surface/dim'], flexDirection: side && width >= 700 ? 'row' : 'column'}]}>
+      <View style={styles.pane}>
         <RecipeEditScreen
           key={editorKey}
           recipe={recipe}
@@ -201,7 +207,17 @@ export default function RecipeEditRoute() {
           onSave={handleSave}
           onSetCookbookColor={handleSetCookbookColor}
           isExplore={isExploreTarget}
+          onOpenSide={() => openSearch('', picked => router.setParams({side: picked} as any))}
         />
+      </View>
+      {side ? (
+        <>
+          <View style={[width >= 700 ? styles.dividerV : styles.dividerH, {backgroundColor: colors['border/normal']}]} />
+          <View style={styles.pane}>
+            <RecipeDetailPane key={side} id={side} embedded onCloseSide={() => router.setParams({side: undefined} as any)} />
+          </View>
+        </>
+      ) : null}
       </View>
     </SafeAreaProvider>
   );
@@ -211,4 +227,7 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  pane: {flex: 1, overflow: 'hidden'},
+  dividerV: {width: 1},
+  dividerH: {height: 1},
 });

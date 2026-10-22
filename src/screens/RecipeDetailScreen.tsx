@@ -9,7 +9,7 @@ import {DotSlider} from '@components/DotSlider';
 /** 재료 비율 조정 눈금 — ×1이 한가운데(줄이기 3칸 · 늘리기 3칸) */
 const SCALE_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3];
 import {effectiveActiveFields} from '@utils/breadFieldsMigration';
-import {IconRefresh} from '@components/Icon/IconIndex';
+import {IconRefresh, IconFlow, IconLayoutPanelTop} from '@components/Icon/IconIndex';
 import {useFloatingNotice} from '@contexts/FloatingNoticeContext';
 import {useRouter} from 'expo-router';
 import {goToRetrospective} from '@utils/navigation';
@@ -52,6 +52,7 @@ import {RichText} from '@components/RichText/RichText';
 import {EditableChip} from '@components/EditableChip';
 import {ReviewCard} from '@components/ReviewLine';
 import {ViewModeButton, SummaryToggle} from '@components/ViewModeButton';
+import {StepTemplateSheet} from '@components/BottomSheet/StepTemplateSheet';
 import {OptionTile} from '@components/OptionTile';
 import {Dialog, PdfPreviewDialog, TimeDialog, ServingsDialog, UnlockDialog, NumberValueDialog} from '@components/Dialog';
 import {Button} from '@components/Button';
@@ -194,6 +195,8 @@ export interface RecipeDetailScreenProps {
   stepGroups?: ProcessStepGroup[];
   activeFieldIds?: string[];
   onBack?: () => void;
+  /** ⋮ '옆에 띄우기' — 다른 레시피를 나란히 */
+  onOpenSide?: () => void;
   /**
    * 사진 전체보기에서 저장 버튼을 눌렀을 때. 유료 판단·유도는 호출부가 한다
    * (이 화면은 구독 상태를 모른다 — 다른 props와 같은 방식).
@@ -411,6 +414,7 @@ export function RecipeDetailScreen({
   stepGroups,
   activeFieldIds,
   onBack,
+  onOpenSide,
   onDownloadPhoto,
   onAddPress,
   onComingSoon,
@@ -469,7 +473,10 @@ export function RecipeDetailScreen({
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const {showSnackbar} = useSnackbar();
-  const {width: windowWidth} = useWindowDimensions();
+  const {width: screenWidth} = useWindowDimensions();
+  // 화면 폭 대신 이 상세가 놓인 칸의 폭 — 같이 보기(반반)에서도 사진·마스크가 칸 안 가운데에 맞는다
+  const [paneWidth, setPaneWidth] = useState<number | null>(null);
+  const windowWidth = paneWidth ?? screenWidth;
   // 상단 이미지 틀 — 최대 1000폭을 화면 가운데에. 퍼센트 이동(translateX -50%)·margin auto는
   // 아이패드(네이티브)에서 어긋나 마스크가 밀려 보였다 → 숫자로 바로 계산해 이미지·마스크·배지가 같은 틀을 쓴다.
   const heroFrameWidth = Math.min(windowWidth, HERO_MAX_WIDTH);
@@ -882,6 +889,18 @@ export function RecipeDetailScreen({
       const item = {id: 'deleteSession', label: t('recipeDetail.deleteSessionMenu', {session: parseSession(session).current}), icon: IconTrash, destructive: true};
       if (del < 0) items.push(item); else items.splice(del, 0, item);
     }
+    // 옆에 띄우기 — 다른 레시피를 나란히(검색해서 고른다)
+    if (onOpenSide) {
+      const del = items.findIndex(i => i.id === 'delete');
+      const item = {id: 'openSide', label: t('recipeDetail.openSide'), icon: IconLayoutPanelTop};
+      if (del < 0) items.push(item); else items.splice(del, 0, item);
+    }
+    // 과정 템플릿 보기·편집·삭제(넣기는 편집 화면에서) — 삭제 위에
+    {
+      const del = items.findIndex(i => i.id === 'delete');
+      const item = {id: 'templates', label: t('stepTemplate.menu'), icon: IconFlow};
+      if (del < 0) items.push(item); else items.splice(del, 0, item);
+    }
     if (compareBaseline) {
       items.unshift({
         id: 'compareDiff',
@@ -891,7 +910,7 @@ export function RecipeDetailScreen({
     }
     return items;
   },
-  [onImport, onDuplicate, onRemake, onEdit, onDelete, onDeleteSession, lockMenu, onCookbookChange, onCopyToExplore, onSubmitToExplore, onShare, onFeedback, onMadeChange, isMade, onPinChange, isPinned, session, compareBaseline, showDiff, t]);
+  [onOpenSide, onImport, onDuplicate, onRemake, onEdit, onDelete, onDeleteSession, lockMenu, onCookbookChange, onCopyToExplore, onSubmitToExplore, onShare, onFeedback, onMadeChange, isMade, onPinChange, isPinned, session, compareBaseline, showDiff, t]);
 
   const cookbookSubmenu = useMemo(() => {
     if (!onCookbookChange || !availableCookbooks) return null;
@@ -909,7 +928,10 @@ export function RecipeDetailScreen({
     setShowCookbookSubmenu(false);
   };
 
+  const [showTemplates, setShowTemplates] = useState(false);
   const handleMenuSelect = (id: string) => {
+    if (id === 'templates') { setShowMenu(false); setShowTemplates(true); return; }
+    if (id === 'openSide') { setShowMenu(false); onOpenSide?.(); return; }
     if (lockMenu && isLockMenuId(id)) {
       setShowMenu(false);
       lockMenu.onSelect(id);
@@ -1141,7 +1163,7 @@ export function RecipeDetailScreen({
 
 
   return (
-    <Animated.View style={[styles.container, {opacity: pageOpacity}]}>
+    <Animated.View style={[styles.container, {opacity: pageOpacity}]} onLayout={e => setPaneWidth(e.nativeEvent.layout.width)}>
       <Animated.ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
@@ -2087,6 +2109,11 @@ export function RecipeDetailScreen({
       {locked && (
         <LockedBottomBar onUnlock={() => setShowUnlockDialog(true)} />
       )}
+
+      {/* 과정 템플릿 — 오버플로우 '템플릿'. 상세에선 보기·편집·삭제만(넣기는 편집 화면에서) */}
+      <LazyMount when={showTemplates}>
+        <StepTemplateSheet visible={showTemplates} onClose={() => setShowTemplates(false)} onPick={() => setShowTemplates(false)} />
+      </LazyMount>
 
       {/* 잠금 해제 다이얼로그 */}
       <LazyMount when={showUnlockDialog}>

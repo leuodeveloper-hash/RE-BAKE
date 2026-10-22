@@ -17,7 +17,9 @@ interface AddSheetContextValue {
   showSearchSheet: boolean;
   setShowSearchSheet: (show: boolean) => void;
   /** 검색 창을 이 글로 바로 연다 — 목록 메타데이터(레시피북·공법)를 눌렀을 때 */
-  openSearch: (query?: string) => void;
+  openSearch: (query?: string, onPick?: (recipeId: string) => void) => void;
+  /** 검색에서 레시피를 고르면 화면 이동 대신 부를 것(옆에 띄우기 등) — 한 번 쓰면 비운다 */
+  searchPickRef: React.MutableRefObject<((recipeId: string) => void) | null>;
   /** 검색 창을 열 때 넣어 둘 글 */
   searchQuery: string;
   hideTabBar: boolean;
@@ -43,8 +45,9 @@ export function AddSheetProvider({children}: {children: React.ReactNode}) {
   const [showSearchSheet, setShowSearchSheetState] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   // 그냥 열면 빈 검색, openSearch(글)이면 그 글로
-  const setShowSearchSheet = useCallback((show: boolean) => { if (show) setSearchQuery(''); setShowSearchSheetState(show); }, []);
-  const openSearch = useCallback((query?: string) => { setSearchQuery(query ?? ''); setShowSearchSheetState(true); }, []);
+  const searchPickRef = useRef<((recipeId: string) => void) | null>(null);
+  const setShowSearchSheet = useCallback((show: boolean) => { if (show) { setSearchQuery(''); searchPickRef.current = null; } setShowSearchSheetState(show); }, []);
+  const openSearch = useCallback((query?: string, onPick?: (recipeId: string) => void) => { searchPickRef.current = onPick ?? null; setSearchQuery(query ?? ''); setShowSearchSheetState(true); }, []);
   const [hideTabBar, setHideTabBar] = useState(false);
   const [hideContentMask, setHideContentMask] = useState(false);
   const [showCookbookDialog, setShowCookbookDialog] = useState(false);
@@ -59,6 +62,7 @@ export function AddSheetProvider({children}: {children: React.ReactNode}) {
     setShowSearchSheet,
     openSearch,
     searchQuery,
+    searchPickRef,
     hideTabBar,
     setHideTabBar,
     hideContentMask,

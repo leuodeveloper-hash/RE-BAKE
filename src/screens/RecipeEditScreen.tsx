@@ -87,8 +87,8 @@ import {useMadeCount} from '@hooks/useMadeCount';
 import {MadeConfirmSheet} from '@components/BottomSheet/MadeConfirmSheet';
 import type {StepGroup as SavedStepGroup} from '../types/recipe';
 import {StepSummaryInput} from '@components/StepSummary';
-import {ViewModeButton} from '@components/ViewModeButton';
-import {summarizeFromOcr} from '@utils/summarizeSteps';
+import {ViewModeButton, SummaryToggle} from '@components/ViewModeButton';
+import {summarizeFromOcr, splitSummaryByGroups} from '@utils/summarizeSteps';
 import {useDictionary} from '@hooks/useDictionary';
 import {useEscapeKey} from '@hooks/useEscapeKey';
 import {parseRecipeMarkdown, parseBulkIngredientGroups, parseBulkStepGroups, parseBulkToolGroups, toolGroupsToBulk, ingredientGroupsToBulk, stepGroupsToBulk, recipeToMarkdown} from '@utils/recipeMarkdown';
@@ -128,7 +128,11 @@ import {
   IconGalleryHorizontalFilled,
   IconPhoto,
   IconClockFilled,
-  IconUsersRoundFilled, IconDoughTempFilled, IconSplitFilled, IconSplitTwotone, IconDoughTempTwotone,
+  IconUsersRoundFilled,
+  IconDoughTempFilled,
+  IconSplitFilled,
+  IconSplitTwotone,
+  IconDoughTempTwotone,
   IconMinus,
   IconAdd,
   IconPlusCircleFilled,
@@ -162,7 +166,10 @@ import {
   IconImport,
   IconNoteFilled,
   IconArrowTopRight,
-  IconMic, IconChoose} from '@components/Icon/IconIndex';
+  IconMic,
+  IconChoose,
+  IconLayoutPanelTop,
+} from '@components/Icon/IconIndex';
 
 // ---- Types ----
 // 편집용 타입은 RecipeEditScreen.types.ts로 분리 (화면 파일이 길어 읽기 어려웠다)
@@ -258,12 +265,16 @@ function splitAmountUnit(raw: string): {amount: string; unit: string} {
 /** 필드 관리에서 끌 수 없는 필드 — FieldManageDialog의 fixed와 같다 */
 const ALWAYS_ON_FIELDS = ['info', 'cookbook', 'photo'];
 
-function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks, cookbookColors: cookbookColorsProp, onSetCookbookColor, initialSection, initialCookbook, isExplore, onDeleteCookbook, recipeId, onLoadVersion, initialBulk}: RecipeEditScreenProps) {
+function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks, cookbookColors: cookbookColorsProp, onSetCookbookColor, initialSection, initialCookbook, isExplore, onDeleteCookbook, recipeId, onLoadVersion, initialBulk, onOpenSide}: RecipeEditScreenProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const {t} = useTranslation();
   // 이전 버전은 저장된 레시피를 고칠 때만(새로 만들 땐 기록이 없다)
-  const EDIT_MENU_ITEMS = useMemo(() => makeEditMenuItems(t).filter(m => m.id !== 'versions' || !!recipeId), [t, recipeId]);
+  const EDIT_MENU_ITEMS = useMemo(() => [
+    ...makeEditMenuItems(t).filter(m => m.id !== 'versions' || !!recipeId),
+    // 옆에 다른 레시피 띄우기(보기 전용) — 보면서 고치게
+    ...(onOpenSide ? [{id: 'open-side', label: t('recipeDetail.openSide'), icon: IconLayoutPanelTop}] : []),
+  ], [t, recipeId, onOpenSide]);
   const COOKBOOK_SHEET_MENU_ITEMS = useMemo(() => makeCookbookSheetMenuItems(t), [t]);
   const SLASH_MENU_ITEMS = useMemo(() => makeSlashMenuItems(t), [t]);
   // 사진 빈 칸 메뉴 — 슬래시 메뉴의 촬영·갤러리 항목 그대로
@@ -1214,6 +1225,19 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const ocrTargetRef = useRef<{field: RecipeOcrField; bulkGroupId?: string; paste?: boolean; meta?: MetaField; summaryGroupId?: string}>({field: 'title'});
   // 사전 용어 — 요약 사진 읽기에서 맞춤법을 바로잡을 낱말로도 쓴다
   const dictionary = useDictionary();
+  // 요약 한번에 쓰기 — 번개 토글. 레시피 요약 전부를 한 칸에 쓰고, 줄은 묶음마다 알아서 나눠 담는다
+  const [summaryAll, setSummaryAll] = useState(false);
+  const [summaryDraft, setSummaryDraft] = useState('');
+  const toggleSummaryAll = (on: boolean) => {
+    if (on) setSummaryDraft(stepGroups.map(g => g.summary?.trim()).filter(Boolean).join('\n'));
+    setSummaryAll(on);
+  };
+  const changeSummaryDraft = (v: string) => {
+    setSummaryDraft(v);
+    const lines = v.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+    const parts = splitSummaryByGroups(lines, stepGroups.map(g => ({title: g.title ?? '', steps: resolveGroupSteps(g).map(st => st.description)})));
+    setStepGroups(prev => prev.map((g, i) => ({...g, summary: parts[i]?.trim() || undefined})));
+  };
   // 요약 줄 '사진에서 읽기' 메뉴가 열린 묶음
   const [summaryScan, setSummaryScan] = useState<string | null>(null);
   // 한번에 쓰기 머리의 인식 메뉴가 열린 묶음
@@ -1399,6 +1423,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const handleMenuSelectRef = useRef<((id: string) => void) | null>(null);
   const handleMenuSelect = (id: string) => {
     setShowMenu(false);
+    if (id === 'open-side') { onOpenSide?.(); return; }
     if (id === 'versions') {
       setVersionsOpen(true);
       return;
@@ -3090,6 +3115,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         {isFieldActive('steps') && (
         <View style={(stepAddMenu || stepGroupMenu || stepRowMenu || stepPhotoMenu || stepGroups.some(g => g.id === bulkScanMenu) || !!summaryScan) ? styles.sectionMenuOpen : undefined} onLayout={e => { sectionPositions.current['steps'] = e.nativeEvent.layout.y; }}>
         {stepGroups.map((group, groupIndex) => {
+          // 요약 한번에 쓰기 중엔 첫 묶음 카드에 칸 하나만
+          if (summaryAll && groupIndex > 0) return null;
           const groupHasDragging = drag.draggingId !== null && group.steps.some(s => s.id === drag.draggingId);
           return (
           <ContentContainer key={group.id} style={{...(groupIndex === 0 ? styles.section : styles.addGroupSection), ...(stepAddMenu === group.id || stepGroupMenu === group.id || stepRowMenu?.groupId === group.id || stepPhotoMenu?.groupId === group.id || bulkScanMenu === group.id || summaryScan === group.id ? {zIndex: 9999} : groupHasDragging ? {zIndex: 100} : undefined)}}>
@@ -3118,6 +3145,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   trailing={groupIndex === 0 ? {type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
                       <View style={styles.splitSwitch}><ViewModeButton value={group.bulkMode ? 'all' : 'split'} onChange={mode => { if ((mode === 'all') !== !!group.bulkMode) toggleStepBulk(group, mode === 'all'); }} /></View>
+                      {groupIndex === 0 && !group.bulkMode && <SummaryToggle value={summaryAll} onChange={toggleSummaryAll} />}
                       <View style={styles.headerAddSlot}>
                         <IconButton icon={IconPlusCircleFilled} onPress={() => { setAddMenuAnchor('right'); setStepAddMenu(group.id); }} variant="ghost-secondary" size="medium" />
                       </View>
@@ -3150,6 +3178,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                     <View style={styles.toolHeaderTrailing}>
                       {/* 묶음마다 개별 "한번에 쓰기" 토글 (재료·도구와 동일) */}
                       <View style={styles.splitSwitch}><ViewModeButton value={group.bulkMode ? 'all' : 'split'} onChange={mode => { if ((mode === 'all') !== !!group.bulkMode) toggleStepBulk(group, mode === 'all'); }} /></View>
+                      {groupIndex === 0 && !group.bulkMode && <SummaryToggle value={summaryAll} onChange={toggleSummaryAll} />}
                       {/* 맨 위 추가 버튼 제거 — 행 드래그 핸들 롱프레스 메뉴의
                           "위에 추가 / 아래에 추가"로 대체됐다 */}
                       {/* 사진 인식 — 분할이어도 늘 보인다. 촬영·갤러리·레시피 사진 → 영역 선택 → 이 묶음에(재료·도구와 같은 자리) */}
@@ -3224,7 +3253,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
               </View>
               {/* 요약 한 줄 — 묶음 이름 아래(머리줄 칸 밖 — 안에 두면 묶음 메뉴가 요약 줄 아래로 밀렸다). 한번에 쓰기 중엔 숨긴다 */}
               {/* 요약 한 줄 — 묶음뷰에서 과정 위에(편집엔 요약뷰 없음). 문장뷰는 `> 요약:` 줄로 */}
-              {!group.bulkMode && (
+              {!group.bulkMode && !summaryAll && (
                 <StepSummaryInput
                   value={group.summary ?? ''}
                   onChangeText={v => updateStepGroupSummary(group.id, v)}
@@ -3276,6 +3305,18 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 </View>
                   {/* 쓰기 규칙 — 공통(텍스트 시트와 같은 규칙·정렬) */}
                   <WritingRules kind="steps" asRow />
+              </CardItem>) : summaryAll ? (
+              // 요약 한번에 쓰기 — 한 줄 = 요약 번호 하나. 묶음은 줄 내용으로 알아서 나눈다
+              <CardItem style={CARD_LAST}>
+                <View style={styles.bulkToolInput}>
+                  <AutoGrowInput
+                    style={[styles.cardFieldInput, styles.bulkInput, noOutline]}
+                    placeholder={t('stepSummary.allPlaceholder')}
+                    value={summaryDraft}
+                    onChangeText={changeSummaryDraft}
+                    autoFocus
+                  />
+                </View>
               </CardItem>) : (
               <>
               {/* Steps — 줄 안 메뉴(사진 빈 칸 등)가 열리거나 줄을 끄는 동안 이 묶음 줄들을 아래 '묶음 추가' 줄보다 위로 */}

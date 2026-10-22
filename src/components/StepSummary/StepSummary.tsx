@@ -1,8 +1,8 @@
+import {IconFlash} from '@components/Icon/IconIndex';
 import React from 'react';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {TextInput} from '@components/TextInput';
 import {ListItem} from '@components/ListItem';
-import {Badge} from '@components/Badge';
 import {StepPhotos} from '@components/StepPhotos/StepPhotos';
 import type {StepPhoto} from '../../types/recipe';
 import {useThemedStyles} from '@hooks/useThemedStyles';
@@ -37,7 +37,8 @@ export function StepSummaryInput({value, onChangeText, timer, stale, onConfirm, 
   const {t} = useTranslation();
   return (
     <ListItem
-      leading={{type: 'custom', element: <Badge label={t('stepSummary.label')} />}}
+      // '요약' 글자 배지 대신 번개(요약 토글과 같은 아이콘)
+      leading={{type: 'icon', icon: IconFlash}}
       trailing={stale || trailingExtra ? {type: 'custom', element: (
         <View style={styles.trailingRow}>
           {stale ? (
@@ -61,7 +62,7 @@ export function StepSummaryInput({value, onChangeText, timer, stale, onConfirm, 
           onChangeText={onChangeText}
           placeholder={t('stepSummary.placeholder')}
         />
-        {timer ? <Text style={styles.timer}>{`· ${timer}`}</Text> : null}
+        {timer ? <Text style={styles.timer}>{timer}</Text> : null}
       </View>
     </ListItem>
   );
@@ -101,7 +102,7 @@ export function StepSummaryList({items, onPress, onPhotoPress}: {
                   <Text style={[styles.num, styles.numColor]}>{circledNumber(n)}</Text>
                   <Text style={styles.lineText}>
                     {text}
-                    {timer ? <Text style={styles.lineTimer}>{`  · ${timer}`}</Text> : null}
+                    {timer ? <Text style={styles.lineTimer}>{`  ${timer}`}</Text> : null}
                   </Text>
                 </Pressable>
               );

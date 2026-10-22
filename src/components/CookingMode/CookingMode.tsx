@@ -284,7 +284,6 @@ export function CookingMode({
     letterSpacing: rType.headline.medium.letterSpacing as number,
   }), [rType.headline.medium.fontSize, rType.headline.medium.lineHeight, rType.headline.medium.letterSpacing]);
   const descInputRef = useRef<RNTextInput>(null);
-  const lastTapRef = useRef(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const scrollX = useRef(new Animated.Value(0)).current;
   // 현재 스크롤 오프셋(눈금 탭 점프 계산용) + 드래그 시작 위치/스톱(스와이프 한 칸 이동용)
@@ -464,7 +463,10 @@ export function CookingMode({
   // 베이키의 조언은 요리모드에 넣지 않는다(상세에서만 본다)
   const hasAdvice = false;
   const totalCards = flatCards.length + (hasAdvice ? 1 : 0);
-  const displayCards = isEditing ? editCards : flatCards;
+  // 저장 직후 — 바뀐 레시피(props)가 돌아오기 전까지 고친 카드를 그대로 보여준다(이전 글이 잠깐 보이던 깜빡임)
+  const [savedCards, setSavedCards] = useState<CookingCard[] | null>(null);
+  useEffect(() => { setSavedCards(null); }, [steps, stepGroups]);
+  const displayCards = isEditing ? editCards : (savedCards ?? flatCards);
 
   // 마지막 카드까지 오면 "만들었어요" 확인 시트를 한 번 띄운다.
   // (핸들러가 아니라 effect인 이유: 인덱스가 스와이프·눈금 탭·◀▶ 등 여러 경로로 바뀐다)
@@ -763,12 +765,15 @@ export function CookingMode({
   const exitEditing = useCallback(() => {
     // computeIsDirty는 과정 카드만 검사(조언 미포함)라, 조건부 호출 시 조언만 수정하면 저장을 놓친다.
     // → 항상 saveEdits 호출(내부에서 과정·조언 dirty를 모두 판단해 필요 시에만 실제 저장).
+    // 저장하면 기준이 바뀌니 바뀌었는지는 먼저 본다
+    const changed = computeIsDirty();
     saveEdits();
+    if (changed) setSavedCards(editCards);
     setIsEditing(false);
     setShowAddMenu(false);
     setShowPhotoSubmenu(false);
     setShowInfoTooltip(false);
-  }, [computeIsDirty, saveEdits]);
+  }, [computeIsDirty, saveEdits, editCards]);
   const exitEditingRef = useRef<(() => void) | undefined>(undefined);
   exitEditingRef.current = exitEditing;
 
@@ -917,13 +922,13 @@ export function CookingMode({
     }
   }, [flatCards, currentIndex, advice, advicePhotos, isOnAdviceCard, snapshotEditCards]);
 
+  // 편집 중 바깥 누름이 시작된 때 — 길게 누름은 편집 끝으로 치지 않는다
+  const editPressAt = useRef(0);
+  // 글을 길게 누르면 편집으로(두 번 톡 대신) — 롱프레스 = medium 햅틱
   const handleDoubleTap = useCallback(() => {
     if (!canEdit || isEditing) return;
-    const now = Date.now();
-    if (now - lastTapRef.current < 300) {
-      startEditing();
-    }
-    lastTapRef.current = now;
+    triggerHaptic('medium');
+    startEditing();
   }, [canEdit, isEditing, startEditing]);
 
   const updateCardField = useCallback((globalIndex: number, field: 'description' | 'tip' | 'caution', value: string | undefined) => {
@@ -1424,11 +1429,12 @@ export function CookingMode({
     return (
       <View style={[
         styles.photoRow,
-        // 편집·좁은 화면은 세로 배치라 좌측 라인(본문·재료)에 맞춤(marginLeft 0).
-        // 넓은 화면 보기 모드만 텍스트 옆 가로 배치라 간격 40.
+        // 좁은 화면은 세로 배치라 좌측 라인(본문·재료)에 맞춤(marginLeft 0).
+        // 넓은 화면은 텍스트 옆 가로 배치라 간격 40(보기·편집 같게).
         // 높이는 Figma 컬럼(440)에 맞춘다. 카드 높이(180)로만 주면 컬럼이 눌려
         // 카드가 위아래로 못 벌어지고 서로 붙어 보인다.
-        (isNarrow || editing)
+        // 편집도 보기와 같은 배치 — 좁은 화면만 세로
+        isNarrow
           ? {
               // 회전 모서리가 잘리지 않게 사방 여유(padding) + 왼쪽은 음수 마진으로
               // 당겨 원래 시작선 유지.
@@ -1499,7 +1505,7 @@ export function CookingMode({
               // step은 카드 기준이므로 카드 폭에서 뺀다(컬럼 폭 아님).
               marginLeft: i === 0 ? 0 : -(photoW - stepAt()) - (frameW - photoW),
               // 좁은/편집은 부모 높이가 내용 기준이라 100%를 주면 캡션이 눌린다.
-              ...(isNarrow || editing ? null : {height: '100%' as const}),
+              ...(isNarrow ? null : {height: '100%' as const}),
               // 캡션이 아래면 사진을 아래로 붙인다(캡션 없어도 자리는 유지되므로
               // 사진 위치가 흔들리지 않음). 캡션이 위면 위 기준.
               justifyContent: captionAbove ? 'flex-start' : 'flex-end',
@@ -1542,7 +1548,7 @@ export function CookingMode({
               marginLeft: photos.length === 0
                 ? 0
                 : -(photoW - stepAt()) - (frameW - photoW),
-              ...(isNarrow || editing ? null : {height: '100%' as const}),
+              ...(isNarrow ? null : {height: '100%' as const}),
               // Figma 추가 카드는 위쪽 정렬(pt-48).
               justifyContent: isNarrow ? 'flex-start' : (photos.length % 2 === 0 ? 'flex-start' : 'flex-end'),
               zIndex: photos.length,
@@ -1590,7 +1596,7 @@ export function CookingMode({
               },
             ]}
             showsVerticalScrollIndicator={false}>
-            <Pressable onPress={canEdit ? handleDoubleTap : undefined}>
+            <Pressable onLongPress={canEdit ? handleDoubleTap : undefined} delayLongPress={400}>
               <RichText style={[styles.descLarge, cookingBodyFont]}>{item.description}</RichText>
             </Pressable>
             {item.tip ? (
@@ -1619,8 +1625,6 @@ export function CookingMode({
               </View>
             ) : null}
           </ScrollView>
-          {/* 사진 경계에서 본문이 딱 잘리지 않게 페이드 */}
-          {isNarrow ? <ContentMask topHeight={0} bottomHeight={40} /> : null}
           {/* 모바일: 사진은 ScrollView 밖(아래 형제) — 본문만 스크롤되고 사진은 하단 고정 */}
           {isNarrow && renderPhotoStack(item, false)}
         </View>
@@ -1636,165 +1640,83 @@ export function CookingMode({
     // 보기 모드(편집 아님)는 새 풀스크린 레이아웃
     if (!isCurrentEditing) return renderViewStep(item);
 
-    // 앱바/눈금바 자리는 상·하단 Pressable 스페이서가 이미 비워둔다(이 카드는 그 사이).
-    // 여기서 또 패딩을 주면 이중이 되어 본문이 과하게 눌린다.
-    // 카드 바깥 탭 — 사진 편집 중이면 해제, 아니면 편집 종료(=저장).
-    // (기존엔 상·하단 스페이서가 이 역할을 했는데 스페이서를 없애면서 여기로 옮김)
+    // 편집 — 보기(renderViewStep)와 같은 배치·글꼴·여백. 글·팁·주의 자리만 입력칸으로 바뀐다.
+    // 글 칼럼 바깥(빈 곳)을 누르면 사진 편집 해제, 아니면 편집 끝(=저장)
+    const noteInput = (field: 'tip' | 'caution', color: string, borderColor: string, placeholder: string) => (
+      <View style={[styles.noteBlock, {borderLeftColor: borderColor}]}>
+        <RNTextInput
+          style={[styles.noteInlineText, cookingBodyFont, {color, marginTop: 0, padding: 0}, noOutline]}
+          value={item[field] ?? ''}
+          onChangeText={text => updateCardField(item.globalIndex, field, text)}
+          // 비운 채 나가면 그 칸을 뺀다(칩의 X 대신)
+          onBlur={() => { if (!(item[field] ?? '').trim()) removeCardField(item.globalIndex, field); }}
+          autoFocus={autoFocusField?.globalIndex === item.globalIndex && autoFocusField.field === field}
+          multiline
+          placeholder={placeholder}
+          placeholderTextColor={colors['foreground/on-surface-muted']}
+          selectionColor={colors['custom/yellow']}
+        />
+      </View>
+    );
     return (
       <View
-        style={styles.cardOuter}
-        onStartShouldSetResponder={() => activePhotoIdx !== null || isCurrentEditing}
+        style={[
+          styles.viewStep,
+          isNarrow && {flexDirection: 'column', alignItems: 'stretch'},
+          {paddingLeft: PAD + sideInset, paddingRight: PAD},
+        ]}
+        onStartShouldSetResponder={() => true}
+        onResponderGrant={() => { editPressAt.current = Date.now(); }}
         onResponderRelease={() => {
+          // 짧게 누른 것만 — 길게 누르면(글 고르기 등) 저장하고 나가지 않는다
+          if (Date.now() - editPressAt.current > 400) return;
           if (activePhotoIdx !== null) setActivePhotoIdx(null);
-          else if (isCurrentEditing) exitEditing();
+          else exitEditing();
         }}>
-        {/* clip=false — 회전한 사진 카드가 모서리에서 잘리지 않게 */}
-        <Card clip={false} style={styles.mainCard}>
-          {/* Step count + actions — 편집 중엔 스텝 번호 줄 숨김(편집 대상 아님). 하단 눈금으로 위치 확인 */}
-          {!isCurrentEditing && (
-            <View style={styles.cardHeader}>
-              <Text style={[styles.stepCount, {flex: 1}]}>{item.globalIndex + 1}/{totalCards}</Text>
-              {isActive && canEdit ? (
-                <View style={styles.cardHeaderActions}>
-                  <IconButton
-                    icon={IconEllipsisVertical}
-                    onPress={() => setShowCardOverflow(prev => !prev)}
-                    variant="ghost-secondary"
-                    size="small"
-                    forcePressed={showCardOverflow}
-                  />
-                </View>
-              ) : null}
-            </View>
-          )}
-
-          {/* Scrollable content: description + chips
-              앱바(FloatingNavBar)·하단 눈금과 겹치지 않게 위아래를 비우고,
-              글이 길어지면 그 사이에서 스크롤된다.
-              ContentMask로 위/아래 페이드 → 내용이 더 있다는 걸 알 수 있게. */}
-          {/* 본문 스크롤 영역 — flex:1로 남은 공간을 채운다.
-              사진은 이 아래 형제로 놓여 하단에 고정된다. */}
-          <View style={{flex: 1, minHeight: 0}}>
+        <View style={isNarrow ? {flex: 1, width: '100%'} : {width: textColW, height: '100%'}}>
           <ScrollView
-            // 회전한 사진 카드가 좌우 경계에서 잘리지 않게 클립 해제.
-            // 앱바/눈금바 겹침은 ContentMask 그라디언트가 덮는다.
-            style={{flex: 1, overflow: 'visible'}}
+            style={{flex: 1}}
             contentContainerStyle={[
-              styles.scrollContent,
+              styles.viewScrollContent,
               {
-                // 앱바(absolute) 높이만큼 위를 비운다.
                 paddingTop: contentTop,
-                // 편집 툴바(하단 고정)에 마지막 줄이 가리지 않게 그 높이만큼 비운다.
+                // 편집 툴바(하단 고정)에 마지막 줄이 가리지 않게
                 paddingBottom: KEYBOARD_TOOLBAR_HEIGHT + safeBottom + Spacing.md,
               },
             ]}
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="handled"
             automaticallyAdjustKeyboardInsets>
-            {/* Description */}
-            {isCurrentEditing ? (
-              <RNTextInput
-                ref={descInputRef}
-                // 빈 본문일 때도 최소 높이 확보 — multiline이 높이 0으로 붕괴돼 입력칸이 안 보이던 문제 방지
-                style={[styles.descLarge, cookingBodyFont, {padding: 0, minHeight: (cookingBodyFont.lineHeight ?? 30) * 2}, noOutline]}
-                value={item.description}
-                onChangeText={text => updateCardField(item.globalIndex, 'description', text)}
-                multiline
-                textAlignVertical="top"
-                placeholder={t('cookingMode.stepDescriptionPlaceholder')}
-                placeholderTextColor={colors['foreground/on-surface-muted']}
-                selectionColor={colors['custom/yellow']}
-              />
-            ) : (
-              <Pressable onPress={canEdit ? handleDoubleTap : undefined}>
-                <RichText style={styles.description}>{item.description}</RichText>
-              </Pressable>
-            )}
-
-            {/* Tip */}
-            {item.tip != null ? (
-              isCurrentEditing ? (
-                <EditableChip
-                  label={item.tip}
-                  variant="tip"
-                  size="large"
-                  autoFocus={autoFocusField?.globalIndex === item.globalIndex && autoFocusField.field === 'tip'}
-                  onChangeText={text => updateCardField(item.globalIndex, 'tip', text)}
-                  onRemove={() => removeCardField(item.globalIndex, 'tip')}
-                  placeholder={t('cookingMode.tipPlaceholder')}
-                />
-              ) : item.tip ? (
-                <EditableChip label={item.tip} variant="tip" size="large" />
-              ) : null
-            ) : null}
-
-            {/* Caution */}
-            {item.caution != null ? (
-              isCurrentEditing ? (
-                <EditableChip
-                  label={item.caution}
-                  variant="yellow"
-                  size="large"
-                  autoFocus={autoFocusField?.globalIndex === item.globalIndex && autoFocusField.field === 'caution'}
-                  onChangeText={text => updateCardField(item.globalIndex, 'caution', text)}
-                  onRemove={() => removeCardField(item.globalIndex, 'caution')}
-                  placeholder={t('cookingMode.cautionPlaceholder')}
-                />
-              ) : item.caution ? (
-                <EditableChip label={item.caution} variant="yellow" size="large" />
-              ) : null
-            ) : null}
-
-          </ScrollView>
-          {/* 사진 경계에서 본문이 딱 잘리지 않게 페이드 */}
-          <ContentMask topHeight={0} bottomHeight={40} />
-          </View>
-          {/* Photos — ScrollView(flex:1) 아래 형제. 본문이 길어도 여기 머문다. */}
-          {renderPhotoStack(item, true)}
-
-          {isCurrentEditing ? (
-            <Pressable style={styles.ingredientsSection} onPress={() => setShowIngredientPicker(true)}>
+            <RNTextInput
+              ref={descInputRef}
+              style={[styles.descLarge, cookingBodyFont, {padding: 0, minHeight: (cookingBodyFont.lineHeight ?? 30) * 2}, noOutline]}
+              value={item.description}
+              onChangeText={text => updateCardField(item.globalIndex, 'description', text)}
+              multiline
+              textAlignVertical="top"
+              placeholder={t('cookingMode.stepDescriptionPlaceholder')}
+              placeholderTextColor={colors['foreground/on-surface-muted']}
+              selectionColor={colors['custom/yellow']}
+            />
+            {item.tip != null ? noteInput('tip', colors['foreground/on-surface-var'] as string, colors[TIP_LINE_COLOR] as string, t('cookingMode.tipPlaceholder')) : null}
+            {item.caution != null ? noteInput('caution', colors['custom/yellow'] as string, colors['custom/yellow-var'] as string, t('cookingMode.cautionPlaceholder')) : null}
+            {/* 재료 — 보기와 같은 줄 글. 누르면 이 과정 재료 고르기 */}
+            <Pressable style={[styles.ingredientsSection, {paddingHorizontal: 0}]} onPress={() => setShowIngredientPicker(true)}>
               {(item.editIngredients ?? []).length > 0 ? (
-                <Text style={styles.ingredientsText}>
+                <Text style={[styles.viewIngredientText, cookingBodyFont]}>
                   {(item.editIngredients ?? []).map(ing => [ing.name, displayAmount(ing.amount)].filter(Boolean).join(' ')).join(', ')}
                 </Text>
               ) : (
                 <Text style={styles.ingredientEmpty}>{t('cookingMode.selectStepIngredients')}</Text>
               )}
             </Pressable>
-          ) : item.matchedIngredients.length > 0 ? (
-            <View style={styles.ingredientsSection}>
-              {item.matchedIngredients.map((ing, idx) => {
-                const checked = checkedIngredients.has(ing.name);
-                const isLast = idx === item.matchedIngredients.length - 1;
-                return (
-                  <Pressable
-                    key={ing.name}
-                    onPress={() => toggleIngredient(ing.name)}
-                  >
-                    <Text style={[styles.ingredientsText, checked && styles.ingredientChecked]}>
-                      {ing.name}{displayAmount(ing.amount) ? ` ${displayAmount(ing.amount)}` : ''}{!isLast ? ', ' : ''}
-                    </Text>
-                  </Pressable>
-                );
-              })}
-            </View>
-          ) : null}
-
-          {/* Overflow menu (non-editing) */}
-          {!isCurrentEditing && isActive && canEdit && (
-            <Menu
-              items={cardOverflowItems}
-              visible={showCardOverflow}
-              onSelect={handleCardOverflowSelect}
-              onClose={() => setShowCardOverflow(false)}
-              style={styles.overflowMenu}
-            />
-          )}
-        </Card>
+          </ScrollView>
+          {isNarrow && renderPhotoStack(item, true)}
+        </View>
+        {!isNarrow && renderPhotoStack(item, true)}
       </View>
     );
-  }, [isEditing, renderViewStep, renderPhotoStack, styles, colors, updateCardField, totalCards, photoExpanded, checkedIngredients, toggleIngredient, undo, redo, canUndo, canRedo, showAddMenu, showPhotoSubmenu, addMenuItems, photoSubmenuItems, handleAddMenuSelect, removeCardField, canEdit, handleDoubleTap, showCardOverflow, cardOverflowItems, handleCardOverflowSelect, activePhotoIdx, exitEditing, insets.top, safeBottom, t]);
+  }, [isNarrow, textColW, sideInset, contentTop, cookingBodyFont, autoFocusField, isEditing, renderViewStep, renderPhotoStack, styles, colors, updateCardField, totalCards, photoExpanded, checkedIngredients, toggleIngredient, undo, redo, canUndo, canRedo, showAddMenu, showPhotoSubmenu, addMenuItems, photoSubmenuItems, handleAddMenuSelect, removeCardField, canEdit, handleDoubleTap, showCardOverflow, cardOverflowItems, handleCardOverflowSelect, activePhotoIdx, exitEditing, insets.top, safeBottom, t]);
 
   return (
     <BottomSheet
@@ -1995,7 +1917,7 @@ export function CookingMode({
                             selectionColor={colors['custom/yellow']}
                           />
                         ) : (
-                          <Pressable onPress={canEdit ? handleDoubleTap : undefined}>
+                          <Pressable onLongPress={canEdit ? handleDoubleTap : undefined} delayLongPress={400}>
                             <RichText style={styles.adviceBody}>{advice}</RichText>
                           </Pressable>
                         )}

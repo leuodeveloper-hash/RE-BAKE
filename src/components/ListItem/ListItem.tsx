@@ -1,4 +1,5 @@
 import {AppIcon, type AppIconSize} from '@components/Icon/AppIcon';
+import {MetaLine} from '@components/MetaLine/MetaLine';
 import React from 'react';
 import {Platform, Pressable, StyleSheet, Text, View, ViewStyle} from 'react-native';
 import {Radius} from '@constants/tokens';
@@ -30,7 +31,7 @@ export type ListItemElementType =
  *  - 상세 재료: custom(재료 이름)
  */
 export type ListItemContentType =
-  | {type: 'text'; title: string; description?: string}
+  | {type: 'text'; title: string; description?: string | string[]}
   | {type: 'custom'; element: React.ReactNode};
 
 // ---- ListItem Props ----
@@ -43,8 +44,8 @@ export interface ListItemProps {
   content?: ListItemContentType;
   /** 줄임: content {type:'text'}의 제목 */
   title?: string;
-  /** 줄임: content {type:'text'}의 설명 한 줄 (muted) */
-  description?: string;
+  /** 줄임: content {type:'text'}의 설명 한 줄 (muted). 배열이면 가운뎃점 없이 간격으로 늘어놓는다(공통 MetaLine) */
+  description?: string | string[];
   /** 줄임: content {type:'custom'} — 태그 사이에 넣은 내용 */
   children?: React.ReactNode;
   /** 왼쪽 슬롯 (아이콘, 숫자, 아이콘 버튼) */
@@ -207,7 +208,9 @@ export function ListItem({
               <Text style={[styles.title, isYellow && styles.titleYellow, resolvedVariant === 'destructive' && {color: colors['foreground/negative']}]} numberOfLines={titleNumberOfLines || undefined}>
                 {centerSlot.title}
               </Text>
-              {centerSlot.description ? <Text style={styles.description} numberOfLines={descriptionNumberOfLines || undefined}>{centerSlot.description}</Text> : null}
+              {Array.isArray(centerSlot.description)
+                ? (centerSlot.description.filter(Boolean).length ? <MetaLine items={centerSlot.description.filter(Boolean)} textStyle={styles.description} /> : null)
+                : centerSlot.description ? <Text style={styles.description} numberOfLines={descriptionNumberOfLines || undefined}>{centerSlot.description}</Text> : null}
             </>
           )}
         </View>

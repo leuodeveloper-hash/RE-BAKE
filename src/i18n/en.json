@@ -1267,5 +1267,8 @@
   "retrospectiveNote.filterDone": "Reviewed",
   "retrospectiveNote.filterTodo": "To review",
   "stepTemplate.nameTitle": "Saved step name",
-  "stepTemplate.nameSave": "Save"
+  "stepTemplate.nameSave": "Save",
+  "stepTemplate.menu": "Templates",
+  "recipeDetail.openSide": "Open side by side",
+  "stepSummary.allPlaceholder": "One summary line per step"
 }

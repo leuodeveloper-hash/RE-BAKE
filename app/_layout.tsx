@@ -892,7 +892,7 @@ const FREE_EXPLORE_COUNT = 3;
 // 검색 탭에서 띄우는 통합 검색 모달: 내 레시피 + 둘러보기 레시피 통합 검색
 function GlobalSearchSheet() {
   const router = useRouter();
-  const {showSearchSheet, setShowSearchSheet, searchQuery} = useAddSheet();
+  const {showSearchSheet, setShowSearchSheet, searchQuery, searchPickRef} = useAddSheet();
   const {recipes} = useRecipes();
   const {recipes: exploreRecipes} = useExploreRecipeContext();
   const {isAdmin} = useAuth();
@@ -931,6 +931,9 @@ function GlobalSearchSheet() {
 
   const handleSelect = useCallback((id: string) => {
     setShowSearchSheet(false);
+    // 옆에 띄우기 등 — 고른 레시피만 넘기고 이동하지 않는다
+    const pick = searchPickRef.current;
+    if (pick) { searchPickRef.current = null; pick(id.startsWith('explore:') ? id.slice('explore:'.length) : id); return; }
     if (id.startsWith('explore:')) {
       const realId = id.slice('explore:'.length);
       const locked = lockedExploreIds.has(realId);
@@ -938,7 +941,7 @@ function GlobalSearchSheet() {
     } else {
       router.push(`/recipe/${id}` as any);
     }
-  }, [router, setShowSearchSheet, lockedExploreIds]);
+  }, [router, setShowSearchSheet, lockedExploreIds, searchPickRef]);
 
   return (
     <SearchCommandBar

@@ -74,6 +74,8 @@ export interface RecipeEditScreenProps {
   recipeId?: string;
   /** 이전 버전 고름 — 부르는 쪽이 그 판을 레시피에 넣고 편집 화면을 다시 연다 */
   onLoadVersion?: (version: import('../types/recipe').Recipe) => void;
+  /** ⋮ '옆에 띄우기' — 다른 레시피를 옆 칸에 보기 전용으로 */
+  onOpenSide?: () => void;
   onSave?: (data: {
     title: string;
     cookbook?: string;

@@ -1,5 +1,5 @@
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
-import {AppState, Platform, View, StyleSheet} from 'react-native';
+import {AppState, Platform, View, StyleSheet, useWindowDimensions} from 'react-native';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import {computeLockedIds, useSetExploreLock} from '@hooks/useExploreLock';
 import {duplicateRecipe} from '@utils/recipeMenuItems';
@@ -43,8 +43,39 @@ import {useEntitlement} from '@hooks/useEntitlement';
 import {useAuthSheet} from '@contexts/AuthSheetContext';
 import {useTranslation} from '@contexts/LanguageContext';
 
+/**
+ * 상세 — 오른쪽(넓은 화면)·아래(좁은 화면)에 다른 레시피를 나란히 띄울 수 있다(?side=레시피 id).
+ * 칸마다 같은 상세(RecipeDetailPane). 옆 칸은 X로 닫고, ⋮ '옆에 띄우기'로 검색해서 고른다
+ */
 export default function RecipeDetailRoute() {
-  const {id: routeId, from, locked: lockedParam, cooking: cookingParam, menu: menuParam} = useLocalSearchParams<{id: string; from?: string; locked?: string; cooking?: string; menu?: string}>();
+  const params = useLocalSearchParams<{id: string; from?: string; locked?: string; cooking?: string; menu?: string; side?: string}>();
+  const router = useRouter();
+  const colors = useColors();
+  const {width} = useWindowDimensions();
+  const {openSearch} = useAddSheet();
+  const openSide = useCallback(() => openSearch('', picked => router.setParams({side: picked} as any)), [openSearch, router]);
+  const closeSide = useCallback(() => router.setParams({side: undefined} as any), [router]);
+  const main = <RecipeDetailPane {...params} onOpenSide={openSide} />;
+  if (!params.side) return main;
+  const row = width >= 700;
+  return (
+    <View style={[styles.container, {flexDirection: row ? 'row' : 'column', backgroundColor: colors['surface/dim']}]}>
+      <View style={styles.pane}>{main}</View>
+      <View style={[row ? styles.dividerV : styles.dividerH, {backgroundColor: colors['border/normal']}]} />
+      <View style={styles.pane}>
+        <RecipeDetailPane key={params.side} id={params.side} embedded onCloseSide={closeSide} onOpenSide={openSide} />
+      </View>
+    </View>
+  );
+}
+
+export function RecipeDetailPane({id: routeId, from, locked: lockedParam, cooking: cookingParam, menu: menuParam, embedded, onCloseSide, onOpenSide}: {
+  id: string; from?: string; locked?: string; cooking?: string; menu?: string;
+  /** 옆 칸 — 뒤로가기는 칸 닫기 */
+  embedded?: boolean;
+  onCloseSide?: () => void;
+  onOpenSide?: () => void;
+}) {
   // 회차 전환은 화면 이동 없이 제자리(setId)로 → RulerSlider 리마운트 없이 플립 유지
   const [id, setId] = useState(routeId);
   const router = useRouter();
@@ -238,6 +269,7 @@ export default function RecipeDetailRoute() {
   }, [isLocked, setHideContentMask]);
 
   const handleBack = useCallback(() => {
+    if (embedded) { onCloseSide?.(); return; }
     // 사용자가 상세를 닫으면 "마지막 본 레시피" 복귀 대상에서 제외
     // (안 지우면 앱 재시작마다 이 상세가 계속 다시 열림).
     AsyncStorage.removeItem('last_viewed_recipe_id').catch(() => {/* 무시 */});
@@ -248,7 +280,7 @@ export default function RecipeDetailRoute() {
     } else {
       router.replace('/recipes' as any);
     }
-  }, [router, from]);
+  }, [router, from, embedded, onCloseSide]);
 
   // 사진 저장은 유료 기능 — 무료/게스트는 기존 PDF 할당량과 같은 방식으로 유도한다.
   const handleDownloadPhoto = useCallback((uri: string) => {
@@ -643,35 +675,37 @@ const handleDelete = useCallback(async () => {
         referenceUrl={recipe.referenceUrl}
         isMade={isMade}
         isPinned={isPinned}
-        onPinChange={canPin ? handlePinChange : undefined}
+        onPinChange={embedded ? undefined : (canPin ? handlePinChange : undefined)}
         stampIndex={madeCount}
         // 팁은 만드는 게 아니라 읽는 정보 — 만들었어요·다시 만들기·회고에서 빠진다
-        onMadeChange={recipe?.kind === 'tip' ? undefined : handleMadeChange}
+        onMadeChange={embedded ? undefined : (recipe?.kind === 'tip' ? undefined : handleMadeChange)}
         isTip={recipe?.kind === 'tip'}
-        onFeedback={isExploreRecipe ? handleFeedback : undefined}
+        onFeedback={embedded ? undefined : (isExploreRecipe ? handleFeedback : undefined)}
         // 회고는 스탬프북에서 — 스탬프가 붙은 뒤 회고 시트가 뜬다(두 번 묻지 않게)
         onBack={handleBack}
+        // 옆 칸은 보기 전용 — 바꾸는 동작(편집·삭제·만들었어요 등)은 왼쪽 칸에서만
+        onOpenSide={embedded ? undefined : onOpenSide}
         onComingSoon={handleComingSoon}
         // 지난 회차는 보기만 — 편집·바로 고치기는 지금 회차에서
-        onEdit={canEdit && !viewedSession ? handleEdit : undefined}
+        onEdit={embedded ? undefined : (canEdit && !viewedSession ? handleEdit : undefined)}
         // 아래로 당겨 새로고침 — 내 레시피·둘러보기 둘 다 서버에서 다시
         onRefresh={async () => { await Promise.all([reloadRecipes(), exploreReload()]); setUpdateAvailable(false); }}
         updateAvailable={updateAvailable}
-        onDownloadPhoto={handleDownloadPhoto}
-        onDelete={canDelete ? handleDelete : undefined}
+        onDownloadPhoto={embedded ? undefined : (handleDownloadPhoto)}
+        onDelete={embedded ? undefined : (canDelete ? handleDelete : undefined)}
         initialMenuAction={menuParam}
-        onDuplicate={isMyRecipe && recipe ? () => {
+        onDuplicate={embedded ? undefined : (isMyRecipe && recipe ? () => {
           const copy = duplicateRecipe(recipe, t('recipeMenuItems.duplicateSuffix'));
           setRecipes(prev => [copy, ...prev]);
           showSnackbar(t('recipeMenuItems.duplicated'), {tone: 'positive'});
           router.replace(`/recipe/${copy.id}` as any);
-        } : undefined}
+        } : undefined)}
         // 어드민 — 둘러보기 레시피 잠금(목록 ⋮와 같은 항목)
         lockMenu={isExploreRecipe && isAdmin && recipe ? {lockMode: recipe.lockMode, locked: exploreLockedIds.has(recipe.id), onSelect: mid => setExploreLock(mid, recipe.id)} : undefined}
-        onDeleteSession={isMyRecipe && (recipe?.sessions?.length ?? 0) > 0 ? handleDeleteSession : undefined}
-        onRemake={isMyRecipe && recipe?.kind !== 'tip' && !viewedSession ? handleRemake : undefined}
-        onImport={!isMyRecipe ? handleImport : undefined}
-        onCookbookChange={isMyRecipe ? handleCookbookChange : undefined}
+        onDeleteSession={embedded ? undefined : (isMyRecipe && (recipe?.sessions?.length ?? 0) > 0 ? handleDeleteSession : undefined)}
+        onRemake={embedded ? undefined : (isMyRecipe && recipe?.kind !== 'tip' && !viewedSession ? handleRemake : undefined)}
+        onImport={embedded ? undefined : (!isMyRecipe ? handleImport : undefined)}
+        onCookbookChange={embedded ? undefined : (isMyRecipe ? handleCookbookChange : undefined)}
         availableCookbooks={availableCookbooks}
         cookbookColors={cookbookColors}
         sessionItems={sessionItems}
@@ -680,7 +714,7 @@ const handleDelete = useCallback(async () => {
         sessionReviews={sessionReviews}
         compareBaseline={compareBaseline}
         onSessionSelect={handleSessionSelect}
-        onUpdate={canEdit && !viewedSession ? (data) => {
+        onUpdate={embedded ? undefined : (canEdit && !viewedSession ? (data) => {
           if (isMyRecipe) {
             setRecipes(prev => prev.map(r => r.id === id ? {...r, ...data} : r));
           } else if (isExploreRecipe && isAdmin) {
@@ -713,7 +747,7 @@ const handleDelete = useCallback(async () => {
               }
             })();
           }
-        } : undefined}
+        } : undefined)}
         initialCookingMode={cookingParam === '1'}
         onCookingModeChange={(visible) => {
           setIsCookingMode(visible);
@@ -843,4 +877,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
   },
+  pane: {
+    flex: 1,
+    overflow: 'hidden',
+  },
+  dividerV: {width: 1},
+  dividerH: {height: 1},
 });
