@@ -88,7 +88,7 @@ import {MadeConfirmSheet} from '@components/BottomSheet/MadeConfirmSheet';
 import type {StepGroup as SavedStepGroup} from '../types/recipe';
 import {StepSummaryInput} from '@components/StepSummary';
 import {ViewModeButton, SummaryToggle} from '@components/ViewModeButton';
-import {summarizeFromOcr, splitSummaryByGroups} from '@utils/summarizeSteps';
+import {summarizeFromOcr} from '@utils/summarizeSteps';
 import {useDictionary} from '@hooks/useDictionary';
 import {useEscapeKey} from '@hooks/useEscapeKey';
 import {parseRecipeMarkdown, parseBulkIngredientGroups, parseBulkStepGroups, parseBulkToolGroups, toolGroupsToBulk, ingredientGroupsToBulk, stepGroupsToBulk, recipeToMarkdown} from '@utils/recipeMarkdown';
@@ -1225,19 +1225,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const ocrTargetRef = useRef<{field: RecipeOcrField; bulkGroupId?: string; paste?: boolean; meta?: MetaField; summaryGroupId?: string}>({field: 'title'});
   // 사전 용어 — 요약 사진 읽기에서 맞춤법을 바로잡을 낱말로도 쓴다
   const dictionary = useDictionary();
-  // 요약 한번에 쓰기 — 번개 토글. 레시피 요약 전부를 한 칸에 쓰고, 줄은 묶음마다 알아서 나눠 담는다
+  // 요약 한번에 쓰기 — 번개 토글. 과정 줄은 숨기고 묶음마다 요약 칸만 한 카드에(묶음 이름은 고칠 수 없는 이름표)
   const [summaryAll, setSummaryAll] = useState(false);
-  const [summaryDraft, setSummaryDraft] = useState('');
-  const toggleSummaryAll = (on: boolean) => {
-    if (on) setSummaryDraft(stepGroups.map(g => g.summary?.trim()).filter(Boolean).join('\n'));
-    setSummaryAll(on);
-  };
-  const changeSummaryDraft = (v: string) => {
-    setSummaryDraft(v);
-    const lines = v.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
-    const parts = splitSummaryByGroups(lines, stepGroups.map(g => ({title: g.title ?? '', steps: resolveGroupSteps(g).map(st => st.description)})));
-    setStepGroups(prev => prev.map((g, i) => ({...g, summary: parts[i]?.trim() || undefined})));
-  };
+  const toggleSummaryAll = (on: boolean) => setSummaryAll(on);
   // 요약 줄 '사진에서 읽기' 메뉴가 열린 묶음
   const [summaryScan, setSummaryScan] = useState<string | null>(null);
   // 한번에 쓰기 머리의 인식 메뉴가 열린 묶음
@@ -3144,8 +3134,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   // 한번에 쓰기는 과정 전체 단위 — 묶음이 여럿이면 첫 묶음 머리에만 스위치
                   trailing={groupIndex === 0 ? {type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
-                      <View style={styles.splitSwitch}><ViewModeButton value={group.bulkMode ? 'all' : 'split'} onChange={mode => { if ((mode === 'all') !== !!group.bulkMode) toggleStepBulk(group, mode === 'all'); }} /></View>
+                      {/* 번개(요약)는 보기 버튼 왼쪽 — 상세 머리줄과 같은 순서 */}
                       {groupIndex === 0 && !group.bulkMode && <SummaryToggle value={summaryAll} onChange={toggleSummaryAll} />}
+                      <View style={styles.splitSwitch}><ViewModeButton value={group.bulkMode ? 'all' : 'split'} onChange={mode => { if ((mode === 'all') !== !!group.bulkMode) toggleStepBulk(group, mode === 'all'); }} /></View>
                       <View style={styles.headerAddSlot}>
                         <IconButton icon={IconPlusCircleFilled} onPress={() => { setAddMenuAnchor('right'); setStepAddMenu(group.id); }} variant="ghost-secondary" size="medium" />
                       </View>
@@ -3177,8 +3168,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   trailing={{type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
                       {/* 묶음마다 개별 "한번에 쓰기" 토글 (재료·도구와 동일) */}
-                      <View style={styles.splitSwitch}><ViewModeButton value={group.bulkMode ? 'all' : 'split'} onChange={mode => { if ((mode === 'all') !== !!group.bulkMode) toggleStepBulk(group, mode === 'all'); }} /></View>
+                      {/* 번개(요약)는 보기 버튼 왼쪽 — 상세 머리줄과 같은 순서 */}
                       {groupIndex === 0 && !group.bulkMode && <SummaryToggle value={summaryAll} onChange={toggleSummaryAll} />}
+                      <View style={styles.splitSwitch}><ViewModeButton value={group.bulkMode ? 'all' : 'split'} onChange={mode => { if ((mode === 'all') !== !!group.bulkMode) toggleStepBulk(group, mode === 'all'); }} /></View>
                       {/* 맨 위 추가 버튼 제거 — 행 드래그 핸들 롱프레스 메뉴의
                           "위에 추가 / 아래에 추가"로 대체됐다 */}
                       {/* 사진 인식 — 분할이어도 늘 보인다. 촬영·갤러리·레시피 사진 → 영역 선택 → 이 묶음에(재료·도구와 같은 자리) */}
@@ -3306,16 +3298,23 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   {/* 쓰기 규칙 — 공통(텍스트 시트와 같은 규칙·정렬) */}
                   <WritingRules kind="steps" asRow />
               </CardItem>) : summaryAll ? (
-              // 요약 한번에 쓰기 — 한 줄 = 요약 번호 하나. 묶음은 줄 내용으로 알아서 나눈다
+              // 요약 한번에 쓰기 — 한 카드에 묶음 이름표(고칠 수 없음) + 그 묶음 요약 칸을 차례로. 한 줄 = 요약 번호 하나
               <CardItem style={CARD_LAST}>
-                <View style={styles.bulkToolInput}>
-                  <AutoGrowInput
-                    style={[styles.cardFieldInput, styles.bulkInput, noOutline]}
-                    placeholder={t('stepSummary.allPlaceholder')}
-                    value={summaryDraft}
-                    onChangeText={changeSummaryDraft}
-                    autoFocus
-                  />
+                <View style={[styles.bulkToolInput, styles.summaryAllList]}>
+                  {stepGroups.map((sg, si) => (
+                    <View key={sg.id} style={styles.summaryAllGroup}>
+                      {stepGroups.length > 1 ? (
+                        <Text style={styles.summaryAllLabel}>{sg.title?.trim() || `${t('recipeEdit.stepsLabel')} ${si + 1}`}</Text>
+                      ) : null}
+                      <AutoGrowInput
+                        style={[styles.cardFieldInput, styles.bulkInput, noOutline]}
+                        placeholder={t('stepSummary.allPlaceholder')}
+                        value={sg.summary ?? ''}
+                        onChangeText={v => updateStepGroupSummary(sg.id, v)}
+                        autoFocus={si === 0}
+                      />
+                    </View>
+                  ))}
                 </View>
               </CardItem>) : (
               <>
