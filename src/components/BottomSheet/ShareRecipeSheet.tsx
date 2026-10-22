@@ -1,4 +1,4 @@
-import React, {useRef} from 'react';
+import React, {useRef, useState} from 'react';
 import {Linking, Platform, Pressable, Share, StyleSheet, Text, View} from 'react-native';
 import {Image as ExpoImage} from 'expo-image';
 import {Dialog} from '@components/Dialog/Dialog';
@@ -49,14 +49,25 @@ export function ShareRecipeSheet({visible, onClose, recipe, linkable}: ShareReci
   const {t} = useTranslation();
   const {showSnackbar} = useSnackbar();
   const cardRef = useRef<View>(null);
+  // 이미지로 뜰 때만 모서리를 직각으로 — 둥근 모서리 밖이 투명해 붙이면 라운딩 자국이 남았다
+  const [squareCorners, setSquareCorners] = useState(false);
+  const captureCard = async (result: string) => {
+    setSquareCorners(true);
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      const {captureRef} = require('react-native-view-shot');
+      return await captureRef(cardRef, {format: 'png', quality: 1, result});
+    } finally {
+      setSquareCorners(false);
+    }
+  };
   const url = getRecipeShareUrl(recipe.id);
 
   // 카드를 이미지로 — 앱은 react-native-view-shot, 웹은 같은 라이브러리의 웹 경로
   const capture = async (): Promise<string | null> => {
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const {captureRef} = require('react-native-view-shot');
-      return await captureRef(cardRef, {format: 'png', quality: 1, result: Platform.OS === 'web' ? 'data-uri' : 'tmpfile'});
+      return await captureCard(Platform.OS === 'web' ? 'data-uri' : 'tmpfile');
     } catch (e) {
       console.warn('[share] 카드 이미지 만들기 실패:', e);
       showSnackbar(t('shareCard.captureFailed'));
@@ -130,9 +141,7 @@ export function ShareRecipeSheet({visible, onClose, recipe, linkable}: ShareReci
     triggerHaptic('light');
     let base64: string;
     try {
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      const {captureRef} = require('react-native-view-shot');
-      base64 = await captureRef(cardRef, {format: 'png', quality: 1, result: 'base64'});
+      base64 = await captureCard('base64');
     } catch (e) {
       console.warn('[share] 스토리용 카드 만들기 실패:', e);
       showSnackbar(t('shareCard.captureFailed'));
@@ -177,7 +186,7 @@ export function ShareRecipeSheet({visible, onClose, recipe, linkable}: ShareReci
     <Dialog visible={visible} onClose={onClose} showCloseButton={false} width={CARD_W + CARD_INSET * 2} contentInset={CARD_INSET}>
       <View style={styles.wrap}>
         {/* 공유 카드 — 이 모양 그대로 이미지가 된다 */}
-        <View ref={cardRef} collapsable={false} style={styles.card}>
+        <View ref={cardRef} collapsable={false} style={[styles.card, squareCorners && {borderRadius: 0}]}>
           <View style={styles.brand}>
             <Text style={styles.brandFrom}>{t('shareCard.foundOn')}</Text>
             <AppIcon icon={IconLogoBakle} size="sm" color="#fff" />
@@ -207,7 +216,8 @@ export function ShareRecipeSheet({visible, onClose, recipe, linkable}: ShareReci
           {actions.map(a => (
             <View key={a.key} style={styles.action}>
               {'image' in a ? (
-                <Pressable onPress={a.onPress} style={styles.actionImageTouch}>
+                // IconButton처럼 자리는 48, 누르는 영역만 56(hitSlop) — 자리를 56으로 잡아 혼자 컸다
+                <Pressable onPress={a.onPress} style={styles.actionImageTouch} hitSlop={(ACTION_TOUCH - ACTION_SIZE) / 2}>
                   <ExpoImage source={a.image} style={styles.actionImage} contentFit="cover" />
                 </Pressable>
               ) : (
@@ -227,8 +237,8 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   card: {
     width: CARD_W,
     backgroundColor: STORY_BG,
-    // 팝업(radius-xl 24) 안쪽 겹 — 24 - 8
-    borderRadius: Radius['radius-xl'] - CARD_INSET,
+    // 팝업(radius-xxl 32) 안쪽 겹 — 바깥 라운딩 - 안쪽 여백(같은 중심)
+    borderRadius: Radius['radius-xxl'] - CARD_INSET,
     paddingVertical: Spacing.lg,
     alignItems: 'center',
     gap: Spacing.md,
@@ -259,7 +269,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   by: {...Typography.body.medium, color: 'rgba(255,255,255,0.72)'},
   actions: {flexDirection: 'row', justifyContent: 'center', gap: Spacing.lg},
   action: {alignItems: 'center', gap: Spacing.xs},
-  actionImageTouch: {width: ACTION_TOUCH, height: ACTION_TOUCH, alignItems: 'center', justifyContent: 'center'},
+  actionImageTouch: {width: ACTION_SIZE, height: ACTION_SIZE, alignItems: 'center', justifyContent: 'center'},
   actionImage: {width: ACTION_SIZE, height: ACTION_SIZE, borderRadius: ACTION_SIZE / 2},
   actionLabel: {...Typography.caption.medium, color: colors['foreground/on-surface-muted']},
 });
