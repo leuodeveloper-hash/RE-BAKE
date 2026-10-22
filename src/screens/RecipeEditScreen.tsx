@@ -169,6 +169,7 @@ import {
   IconMic,
   IconChoose,
   IconColumn2,
+  IconFlash,
 } from '@components/Icon/IconIndex';
 
 // ---- Types ----
@@ -1227,6 +1228,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const dictionary = useDictionary();
   // 요약 한번에 쓰기 — 번개 토글. 과정 줄은 숨기고 묶음마다 요약 칸만 한 카드에(묶음 이름은 고칠 수 없는 이름표)
   const [summaryAll, setSummaryAll] = useState(false);
+  // 보기(묶음뷰·문장뷰)는 그대로 두고 내용만 요약으로
   const toggleSummaryAll = (on: boolean) => setSummaryAll(on);
   // 요약 줄 '사진에서 읽기' 메뉴가 열린 묶음
   const [summaryScan, setSummaryScan] = useState<string | null>(null);
@@ -1270,6 +1272,15 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
           dictionary.map(d => d.name),
         );
         if (!summaries.some(Boolean)) { showSnackbar(ocrFailMessage(t, 'recipeEdit.ocrEmpty'), {tone: 'error'}); return; }
+        // 문장뷰(한 칸 글) — 글을 묶음으로 읽어 요약만 넣고 다시 글로
+        const bulkGroup = stepGroups[0]?.bulkMode ? stepGroups[0] : null;
+        if (bulkGroup) {
+          const parsed = parseBulkStepGroups(bulkGroup.bulkText, bulkGroup.title);
+          const sums = summarizeFromOcr(text, parsed.map(pg => ({title: pg.title, steps: pg.steps.map(st => st.description)})), dictionary.map(d => d.name));
+          const next = parsed.map((pg, i) => (sums[i]?.trim() ? {...pg, summary: sums[i].trim()} : pg));
+          setStepGroups(prev => prev.map(g => (g.id === bulkGroup.id ? {...g, bulkText: stepGroupsToBulk(next)} : g)));
+          return;
+        }
         setStepGroups(prev => prev.map((g, i) => (summaries[i]?.trim() ? {...g, summary: summaries[i].trim()} : g)));
         return;
       }
@@ -3135,11 +3146,26 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   trailing={groupIndex === 0 ? {type: 'custom', element: (
                     <View style={styles.toolHeaderTrailing}>
                       {/* 번개(요약)는 보기 버튼 왼쪽 — 상세 머리줄과 같은 순서 */}
-                      {groupIndex === 0 && !group.bulkMode && <SummaryToggle value={summaryAll} onChange={toggleSummaryAll} />}
+                      {/* 번개 · 보기는 늘 같은 자리. 요약 쓰는 중엔 그 오른쪽에 사진에서 요약 읽기(타이머·추가는 숨김) */}
+                      {groupIndex === 0 && <SummaryToggle value={summaryAll} onChange={toggleSummaryAll} />}
                       <View style={styles.splitSwitch}><ViewModeButton value={group.bulkMode ? 'all' : 'split'} onChange={mode => { if ((mode === 'all') !== !!group.bulkMode) toggleStepBulk(group, mode === 'all'); }} /></View>
-                      <View style={styles.headerAddSlot}>
-                        <IconButton icon={IconPlusCircleFilled} onPress={() => { setAddMenuAnchor('right'); setStepAddMenu(group.id); }} variant="ghost-secondary" size="medium" />
-                      </View>
+                      {groupIndex === 0 && summaryAll && (
+                          <View style={styles.headerAddSlot}>
+                            <IconButton icon={IconScanText} onPress={() => setSummaryScan(summaryScan === group.id ? null : group.id)} variant="ghost-secondary" size="medium" forcePressed={summaryScan === group.id} />
+                            <Menu
+                              items={ocrReader.menuItems}
+                              visible={summaryScan === group.id}
+                              onSelect={id => { setSummaryScan(null); ocrTargetRef.current = {field: 'steps', summaryGroupId: group.id}; ocrReader.start(id); }}
+                              onClose={() => setSummaryScan(null)}
+                              style={styles.bulkScanMenu}
+                            />
+                          </View>
+                      )}
+                      {!summaryAll && (
+                        <View style={styles.headerAddSlot}>
+                          <IconButton icon={IconPlusCircleFilled} onPress={() => { setAddMenuAnchor('right'); setStepAddMenu(group.id); }} variant="ghost-secondary" size="medium" />
+                        </View>
+                      )}
                     </View>
                   )} : {type: 'iconButton', icon: IconPlusCircleFilled,
                     onPress: () => { setAddMenuAnchor('right'); setStepAddMenu(group.id); }, variant: 'ghost-secondary'}}>
@@ -3155,7 +3181,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                       onChangeText={v => updateStepGroupTitle(group.id, v)}
                       placeholder={t('recipeEdit.groupNamePlaceholder')}
                     />
-                    {renderGroupTimer(group)}
+                    {!summaryAll && renderGroupTimer(group)}
                   </View>
                 </ListItem>
               ) : (
@@ -3169,12 +3195,25 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                     <View style={styles.toolHeaderTrailing}>
                       {/* 묶음마다 개별 "한번에 쓰기" 토글 (재료·도구와 동일) */}
                       {/* 번개(요약)는 보기 버튼 왼쪽 — 상세 머리줄과 같은 순서 */}
-                      {groupIndex === 0 && !group.bulkMode && <SummaryToggle value={summaryAll} onChange={toggleSummaryAll} />}
+                      {/* 번개 · 보기는 늘 같은 자리. 요약 쓰는 중엔 그 오른쪽에 사진에서 요약 읽기(타이머·추가는 숨김) */}
+                      {groupIndex === 0 && <SummaryToggle value={summaryAll} onChange={toggleSummaryAll} />}
                       <View style={styles.splitSwitch}><ViewModeButton value={group.bulkMode ? 'all' : 'split'} onChange={mode => { if ((mode === 'all') !== !!group.bulkMode) toggleStepBulk(group, mode === 'all'); }} /></View>
+                      {groupIndex === 0 && summaryAll && (
+                          <View style={styles.headerAddSlot}>
+                            <IconButton icon={IconScanText} onPress={() => setSummaryScan(summaryScan === group.id ? null : group.id)} variant="ghost-secondary" size="medium" forcePressed={summaryScan === group.id} />
+                            <Menu
+                              items={ocrReader.menuItems}
+                              visible={summaryScan === group.id}
+                              onSelect={id => { setSummaryScan(null); ocrTargetRef.current = {field: 'steps', summaryGroupId: group.id}; ocrReader.start(id); }}
+                              onClose={() => setSummaryScan(null)}
+                              style={styles.bulkScanMenu}
+                            />
+                          </View>
+                      )}
                       {/* 맨 위 추가 버튼 제거 — 행 드래그 핸들 롱프레스 메뉴의
                           "위에 추가 / 아래에 추가"로 대체됐다 */}
                       {/* 사진 인식 — 분할이어도 늘 보인다. 촬영·갤러리·레시피 사진 → 영역 선택 → 이 묶음에(재료·도구와 같은 자리) */}
-                      {(
+                      {!summaryAll && (
                         <View style={styles.headerAddSlot}>
                           <IconButton icon={IconScanText} onPress={() => setBulkScanMenu(bulkScanMenu === group.id ? null : group.id)} variant="ghost-secondary" size="medium" forcePressed={bulkScanMenu === group.id} />
                           <Menu
@@ -3253,24 +3292,54 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   stale={isSummaryStale({summary: group.summary, summarySig: group.summarySig, steps: resolveGroupSteps(group)})}
                   onConfirm={() => confirmStepGroupSummary(group.id)}
                   inputStyle={styles.cardFieldInput}
-                  // 사진에서 요약 읽기 — 버튼은 첫 묶음 요약 줄에 하나. 화이트보드·노트 사진 한 장을 묶음마다 알아서 나눠 넣는다
-                  trailingExtra={groupIndex === 0 ? (
+                  // 번개 = 사진에서 요약 읽기 — 눌러서 촬영·갤러리. 화이트보드·노트 한 장을 묶음마다 알아서 나눠 넣는다
+                  leadingElement={
                     <View style={styles.summaryScanAnchor}>
-                      <IconButton icon={IconScanText} onPress={() => setSummaryScan(summaryScan === group.id ? null : group.id)} variant="ghost-secondary" size="small" forcePressed={summaryScan === group.id} />
+                      <IconButton icon={IconFlash} onPress={() => setSummaryScan(summaryScan === group.id ? null : group.id)} variant="ghost-secondary" size="small" forcePressed={summaryScan === group.id} />
                       <Menu
                         items={ocrReader.menuItems}
                         visible={summaryScan === group.id}
                         onSelect={id => { setSummaryScan(null); ocrTargetRef.current = {field: 'steps', summaryGroupId: group.id}; ocrReader.start(id); }}
                         onClose={() => setSummaryScan(null)}
-                        style={styles.bulkScanMenu}
+                        style={styles.summaryScanMenu}
                       />
                     </View>
-                  ) : undefined}
+                  }
                 />
               )}
 
               {/* Steps — 한번에 쓰기 모드면 줄바꿈 구분 일괄 입력(묶음 항목 하나로) */}
-              {group.bulkMode ? (<CardItem style={CARD_LAST}>
+              {summaryAll ? (() => {
+                // 요약 한번에 쓰기 — 보기(묶음뷰·문장뷰)는 그대로, 내용만 요약. 묶음 이름표(고칠 수 없음) + 그 묶음 요약 칸
+                // 문장뷰면 한 칸 글을 묶음으로 읽어 요약만 바꾸고 다시 글로 쓴다
+                const parsed = group.bulkMode ? parseBulkStepGroups(group.bulkText, group.title) : null;
+                const rows = parsed
+                  ? parsed.map((pg, pi) => ({key: `b${pi}`, title: pg.title, summary: pg.summary ?? '', onChange: (v: string) => {
+                      const next = parsed.map((x, xi) => (xi === pi ? {...x, summary: v} : x));
+                      setStepGroups(p => p.map(g => (g.id === group.id ? {...g, bulkText: stepGroupsToBulk(next)} : g)));
+                    }}))
+                  : stepGroups.map(sg => ({key: sg.id, title: sg.title ?? '', summary: sg.summary ?? '', onChange: (v: string) => updateStepGroupSummary(sg.id, v)}));
+                return (
+                  <CardItem style={CARD_LAST}>
+                    <View style={[styles.bulkToolInput, styles.summaryAllList]}>
+                      {rows.map((r, ri) => (
+                        <View key={r.key} style={styles.summaryAllGroup}>
+                          {rows.length > 1 ? (
+                            <Text style={styles.summaryAllLabel}>{r.title.trim() || `${t('recipeEdit.stepsLabel')} ${ri + 1}`}</Text>
+                          ) : null}
+                          <AutoGrowInput
+                            style={[styles.cardFieldInput, styles.bulkInput, noOutline]}
+                            placeholder={t('stepSummary.allPlaceholder')}
+                            value={r.summary}
+                            onChangeText={r.onChange}
+                            autoFocus={ri === 0}
+                          />
+                        </View>
+                      ))}
+                    </View>
+                  </CardItem>
+                );
+              })() : group.bulkMode ? (<CardItem style={CARD_LAST}>
                 <View style={styles.bulkToolInput}>
                   <AutoGrowInput
                     ref={(node: any) => { sectionInputRefs.current['steps'] = node; }}
@@ -3297,25 +3366,6 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 </View>
                   {/* 쓰기 규칙 — 공통(텍스트 시트와 같은 규칙·정렬) */}
                   <WritingRules kind="steps" asRow />
-              </CardItem>) : summaryAll ? (
-              // 요약 한번에 쓰기 — 한 카드에 묶음 이름표(고칠 수 없음) + 그 묶음 요약 칸을 차례로. 한 줄 = 요약 번호 하나
-              <CardItem style={CARD_LAST}>
-                <View style={[styles.bulkToolInput, styles.summaryAllList]}>
-                  {stepGroups.map((sg, si) => (
-                    <View key={sg.id} style={styles.summaryAllGroup}>
-                      {stepGroups.length > 1 ? (
-                        <Text style={styles.summaryAllLabel}>{sg.title?.trim() || `${t('recipeEdit.stepsLabel')} ${si + 1}`}</Text>
-                      ) : null}
-                      <AutoGrowInput
-                        style={[styles.cardFieldInput, styles.bulkInput, noOutline]}
-                        placeholder={t('stepSummary.allPlaceholder')}
-                        value={sg.summary ?? ''}
-                        onChangeText={v => updateStepGroupSummary(sg.id, v)}
-                        autoFocus={si === 0}
-                      />
-                    </View>
-                  ))}
-                </View>
               </CardItem>) : (
               <>
               {/* Steps — 줄 안 메뉴(사진 빈 칸 등)가 열리거나 줄을 끄는 동안 이 묶음 줄들을 아래 '묶음 추가' 줄보다 위로 */}

@@ -21,7 +21,7 @@ export {circledNumber};
  * 편집 화면 — 과정 묶음 맨 위 요약 줄. 과정 줄과 같은 공통 줄(ListItem)·같은 입력 서체,
  * 앞엔 드래그 손잡이 대신 '요약' 배지. 과정이 요약 뒤에 바뀌었으면 끝에 '확인' 칩(누르면 확인 처리).
  */
-export function StepSummaryInput({value, onChangeText, timer, stale, onConfirm, inputStyle, trailingExtra}: {
+export function StepSummaryInput({value, onChangeText, timer, stale, onConfirm, inputStyle, trailingExtra, leadingElement}: {
   value: string;
   onChangeText: (v: string) => void;
   /** 묶음 타이머 — 요약 끝에 자동으로 붙여 보여준다(따로 쓰지 않게) */
@@ -30,15 +30,17 @@ export function StepSummaryInput({value, onChangeText, timer, stale, onConfirm, 
   onConfirm?: () => void;
   /** 과정 줄 입력과 같은 서체(편집 화면 cardFieldInput) */
   inputStyle?: any;
-  /** 오른쪽 끝 버튼(예: 사진에서 요약 읽기) */
+  /** 오른쪽 끝 버튼 */
   trailingExtra?: React.ReactNode;
+  /** 왼쪽 번개 자리를 버튼 등으로 바꿀 때(예: 눌러서 사진에서 요약 읽기) */
+  leadingElement?: React.ReactNode;
 }) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   return (
     <ListItem
-      // '요약' 글자 배지 대신 번개(요약 토글과 같은 아이콘)
-      leading={{type: 'icon', icon: IconFlash}}
+      // '요약' 글자 배지 대신 번개(요약 토글과 같은 아이콘). 버튼을 넘기면 그걸로
+      leading={leadingElement ? {type: 'custom', element: leadingElement} : {type: 'icon', icon: IconFlash}}
       trailing={stale || trailingExtra ? {type: 'custom', element: (
         <View style={styles.trailingRow}>
           {stale ? (

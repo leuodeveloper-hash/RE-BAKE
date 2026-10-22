@@ -407,6 +407,15 @@ export const createStyles = (colors: SemanticColors) => StyleSheet.create({
     overflow: 'visible',
     zIndex: 1000,
   },
+  // 번개(사진에서 요약 읽기) 메뉴 — 왼쪽 버튼 아래로 왼쪽 맞춤
+  summaryScanMenu: {
+    position: 'absolute',
+    top: '100%',
+    left: 0,
+    marginTop: Spacing.xs,
+    zIndex: 1000,
+    elevation: 1000,
+  },
   // 보기 버튼 — 옆 아이콘 버튼(+·사진 인식)과 떨어지게 머리줄 간격(10)에 6 더
   splitSwitch: {},
   // 요약 한번에 쓰기 — 묶음 사이 띄우고, 이름표는 머리줄 라벨처럼 작고 흐리게
