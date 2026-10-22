@@ -165,8 +165,12 @@ export function parseRecipeMarkdown(text: string): ParsedMarkdownRecipe {
       }
     } else if (kind === 'ingredient') {
       if (!ingGroup) pushIngGroup('');
-      const {name, amount, unit} = parseIngredientBulkLine(content);
-      if (name) ingGroup!.ingredients.push({name, amount: amount ? `${amount}${unit}` : unit});
+      // 한 줄에 쉼표로 여러 재료(텍스트 시트·한번에 쓰기와 같은 규칙). 숫자 사이 쉼표(1,000g)는 나누지 않는다
+      for (const part of content.split(/,(?!\d{3}(?!\d))\s*/).map(x => x.trim()).filter(Boolean)) {
+        // 천 단위 쉼표(1,000g)는 숫자로 붙인다 — 그대로 두면 분량을 못 읽었다
+        const {name, amount, unit} = parseIngredientBulkLine(part.replace(/(\d),(\d{3})(?!\d)/g, '$1$2'));
+        if (name) ingGroup!.ingredients.push({name, amount: amount ? `${amount}${unit}` : unit});
+      }
     } else {
       if (!stepGroup) pushStepGroup('');
       const step: Step = {step: stepGroup!.steps.length + 1, description: content};
@@ -246,7 +250,7 @@ export function stepGroupsToBulk(groups: {title?: string; timer?: string; summar
 
 /**
  * 레시피 전체 → 쓰기 규칙 글(텍스트 시트에 미리 채우기). parseRecipeMarkdown으로 다시 읽으면 같은 구성이 된다.
- *   # 제목 / ## 재료 → ### 묶음 → - 재료 분량 / ## 도구 → - 도구 / ## 과정 → ### 묶음 → 1. 설명 (> 팁: / > 주의:)
+ *   # 제목 / ## 재료 → ### 묶음 → 재료 분량, 재료 분량 / ## 도구 → 도구, 도구 / ## 과정 → ### 묶음 → 1. 설명 (> 팁: / > 주의:)
  */
 export function recipeToMarkdown(r: {
   title?: string;
@@ -267,12 +271,13 @@ export function recipeToMarkdown(r: {
     for (const g of ingGroups) {
       // 묶음 이름이 '재료'와 같거나 비었으면 따로 적지 않는다(섹션 이름이 곧 묶음)
       if (g.title && g.title !== '재료') out.push(`### ${g.title}`);
-      out.push(...g.items.map(x => `- ${x}`));
+      // 한 줄에 쉼표로 — 한번에 쓰기 칸과 같은 쓰기 규칙
+      out.push(g.items.join(', '));
     }
   }
 
   const tools = (r.tools ?? []).map(t => t.name?.trim()).filter(Boolean);
-  if (tools.length > 0) out.push('', '## 도구', ...tools.map(x => `- ${x}`));
+  if (tools.length > 0) out.push('', '## 도구', tools.join(', '));
 
   const stepGroups = r.stepGroups.filter(g => g.steps.some(s => s.description?.trim()));
   if (stepGroups.length > 0) {

@@ -33,7 +33,8 @@ export type WritingRuleKey = keyof typeof RULES;
 /** 쓰는 곳별 규칙 묶음 — 텍스트 시트(레시피 전체) / 한번에 쓰기(재료 칸·과정 칸) */
 export const WRITING_RULES: Record<'recipe' | 'ingredients' | 'tools' | 'steps', WritingRuleKey[]> = {
   // 팁·주의는 따로 — 한 칸에 묶으면 두 표시 뒤에 설명이 한꺼번에 붙어 무엇이 무엇인지 헷갈렸다
-  recipe: ['title', 'meta', 'section', 'subgroup', 'ingredient', 'step', 'tip', 'caution', 'timer', 'summary'],
+  // 재료·도구는 한 줄에 쉼표로(한번에 쓰기 칸과 같은 규칙)
+  recipe: ['title', 'meta', 'section', 'subgroup', 'ingredientComma', 'toolComma', 'step', 'tip', 'caution', 'timer', 'summary'],
   ingredients: ['group', 'ingredientComma'],
   tools: ['group', 'toolComma'],
   steps: ['group', 'step', 'tip', 'caution', 'timer', 'summary'],
