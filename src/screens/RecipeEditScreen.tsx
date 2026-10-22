@@ -675,7 +675,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   };
   const confirmGroupTemplate = (g: StepGroup, name: string) => {
     const steps = resolveGroupSteps(g).map(({description, tip, caution, photos}: any) => ({description, tip, caution, photos}));
-    addGroupTemplate({title: name || g.title || t('recipeEdit.stepsLabel'), timer: g.timer, steps})
+    addGroupTemplate({title: name || g.title || t('recipeEdit.stepsLabel'), timer: g.timer, steps, source: title})
       .then(() => showSnackbar(t('stepTemplate.groupSaved'), {tone: 'positive'}))
       .catch(() => showSnackbar(t('stepTemplate.saveFailed'), {tone: 'error'}));
   };
@@ -4041,7 +4041,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
             onSaveCurrent={() => {
               if (!cur) return;
               setTemplateTarget(null);
-              addTemplate({description: cur.description, tip: cur.tip, caution: cur.caution, photos: cur.photos})
+              addTemplate({description: cur.description, tip: cur.tip, caution: cur.caution, photos: cur.photos, source: title})
                 .then(() => showSnackbar(t('stepTemplate.saved'), {tone: 'positive'}))
                 .catch(() => showSnackbar(t('stepTemplate.saveFailed'), {tone: 'error'}));
             }}

@@ -30,6 +30,8 @@ export interface StepTemplate {
   tip?: string;
   caution?: string;
   photos?: StepPhoto[];
+  /** 어느 레시피에서 저장했는지(요리명) */
+  source?: string;
   createdAt: string;
 }
 
@@ -78,7 +80,7 @@ function useStepTemplatesState() {
   }, []);
 
   /** 과정 하나를 템플릿으로 — 기기 안 사진은 먼저 올린다(로그인했을 때) */
-  const addTemplate = useCallback(async (step: {description: string; tip?: string; caution?: string; photos?: StepPhoto[]}) => {
+  const addTemplate = useCallback(async (step: {description: string; tip?: string; caution?: string; photos?: StepPhoto[]; source?: string}) => {
     const uid = uidRef.current;
     const id = `t_${Date.now().toString(36)}`;
     const photos = await Promise.all((step.photos ?? []).map(async (p, i) => {
@@ -95,6 +97,7 @@ function useStepTemplatesState() {
       ...(step.tip?.trim() ? {tip: step.tip.trim()} : {}),
       ...(step.caution?.trim() ? {caution: step.caution.trim()} : {}),
       ...(photos.length ? {photos: photos.map(p => (p.caption ? {uri: p.uri, caption: p.caption} : {uri: p.uri}))} : {}),
+      ...(step.source?.trim() ? {source: step.source.trim()} : {}),
       createdAt: new Date().toISOString(),
     };
     setTemplates(prev => {
@@ -106,7 +109,7 @@ function useStepTemplatesState() {
   }, [persist]);
 
   /** 묶음(섹션) 통째로 템플릿으로 — 안 과정들의 기기 안 사진도 올린다 */
-  const addGroupTemplate = useCallback(async (group: {title: string; timer?: string; steps: TemplateStep[]}) => {
+  const addGroupTemplate = useCallback(async (group: {title: string; timer?: string; steps: TemplateStep[]; source?: string}) => {
     const uid = uidRef.current;
     const id = `g_${Date.now().toString(36)}`;
     const steps = await Promise.all(group.steps.map(async (st, si) => {
@@ -125,6 +128,7 @@ function useStepTemplatesState() {
       id,
       group: {title: group.title.trim(), ...(group.timer ? {timer: group.timer} : {}), steps},
       description: group.title.trim(),
+      ...(group.source?.trim() ? {source: group.source.trim()} : {}),
       createdAt: new Date().toISOString(),
     };
     setTemplates(prev => {

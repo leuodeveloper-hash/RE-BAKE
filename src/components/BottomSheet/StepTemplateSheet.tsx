@@ -102,9 +102,10 @@ export function StepTemplateSheet({visible, onClose, onPick, onSaveCurrent, canS
           <Card style={menuFor ? {overflow: 'visible'} : undefined}>
             {shown.map((tpl, i) => {
               const isGroup = !!tpl.group;
-              const sub = isGroup
+              // 어디서 저장했는지(요리명)를 맨 앞에
+              const sub = [tpl.source, isGroup
                 ? t('stepTemplate.groupSub', {count: tpl.group!.steps.length})
-                : [tpl.tip, tpl.caution].filter(Boolean).join(' · ');
+                : [tpl.tip, tpl.caution].filter(Boolean).join(' · ')].filter(Boolean).join(' · ');
               const thumb = isGroup ? tpl.group!.steps.flatMap(st => st.photos ?? [])[0]?.uri : tpl.photos?.[0]?.uri;
               const open = menuFor === tpl.id;
               return (
