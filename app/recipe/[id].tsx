@@ -304,8 +304,10 @@ export function RecipeDetailPane({id: routeId, from, locked: lockedParam, cookin
     if (isExploreRecipe) params.set('target', 'explore');
     const qs = params.toString();
     const path = `/recipe/edit/${id}${qs ? `?${qs}` : ''}`;
+    // 같이 보기 옆 칸은 새 창(웹)·새 화면(앱)으로 따로 편집 — 한 화면에서 두 레시피를 동시에 편집하지 않게
+    if (embedded && Platform.OS === 'web') { window.open(path, '_blank'); return; }
     router.push(path as any);
-  }, [router, id, isExploreRecipe]);
+  }, [router, id, isExploreRecipe, embedded]);
 
   /**
    * 보고 있는 회차만 지운다. 지난 회차면 그 기록만, 지금 회차면 바로 전 회차 내용이 지금 회차가 된다.
@@ -687,7 +689,7 @@ const handleDelete = useCallback(async () => {
         onOpenSide={embedded ? undefined : onOpenSide}
         onComingSoon={handleComingSoon}
         // 지난 회차는 보기만 — 편집·바로 고치기는 지금 회차에서
-        onEdit={embedded ? undefined : (canEdit && !viewedSession ? handleEdit : undefined)}
+        onEdit={canEdit && !viewedSession ? handleEdit : undefined}
         // 아래로 당겨 새로고침 — 내 레시피·둘러보기 둘 다 서버에서 다시
         onRefresh={async () => { await Promise.all([reloadRecipes(), exploreReload()]); setUpdateAvailable(false); }}
         updateAvailable={updateAvailable}

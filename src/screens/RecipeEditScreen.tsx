@@ -70,7 +70,7 @@ import {ensureImagePermission} from '@utils/imagePermission';
 import {applyLink, expandToLink, stripRichText} from '@utils/richText';
 import {LinkTargetProvider, useLinkTarget} from '@contexts/LinkTargetContext';
 import {UrlField, isUrlLike} from '@components/UrlField/UrlField';
-import {LinkInputDialog, TextPromptDialog} from '@components/Dialog';
+import {Dialog, LinkInputDialog, TextPromptDialog} from '@components/Dialog';
 import {WritingRules} from '@components/WritingRules';
 import {Tooltip} from '@components/Tooltip';
 import {getCookbookColorKey} from '@components/ColorPicker';
@@ -158,6 +158,7 @@ import {
   IconCornerDownRight,
   IconEdit,
   IconTrash,
+  IconPhotoFilled,
   IconBlackNose,
   IconBlockPlus,
   IconArrowTop,
@@ -664,6 +665,21 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   );
   // 고정 필드(레시피명·레시피 북·이미지)는 늘 켜짐 — 예전 레시피 목록에 빠져 있어도
   const isFieldActive = (id: string) => ALWAYS_ON_FIELDS.includes(id) || activeFieldIds.includes(id);
+  // 필드 숨기기 확인 — 값이 든 필드를 끄면 저장할 때 내용이 비워지므로 먼저 묻는다
+  const [pendingHide, setPendingHide] = useState<{ids: string[]; fields: string[]} | null>(null);
+  const confirmFieldIds = (ids: string[]) => {
+    const filled: Record<string, boolean> = {
+      method: !!method?.trim(), ratio: !!ratio?.trim(), time: !!time?.trim(), servings: !!servings?.trim(),
+      doughTemp: !!doughTemp?.trim(), divideWeight: !!divideWeight?.trim(), description: !!description.trim(),
+      advice: !!advice?.trim() || advicePhotos.length > 0,
+      ingredients: ingredientGroups.some(g => g.bulkMode ? !!g.bulkText.trim() : g.ingredients.some(i => i.name.trim())),
+      tools: toolGroups.some(g => g.bulkMode ? !!g.bulkText.trim() : g.tools.some(x => x.name.trim())),
+      steps: stepGroups.some(g => g.steps.some(st => st.description?.trim())),
+    };
+    const hiding = activeFieldIds.filter(id => !ids.includes(id) && filled[id]);
+    if (hiding.length) setPendingHide({ids, fields: hiding});
+    else setActiveFieldIds(ids);
+  };
 
   // 재료 묶음 → 저장용 {name, amount}[] 변환. bulkMode면 bulkText 파싱, 아니면 개별 폼.
   /** 도구 묶음 → 저장용 이름 배열. bulkMode면 bulkText 파싱, 아니면 개별 폼. */
@@ -883,23 +899,24 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
       await onSave?.({
         title: title.trim(),
         cookbook: cookbook || undefined,
-        method: method || undefined,
-        specificGravity: ratio || undefined,
-        time: time || undefined,
-        servings: servings || undefined,
-        doughTemp: doughTemp || undefined,
-        divideWeight: divideWeight || undefined,
+        // 숨긴 필드는 빈 값으로 저장(undefined면 서버 값이 남는다) — 숨겨도 남아 팁 시트·카드 미리보기에 보였다
+        method: isFieldActive('method') ? (method || undefined) : '',
+        specificGravity: isFieldActive('ratio') ? (ratio || undefined) : '',
+        time: isFieldActive('time') ? (time || undefined) : '',
+        servings: isFieldActive('servings') ? (servings || undefined) : '',
+        doughTemp: isFieldActive('doughTemp') ? (doughTemp || undefined) : '',
+        divideWeight: isFieldActive('divideWeight') ? (divideWeight || undefined) : '',
         session: session || undefined,
-        ingredientGroups: resolveIngredientGroups(),
-        toolGroups: resolveToolGroups(),
-        stepGroups: resolveStepGroups(),
+        ingredientGroups: isFieldActive('ingredients') ? resolveIngredientGroups() : [],
+        toolGroups: isFieldActive('tools') ? resolveToolGroups() : [],
+        stepGroups: isFieldActive('steps') ? resolveStepGroups() : [],
         activeFieldIds,
         // 있는 레시피는 계정 회고로 저장하고 레시피 안 예전 회고는 비운다(두 곳에 남으면 지워도 다시 보인다)
         reviews: reviewKey ? [] : (reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()).length > 0 ? reviews.filter(rv => rv.evaluation.trim() || rv.improvement.trim()) : undefined),
         // 비우면 빈 글자로 저장 — 칸을 빼면 서버의 기존 설명이 그대로 남았다(합쳐 저장)
-        description: description.trim(),
-        advice: advice || undefined,
-        advicePhotos: advicePhotos.length > 0 ? advicePhotos : undefined,
+        description: isFieldActive('description') ? description.trim() : '',
+        advice: isFieldActive('advice') ? (advice || undefined) : '',
+        advicePhotos: !isFieldActive('advice') ? [] : advicePhotos.length > 0 ? advicePhotos : undefined,
         kind: kind === 'tip' ? 'tip' as const : undefined,
         imageUri: imageUri || undefined,
         imageUris: imageUris.length > 0 ? imageUris : undefined,
@@ -2396,7 +2413,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                     )}
                   </Card>
                 ) : (
-                  <OptionTile icon={IconPhoto} label={t('recipeEdit.photo')} />
+                  <OptionTile icon={IconPhotoFilled} label={t('recipeEdit.photo')} />
                 )}
               </Pressable>
               <Menu
@@ -2409,11 +2426,19 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   ...(heroUris.length > 1
                     ? [{id: 'view', label: t('recipeEdit.viewPhotos'), icon: IconGalleryHorizontalFilled}]
                     : []),
+                  // 사진 지우기 — 장마다 한 줄씩 골라 지운다(대표 = 맨 앞)
+                  ...heroUris.map((_, i) => ({
+                    id: `remove:${i}`,
+                    label: i === 0 ? t('recipeEdit.removeCoverPhoto') : t('recipeEdit.removePhotoAt', {n: i + 1}),
+                    icon: IconTrash,
+                    destructive: true,
+                  })),
                 ]}
                 visible={showPhotoMenu}
                 onSelect={(id) => {
                   setShowPhotoMenu(false);
-                  if (id === 'add') pickImage('gallery', 'extra');
+                  if (id.startsWith('remove:')) { removeHeroAt(Number(id.slice(7))); setHeroViewerIndex(null); } // 메뉴에서 지우면 뷰어는 안 연다
+                  else if (id === 'add') pickImage('gallery', 'extra');
                   else if (id === 'view') setHeroViewerIndex(0);
                   else pickImage(id as 'camera' | 'gallery');
                 }}
@@ -2839,8 +2864,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
 
         </View>}
 
-        {/* 도구 Groups */}
-        <View style={(toolGroupMenu || toolAddMenu || toolRowMenu || toolGroups.some(g => g.id === bulkScanMenu)) ? styles.sectionMenuOpen : undefined} onLayout={e => { sectionPositions.current['tools'] = e.nativeEvent.layout.y; }}>
+        {/* 도구 Groups — 필드 관리에서 끄면 숨긴다(재료·과정과 같은 규칙, 이 조건만 빠져 있었다) */}
+        {isFieldActive('tools') && <View style={(toolGroupMenu || toolAddMenu || toolRowMenu || toolGroups.some(g => g.id === bulkScanMenu)) ? styles.sectionMenuOpen : undefined} onLayout={e => { sectionPositions.current['tools'] = e.nativeEvent.layout.y; }}>
         {toolGroups.map((group, groupIndex) => {
           const toolGroupHasDragging = drag.draggingId !== null && group.tools.some(t => t.id === drag.draggingId);
           return (
@@ -3109,7 +3134,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
             </Card>
           </ContentContainer>
         );})}
-        </View>
+        </View>}
 
         {/* 과정 Groups */}
         {/* 과정도 필드 관리에서 끌 수 있다(필수는 제목뿐) */}
@@ -3878,8 +3903,23 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
         visible={fieldManageVisible}
         onClose={() => setFieldManageVisible(false)}
         activeFieldIds={activeFieldIds}
-        onConfirm={setActiveFieldIds}
+        onConfirm={confirmFieldIds}
         isExplore={isExplore}
+      />
+
+      {/* 값이 있는 필드를 숨기면 — 저장할 때 그 내용이 지워진다고 한 번 묻는다 */}
+      <Dialog
+        visible={!!pendingHide}
+        onClose={() => setPendingHide(null)}
+        icon={IconTrash}
+        title={t('fieldManage.hideConfirmTitle')}
+        description={pendingHide ? t('fieldManage.hideConfirmBody', {fields: pendingHide.fields.map(f => t(`fieldManage.${f}`)).join(', ')}) : undefined}
+        actions={
+          <>
+            <Button label={t('common.cancel')} variant="soft" onPress={() => setPendingHide(null)} />
+            <Button label={t('fieldManage.hideConfirm')} variant="filled" destructive onPress={() => { if (pendingHide) setActiveFieldIds(pendingHide.ids); setPendingHide(null); }} />
+          </>
+        }
       />
 
       {/* 시간 다이얼로그 */}

@@ -1521,7 +1521,8 @@ export function RecipeDetailScreen({
         )}
 
         {/* Tools Section — 재료·과정과 같게 묶음마다 머리줄(도구 › 묶음 이름) + 카드 */}
-        {!toolsHasContent || resolvedToolGroups.length <= 1 ? (
+        {/* 필드 관리에서 끈 도구는 안 보인다(재료·과정과 같은 규칙 — 이 조건만 빠져 있었다) */}
+        {isFieldActive('tools') && (!toolsHasContent || resolvedToolGroups.length <= 1 ? (
           <>
             {renderSectionHeader('tools-header', t('recipeDetail.tools'), 'tools')}
             <Animated.View style={{opacity: sectionAnims[0]}}>
@@ -1555,7 +1556,7 @@ export function RecipeDetailScreen({
               </ContentContainer>
             </Animated.View>,
           ])
-        )}
+        ))}
 
         {/* Process Section */}
         {isFieldActive('steps') && <View onLayout={(e) => { sectionPositions.current.steps = e.nativeEvent.layout.y; }} />}
@@ -1785,8 +1786,8 @@ export function RecipeDetailScreen({
           </Animated.View>
         ) : null}
 
-        {/* Review Section — 팁엔 회고가 없다 */}
-        {!isTip && (
+        {/* Review Section — 팁엔 회고가 없다. 필드 관리에서 끄면 숨긴다(편집과 같은 규칙) */}
+        {!isTip && isFieldActive('review') && (
         <Animated.View
           onLayout={(e) => { sectionPositions.current.review = e.nativeEvent.layout.y; }}
           style={{opacity: sectionAnims[2]}}

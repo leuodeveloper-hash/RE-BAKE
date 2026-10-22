@@ -2,7 +2,7 @@ import React, {useRef, createContext, useCallback, useContext, useMemo, useState
 import {Linking, StyleSheet, Text, View} from 'react-native';
 import {NavPillButton, NavPillGroup} from '@components/Navigation/NavPillButton';
 import {IconButton} from '@components/IconButton';
-import {IconEditFilled} from '@components/Icon/IconIndex';
+import {IconEditFilled, IconArrowTopRight} from '@components/Icon/IconIndex';
 import {DictionaryTermDialog} from '@components/Dialog/DictionaryTermDialog';
 import {saveDictionaryTerm, deleteDictionaryTerm} from '@hooks/useDictionary';
 import {useAuth} from '@contexts/AuthContext';
@@ -124,7 +124,7 @@ export function RecipeLinkProvider({children}: {children: React.ReactNode}) {
   return (
     <RecipeLinkContext.Provider value={value}>
       {children}
-      <TipSheet tip={tip} onClose={() => setTip(null)} />
+      <TipSheet tip={tip} onClose={() => setTip(null)} onOpenRecipe={id => { setTip(null); router.push(`/recipe/${id}` as any); }} />
       <MethodSheet
         method={method?.m ?? null}
         onClose={() => setMethod(null)}
@@ -163,23 +163,31 @@ export function useRecipeLink(): RecipeLinkValue {
 }
 
 /** 팁 바텀시트 — 사진, 준비물(재료·도구), 내용(과정 설명 + 팁·주의), 조언. 있는 것만 */
-function TipSheet({tip, onClose}: {tip: Recipe | null; onClose: () => void}) {
+function TipSheet({tip, onClose, onOpenRecipe}: {tip: Recipe | null; onClose: () => void; onOpenRecipe: (id: string) => void}) {
   const styles = useThemedStyles(createStyles);
   const {t} = useTranslation();
   const content = useMemo(() => {
     if (!tip) return null;
-    // 과정 묶음 — 묶음 제목(과정 › 이름)과 함께. 묶음이 없으면 한 덩어리
-    const stepGroups = (tip.stepGroups?.length ? tip.stepGroups : [{title: '', steps: tip.steps ?? []}])
+    // 과정 묶음 — 묶음 이름과 함께. 묶음이 없으면 한 덩어리
+    // 필드 관리에서 끈 칸은 값이 남아 있어도 안 보인다(상세와 같은 규칙)
+    const on = (f: string) => !tip.activeFieldIds || tip.activeFieldIds.includes(f);
+    const stepGroups = (!on('steps') ? [] : tip.stepGroups?.length ? tip.stepGroups : [{title: '', steps: tip.steps ?? []}])
       .map(g => ({title: g.title?.trim() ?? '', steps: g.steps.filter(s => s.description?.trim())}))
       .filter(g => g.steps.length > 0);
-    const ingredients = (tip.ingredientGroups?.length ? tip.ingredientGroups.flatMap(g => g.ingredients) : [])
+    const ingredients = !on('ingredients') ? [] : (tip.ingredientGroups?.length ? tip.ingredientGroups.flatMap(g => g.ingredients) : [])
       .filter(i => i.name?.trim());
-    const tools = (tip.toolGroups?.length ? tip.toolGroups.flatMap(g => g.tools) : (tip.tools ?? []))
+    const tools = !on('tools') ? [] : (tip.toolGroups?.length ? tip.toolGroups.flatMap(g => g.tools) : (tip.tools ?? []))
       .filter(x => x.name?.trim());
     return {stepGroups, ingredients, tools};
   }, [tip]);
   return (
-    <BottomSheet visible={!!tip} onClose={onClose} title={tip?.title ?? ''} headerType="center">
+    <BottomSheet
+      visible={!!tip}
+      onClose={onClose}
+      title={tip?.title ?? ''}
+      headerType="center"
+      // 앱바 우측 — 실제 레시피(상세)로 가기
+      headerRight={tip?.id ? <NavPillButton icon={IconArrowTopRight} onPress={() => onOpenRecipe(tip.id)} /> : undefined}>
       {tip && content && (
         <View style={styles.body}>
           {!!tip.imageUri && (
@@ -197,8 +205,8 @@ function TipSheet({tip, onClose}: {tip: Recipe | null; onClose: () => void}) {
           )}
           {content.stepGroups.map((g, gi) => (
             <View key={gi} style={styles.item}>
-              {/* 묶음 제목 — 상세 머리줄과 같은 '과정 › 이름'(이름 없으면 생략) */}
-              {g.title ? <Text style={styles.groupTitle}>{`${t('recipeDetail.tabSteps')} › ${g.title}`}</Text> : null}
+              {/* 묶음 제목 — 하위 묶음 이름만('과정 ›'은 반복이라 뺀다) */}
+              {g.title ? <Text style={styles.groupTitle}>{g.title}</Text> : null}
               {g.steps.map((s, i) => (
                 <View key={i} style={styles.item}>
                   <RichText style={styles.text}>{s.description}</RichText>
@@ -251,7 +259,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   },
   body: {
     paddingHorizontal: Spacing.md,
-    paddingBottom: Spacing.md,
+    paddingVertical: Spacing.sm, // 시트 내용 위아래 8
     gap: Spacing.md,
   },
   image: {

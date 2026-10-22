@@ -268,13 +268,13 @@ export function StackedThumbnail({
   transparent?: boolean;
 }) {
   const {isDark} = useTheme();
-  // 흰 테두리 제거 후 경계가 보이도록 강한 그림자 사용 (토큰 strong보다 더 진하게 — 카드 전용 로컬값)
+  // 흰 테두리 제거 후 경계가 보일 만큼만 — 진하면 종이만 떠 보였다(카드 전용 로컬값)
   // 아래로만 떨어지는 그림자에 사방으로 옅게 퍼지는 그림자를 더한다 —
   // 사진과 종이가 좌우로 겹칠 때 그 경계가 보여야 두 장으로 읽힌다.
   const shadow = {
     boxShadow: isDark
-      ? '0px 8px 16px -4px rgba(0, 0, 0, 0.52), 0px 0px 6px 0px rgba(0, 0, 0, 0.36)'
-      : '0px 8px 18px -4px rgba(14, 14, 13, 0.22), 0px 0px 6px 0px rgba(14, 14, 13, 0.14)',
+      ? '0px 6px 14px -4px rgba(0, 0, 0, 0.36), 0px 0px 4px 0px rgba(0, 0, 0, 0.24)'
+      : '0px 6px 14px -4px rgba(14, 14, 13, 0.12), 0px 0px 4px 0px rgba(14, 14, 13, 0.07)',
   } as const;
   const cardSize = fill ? size : size * 0.68;
   const radius = radiusOverride ?? cardSize * 0.18;
@@ -287,7 +287,7 @@ export function StackedThumbnail({
   const innerHeight = cardSize - 2 * paperPadding;
   const lineCount = Math.max(1, Math.floor((innerHeight + lineGap) / (lineHeight + lineGap)));
   // 폰트 크기는 cardSize에 비례
-  const fontSize = Math.max(cardSize * 0.04, 4);
+  const fontSize = Math.max(cardSize * 0.055, 4); // 디자인 비율 — 종이가 커지면 글자도 같이 커진다
   // 줄 사이를 좁게 — 종이에 글이 촘촘히 채워져야 '내용이 있다'로 보인다
   const textLineHeight = fontSize * 1.15;
   const textMaxLines = Math.max(1, Math.floor(innerHeight / textLineHeight));
@@ -436,13 +436,17 @@ function GridThumbnail({
           resizeMode="cover"
         />
       ) : containerHeight > 0 ? (
-        <StackedThumbnail
-          size={Math.min(containerHeight * 1.4, 180)}
-          colors={colors}
-          paperTitle={paperTitle}
-          paperPreview={paperPreview}
-          showPaper={false}
-        />
+        // 종이는 칸 한가운데, 위아래 여백을 두고 통째로 보이게(아래가 잘리지 않게).
+        // 종이 = size × 0.68 → 칸 높이의 82%가 되도록 size를 정한다. 미리보기 글이 있으면 제목은 빼고 본문만
+        <View style={[StyleSheet.absoluteFill, {alignItems: 'center', justifyContent: 'center'}]}>
+          <StackedThumbnail
+            size={(containerHeight * 0.82) / 0.68}
+            colors={colors}
+            paperTitle={paperPreview?.length ? undefined : paperTitle}
+            paperPreview={paperPreview}
+            showPaper={false}
+          />
+        </View>
       ) : null}
     </View>
   );

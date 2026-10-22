@@ -44,7 +44,7 @@ export const displayAmount = (amount?: string) => (amount && /\d/.test(amount) ?
 
 /**
  * 2g 단위 저울용 — 소수점이거나 홀수인 무게·부피(g·ml)엔 가장 가까운 짝수를 괄호로 같이.
- * "513g" → "513(514)g", "512.6g" → "512.6(512)g". 짝수·다른 단위·이미 괄호가 있는 분량은 그대로.
+ * "513g" → "513(512)g"(홀수는 작은 짝수), "512.6g" → "512.6(512)g"(소수점은 가까운 짝수). 짝수·다른 단위·이미 괄호가 있는 분량은 그대로.
  * 입력·저장은 숫자 그대로 두고 화면에서만 붙인다.
  */
 export function withRoundedHint(raw: string): string {
@@ -55,8 +55,9 @@ export function withRoundedHint(raw: string): string {
   if (!m) return amount;
   const n = parseFloat(m[1].replace(/,/g, ''));
   if (!isFinite(n)) return amount;
-  const even = Math.round(n / 2) * 2;
-  if (even === n) return amount;
+  // 소수점이면 가장 가까운 짝수, 딱 떨어지는 홀수면 작은 짝수(513 → 512) — 홀수는 위아래가 똑같이 가까워 올려 버렸다
+  const even = Number.isInteger(n) ? n - (n % 2) : Math.round(n / 2) * 2;
+  if (even === n || even <= 0) return amount; // 1g → 0은 의미 없다
   // 단위는 한 번만, 괄호 뒤에 — "513(514)g"
   return `${m[1]}(${even.toLocaleString('en-US')})${m[2] ?? ''}`;
 }
