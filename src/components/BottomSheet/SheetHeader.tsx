@@ -11,6 +11,8 @@ import {Avatar, AvatarColor} from '@components/Avatar/Avatar';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 
 export interface SheetHeaderProps {
+  /** 좌우(아이콘 머리는 위도) 여백 — 기본 24. 팝업(Dialog)은 20 */
+  inset?: number;
   title: string;
   /** 타이틀 아래 설명 텍스트 (문자열 또는 인라인 Text 노드) */
   description?: React.ReactNode;
@@ -32,7 +34,10 @@ export interface SheetHeaderProps {
   onBack?: () => void;
 }
 
-export function SheetHeader({title, description, onClose, icon, avatarColor, headerGraphic, headerType = 'default', headerRight, onBack}: SheetHeaderProps) {
+export function SheetHeader({title, description, onClose, icon, avatarColor, headerGraphic, headerType = 'default', headerRight, onBack, inset}: SheetHeaderProps) {
+  // 좌우·위 여백 — 기본 24(시트), 팝업은 20(DIALOG_PADDING)
+  const pad = inset != null ? {paddingHorizontal: inset} : null;
+  const padTop = inset != null ? {paddingHorizontal: inset, paddingTop: inset} : null;
   const styles = useThemedStyles(createStyles);
 
   const hasGraphic = headerGraphic || icon;
@@ -42,7 +47,7 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
       {hasGraphic ? (
         <>
           {/* 그래픽 + 닫기 버튼: 같은 라인 */}
-          <View style={styles.graphicRow}>
+          <View style={[styles.graphicRow, padTop]}>
             {headerGraphic || (
               icon && (
                 <Avatar
@@ -65,7 +70,7 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
             )}
           </View>
           {/* 타이틀: 그래픽 아래 좌측 정렬 */}
-          <View style={styles.titleBelowGraphic}>
+          <View style={[styles.titleBelowGraphic, pad]}>
             <Text style={styles.titleLarge}>{title}</Text>
             {description && <Text style={styles.description}>{description}</Text>}
           </View>
@@ -92,7 +97,7 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
           </View>
           {description && (
             // 라벨이 가운데면 설명도 가운데 — 왼쪽 정렬이면 제목과 선이 어긋나 보인다
-            <View style={styles.descriptionRow}>
+            <View style={[styles.descriptionRow, pad]}>
               <Text style={[styles.description, styles.descriptionCenter]}>{description}</Text>
             </View>
           )}
@@ -100,7 +105,7 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
       ) : (
         <>
           {/* 그래픽 없음: 타이틀 + 닫기 같은 라인 */}
-          <View style={styles.titleRow}>
+          <View style={[styles.titleRow, pad]}>
             {onBack && <IconButton icon={IconArrowLeft} variant="tonal" size="medium" onPress={onBack} />}
             <View style={styles.titleContainer}>
               <Text style={styles.title}>{title}</Text>
@@ -116,7 +121,7 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
             )}
           </View>
           {description && (
-            <View style={styles.descriptionRow}>
+            <View style={[styles.descriptionRow, pad]}>
               <Text style={styles.description}>{description}</Text>
             </View>
           )}

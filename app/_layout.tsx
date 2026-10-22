@@ -913,17 +913,26 @@ function GlobalSearchSheet() {
       label: r.title,
       imageUrl: r.imageUri,
       searchableTexts: [r.cookbook, r.method, r.specificGravity].filter(Boolean) as string[],
+      meta: {cookbook: r.cookbook, method: r.method, specificGravity: r.specificGravity},
     }));
 
     // 둘러보기: 무료 유저는 앞 3개 외 잠금
     const lockedSet = new Set<string>();
     if (isFreeUser) exploreRecipes.slice(FREE_EXPLORE_COUNT).forEach(r => lockedSet.add(r.id));
-    const explore = exploreRecipes.map(r => ({
+    // 둘러보기도 회차(다시 만들기 묶음)마다 최신 하나만 — 같은 레시피가 회차 수만큼 겹쳐 나왔다
+    const exploreByGroup = new Map<string, Recipe>();
+    for (const r of exploreRecipes) {
+      const key = r.remakeGroupId ?? r.id;
+      const ex = exploreByGroup.get(key);
+      if (!ex || parseSession(r.session).current > parseSession(ex.session).current) exploreByGroup.set(key, r);
+    }
+    const explore = [...exploreByGroup.values()].map(r => ({
       id: `explore:${r.id}`,
       label: r.title,
       imageUrl: r.imageUri,
       locked: lockedSet.has(r.id),
       searchableTexts: [r.cookbook, r.method, r.specificGravity].filter(Boolean) as string[],
+      meta: {cookbook: r.cookbook, method: r.method, specificGravity: r.specificGravity, official: true},
     }));
 
     return {items: [...mine, ...explore], lockedExploreIds: lockedSet};
@@ -968,12 +977,14 @@ function GlobalYouTubePlayer() {
 }
 
 export default function RootLayout() {
-  const [fontsLoaded] = useFonts({
+  // 불러오기 실패해도 앱은 열리게(fontError) — 그땐 기기 기본 글꼴로 보인다
+  const [fontsLoadedOk, fontError] = useFonts({
     'Pretendard-Regular': require('../assets/fonts/Pretendard-Regular.otf'),
     'Pretendard-Medium': require('../assets/fonts/Pretendard-Medium.otf'),
     'Pretendard-SemiBold': require('../assets/fonts/Pretendard-SemiBold.otf'),
     'Pretendard-Bold': require('../assets/fonts/Pretendard-Bold.otf'),
   });
+  const fontsLoaded = fontsLoadedOk || !!fontError;
   const [showSplash, setShowSplash] = useState(true);
   // 용어 사전 — 서버(어드민이 고친 항목) 구독, 앱 전체에 한 번
   useDictionarySync();

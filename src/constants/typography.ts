@@ -32,6 +32,9 @@ const parseLetterSpacing = (value: string | number): number => {
 };
 
 // Weight → fontFamily 매핑 (네이티브에서 weight별 폰트 파일 선택)
+// 굵기는 글꼴 파일(SemiBold 등)이 정한다 — 프리셋의 fontWeight는 'normal'.
+// 파일마다 이름을 따로 붙여 불러와 기기·브라우저는 각 파일을 보통(400)으로 안다. 여기에 600을 또 주면
+// 이미 굵은 글자를 한 번 더 인위적으로 두껍게 그려(가짜 볼드) SemiBold가 Bold처럼 보였다.
 const FONT: Record<number, string> = {
   400: 'Pretendard-Regular',
   500: 'Pretendard-Medium',
@@ -62,7 +65,7 @@ export const Typography = {
     large: {
       fontFamily: FONT[700],
       fontSize: parseSize('56px'),
-      fontWeight: '700' as const,
+      fontWeight: 'normal' as const,
       letterSpacing: parseLetterSpacing('-0.6px'),
       lineHeight: parseSize('64px'),
       ...BASE,
@@ -71,7 +74,7 @@ export const Typography = {
     medium: {
       fontFamily: FONT[700],
       fontSize: parseSize('40px'),
-      fontWeight: '700' as const,
+      fontWeight: 'normal' as const,
       letterSpacing: parseLetterSpacing('-0.6px'),
       lineHeight: parseSize('48px'),
       ...BASE,
@@ -80,7 +83,7 @@ export const Typography = {
     small: {
       fontFamily: FONT[700],
       fontSize: parseSize('36px'),
-      fontWeight: '700' as const,
+      fontWeight: 'normal' as const,
       letterSpacing: parseLetterSpacing('-0.4px'),
       lineHeight: parseSize('44px'),
       ...BASE,
@@ -91,7 +94,7 @@ export const Typography = {
     large: {
       fontFamily: FONT[700],
       fontSize: parseSize('28px'),
-      fontWeight: '700' as const,
+      fontWeight: 'normal' as const,
       letterSpacing: parseLetterSpacing('-0.4px'),
       lineHeight: parseSize('36px'),
       ...BASE,
@@ -100,7 +103,7 @@ export const Typography = {
     medium: {
       fontFamily: FONT[700],
       fontSize: parseSize('24px'),
-      fontWeight: '700' as const,
+      fontWeight: 'normal' as const,
       letterSpacing: parseLetterSpacing('-0.4px'),
       lineHeight: parseSize('30px'),
       ...BASE,
@@ -109,7 +112,7 @@ export const Typography = {
     small: {
       fontFamily: FONT[600],
       fontSize: parseSize('22px'),
-      fontWeight: '600' as const,
+      fontWeight: 'normal' as const,
       letterSpacing: parseLetterSpacing('-0.2px'),
       lineHeight: parseSize('28px'),
       ...BASE,
@@ -120,7 +123,7 @@ export const Typography = {
     large: {
       fontFamily: FONT[600],
       fontSize: parseSize('20px'),
-      fontWeight: '600' as const,
+      fontWeight: 'normal' as const,
       letterSpacing: parseLetterSpacing('-0.2px'),
       lineHeight: parseSize('26px'),
       ...BASE,
@@ -129,7 +132,7 @@ export const Typography = {
     medium: {
       fontFamily: FONT[600],
       fontSize: parseSize('16px'),
-      fontWeight: '600' as const,
+      fontWeight: 'normal' as const,
       letterSpacing: parseLetterSpacing('0px'),
       lineHeight: parseSize('22px'),
       ...BASE,
@@ -138,7 +141,7 @@ export const Typography = {
     small: {
       fontFamily: FONT[600],
       fontSize: parseSize('14px'),
-      fontWeight: '600' as const,
+      fontWeight: 'normal' as const,
       letterSpacing: parseLetterSpacing('0px'),
       lineHeight: parseSize('18px'),
       ...BASE,
@@ -150,7 +153,7 @@ export const Typography = {
     large: {
       fontFamily: FONT[500],
       fontSize: parseSize('14px'),
-      fontWeight: '500' as const,
+      fontWeight: 'normal' as const,
       letterSpacing: parseLetterSpacing('0px'),
       lineHeight: parseSize('18px'),
       ...BASE,
@@ -159,7 +162,7 @@ export const Typography = {
     medium: {
       fontFamily: FONT[600],
       fontSize: parseSize('12px'),
-      fontWeight: '600' as const,
+      fontWeight: 'normal' as const,
       letterSpacing: parseLetterSpacing('0px'),
       lineHeight: parseSize('16px'),
       ...BASE,
@@ -168,7 +171,7 @@ export const Typography = {
     small: {
       fontFamily: FONT[500],
       fontSize: parseSize('11px'),
-      fontWeight: '500' as const,
+      fontWeight: 'normal' as const,
       letterSpacing: parseLetterSpacing('0px'),
       lineHeight: parseSize('14px'),
       ...BASE,
@@ -179,7 +182,7 @@ export const Typography = {
     'medium - semibold': {
       fontFamily: FONT[600],
       fontSize: parseSize('15px'),
-      fontWeight: '600' as const,
+      fontWeight: 'normal' as const,
       letterSpacing: parseLetterSpacing('0px'),
       lineHeight: parseSize('20px'),
       ...BASE,
@@ -188,7 +191,7 @@ export const Typography = {
     xxlarge: {
       fontFamily: FONT[500],
       fontSize: parseSize('20px'),
-      fontWeight: '500' as const,
+      fontWeight: 'normal' as const,
       letterSpacing: parseLetterSpacing('-0.2px'),
       lineHeight: parseSize('26px'),
       ...BASE,
@@ -197,7 +200,7 @@ export const Typography = {
     xlarge: {
       fontFamily: FONT[500],
       fontSize: parseSize('18px'),
-      fontWeight: '500' as const,
+      fontWeight: 'normal' as const,
       letterSpacing: parseLetterSpacing('0px'),
       lineHeight: parseSize('24px'),
       ...BASE,
@@ -206,7 +209,7 @@ export const Typography = {
     large: {
       fontFamily: FONT[500],
       fontSize: parseSize('16px'),
-      fontWeight: '500' as const,
+      fontWeight: 'normal' as const,
       letterSpacing: parseLetterSpacing('0px'),
       lineHeight: parseSize('22px'),
       ...BASE,
@@ -215,7 +218,7 @@ export const Typography = {
     medium: {
       fontFamily: FONT[500],
       fontSize: parseSize('15px'),
-      fontWeight: '500' as const,
+      fontWeight: 'normal' as const,
       letterSpacing: parseLetterSpacing('0px'),
       lineHeight: parseSize('20px'),
       ...BASE,
@@ -224,7 +227,7 @@ export const Typography = {
     small: {
       fontFamily: FONT[400],
       fontSize: parseSize('14px'),
-      fontWeight: '400' as const,
+      fontWeight: 'normal' as const,
       letterSpacing: parseLetterSpacing('0px'),
       lineHeight: parseSize('18px'),
       ...BASE,

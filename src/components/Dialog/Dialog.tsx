@@ -30,6 +30,9 @@ import {APPBAR_TOP_PADDING} from '@components/Navigation';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 
+/** 팝업 여백 — 머리·내용·버튼 줄·카드 아래가 모두 이 값(시트는 24) */
+export const DIALOG_PADDING = 20;
+
 export interface DialogProps {
   visible: boolean;
   onClose: () => void;
@@ -236,6 +239,7 @@ export function Dialog({
             headerType={effectiveHeaderType}
             headerRight={headerRight}
             onClose={showCloseButton ? onClose : undefined}
+            inset={DIALOG_PADDING}
           />
         )}
 
@@ -266,7 +270,8 @@ export function Dialog({
               (actions as any)?.type === React.Fragment
                 ? (actions as any).props.children
                 : actions,
-              child => child ? <View style={{flex: 1}}>{child}</View> : null,
+              // 팝업 버튼은 둥근 사각(square) — 알약보다 카드와 어울린다
+              child => child ? <View style={{flex: 1}}>{React.isValidElement(child) ? React.cloneElement(child as React.ReactElement<any>, {shape: 'square'}) : child}</View> : null,
             )}
           </View>
         )}
@@ -299,31 +304,37 @@ const createStyles = (colors: SemanticColors) =>
       minHeight: 160,
       backgroundColor: colors['surface/bright'],
       borderRadius: Radius['radius-xl'],
-      paddingBottom: Spacing.lg,
+      paddingBottom: DIALOG_PADDING,
     },
     content: {
       gap: Spacing.sm,
-      paddingHorizontal: Spacing.lg,
-      paddingVertical: Spacing.lg,
+      paddingHorizontal: DIALOG_PADDING,
+      paddingVertical: DIALOG_PADDING,
       marginBottom: Spacing.sm,
+      // 내용 안 메뉴(색 고르기·단위 등)가 아래 버튼 줄 위로 뜨게 — 버튼 줄이 나중에 그려져 메뉴를 덮었다
+      zIndex: 10,
+      elevation: 10,
     },
     // 헤더 줄 아래 여백(12) 위로 4 더해 헤더와 16, 버튼과도 16
     // 스크롤 내용 — 가림 그라디언트 높이만큼 위아래를 비워 첫·끝 줄이 가려지지 않게
     scrollContent: {
       gap: Spacing.sm,
-      paddingHorizontal: Spacing.lg,
+      paddingHorizontal: DIALOG_PADDING,
       paddingVertical: Spacing.md,
     },
     contentCompact: {
+      // 내용 아래 16 + 버튼 줄 위 8 = 24(버튼 줄이 자기 위 여백을 갖는다). 위는 머리 줄과 그대로
       paddingTop: 0,
-      paddingBottom: 0,
+      paddingBottom: Spacing.md,
       marginTop: Spacing.xs,
-      marginBottom: Spacing.md,
+      marginBottom: 0,
     },
+    // 버튼 줄 — 하단 액션처럼 위 여백 8을 스스로 갖는다(아래는 카드 여백)
     actions: {
       flexDirection: 'row',
       gap: Spacing.sm,
-      paddingHorizontal: Spacing.lg,
+      paddingHorizontal: DIALOG_PADDING,
+      paddingTop: Spacing.sm,
     },
     imageHeader: {
       alignSelf: 'stretch',

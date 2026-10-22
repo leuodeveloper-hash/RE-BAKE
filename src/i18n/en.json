@@ -1270,5 +1270,13 @@
   "stepTemplate.nameSave": "Save",
   "stepTemplate.menu": "Templates",
   "recipeDetail.openSide": "Open side by side",
-  "stepSummary.allPlaceholder": "One summary line per step"
+  "stepSummary.allPlaceholder": "One summary line per step",
+  "cookbook.color.gray": "Gray",
+  "cookbook.color.yellow": "Yellow",
+  "cookbook.color.red": "Red",
+  "cookbook.color.orange": "Orange",
+  "cookbook.color.lime": "Lime",
+  "cookbook.color.green": "Green",
+  "cookbook.color.lightblue": "Sky",
+  "cookbook.color.purple": "Purple"
 }

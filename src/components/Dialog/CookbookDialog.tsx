@@ -5,8 +5,9 @@ import {Animated, Pressable, Text, View, StyleSheet} from 'react-native';
 import {Dialog} from './Dialog';
 import {Button} from '@components/Button';
 import {TextInput} from '@components/TextInput';
-import {ColorPicker} from '@components/ColorPicker';
-import {IconBookTwotone, IconExprolerBookFilled} from '@components/Icon/IconIndex';
+import {ColorSelect, ColorMenu} from '@components/ColorPicker';
+import {InputGroup, InputGroupSplit} from '@components/InputGroup';
+import {IconBookTwotone, IconExprolerBookTwotone} from '@components/Icon/IconIndex';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
 import {useTranslation} from '@contexts/LanguageContext';
@@ -49,6 +50,7 @@ export function CookbookDialog({visible, onClose, onConfirm, editTarget, isAdmin
   const [hidden, setHidden] = useState(false);
   const [showHiddenToggle, setShowHiddenToggle] = useState(false);
   const s = useThemedStyles(createStyles);
+  const [colorMenu, setColorMenu] = useState(false);
   const colors = useColors();
   const {t} = useTranslation();
 
@@ -95,7 +97,7 @@ export function CookbookDialog({visible, onClose, onConfirm, editTarget, isAdmin
       position="top"
       visible={visible}
       onClose={onClose}
-      icon={isOfficial ? IconExprolerBookFilled : IconBookTwotone}
+      icon={isOfficial ? IconExprolerBookTwotone : IconBookTwotone}
       avatarColor={color}
       title={editMode ? t('cookbook.editTitle') : t('cookbook.createTitle')}
       actions={
@@ -110,28 +112,37 @@ export function CookbookDialog({visible, onClose, onConfirm, editTarget, isAdmin
         </>
       }>
       <View style={s.content}>
-        {showOfficialToggle && (
-          // 공통 스위치 — 직접 그린 토글은 앱의 다른 스위치와 모양·움직임이 달랐다
-          <Switch label={t('cookbook.officialLabel')} value={isOfficial} onValueChange={setIsOfficial} />
-        )}
-        <TextInput
-          ref={nameRef}
-          label={t('cookbook.nameLabel')}
-          placeholder={t('cookbook.namePlaceholder')}
-          value={name}
-          onChangeText={setName}
-        />
-        <ColorPicker
-          label={t('cookbook.colorLabel')}
-          selected={color}
-          onSelect={setColor}
-          colors={COOKBOOK_COLORS}
-          dotSize={20}
-        />
-        {/* 비공개 — 맨 아래 한 줄을 꽉 채운다(이름 왼쪽, 스위치 오른쪽). 공식 북(어드민)이면 만들 때도 편집할 때도 */}
-        {(showHiddenToggle || (isOfficial && !!isAdmin)) && (
-          <Switch fullWidth label={t('cookbook.hiddenLabel')} value={hidden} onValueChange={setHidden} />
-        )}
+        {/* 컬러 | 이름 — 한 줄 두 칸(컬러 먼저, 칸 사이 1px 틈). 컬러는 공통 색 피커 */}
+        <View style={s.groupWrap}>
+          {/* 공식 레시피 북 — 상자 밖, 이름 칸 바로 위에 붙여(8) */}
+          {/* 공식 레시피 북 · 비공개 — 한 줄에 나란히(비공개는 공식 북(어드민)일 때) */}
+          {(showOfficialToggle || showHiddenToggle || (isOfficial && !!isAdmin)) ? (
+            <View style={s.toggleRow}>
+              {showOfficialToggle ? (
+                <Switch labelPosition="right" label={t('cookbook.officialLabel')} value={isOfficial} onValueChange={setIsOfficial} />
+              ) : null}
+              {(showHiddenToggle || (isOfficial && !!isAdmin)) ? (
+                <Switch labelPosition="right" label={t('cookbook.hiddenLabel')} value={hidden} onValueChange={setHidden} />
+              ) : null}
+            </View>
+          ) : null}
+          <InputGroup>
+            <InputGroupSplit>
+              <ColorSelect value={color} open={colorMenu} onOpenChange={setColorMenu} />
+              <View style={{flex: 1}}>
+                <TextInput
+                  ref={nameRef}
+                  style="ghost"
+                  placeholder={t('cookbook.namePlaceholder')}
+                  value={name}
+                  onChangeText={setName}
+                />
+              </View>
+            </InputGroupSplit>
+          </InputGroup>
+          {/* 메뉴는 묶음 상자 밖에 — 상자가 둥글게 잘라내 안에 두면 안 보였다 */}
+          <ColorMenu value={color} onChange={setColor} colors={COOKBOOK_COLORS} open={colorMenu} onOpenChange={setColorMenu} />
+        </View>
       </View>
     </Dialog>
   );
@@ -141,6 +152,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   content: {
     gap: Spacing.md,
   },
+  // 메뉴가 아래 줄·버튼 위로 뜨게(드롭다운 z-index 3종)
+  toggleRow: {flexDirection: 'row', alignItems: 'center', gap: Spacing.lg},
+  groupWrap: {gap: Spacing.sm, zIndex: 20, elevation: 20, overflow: 'visible'},
   officialRow: {
     flexDirection: 'row',
     alignItems: 'center',

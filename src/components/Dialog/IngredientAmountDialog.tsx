@@ -112,6 +112,8 @@ export function IngredientAmountDialog({visible, onClose, amount, unit, onConfir
                 showDropdown
                 onPress={() => setShowUnitMenu(prev => !prev)}
                 variant="tonal"
+                // 옆 분량 입력칸(48)과 같은 높이
+                size="large"
                 forcePressed={showUnitMenu}
               />
               <Menu

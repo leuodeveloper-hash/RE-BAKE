@@ -17,9 +17,11 @@ interface SwitchProps {
   disabled?: boolean;
   /** 줄을 꽉 채운다 — 이름은 왼쪽, 스위치는 오른쪽 끝(설정 줄처럼) */
   fullWidth?: boolean;
+  /** 이름 위치 — 기본 왼쪽, 'right'면 스위치 뒤(스위치 먼저) */
+  labelPosition?: 'left' | 'right';
 }
 
-export function Switch({label, value, onValueChange, disabled = false, fullWidth = false}: SwitchProps) {
+export function Switch({label, value, onValueChange, disabled = false, fullWidth = false, labelPosition = 'left'}: SwitchProps) {
   const styles = useThemedStyles(createStyles);
   // 손잡이가 미끄러지듯 — 값만 바꾸면 툭 점프해 껐는지 켰는지 눈이 못 따라간다
   const anim = useRef(new Animated.Value(value ? 1 : 0)).current;
@@ -39,10 +41,11 @@ export function Switch({label, value, onValueChange, disabled = false, fullWidth
       style={[styles.container, fullWidth && styles.fullWidth, disabled && {opacity: 0.4}]}
       disabled={disabled}
       onPress={() => { triggerHaptic('light'); onValueChange(!value); }}>
-      {label ? <Text style={styles.label}>{label}</Text> : null}
+      {label && labelPosition === 'left' ? <Text style={styles.label}>{label}</Text> : null}
       <View style={[styles.track, value && styles.trackActive]}>
         <Animated.View style={[styles.thumb, {transform: [{translateX}]}]} />
       </View>
+      {label && labelPosition === 'right' ? <Text style={styles.label}>{label}</Text> : null}
     </Pressable>
   );
 }

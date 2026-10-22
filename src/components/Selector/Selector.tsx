@@ -13,7 +13,8 @@ export type SelectorVariant = 'ghost' | 'filled' | 'outlined' | 'tonal' | 'circl
 export type SelectorSize = 'medium' | 'small' | 'large';
 
 export interface SelectorProps {
-  label: string;
+  /** 이름 — 없으면 앞 아이콘(예: 색 점)과 ⌃⌄만 */
+  label?: string;
   showDropdown?: boolean;
   onPress?: () => void;
   variant?: SelectorVariant;
@@ -29,6 +30,8 @@ export interface SelectorProps {
   leadingIcon?: React.FC<SvgProps>;
   /** leading 아이콘 색상 (기본: 아이콘 기본색) */
   leadingIconColor?: string;
+  /** 앞에 색 칩(색 피커) — 아이콘 대신 이 색 동그라미 */
+  leadingColor?: string;
   style?: import('react-native').ViewStyle;
 }
 
@@ -44,6 +47,7 @@ export function Selector({
   dropdownIcon,
   leadingIcon,
   leadingIconColor,
+  leadingColor,
   style,
 }: SelectorProps) {
   const colors = useColors();
@@ -80,7 +84,8 @@ export function Selector({
         baseStyle.backgroundColor = colors['fill/subtle'];
         baseStyle.borderRadius = Radius['radius-md'];
         baseStyle.paddingHorizontal = Spacing.smd;
-        baseStyle.minHeight = 40;
+        // large = 입력칸(TextInput 48)과 나란히 놓을 때 같은 높이
+        baseStyle.minHeight = size === 'large' ? 48 : 40;
         break;
       case 'circle':
         // 완전 둥근 필(버튼형) — tonal과 동일 톤, radius만 full.
@@ -144,10 +149,14 @@ export function Selector({
   return (
     <Pressable onPress={onPress} disabled={disabled} style={style}>
       {({pressed, focused}: {pressed: boolean; focused: boolean}) => (
-        <View style={getContainerStyle(pressed || focused)}>
-          {leadingIcon && (
-            // 앞 아이콘과 이름 사이 8 — 셀렉터 기본 간격(4, 이름·⌃⌄ 밀착)에 4를 더한다
-            <View style={{marginRight: Spacing.xs}}>
+        // 누르는 동안만 바탕 — 웹은 클릭 뒤 포커스가 남아 회색 알약이 계속 보였다
+        <View style={getContainerStyle(pressed)}>
+          {leadingColor ? (
+            // 색 칩 — 앞 아이콘 대신 그 색으로 채운 동그라미(메뉴의 색 점과 같은 20)
+            <View style={[styles.colorChip, {backgroundColor: leadingColor}, label ? {marginRight: Spacing.xs} : null]} />
+          ) : leadingIcon && (
+            // 앞 아이콘과 이름 사이 8 — 셀렉터 기본 간격(4, 이름·⌃⌄ 밀착)에 4를 더한다(이름이 없으면 기본 간격만)
+            <View style={label ? {marginRight: Spacing.xs} : undefined}>
               <AppIcon
                 icon={leadingIcon}
                 size="sm"
@@ -155,7 +164,7 @@ export function Selector({
               />
             </View>
           )}
-          <Text style={[styles.label, variant === 'circle' && styles.labelCircle, isSmall && styles.labelSmall, {color: getTextColor()}]} numberOfLines={1}>{label}</Text>
+          {label ? <Text style={[styles.label, variant === 'circle' && styles.labelCircle, isSmall && styles.labelSmall, {color: getTextColor()}]} numberOfLines={1}>{label}</Text> : null}
           {showDropdown && (
             <AppIcon
               icon={dropdownIcon ?? IconChevronUpDown}
@@ -178,6 +187,7 @@ const styles = StyleSheet.create({
     marginTop: FONT_BASELINE_OFFSET,
   },
   // 둥근 필(circle)은 채운 탭과 나란히 쓰는 일이 많다 — 탭 글씨(title.small)와 같게
+  colorChip: {width: 20, height: 20, borderRadius: 10},
   labelCircle: {
     fontFamily: Typography.title.small.fontFamily,
     fontSize: Typography.title.small.fontSize,

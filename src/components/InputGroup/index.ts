@@ -1,1 +1,1 @@
-export {InputGroup} from './InputGroup';
+export {InputGroup, InputGroupSplit} from './InputGroup';

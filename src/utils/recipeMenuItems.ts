@@ -5,7 +5,7 @@ import {
   IconEdit,
   IconArrowDownToLine,
   IconTrash,
-  IconFilesFilled,
+  IconCopyFilled,
   IconBookFilled,
   IconExprolerBookFilled,
   IconShare,
@@ -64,8 +64,8 @@ export function getRecipeMenuItems(options: RecipeMenuOptions): MenuItemData[] {
       ? {id: 'unmade', label: t('recipeMenuItems.unmade'), icon: IconCircleCheckFilled}
       : {id: 'made', label: t('recipeMenuItems.made'), icon: IconCircleCheck});
   }
-  if (options.showImport) items.push({id: 'save', label: t('recipeMenuItems.copyToMyRecipes'), icon: IconFilesFilled});
-  if (options.showDuplicate) items.push({id: 'duplicate', label: t('recipeMenuItems.duplicate'), icon: IconFilesFilled});
+  if (options.showImport) items.push({id: 'save', label: t('recipeMenuItems.copyToMyRecipes'), icon: IconCopyFilled});
+  if (options.showDuplicate) items.push({id: 'duplicate', label: t('recipeMenuItems.duplicate'), icon: IconCopyFilled});
   if (options.showRemake) {
     // 다음 회차 번호 = 지금 회차 + 1(회차는 레시피 하나 안 기록 — session엔 지금 회차가 'N회차'로 온다)
     const {current} = parseSession(options.session);

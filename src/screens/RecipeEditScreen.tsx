@@ -151,7 +151,7 @@ import {
   IconStarFilled,
   IconCameraFilled,
   IconLeafFilled,
-  IconFilesFilled,
+  IconCopyFilled,
   IconToolCaseFilled,
   IconFlow,
   IconPenTipFilled,

@@ -9,7 +9,7 @@ import {DotSlider} from '@components/DotSlider';
 /** 재료 비율 조정 눈금 — ×1이 한가운데(줄이기 3칸 · 늘리기 3칸) */
 const SCALE_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3];
 import {effectiveActiveFields} from '@utils/breadFieldsMigration';
-import {IconRefresh, IconFlow, IconColumn2} from '@components/Icon/IconIndex';
+import {IconRefresh, IconFlow, IconColumn2, IconStarFilled} from '@components/Icon/IconIndex';
 import {useFloatingNotice} from '@contexts/FloatingNoticeContext';
 import {useRouter} from 'expo-router';
 import {goToRetrospective} from '@utils/navigation';
@@ -53,6 +53,8 @@ import {EditableChip} from '@components/EditableChip';
 import {ReviewCard} from '@components/ReviewLine';
 import {ViewModeButton, SummaryToggle} from '@components/ViewModeButton';
 import {StepTemplateSheet} from '@components/BottomSheet/StepTemplateSheet';
+import {useStepTemplates} from '@hooks/useStepTemplates';
+import {TextPromptDialog} from '@components/Dialog/TextPromptDialog';
 import {OptionTile} from '@components/OptionTile';
 import {Dialog, PdfPreviewDialog, TimeDialog, ServingsDialog, UnlockDialog, NumberValueDialog} from '@components/Dialog';
 import {Button} from '@components/Button';
@@ -116,7 +118,7 @@ import {
   IconSearch,
   IconSparkle,
   IconTrash,
-  IconFilesFilled,
+  IconCopyFilled,
   IconPhoto,
   IconEyeClosed,
 } from '@components/Icon/IconIndex';
@@ -1071,6 +1073,14 @@ export function RecipeDetailScreen({
   const [menuHeaderKey, setMenuHeaderKey] = useState<string | null>(null);
   // ⋮ 메뉴가 열린 헤더(제어) — 타이머 메뉴(menuHeaderKey)와 따로 둔다
   const [headerMenuKey, setHeaderMenuKey] = useState<string | null>(null);
+  // 묶음뷰 과정 머리줄 키(step-header-N) → 그 묶음
+  const groupOfKey = (key: string) => {
+    const m = key.match(/^step-header-(\d+)$/);
+    return m && stepGroups ? stepGroups[Number(m[1])] : undefined;
+  };
+  // 과정 템플릿 저장 — 이름 정하기 팝업
+  const {addGroupTemplate} = useStepTemplates();
+  const [templateNameFor, setTemplateNameFor] = useState<{title: string; timer?: string; steps: {description: string; tip?: string; caution?: string; photos?: unknown[]}[]} | null>(null);
   const renderSectionHeader = (
     key: string,
     label: string,
@@ -1086,6 +1096,8 @@ export function RecipeDetailScreen({
     const menuItems = [
       ...(onEdit ? [{id: 'edit', label: t('recipeDetail.edit'), icon: IconEditFilled}] : []),
       ...(hasTimer ? [{id: 'timer', label: t('recipeDetail.setTimer'), icon: IconTimer}] : []),
+      // 과정 묶음 머리(묶음뷰) — 이 묶음을 과정 템플릿으로(편집과 같은 이름 정하기)
+      ...(groupOfKey(key) ? [{id: 'saveTemplate', label: t('stepTemplate.saveThisMenu'), icon: IconStarFilled}] : []),
     ];
     // 재료 비율 조정 — 재료 맨 위 머리줄 아이콘 버튼(누르면 시트)
     // 재료 비율 조절 — 첫 재료 묶음 머리줄 ⋮ 메뉴 안, '편집' 아래에 레이블 + 점 슬라이더
@@ -1118,6 +1130,7 @@ export function RecipeDetailScreen({
             onMenuSelect={id => {
               if (id === 'edit') editWith(sectionId);
               else if (id === 'timer') timerRefs.current[key]?.openEditor();
+              else if (id === 'saveTemplate') { const g = groupOfKey(key); if (g) setTemplateNameFor(g); }
             }}
             // 오른쪽 — 타이머(편집 화면처럼 '한번에' 스위치 옆) · 한번에 보기 · ⋮
             menuExtraSections={scaleSections}
@@ -2109,6 +2122,28 @@ export function RecipeDetailScreen({
       {locked && (
         <LockedBottomBar onUnlock={() => setShowUnlockDialog(true)} />
       )}
+
+      {/* 과정 템플릿으로 저장 — 이름 정하기(지금 묶음 이름이 기본) */}
+      <TextPromptDialog
+        visible={!!templateNameFor}
+        title={t('stepTemplate.nameTitle')}
+        initialValue={templateNameFor?.title || t('recipeDetail.tabSteps')}
+        placeholder={t('recipeEdit.groupNamePlaceholder')}
+        confirmLabel={t('stepTemplate.nameSave')}
+        onClose={() => setTemplateNameFor(null)}
+        onConfirm={name => {
+          const g = templateNameFor;
+          if (!g) return;
+          addGroupTemplate({
+            title: name,
+            timer: g.timer,
+            steps: g.steps.filter(st => st.description?.trim()).map(st => ({description: st.description, tip: st.tip, caution: st.caution, photos: st.photos as any})),
+            source: title,
+          })
+            .then(() => showSnackbar(t('stepTemplate.groupSaved'), {tone: 'positive'}))
+            .catch(() => showSnackbar(t('stepTemplate.saveFailed'), {tone: 'error'}));
+        }}
+      />
 
       {/* 과정 템플릿 — 오버플로우 '템플릿'. 상세에선 보기·편집·삭제만(넣기는 편집 화면에서) */}
       <LazyMount when={showTemplates}>

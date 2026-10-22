@@ -35,6 +35,8 @@ export interface SearchCommandBarItem {
   searchableTexts?: string[];
   /** 레시피 이미지 URL (있으면 RecipeCard로 렌더링) */
   imageUrl?: string;
+  /** 리스트와 같은 메타(레시피북·공법·비중, 공식이면 레시피북 앞 공식 아이콘) — 있으면 searchableTexts 대신 이걸 보여준다 */
+  meta?: {cookbook?: string; method?: string; specificGravity?: string; official?: boolean};
 }
 
 /** 탭(레시피/사용자 등) — 각 탭이 자기 아이템/선택 핸들러/렌더 방식을 갖는다 */
@@ -313,7 +315,12 @@ export function SearchCommandBar({
                             title={item.label}
                             imageUrl={item.imageUrl || undefined}
                             // 점 없이 간격으로만 — 배열을 넘기면 공통 MetaLine이 8 간격으로 늘어놓는다
-                            customSubtitle={item.searchableTexts}
+                            // 리스트와 같은 메타 — 공식이면 레시피북 앞 공식 아이콘(검색에서 공식인지 몰랐다)
+                            customSubtitle={item.meta ? undefined : item.searchableTexts}
+                            cookbook={item.meta?.cookbook}
+                            method={item.meta?.method}
+                            specificGravity={item.meta?.specificGravity}
+                            published={item.meta?.official}
                             layout="list"
                             size="small"
                             onPress={() => activeOnSelect(item.id)}
