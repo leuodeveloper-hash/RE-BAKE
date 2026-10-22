@@ -46,8 +46,7 @@ const SIZE_CONFIG = {
   xsmall: {container: 24, touchArea: 36, icon: 14},
   small: {container: 28, touchArea: 40, icon: 16},
   medium: {container: 40, touchArea: 48, icon: 20},
-  // 크게 = 앱바 알약 높이(44)와 같다 — 버튼 크기 단계를 앱바·버튼(medium 44)과 맞춘다
-  large: {container: 44, touchArea: 52, icon: 20},
+  large: {container: 48, touchArea: 56, icon: 20},
 } as const;
 
 export function IconButton({

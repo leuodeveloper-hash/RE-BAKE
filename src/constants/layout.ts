@@ -9,12 +9,14 @@ import {Spacing} from './spacing';
  * - 안전영역(insets.top)은 그 훅이 플랫폼별로 더한다(네이티브 기기 값, 웹 0).
  * - 첫 요소에 marginTop/스페이서를 더하지 않는다. 더하면 8이 깨진다.
  */
-export const NAV_PILL_HEIGHT = 44;
+// 앱바 알약 = 안쪽 버튼 40 + 여백 4×2
+export const NAV_PILL_HEIGHT = 48;
+export const NAV_PILL_PADDING = 4;
 /** 안전영역 아래 앱바 위 여백 */
 export const APPBAR_TOP_PADDING = Spacing.smd;
-/** 앱바 버튼(알약) 아래 끝(안전영역 제외) — 10 + 44 = 54. 앱바 버튼에 붙는 메뉴·팝오버 기준 */
+/** 앱바 버튼(알약) 아래 끝(안전영역 제외) — 10 + 48 = 58. 앱바 버튼에 붙는 메뉴·팝오버 기준 */
 export const APPBAR_CONTENT_BOTTOM = APPBAR_TOP_PADDING + NAV_PILL_HEIGHT;
-/** 앱바 공간 아래 끝(안전영역 제외) — 위 10 + 알약 44 + 아래 10 = 64 */
+/** 앱바 공간 아래 끝(안전영역 제외) — 위 10 + 알약 48 + 아래 10 = 68 */
 export const APPBAR_AREA_BOTTOM = APPBAR_CONTENT_BOTTOM + APPBAR_TOP_PADDING;
 /** 앱바 공간과 첫 요소 사이 */
 export const APPBAR_CONTENT_GAP = Spacing.sm;

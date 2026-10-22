@@ -1,4 +1,5 @@
 import {NOTE_BLOCK, TIP_LINE_COLOR} from '@constants/noteBlock';
+import {NAV_PILL_PADDING} from '@constants/layout';
 import {launchCamera} from '@utils/camera';
 import {launchLibrary} from '@components/AlbumPicker/albumPicker';
 import {StepTimer, type StepTimerHandle} from '@components/StepTimer';
@@ -1729,16 +1730,10 @@ export function RecipeDetailScreen({
                   leading={{type: 'icon', icon: IconBlackNose}}
                   trailing={onEdit ? {type: 'iconButton', icon: IconEditFilled, onPress: () => editWith('advice'), variant: 'ghost-yellow', size: 'small'} : undefined}
                 />
+                {/* 요리모드엔 조언이 없다 — 눌러도 요리모드로 가지 않는다 */}
                 <ListItem
                   titleNumberOfLines={0}
                   showDivider={false}
-                  onPress={() => {
-                    const totalSteps = stepGroups
-                      ? stepGroups.reduce((sum, g) => sum + g.steps.length, 0)
-                      : (steps?.length ?? 0);
-                    setCookingModeInitialIndex(totalSteps);
-                    setShowCookingMode(true);
-                  }}
                 >
                   {!!advice && <RichText style={styles.adviceText}>{advice}</RichText>}
                   {/* 조언 사진 — 편집과 같게 글 아래 */}
@@ -2545,7 +2540,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   tabPillContent: {
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 2,
+    padding: NAV_PILL_PADDING,
   },
 
   // Advice

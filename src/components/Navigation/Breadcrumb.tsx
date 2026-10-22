@@ -1,4 +1,5 @@
 import {NAV_PILL_HEIGHT, APPBAR_ITEM_GAP} from '@constants/layout';
+import {NAV_PILL_PADDING} from '@constants/layout';
 import React, {useSyncExternalStore} from 'react';
 import {Pressable, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {Typography} from '@constants/typography';
@@ -180,7 +181,7 @@ const styles = StyleSheet.create({
     height: NAV_PILL_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 2,
+    padding: NAV_PILL_PADDING,
   },
   // 아바타는 셀렉터에 딱 붙인다(갭 0). 셀렉터 자체 좌측 패딩이 최소 간격 역할.
   leading: {

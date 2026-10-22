@@ -1,4 +1,6 @@
 import React, {useCallback, useEffect, useRef, useState} from 'react';
+import {NAV_PILL_PADDING} from '@constants/layout';
+import {NAV_PILL_HEIGHT} from '@constants/layout';
 import {Animated, Easing, Image, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {triggerHaptic} from '@utils/haptics';
 import {SafeAreaProvider} from 'react-native-safe-area-context';
@@ -447,10 +449,10 @@ const styles = StyleSheet.create({
     gap: Spacing.xs,
   },
   sectionPill: {
-    height: 44,
+    height: NAV_PILL_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
-    padding: 2,
+    padding: NAV_PILL_PADDING,
   },
   undoWrap: {
     position: 'absolute',

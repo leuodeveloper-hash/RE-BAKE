@@ -1,4 +1,6 @@
 import {NOTE_BLOCK, TIP_LINE_COLOR} from '@constants/noteBlock';
+import {NAV_PILL_PADDING} from '@constants/layout';
+import {NAV_PILL_HEIGHT} from '@constants/layout';
 import {launchCamera} from '@utils/camera';
 import {launchLibrary} from '@components/AlbumPicker/albumPicker';
 import {ocrFailMessage} from '@utils/ocrFailMessage';
@@ -459,7 +461,8 @@ export function CookingMode({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [steps, stepGroups]);
 
-  const hasAdvice = !!advice?.trim();
+  // 베이키의 조언은 요리모드에 넣지 않는다(상세에서만 본다)
+  const hasAdvice = false;
   const totalCards = flatCards.length + (hasAdvice ? 1 : 0);
   const displayCards = isEditing ? editCards : flatCards;
 
@@ -2410,10 +2413,10 @@ const createStyles = (colors: SemanticColors) =>
       flex: 1,
     },
     breadcrumbPill: {
-      height: 44,
+      height: NAV_PILL_HEIGHT,
       flexDirection: 'row',
       alignItems: 'center',
-      padding: 2,
+      padding: NAV_PILL_PADDING,
     },
     breadcrumbCaret: {
       marginHorizontal: -4,

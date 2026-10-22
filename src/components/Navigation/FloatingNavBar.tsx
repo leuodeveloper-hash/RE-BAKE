@@ -37,15 +37,15 @@ export interface FloatingNavBarProps {
 
 
 /** NavBar pill 높이 */
-export {NAV_PILL_HEIGHT, APPBAR_TOP_PADDING, APPBAR_CONTENT_BOTTOM, APPBAR_CONTENT_GAP, APPBAR_CONTENT_TOP, APPBAR_AREA_BOTTOM} from '@constants/layout';
-import {NAV_PILL_HEIGHT, APPBAR_CONTENT_BOTTOM, APPBAR_CONTENT_GAP, APPBAR_AREA_BOTTOM, APPBAR_ITEM_GAP} from '@constants/layout';
+export {NAV_PILL_HEIGHT, NAV_PILL_PADDING, APPBAR_TOP_PADDING, APPBAR_CONTENT_BOTTOM, APPBAR_CONTENT_GAP, APPBAR_CONTENT_TOP, APPBAR_AREA_BOTTOM} from '@constants/layout';
+import {NAV_PILL_HEIGHT, NAV_PILL_PADDING, APPBAR_CONTENT_BOTTOM, APPBAR_CONTENT_GAP, APPBAR_AREA_BOTTOM, APPBAR_ITEM_GAP} from '@constants/layout';
 
 /** 공통 pill 스타일 — GlassContainer contentStyle에 사용 */
 export const navPillStyle: ViewStyle = {
   flexDirection: 'row',
   alignItems: 'center',
   height: NAV_PILL_HEIGHT,
-  padding: 2,
+  padding: NAV_PILL_PADDING,
   gap: 2,
 };
 

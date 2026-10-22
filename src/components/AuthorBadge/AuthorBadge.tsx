@@ -1,4 +1,6 @@
 import React, {useState} from 'react';
+import {NAV_PILL_PADDING} from '@constants/layout';
+import {NAV_PILL_HEIGHT} from '@constants/layout';
 import {Pressable, StyleSheet, Text, View} from 'react-native';
 import {AuthorAvatar} from './AuthorAvatar';
 import {Popover} from '@components/Popover';
@@ -71,10 +73,10 @@ const createStyles = (colors: SemanticColors) =>
     },
     // NavPillButton과 동일 규격(높이 44, padding 2) — X·셀렉터 알약과 톤/높이 일치
     pill: {
-      height: 44,
+      height: NAV_PILL_HEIGHT,
       alignItems: 'center',
       justifyContent: 'center',
-      padding: 2,
+      padding: NAV_PILL_PADDING,
     },
     popover: {
       position: 'absolute',

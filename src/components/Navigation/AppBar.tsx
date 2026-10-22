@@ -1,4 +1,5 @@
 import React from 'react';
+import {NAV_PILL_PADDING} from '@constants/layout';
 import {Pressable, StyleSheet, View} from 'react-native';
 import {SvgProps} from 'react-native-svg';
 import {
@@ -238,11 +239,11 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   titlePill: {
-    height: 44,
+    height: NAV_PILL_HEIGHT,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    padding: 2,
+    padding: NAV_PILL_PADDING,
   },
   // 아바타와 셀렉터 사이 간격 (Breadcrumb.leading과 동일). 음수 마진은 겹침 유발해 금지.
   titleLeading: {
