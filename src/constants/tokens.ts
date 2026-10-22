@@ -272,6 +272,7 @@ export const Radius = {
   'radius-md': 12,
   'radius-lg': 16,
   'radius-xl': 24,
+  'radius-xxl': 32,
   'radius-full': 999,
 } as const;
 

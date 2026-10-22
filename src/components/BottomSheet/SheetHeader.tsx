@@ -70,8 +70,8 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
             )}
           </View>
           {/* 타이틀: 그래픽 아래 좌측 정렬 */}
-          <View style={[styles.titleBelowGraphic, pad]}>
-            <Text style={styles.titleLarge}>{title}</Text>
+          <View style={[styles.titleBelowGraphic, pad, inset != null && styles.titleBelowGraphicDialog]}>
+            <Text style={[styles.titleLarge, inset != null && styles.titleDialog]}>{title}</Text>
             {description && <Text style={styles.description}>{description}</Text>}
           </View>
         </>
@@ -82,7 +82,7 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
           <View style={styles.centerRow}>
             {/* 제목은 줄 전체 기준 정가운데에 따로 둔다(앱바와 같은 방식) — 양옆 버튼 개수·폭과 상관없이 늘 가운데 */}
             <View pointerEvents="none" style={styles.centerTitleLayer}>
-              <Text style={styles.titleCenter} numberOfLines={1}>{title}</Text>
+              <Text style={[styles.titleCenter, inset != null && styles.titleDialog]} numberOfLines={1}>{title}</Text>
             </View>
             <View style={styles.centerSide}>
               {onBack ? (
@@ -108,7 +108,7 @@ export function SheetHeader({title, description, onClose, icon, avatarColor, hea
           <View style={[styles.titleRow, pad]}>
             {onBack && <IconButton icon={IconArrowLeft} variant="tonal" size="medium" onPress={onBack} />}
             <View style={styles.titleContainer}>
-              <Text style={styles.title}>{title}</Text>
+              <Text style={[styles.title, inset != null && styles.titleDialog]}>{title}</Text>
             </View>
             {headerRight}
             {onClose && (
@@ -140,6 +140,11 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     paddingHorizontal: Spacing.lg,
   },
   // 아이콘 아래 제목·설명 묶음 — 위아래 8씩 더(아이콘·버튼과 붙어 보였다)
+  // 팝업 — 아이콘 아바타와 제목 사이 16, 제목 아래 12
+  titleBelowGraphicDialog: {
+    paddingTop: Spacing.md,
+    paddingBottom: Spacing.smd,
+  },
   titleBelowGraphic: {
     paddingHorizontal: Spacing.lg,
     paddingTop: Spacing.smd + Spacing.sm,
@@ -161,6 +166,10 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
   titleContainer: {
     flex: 1,
     paddingHorizontal: 4,
+  },
+  // 팝업(Dialog) 제목 — Figma title-medium/bold(SemiBold 16/22)
+  titleDialog: {
+    ...Typography.title.medium,
   },
   title: {
     fontFamily: Typography.headline.small.fontFamily,

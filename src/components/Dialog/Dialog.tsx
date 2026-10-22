@@ -1,4 +1,6 @@
 import React, {useEffect, useRef, useState} from 'react';
+import {DialogHeader, DIALOG_PADDING} from './DialogHeader';
+import {DialogActions} from './DialogActions';
 import {
   Animated,
   Easing,
@@ -20,7 +22,6 @@ import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import type {AvatarColor} from '@components/Avatar/Avatar';
 import {IconClose} from '@components/Icon/IconIndex';
 import {IconButton} from '@components/IconButton';
-import {SheetHeader} from '@components/BottomSheet/SheetHeader';
 import {EdgeFade} from '@components/Container/ContentMask';
 import {BlurView} from 'expo-blur';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -29,9 +30,6 @@ import {useModalGate, markModalClosing} from '@hooks/useModalGate';
 import {APPBAR_TOP_PADDING} from '@components/Navigation';
 import {useThemedStyles} from '@hooks/useThemedStyles';
 import {useColors} from '@contexts/ThemeContext';
-
-/** 팝업 여백 — 머리·내용·버튼 줄·카드 아래가 모두 이 값(시트는 24) */
-export const DIALOG_PADDING = 20;
 
 export interface DialogProps {
   visible: boolean;
@@ -230,7 +228,7 @@ export function Dialog({
           // 팝업 머리 = 공통 시트 헤더 두 종류.
           //  - 일반 헤더(기본): 라벨 가운데 · 왼쪽 X
           //  - 아이콘 헤더(headerType="default"): 아이콘(동그란 색 바탕) · 왼쪽 정렬 제목·설명 · 오른쪽 X — 상세 메타데이터(시간·분량·반죽 온도·분할 무게) 팝업
-          <SheetHeader
+          <DialogHeader
             title={title ?? ''}
             description={description}
             icon={icon}
@@ -239,7 +237,6 @@ export function Dialog({
             headerType={effectiveHeaderType}
             headerRight={headerRight}
             onClose={showCloseButton ? onClose : undefined}
-            inset={DIALOG_PADDING}
           />
         )}
 
@@ -263,18 +260,8 @@ export function Dialog({
           ]}>{children}</View>
         ))}
 
-        {/* Actions */}
-        {actions && (
-          <View style={styles.actions}>
-            {React.Children.map(
-              (actions as any)?.type === React.Fragment
-                ? (actions as any).props.children
-                : actions,
-              // 팝업 버튼은 둥근 사각(square) — 알약보다 카드와 어울린다
-              child => child ? <View style={{flex: 1}}>{React.isValidElement(child) ? React.cloneElement(child as React.ReactElement<any>, {shape: 'square'}) : child}</View> : null,
-            )}
-          </View>
-        )}
+        {/* Actions — 공통 팝업 버튼 줄 */}
+        {actions ? <DialogActions>{actions}</DialogActions> : null}
       </Animated.View>
       </Animated.View>
     </View>
@@ -303,7 +290,8 @@ const createStyles = (colors: SemanticColors) =>
       width: 312,
       minHeight: 160,
       backgroundColor: colors['surface/bright'],
-      borderRadius: Radius['radius-xl'],
+      // 팝업 카드 — 가장 큰 둥글기(xxl)
+      borderRadius: Radius['radius-xxl'],
       paddingBottom: DIALOG_PADDING,
     },
     content: {
@@ -329,19 +317,12 @@ const createStyles = (colors: SemanticColors) =>
       marginTop: Spacing.xs,
       marginBottom: 0,
     },
-    // 버튼 줄 — 하단 액션처럼 위 여백 8을 스스로 갖는다(아래는 카드 여백)
-    actions: {
-      flexDirection: 'row',
-      gap: Spacing.sm,
-      paddingHorizontal: DIALOG_PADDING,
-      paddingTop: Spacing.sm,
-    },
     imageHeader: {
       alignSelf: 'stretch',
       aspectRatio: 2,
       overflow: 'hidden' as const,
-      borderTopLeftRadius: Radius['radius-xl'],
-      borderTopRightRadius: Radius['radius-xl'],
+      borderTopLeftRadius: Radius['radius-xxl'],
+      borderTopRightRadius: Radius['radius-xxl'],
     },
     headerImage: {
       width: '100%' as any,

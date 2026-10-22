@@ -11,3 +11,5 @@ export * from './UnlockDialog';
 export * from './UpdateDialog';
 export * from './NumberValueDialog';
 export * from './TextPromptDialog';
+export * from './DialogHeader';
+export * from './DialogActions';
