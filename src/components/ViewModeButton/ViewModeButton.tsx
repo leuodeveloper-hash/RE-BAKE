@@ -7,13 +7,13 @@ export type ViewMode = 'split' | 'all';
 
 /**
  * 보기 토글 — 묶음뷰 ↔ 문장뷰. 상세 머리줄·편집 머리줄 공통(요약은 옆 SummaryToggle).
- * 아이콘은 지금 보기(묶음 = 세로 나누기, 문장 = 설명), 누르면 다른 보기로 바로 바뀐다
+ * 아이콘은 누르면 바뀔 보기(묶음 = 세로 나누기, 문장 = 설명) — 지금 묶음뷰면 문장 아이콘
  */
 export function ViewModeButton({value, onChange}: {value: ViewMode; onChange: (mode: ViewMode) => void}) {
   return (
     <View style={styles.slot}>
       <IconButton
-        icon={value === 'split' ? IconSliceVertical : IconDescription}
+        icon={value === 'split' ? IconDescription : IconSliceVertical}
         variant="ghost-secondary"
         size="medium"
         onPress={() => onChange(value === 'split' ? 'all' : 'split')}
