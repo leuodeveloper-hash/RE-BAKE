@@ -3148,7 +3148,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                       {/* 번개(요약)는 보기 버튼 왼쪽 — 상세 머리줄과 같은 순서 */}
                       {/* 번개 · 보기는 늘 같은 자리. 요약 쓰는 중엔 그 오른쪽에 사진에서 요약 읽기(타이머·추가는 숨김) */}
                       {groupIndex === 0 && <SummaryToggle value={summaryAll} onChange={toggleSummaryAll} />}
-                      <View style={styles.splitSwitch}><ViewModeButton value={group.bulkMode ? 'all' : 'split'} onChange={mode => { if ((mode === 'all') !== !!group.bulkMode) toggleStepBulk(group, mode === 'all'); }} /></View>
+                      <View style={styles.splitSwitch}><ViewModeButton value={group.bulkMode ? 'all' : 'split'} onChange={mode => { setSummaryAll(false); if ((mode === 'all') !== !!group.bulkMode) toggleStepBulk(group, mode === 'all'); }} /></View>
                       {groupIndex === 0 && summaryAll && (
                           <View style={styles.headerAddSlot}>
                             <IconButton icon={IconScanText} onPress={() => setSummaryScan(summaryScan === group.id ? null : group.id)} variant="ghost-secondary" size="medium" forcePressed={summaryScan === group.id} />
@@ -3171,17 +3171,22 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                     onPress: () => { setAddMenuAnchor('right'); setStepAddMenu(group.id); }, variant: 'ghost-secondary'}}>
                   <View style={styles.breadcrumbRow}>
                     <Text style={styles.breadcrumbPrefix}>{t('recipeEdit.stepsLabel')}</Text>
-                    <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
-                    <TextInput
-                      // 묶음 이름 — 한 줄 입력(여러 줄 입력은 아이폰에서 안쪽 여백으로 키가 커져 머리줄이 내려앉았다)
-                      style="ghost"
-                      bare
-                      inputStyle={[styles.cardFieldInput, styles.breadcrumbInput, noOutline]}
-                      value={group.title}
-                      onChangeText={v => updateStepGroupTitle(group.id, v)}
-                      placeholder={t('recipeEdit.groupNamePlaceholder')}
-                    />
-                    {!summaryAll && renderGroupTimer(group)}
+                    {/* 요약 쓰는 중엔 전 과정 — 첫 묶음 이름(› 반죽)은 빼고 '과정'만 */}
+                    {!summaryAll && (
+                      <>
+                        <IconChevronRight width={8} height={8} color={colors['foreground/on-surface-var']} />
+                        <TextInput
+                          // 묶음 이름 — 한 줄 입력(여러 줄 입력은 아이폰에서 안쪽 여백으로 키가 커져 머리줄이 내려앉았다)
+                          style="ghost"
+                          bare
+                          inputStyle={[styles.cardFieldInput, styles.breadcrumbInput, noOutline]}
+                          value={group.title}
+                          onChangeText={v => updateStepGroupTitle(group.id, v)}
+                          placeholder={t('recipeEdit.groupNamePlaceholder')}
+                        />
+                        {renderGroupTimer(group)}
+                      </>
+                    )}
                   </View>
                 </ListItem>
               ) : (
@@ -3197,7 +3202,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                       {/* 번개(요약)는 보기 버튼 왼쪽 — 상세 머리줄과 같은 순서 */}
                       {/* 번개 · 보기는 늘 같은 자리. 요약 쓰는 중엔 그 오른쪽에 사진에서 요약 읽기(타이머·추가는 숨김) */}
                       {groupIndex === 0 && <SummaryToggle value={summaryAll} onChange={toggleSummaryAll} />}
-                      <View style={styles.splitSwitch}><ViewModeButton value={group.bulkMode ? 'all' : 'split'} onChange={mode => { if ((mode === 'all') !== !!group.bulkMode) toggleStepBulk(group, mode === 'all'); }} /></View>
+                      <View style={styles.splitSwitch}><ViewModeButton value={group.bulkMode ? 'all' : 'split'} onChange={mode => { setSummaryAll(false); if ((mode === 'all') !== !!group.bulkMode) toggleStepBulk(group, mode === 'all'); }} /></View>
                       {groupIndex === 0 && summaryAll && (
                           <View style={styles.headerAddSlot}>
                             <IconButton icon={IconScanText} onPress={() => setSummaryScan(summaryScan === group.id ? null : group.id)} variant="ghost-secondary" size="medium" forcePressed={summaryScan === group.id} />
