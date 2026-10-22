@@ -287,7 +287,7 @@ export function StackedThumbnail({
   const innerHeight = cardSize - 2 * paperPadding;
   const lineCount = Math.max(1, Math.floor((innerHeight + lineGap) / (lineHeight + lineGap)));
   // 폰트 크기는 cardSize에 비례
-  const fontSize = Math.max(cardSize * 0.055, 4); // 디자인 비율 — 종이가 커지면 글자도 같이 커진다
+  const fontSize = Math.max(cardSize * 0.05, 4); // 종이의 5% — 종이가 커지면 글자도 같이 커진다
   // 줄 사이를 좁게 — 종이에 글이 촘촘히 채워져야 '내용이 있다'로 보인다
   const textLineHeight = fontSize * 1.15;
   const textMaxLines = Math.max(1, Math.floor(innerHeight / textLineHeight));

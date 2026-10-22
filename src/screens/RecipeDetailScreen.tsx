@@ -1876,7 +1876,6 @@ export function RecipeDetailScreen({
                     <View style={styles.recipeNavContent}>
                       <Text style={styles.recipeNavTitle} numberOfLines={1}>{prev.label}</Text>
                       <View style={styles.recipeNavMeta}>
-                        <View style={{width: 8}}><IconChevronLeft width={12} height={12} color={colors['foreground/on-surface-muted']} /></View>
                         <Text style={styles.recipeNavSub}>{t('recipeDetail.prev')}</Text>
                       </View>
                     </View>
@@ -1890,7 +1889,6 @@ export function RecipeDetailScreen({
                       <Text style={styles.recipeNavTitle} numberOfLines={1}>{next.label}</Text>
                       <View style={styles.recipeNavMeta}>
                         <Text style={styles.recipeNavSub}>{t('recipeDetail.next')}</Text>
-                        <View style={{width: 8}}><IconChevronRight width={12} height={12} color={colors['foreground/on-surface-muted']} /></View>
                       </View>
                     </View>
                     <Thumbnail size={navThumb}>
