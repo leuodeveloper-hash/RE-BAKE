@@ -841,8 +841,6 @@
   "recipeEdit.addGroupAbove": "위에 그룹 추가",
   "recipeEdit.addItem": "갈래 추가",
   "recipeEdit.addPhoto": "사진 추가",
-  "recipeEdit.removeCoverPhoto": "대표 사진 삭제",
-  "recipeEdit.removePhotoAt": "{{n}}번째 사진 삭제",
   "recipeEdit.addStepAbove": "위에 추가",
   "recipeEdit.addStepBelow": "아래에 추가",
   "recipeEdit.bakeyAdvice": "베이키의 조언",

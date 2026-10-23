@@ -1246,7 +1246,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   // 요약 한번에 쓰기 — 번개 토글. 과정 줄은 숨기고 묶음마다 요약 칸만 한 카드에(묶음 이름은 고칠 수 없는 이름표)
   const [summaryAll, setSummaryAll] = useState(false);
   // 보기(묶음뷰·문장뷰)는 그대로 두고 내용만 요약으로
-  const toggleSummaryAll = (on: boolean) => setSummaryAll(on);
+  // 한번에 쓰기 묶음의 요약 입력 중 글 — 과정 글에 넣었다 꺼내면 끝 공백이 잘려 띄어쓰기가 안 됐다
+  const [summaryDrafts, setSummaryDrafts] = useState<Record<string, string>>({});
+  const toggleSummaryAll = (on: boolean) => { setSummaryAll(on); setSummaryDrafts({}); };
   // 요약 줄 '사진에서 읽기' 메뉴가 열린 묶음
   const [summaryScan, setSummaryScan] = useState<string | null>(null);
   // 한번에 쓰기 머리의 인식 메뉴가 열린 묶음
@@ -2423,22 +2425,15 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                   ...(imageUri && imageUris.length < MAX_EXTRA_HERO
                     ? [{id: 'add', label: t('recipeEdit.addPhoto'), icon: IconAdd}]
                     : []),
-                  ...(heroUris.length > 1
+                  // 한 장이어도 뷰어로 — 지우기·교체는 뷰어에서(사진이 깨져 안 보여도 들어가 지울 수 있다)
+                  ...(heroUris.length > 0
                     ? [{id: 'view', label: t('recipeEdit.viewPhotos'), icon: IconGalleryHorizontalFilled}]
                     : []),
-                  // 사진 지우기 — 장마다 한 줄씩 골라 지운다(대표 = 맨 앞)
-                  ...heroUris.map((_, i) => ({
-                    id: `remove:${i}`,
-                    label: i === 0 ? t('recipeEdit.removeCoverPhoto') : t('recipeEdit.removePhotoAt', {n: i + 1}),
-                    icon: IconTrash,
-                    destructive: true,
-                  })),
                 ]}
                 visible={showPhotoMenu}
                 onSelect={(id) => {
                   setShowPhotoMenu(false);
-                  if (id.startsWith('remove:')) { removeHeroAt(Number(id.slice(7))); setHeroViewerIndex(null); } // 메뉴에서 지우면 뷰어는 안 연다
-                  else if (id === 'add') pickImage('gallery', 'extra');
+                  if (id === 'add') pickImage('gallery', 'extra');
                   else if (id === 'view') setHeroViewerIndex(0);
                   else pickImage(id as 'camera' | 'gallery');
                 }}
@@ -3344,7 +3339,8 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                 // 문장뷰면 한 칸 글을 묶음으로 읽어 요약만 바꾸고 다시 글로 쓴다
                 const parsed = group.bulkMode ? parseBulkStepGroups(group.bulkText, group.title) : null;
                 const rows = parsed
-                  ? parsed.map((pg, pi) => ({key: `b${pi}`, title: pg.title, summary: pg.summary ?? '', onChange: (v: string) => {
+                  ? parsed.map((pg, pi) => ({key: `b${pi}`, title: pg.title, summary: summaryDrafts[`${group.id}:${pi}`] ?? pg.summary ?? '', onChange: (v: string) => {
+                      setSummaryDrafts(d => ({...d, [`${group.id}:${pi}`]: v}));
                       const next = parsed.map((x, xi) => (xi === pi ? {...x, summary: v} : x));
                       setStepGroups(p => p.map(g => (g.id === group.id ? {...g, bulkText: stepGroupsToBulk(next)} : g)));
                     }}))

@@ -33,6 +33,8 @@ export interface StepTemplate {
   /** 어느 레시피에서 저장했는지(요리명) */
   source?: string;
   createdAt: string;
+  /** 로그인 전에 기기에서만 만든 것 — 로그인하면 계정으로 올리고 지운다 */
+  localOnly?: boolean;
 }
 
 /**
@@ -60,10 +62,13 @@ function useStepTemplatesState() {
       if (!alive) return;
       const remote: StepTemplate[] = Array.isArray(snap.data()?.stepTemplates) ? snap.data()!.stepTemplates : [];
       setTemplates(prev => {
+        // 계정 값이 기준 — 기기 캐시에만 남은 건 로그인 전에 만든 것(localOnly)만 올린다.
+        // 캐시를 다 합치면 다른 기기에서 지운 템플릿이 이 기기 캐시에서 되살아났다
         const ids = new Set(remote.map(r => r.id));
-        const next = [...remote, ...prev.filter(p => !ids.has(p.id))].slice(0, MAX_STEP_TEMPLATES);
+        const pending = prev.filter(p => p.localOnly && !ids.has(p.id)).map(({localOnly: _l, ...rest}) => rest);
+        const next = [...pending, ...remote].slice(0, MAX_STEP_TEMPLATES);
         AsyncStorage.setItem(CACHE_KEY, JSON.stringify(next)).catch(() => {});
-        if (prev.some(p => !ids.has(p.id))) {
+        if (pending.length) {
           setDoc(doc(db, 'users', uid), {stepTemplates: next}, {mergeFields: ['stepTemplates']}).catch(() => {});
         }
         return next;
@@ -99,6 +104,7 @@ function useStepTemplatesState() {
       ...(photos.length ? {photos: photos.map(p => (p.caption ? {uri: p.uri, caption: p.caption} : {uri: p.uri}))} : {}),
       ...(step.source?.trim() ? {source: step.source.trim()} : {}),
       createdAt: new Date().toISOString(),
+      ...(uid ? {} : {localOnly: true}),
     };
     setTemplates(prev => {
       const next = [tpl, ...prev].slice(0, MAX_STEP_TEMPLATES);
@@ -130,6 +136,7 @@ function useStepTemplatesState() {
       description: group.title.trim(),
       ...(group.source?.trim() ? {source: group.source.trim()} : {}),
       createdAt: new Date().toISOString(),
+      ...(uid ? {} : {localOnly: true}),
     };
     setTemplates(prev => {
       const next = [tpl, ...prev].slice(0, MAX_STEP_TEMPLATES);
