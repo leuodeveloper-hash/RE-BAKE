@@ -183,7 +183,20 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   const {t} = useTranslation();
   const [suggest, setSuggest] = useState<{from: string; to: string} | null>(null);
   const [dismissed, setDismissed] = useState<string | null>(null);
-  const refreshSuggest = useCallback(() => setSuggest(document.activeElement === elRef.current ? symbolDom.pendingSymbolDom() : null), []);
+  // 칩 자리 — 커서(‘도씨’ 끝) 바로 위. 편집 칸을 감싼 틀 기준 좌표
+  const wrapRef = useRef<HTMLDivElement | null>(null);
+  const [chipPos, setChipPos] = useState<{left: number; bottom: number} | null>(null);
+  const refreshSuggest = useCallback(() => {
+    const p = document.activeElement === elRef.current ? symbolDom.pendingSymbolDom() : null;
+    setSuggest(p);
+    const sel = window.getSelection();
+    const wrap = wrapRef.current;
+    if (p && sel && sel.rangeCount && wrap) {
+      const rc = sel.getRangeAt(0).getBoundingClientRect();
+      const wr = wrap.getBoundingClientRect();
+      setChipPos({left: Math.max(0, rc.left - wr.left), bottom: wr.bottom - rc.top + 4});
+    }
+  }, []);
   const acceptSuggest = useCallback(() => {
     elRef.current?.focus();
     if (symbolDom.acceptSymbolDom()) { emit(); setSuggest(null); }
@@ -229,6 +242,10 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
         rest = toSource(tailEl);
         // 커서 앞부분만 남기고 알린다(뒤는 새 항목으로 간다)
         const before = toSource(headEl);
+        // 칸 글도 앞부분만 남긴다 — 알리기만 하면 되돌아온 값이 방금 보낸 것과 같아 다시 그리지 않아
+        // 뒤 글자가 이 칸에 그대로 남았다(앱 편집기와 같은 처리). 이미 떼어 둔 앞부분(headEl)을 옮겨 담는다
+        el.innerHTML = '';
+        while (headEl.firstChild) el.appendChild(headEl.firstChild);
         lastEmitRef.current = before;
         onChangeText(before);
         onSubmit?.(rest);
@@ -267,11 +284,15 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
 
   const showSuggest = !!suggest && dismissed !== suggest.from + emitCountRef.current;
   return (
-    <>
+    // 편집 칸 + 제안 칩을 한 틀에 — 칩이 이 틀 기준으로 커서 위에 뜬다(틀이 없으면 먼 조상에 붙어 엉뚱한 데 떴다)
+    <div ref={wrapRef} style={{position: 'relative', flex: 1, minWidth: 0, width: '100%', display: 'flex'}}>
       <style dangerouslySetInnerHTML={{__html: css}} />
       {showSuggest ? (
-        <View style={styles.suggest}>
-          <EditableChip variant="suggest" label={t('symbolSuggest.label', {to: suggest!.to})} onPress={acceptSuggest} onRemove={() => setDismissed(suggest!.from + emitCountRef.current)} />
+        <View style={[styles.suggest, chipPos && {left: chipPos.left, bottom: chipPos.bottom, right: 'auto' as any, marginBottom: 0}]}>
+          {/* 누르는 순간 편집 칸 포커스·커서가 빠지면 바꿀 자리를 잃는다 — 마우스다운 기본 동작(포커스 이동)을 막는다 */}
+          <div onMouseDown={e => e.preventDefault()}>
+            <EditableChip variant="suggest" label={t('symbolSuggest.label', {to: suggest!.to})} onPress={acceptSuggest} onRemove={() => setDismissed(suggest!.from + emitCountRef.current)} />
+          </div>
         </View>
       ) : null}
       <div
@@ -302,7 +323,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
           refreshSuggest();
         }}
       />
-    </>
+    </div>
   );
 });
 

@@ -1,3 +1,5 @@
+import {isLocalUri} from '@utils/imageUpload';
+import {useFailedUploads} from '@utils/failedUploads';
 import React, {useCallback, useEffect, useRef, useState} from 'react';
 import {NAV_PILL_PADDING} from '@constants/layout';
 import {NAV_PILL_HEIGHT} from '@constants/layout';
@@ -80,10 +82,15 @@ function ViewerImage({uri, width, busy}: {uri: string; width: number; /** 보정
     onLoad();
     Animated.timing(fade, {toValue: 1, duration: 280, easing: Easing.out(Easing.quad), useNativeDriver: true}).start();
   };
+  // 서버에 안 올라간 사진(기기 안 주소)이 이 기기에서 안 열리면 — 어떤 사진인지 알 수 있게 아래에 알림.
+  // 찍은 기기에선 열려서(저장 전 새 사진도) 띄우지 않는다
+  const failed = useFailedUploads();
+  const notUploaded = (broken && isLocalUri(uri)) || failed.has(uri) ? <NotUploadedNote /> : null;
   if (broken) {
     return (
       <View style={[styles.image, {width}]}>
         <BrokenImageMark size={72} style={{backgroundColor: 'transparent'}} />
+        {notUploaded}
       </View>
     );
   }
@@ -92,6 +99,17 @@ function ViewerImage({uri, width, busy}: {uri: string; width: number; /** 보정
       <Animated.Image source={{uri}} style={[StyleSheet.absoluteFill, {opacity: fade}]} resizeMode="contain" onError={onError} onLoad={handleLoad} />
       {/* 검은 바탕 — 흰 로딩만. 보정 중이면 문구까지 */}
       {busy || loading ? <ImageLoadingMark dark /> : null}
+      {notUploaded}
+    </View>
+  );
+}
+
+/** 안 올라간 사진 알림 — 사진 아래 가운데 작은 띠 */
+function NotUploadedNote() {
+  const {t} = useTranslation();
+  return (
+    <View style={styles.notUploaded} pointerEvents="none">
+      <Text style={styles.notUploadedText}>{t('photoViewer.notUploaded')}</Text>
     </View>
   );
 }
@@ -437,6 +455,9 @@ export function PhotoViewer({
 }
 
 const styles = StyleSheet.create({
+  // 안 올라간 사진 알림 띠 — 검은 뷰어 위 아래쪽
+  notUploaded: {position: 'absolute', bottom: 96, alignSelf: 'center', backgroundColor: 'rgba(0,0,0,0.6)', borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6},
+  notUploadedText: {color: '#fff', fontSize: 13, lineHeight: 18},
   root: {
     flex: 1,
     backgroundColor: 'rgba(0,0,0,0.92)',

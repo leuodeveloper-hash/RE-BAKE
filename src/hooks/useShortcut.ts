@@ -1,6 +1,6 @@
 import {useEffect, useRef} from 'react';
 import {Platform} from 'react-native';
-import {matchShortcut, type ShortcutId} from '@constants/shortcuts';
+import {matchShortcut, SHORTCUTS, type ShortcutDef, type ShortcutId} from '@constants/shortcuts';
 
 /**
  * 공통 단축키 걸기(웹) — 정의는 constants/shortcuts 한 곳.
@@ -16,7 +16,11 @@ export function useShortcut(id: ShortcutId, handler: () => boolean | void, enabl
       if (e.defaultPrevented || !matchShortcut(id, e)) return;
       if (ref.current() !== false) e.preventDefault();
     };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
+    // ⌘·Ctrl 조합은 먼저 잡는다(capture) — 입력칸(RN Web TextInput)이 keydown 전파를 멈춰
+    // 글을 쓰는 중엔 document까지 안 올라와 ⌘S가 안 먹었다. 조합 키는 입력과 겹칠 일이 없다.
+    // 맨 키(ESC·Enter)는 좁은 범위(칩)가 먼저 처리하도록 평소대로(bubble)
+    const capture = !!(SHORTCUTS[id] as ShortcutDef).mod;
+    document.addEventListener('keydown', onKey, capture);
+    return () => document.removeEventListener('keydown', onKey, capture);
   }, [id, enabled]);
 }

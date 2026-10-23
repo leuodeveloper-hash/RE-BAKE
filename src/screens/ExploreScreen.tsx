@@ -185,10 +185,9 @@ export function ExploreScreen({
   const handleAxisSelect = useCallback((id: string) => {
     setShowCategoryMenu(false);
     const a = id as GroupAxis;
-    if (a === 'all') {
-      setSelectedCategory('__all__');
-      setSelectedMethod(null);
-    }
+    // 축을 고르면 들어가 있던 항목(북·공법)에서 나온다 — 같은 축을 고르면 그 목록으로 돌아간다
+    setSelectedCategory('__all__');
+    setSelectedMethod(null);
     setDrillFrom(null);
     setExploreAxis(a);
   }, []);

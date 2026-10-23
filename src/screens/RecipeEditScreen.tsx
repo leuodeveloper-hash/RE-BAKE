@@ -37,7 +37,8 @@ import {ocrTextToMarkdown, parseRecipeMetaFromOcr} from '@utils/ocrText';
 import {useImageTextReader} from '@hooks/useImageTextReader';
 import {parseRecognizedText} from '@utils/recipeOcr';
 import * as Haptics from 'expo-haptics';
-import {getPersistentUri, MAX_HERO_PHOTOS} from '@utils/imageUpload';
+import {getPersistentUri, isLocalUri, MAX_HERO_PHOTOS} from '@utils/imageUpload';
+import {useFailedUploads} from '@utils/failedUploads';
 import {photoSourceMenuItems} from '@utils/photoSourceMenu';
 import {PhotoViewer} from '@components/PhotoViewer';
 import {useSafeAreaInsets} from 'react-native-safe-area-context';
@@ -596,6 +597,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   const [imageUri, setImageUri] = useState<string | null>(recipe?.imageUri ?? null);
   // 추가 상단 이미지(대표 imageUri 뒤로 최대 2장 — 합쳐서 3장)
   const [imageUris, setImageUris] = useState<string[]>(recipe?.imageUris ?? []);
+  // 저장돼 있던 사진 중 서버에 안 올라간 것(기기 안 주소) — 사진 칸에 빨간 '!'(새로 고른 사진은 저장 때 올라가니 빼고)
+  const failedUploads = useFailedUploads();
+  const savedLocalHero = useMemo(() => new Set([recipe?.imageUri, ...(recipe?.imageUris ?? [])].filter((u): u is string => !!u && isLocalUri(u))), [recipe?.imageUri, recipe?.imageUris]);
   // 대표 + 추가분을 한 줄로 — 뷰어는 이 목록을 그대로 보여주고, 인덱스로 교체/삭제한다
   const heroUris = useMemo(
     () => [imageUri, ...imageUris].filter((u): u is string => !!u),
@@ -2412,9 +2416,10 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                       </View>
                     )}
                     {/* 여러 장이면 장수 표시 — 타일엔 대표만 보이므로 이게 없으면 알 수 없다 */}
-                    {heroUris.length > 1 && (
-                      <View style={styles.photoTileCount} pointerEvents="none">
-                        <Text style={styles.photoTileCountText}>{heroUris.length}</Text>
+                    {(heroUris.length > 1 || heroUris.some(u => savedLocalHero.has(u) || failedUploads.has(u))) && (
+                      // 안 올라간 사진(기기 안 주소)이 섞였으면 빨간 '!' — 대표만 보이는 칸이라 몇 번째가 문제인지 몰랐다(뷰어에서 표시)
+                      <View style={[styles.photoTileCount, heroUris.some(u => savedLocalHero.has(u) || failedUploads.has(u)) && {backgroundColor: colors['background/negative'] as string}]} pointerEvents="none">
+                        <Text style={styles.photoTileCountText}>{heroUris.some(u => savedLocalHero.has(u) || failedUploads.has(u)) ? `! ${heroUris.length}` : heroUris.length}</Text>
                       </View>
                     )}
                   </Card>

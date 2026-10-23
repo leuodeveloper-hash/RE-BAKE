@@ -105,14 +105,19 @@ export function Breadcrumb({axisLabel, axisIcon, axisIconColor, itemLabel, itemI
         <View onLayout={e => setAxisWidth(e.nativeEvent.layout.width)}>
           {wide && axisLabel ? (
             <GlassContainer contentStyle={styles.pill}>
-              {/* 1뎁스(축) 셀렉터 — 들어간 상태면 누르면 뒤로, 아니면 축 메뉴(⌃⌄) */}
-              <Selector label={axisLabel} leadingIcon={AxisIcon} leadingIconColor={axisIconColor} showDropdown={!onBack} onPress={onBack ?? onAxisPress} variant="ghost" />
+              {/* 1뎁스(축) 셀렉터 — 들어간 상태에서도 늘 피커(⌃⌄). 다른 축으로 바로 가거나 같은 축을 골라 목록으로 돌아간다 */}
+              <Selector label={axisLabel} leadingIcon={AxisIcon} leadingIconColor={axisIconColor} showDropdown={!!onAxisPress || !onBack} onPress={onAxisPress ?? onBack} variant="ghost" />
+            </GlassContainer>
+          ) : onAxisPress ? (
+            // 좁아도 피커는 그대로 — 이름만 빼고 아이콘 + ⌃⌄
+            <GlassContainer contentStyle={styles.pill}>
+              <Selector leadingIcon={AxisIcon} leadingIconColor={axisIconColor} showDropdown onPress={onAxisPress} variant="ghost" />
             </GlassContainer>
           ) : (
             <NavPillButton
               icon={axisIcon ?? IconArrowLeft}
               iconColor={axisIconColor}
-              onPress={onBack ?? onAxisPress}
+              onPress={onBack}
               variant="ghost-secondary"
             />
           )}

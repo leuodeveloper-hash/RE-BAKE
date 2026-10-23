@@ -15,7 +15,7 @@ import {useRecipeReviews} from '@hooks/useRecipeReviews';
 import {useMadeStamps} from '@hooks/useMadeStamps';
 import {useExplorePins} from '@hooks/useExplorePins';
 import {ShareRecipeSheet} from '@components/BottomSheet/ShareRecipeSheet';
-import {recordNewSession, sessionKey, currentSessionNumber} from '@utils/session';
+import {sessionKey, currentSessionNumber} from '@utils/session';
 import {useRecipes} from '@contexts/RecipeContext';
 import {useSnackbar} from '@contexts/SnackbarContext';
 import {useAddSheet} from '@contexts/AddSheetContext';
@@ -33,6 +33,8 @@ import {getCookbookColorKey} from '@components/ColorPicker';
 import {DEFAULT_COOKBOOK_COLOR} from '@contexts/RecipeContext';
 import {IconTrashFilled, IconExprolerBookFilled, IconExprolerBookTwotone} from '@components/Icon/IconIndex';
 import {CookbookSelectSheet} from '@components/BottomSheet';
+import {useImportToMyRecipes} from '@hooks/useImportToMyRecipes';
+import {useAddSession} from '@hooks/useAddSession';
 import {Dialog} from '@components/Dialog';
 import {Button} from '@components/Button';
 import {SUBSCRIPTION_ENABLED, useSubscription} from '@contexts/SubscriptionContext';
@@ -368,64 +370,42 @@ const handleDelete = useCallback(async () => {
     // 처리 안 된 메뉴 — '예정' 안내는 띄우지 않는다(심사에서 미완성으로 본다)
   }, []);
 
-  const importRef = useRef<() => void>(() => {});
-  const handleImport = useCallback(() => {
-    if (!recipe) return;
-    // 게스트는 로그인 → 플랜 선택(공통) → 이어서 복사 — 목록에서 복사할 때와 같다
-    if (!user) {
-      openAuthSheet({onSuccess: () => setTimeout(() => importRef.current(), 300)});
-      return;
-    }
-    const copied = {
-      ...recipe,
-      id: `user_${Date.now()}`,
-      sourceId: recipe.id,
-      // 둘러보기 원본 출처 박제 — 복사/회차로 내 것이 돼도 "원본: @작성자" 표시 유지
-      sourceHandle: recipe.authorHandle,
-      sourceAuthorId: recipe.authorId,
-      // 가져오면 내 콘텐츠가 된다 — 작성자를 나로 박제(원본 작성자 → 나). remake와 동일.
-      // (출처 source*는 위에서 박제하므로 "원본: @작성자" 표시는 그대로 유지)
-      authorId: user?.uid,
-      authorHandle: handle ?? undefined,
-      authorDisplayName: displayName ?? undefined,
-      authorAvatarSeed: avatarSeed != null ? String(avatarSeed) : undefined,
-      createdAt: new Date().toISOString(),
-    };
-    setRecipes(prev => [...prev, copied]);
-    showSnackbar(t('id.savedToMyRecipes'), {
-      tone: 'positive',
-      label: t('id.goTo'),
-      onPress: () => router.navigate('/recipes' as any),
-    });
-  }, [recipe, setRecipes, showSnackbar, router, t, user, handle, displayName, avatarSeed, openAuthSheet]);
-  importRef.current = handleImport;
+  // 내 레시피로 복사 — 공통 흐름(로그인 → 레시피북 고르기 → 복사)
+  const {startImport, importSheet} = useImportToMyRecipes();
+  const handleImport = useCallback(() => { if (recipe) startImport(recipe); }, [recipe, startImport]);
 
   // 새 회차 만들기 — 레시피는 하나. 지금 내용을 지난 회차 기록으로 넘기고 다음 번호 회차로 이어서 고친다(최근 5개만)
+  const addSession = useAddSession();
   const handleRemake = useCallback(() => {
     if (!recipe) return;
-    setRecipes(prev => prev.map(r => (r.id === recipe.id ? recordNewSession(r) : r)));
-    setViewSessionId(null);
-    showSnackbar(t('id.sessionAdded'), {tone: 'positive'});
-  }, [recipe, setRecipes, showSnackbar, t]);
+    // 내 레시피·공식 레시피(어드민) 공통 — 공식 쪽도 그 문서에 기록한다
+    addSession(recipe).then(ok => {
+      if (!ok) return;
+      setViewSessionId(null);
+      showSnackbar(t('id.sessionAdded'), {tone: 'positive'});
+    }).catch(() => showSnackbar(t('edit.saveFailed'), {tone: 'error'}));
+  }, [recipe, addSession, showSnackbar, t]);
 
   // 회차 넘기기 — 지난 회차 기록 + 지금 회차. 회차가 하나면 안 보인다
+  // 공식 레시피의 회차는 작성자(어드민)만 본다 — 공용 레시피에 어드민의 작업 기록이 다른 사람에게 보이지 않게
+  const canSeeSessions = !isExploreRecipe || isAdmin;
   const sessionItems = useMemo(() => {
-    if (!recipe?.sessions?.length) return [];
+    if (!canSeeSessions || !recipe?.sessions?.length) return [];
     return [
       ...recipe.sessions.map(x => ({id: x.id, label: t('id.sessionLabel', {current: x.number})})),
       {id: sessionKey(recipe), label: t('id.sessionLabel', {current: currentSessionNumber(recipe)})},
     ];
-  }, [recipe, t]);
+  }, [recipe, t, canSeeSessions]);
 
   const sessionReviews = useMemo(() => {
-    if (!recipe?.sessions?.length) return undefined;
+    if (!canSeeSessions || !recipe?.sessions?.length) return undefined;
     // 회차별 회고 — 지난 회차 기록 + 지금 회차(계정에 회차 id로 보관한 것까지)
     const items = [
       ...recipe.sessions.map(x => ({id: x.id, label: t('id.sessionLabel', {current: x.number}), reviews: sessionReviewsOf(x)})),
       {id: sessionKey(recipe), label: t('id.sessionLabel', {current: currentSessionNumber(recipe)}), reviews: reviewsOf(recipe)},
     ].filter(x => x.reviews.length > 0);
     return items.length > 0 ? items : undefined;
-  }, [recipe, reviewsOf, sessionReviewsOf, t]);
+  }, [recipe, reviewsOf, sessionReviewsOf, t, canSeeSessions]);
 
   // 1회차(가장 오래된 기록)와 비교 — 그 회차 자신을 볼 땐 없음
   const compareBaseline = useMemo(() => {
@@ -829,6 +809,7 @@ const handleDelete = useCallback(async () => {
           linkable={isExploreRecipe}
         />
       ) : null}
+      {importSheet}
       {isAdmin && (
         <CookbookSelectSheet
           visible={showExploreCookbookSheet}

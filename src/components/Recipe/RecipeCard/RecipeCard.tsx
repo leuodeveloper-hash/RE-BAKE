@@ -1,3 +1,4 @@
+import {formatSession} from '@utils/session';
 import {MetaLine} from '@components/MetaLine';
 import {IconThumbnail} from '@components/Thumbnail';
 import {useRouter} from 'expo-router';
@@ -548,6 +549,7 @@ export function RecipeCard({
   cookbook,
   method,
   specificGravity,
+  sessionCount,
   reviewCount = 0,
   imageUrl,
   onPress,
@@ -602,6 +604,8 @@ export function RecipeCard({
   if (cookbook) metaSegments.push({key: 'cookbook', text: cookbook, onPress: onCookbookPress, icon: published ? IconExprolerBookFilled : undefined});
   if (method) metaSegments.push({key: 'method', text: method, onPress: onMethodPress});
   if (specificGravity) metaSegments.push({key: 'sg', text: t('recipeCard.specificGravity', {value: specificGravity})});
+  // 회차 — 둘 이상이면 '2/2 회차'(목록 카드는 늘 지금 회차 = 마지막). 상세 메타와 같은 표기
+  if (sessionCount && sessionCount > 1) metaSegments.push({key: 'session', text: formatSession(sessionCount, sessionCount)});
   const hasMeta = metaSegments.length > 0;
   // 2열(그리드)은 폭이 좁아 작성자·레시피북만 — 공법·비중·회고 수까지 넣으면 줄이 넘친다
   const GRID_META_KEYS = ['kind', 'author', 'cookbook'];

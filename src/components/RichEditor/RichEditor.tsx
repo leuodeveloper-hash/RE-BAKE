@@ -57,7 +57,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
 ) {
   const colors = useColors();
   const webRef = useRef<WebView>(null);
-  const [suggest, setSuggest] = useState<{from: string; to: string} | null>(null);
+  const [suggest, setSuggest] = useState<{from: string; to: string; at?: {x: number; y: number} | null} | null>(null);
   const [height, setHeight] = useState(Typography.body.medium.lineHeight);
   // 웹뷰가 준비되기 전에 온 명령은 모아뒀다 ready 때 흘려보낸다
   const readyRef = useRef(false);
@@ -149,7 +149,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
       case EDITOR_MSG.selection: onSelectionChange?.(payload.selection, payload.value); break;
       case EDITOR_MSG.linkTap: onLinkTap?.(payload); break;
       // 기호 제안 — 웹뷰가 커서 앞 '도씨' 등을 알려 오면 위에 제안 칩
-      case EDITOR_MSG.symbol: setSuggest(payload.suggest ?? null); break;
+      case EDITOR_MSG.symbol: setSuggest(payload.suggest ? {...payload.suggest, at: payload.at ?? null} : null); break;
       case EDITOR_MSG.height: setHeight(Math.max(payload.height, theme.lineHeight)); break;
     }
   }, [value, send, onChangeText, onSubmit, onBackspaceAtStart, onFocus, onBlur, onSelectionChange, onLinkTap, theme.lineHeight]);
@@ -162,7 +162,8 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
     // 레이아웃 속성만 넘긴다 — 폰트/색은 웹뷰 안 CSS가 담당한다.
     <View style={[{height}, layoutStyle]}>
       {suggest ? (
-        <View style={styles.suggest}>
+        // 커서 바로 위 — 웹뷰가 알려 준 커서 좌표(칸 기준). 모르면 왼쪽 위
+        <View style={[styles.suggest, suggest.at ? {left: Math.max(0, suggest.at.x), bottom: height - suggest.at.y + Spacing.xs, marginBottom: 0} : null]}>
           <EditableChip
             variant="suggest"
             label={t('symbolSuggest.label', {to: suggest.to})}
@@ -222,7 +223,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   // 제안 칩 — 편집 칸 바로 위 오른쪽에 떠 있게(웹뷰 바깥 RN 쪽에 그린다)
-  suggest: {position: 'absolute', bottom: '100%', right: 0, marginBottom: Spacing.xs, zIndex: 50},
+  suggest: {position: 'absolute', bottom: '100%', left: 0, marginBottom: Spacing.xs, zIndex: 50},
 });
 
 export default RichEditor;

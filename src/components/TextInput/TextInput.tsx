@@ -1,6 +1,7 @@
-import React, {useState, useCallback, useMemo, useRef} from 'react';
+import React, {useState, useCallback, useLayoutEffect, useMemo, useRef} from 'react';
 import {pendingSymbolAt, acceptSymbolAt, fixArrows, fixArrowsCaret} from '@utils/autoSymbols';
 import {matchShortcut} from '@constants/shortcuts';
+import {caretCoords} from '@utils/caretCoords';
 import {EditableChip} from '@components/EditableChip';
 import {useTranslation} from '@contexts/LanguageContext';
 import {
@@ -101,6 +102,8 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
 
   const handleChangeText = useCallback((v: string) => {
     onTextChanged();
+    // 웹은 타이핑만으로는 selection 이벤트가 안 와 커서 자리를 모른다 — 입력할 때 직접 읽는다(제안 칩 판단용)
+    if (Platform.OS === 'web') setCaret(internalRef.current?.selectionStart ?? v.length);
     // '->'·'-->'는 바로 →(커서는 화살표 바로 뒤). '도씨'는 아래 제안 칩
     const fixed = fixArrows(v);
     onChangeText?.(fixed);
@@ -141,9 +144,29 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
     if (showSuggest && matchShortcut('suggestDismiss', e.nativeEvent ?? {})) { e.preventDefault?.(); e.stopPropagation?.(); setDismissed(pendingKey); return; }
     onKeyPress?.(e);
   }, [showSuggest, acceptSuggest, onKeyPress, pendingKey]);
+  // 칩 자리 — 웹은 커서('도씨' 끝) 바로 위(입력 칸 기준), 앱은 칸 왼쪽 위
+  // 칩 자리(웹) — 그린 뒤 실제 위치를 재서 커서('도씨' 끝) 바로 위로 옮긴다(부모 구조와 무관하게 화면 좌표로)
+  const chipRef = useRef<any>(null);
+  useLayoutEffect(() => {
+    if (!showSuggest || Platform.OS !== 'web') return;
+    const el = internalRef.current;
+    const chip = chipRef.current as HTMLElement | null;
+    const base = chip?.offsetParent as HTMLElement | null;
+    const c = caretCoords(el, caret ?? 0);
+    if (!el || !chip || !base || !c) return;
+    const ir = el.getBoundingClientRect();
+    const br = base.getBoundingClientRect();
+    chip.style.left = `${ir.left - br.left + c.left}px`;
+    chip.style.top = `${ir.top - br.top + c.top - chip.offsetHeight - Spacing.xs}px`;
+    chip.style.bottom = 'auto';
+    chip.style.marginBottom = '0px';
+  });
   const suggestChip = showSuggest ? (
-    <View style={styles.suggest} pointerEvents="box-none">
-      <EditableChip variant="suggest" label={t('symbolSuggest.label', {to: pending!.to})} onPress={acceptSuggest} onRemove={() => setDismissed(pendingKey)} />
+    <View ref={chipRef} style={styles.suggest} pointerEvents="box-none">
+      {/* 웹: 누르는 순간 입력 포커스가 빠지면 칩이 사라져 안 눌렸다 — 마우스다운 기본 동작(포커스 이동)을 막는다 */}
+      {Platform.OS === 'web' ? React.createElement('div', {onMouseDown: (e: any) => e.preventDefault()},
+        <EditableChip variant="suggest" label={t('symbolSuggest.label', {to: pending!.to})} onPress={acceptSuggest} onRemove={() => setDismissed(pendingKey)} />,
+      ) : <EditableChip variant="suggest" label={t('symbolSuggest.label', {to: pending!.to})} onPress={acceptSuggest} onRemove={() => setDismissed(pendingKey)} />}
     </View>
   ) : null;
 
@@ -182,7 +205,8 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
   );
 
   // 껍데기 없이 입력만 — 부모 레이아웃을 컨테이너가 바꾸지 않는다(제안 칩은 입력 위에 겹쳐)
-  if (bare) return suggestChip ? <View>{inputEl}{suggestChip}</View> : inputEl;
+  // 칩이 있을 때만 감싼다 — 감싼 틀은 입력이 쓰던 자리를 그대로 차지해야 한다(안 그러면 입력 폭이 글자만큼 줄었다)
+  if (bare) return suggestChip ? <View style={styles.bareWrap}>{inputEl}{suggestChip}</View> : inputEl;
 
   return (
     <View style={isGhost ? styles.containerGhost : (isSmall ? styles.containerSmall : styles.container)}>
@@ -223,7 +247,9 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
   // 제안 칩 — 입력칸 바로 위 오른쪽에 떠 있게
-  suggest: {position: 'absolute', bottom: '100%', right: 0, marginBottom: Spacing.xs, zIndex: 50},
+  bareWrap: {flex: 1, minWidth: 0, alignSelf: 'stretch'},
+  // 폭은 글자만큼(좁은 칸에 눌려 세로로 접히지 않게)
+  suggest: {position: 'absolute', bottom: '100%', left: 0, marginBottom: Spacing.xs, zIndex: 50, width: 'max-content' as any},
   container: {
     width: '100%',
   },

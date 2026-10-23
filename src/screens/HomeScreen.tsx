@@ -1,5 +1,5 @@
 import {SETTINGS_ROUTE} from '@utils/navigation';
-import {sessionKey, recordNewSession, currentSessionNumber} from '@utils/session';
+import {sessionKey, currentSessionNumber} from '@utils/session';
 import {OFFICIAL_AUTHOR_ID, OFFICIAL_AUTHOR_HANDLE, OFFICIAL_AUTHOR_DISPLAY_NAME} from '../types/author';
 import {cookbookColorOf} from '@contexts/RecipeContext';
 import {getCookbookColorKey} from '@components/ColorPicker';
@@ -46,6 +46,7 @@ import {IconAdd} from '@components/Icon/IconIndex';
 import {Spacing} from '@constants/spacing';
 import {generateRecipeListHtml, type RecipePdfData} from '@utils/generateRecipeHtml';
 import {parseSession, formatSession} from '@utils/session';
+import {useAddSession} from '@hooks/useAddSession';
 import {getRecipeMenuItems} from '@utils/recipeMenuItems';
 import {useMadeCount} from '@hooks/useMadeCount';
 import {useRecipeReviews} from '@hooks/useRecipeReviews';
@@ -111,6 +112,7 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
   const {isPro} = useSubscription();
   const {user, isAdmin, displayName, handle, avatarSeed} = useAuth();
   // 홈은 개인 레시피만 표시. explore는 pull-to-refresh 동기화 용도로만 reload 사용.
+  const addSession = useAddSession();
   const {reload: exploreReload, exploreCookbooks, recipes: exploreRecipesAll, isLoading: exploreLoading} = useExploreRecipeContext();
 
   // 작성자 홈 모드: 내 레시피 대신 이 authorId로 필터된 둘러보기 레시피. 구조는 홈과 동일.
@@ -258,7 +260,8 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
   const handleAxisChange = useCallback((a: GroupAxis) => {
     setGroupAxis(a);
     setDrillFrom(null);
-    if (a === 'all') { setSelectedCookbook(null); setSelectedMethod(null); }
+    // 축을 고르면 들어가 있던 항목(북·공법)에서 나온다 — 같은 축을 고르면 그 목록으로 돌아간다
+    setSelectedCookbook(null); setSelectedMethod(null);
   }, [setSelectedCookbook, setSelectedMethod]);
   // 시험이 임박하면 홈 상단에 알린다 (알림 설정에서 고른 종목 기준)
   const upcomingExam = useUpcomingExam();
@@ -538,9 +541,12 @@ export function HomeScreen({authorId, initialAxis, onBack, authorBadge, authorPr
     }
     if (id === 'remake') {
       // 새 회차 만들기 — 레시피는 하나. 지금 내용을 지난 회차 기록으로 넘기고 다음 번호로(최근 5개만 남는다)
-      setRecipes(prev => prev.map(r => (r.id === recipe.id ? recordNewSession(r) : r)));
-      showSnackbar(t('home.newSessionAdded'), {tone: 'positive'});
-      router.push(`/recipe/${recipe.id}` as any);
+      // 내 레시피·공식 레시피(어드민) 공통 — 공식 쪽도 그 문서에 기록한다
+      addSession(recipe).then(ok => {
+        if (!ok) return;
+        showSnackbar(t('home.newSessionAdded'), {tone: 'positive'});
+        router.push(`/recipe/${recipe.id}` as any);
+      }).catch(() => showSnackbar(t('edit.saveFailed'), {tone: 'error'}));
     } else if (id === 'share') {
       setShareRecipe(recipe);
     } else if (id === 'edit') {

@@ -1,3 +1,4 @@
+import {useAuth} from '@contexts/AuthContext';
 import {EdgeFade} from '@components/Container/ContentMask';
 import {useAddSheet} from '@contexts/AddSheetContext';
 import React, {useCallback, useEffect, useMemo, useRef, useState} from 'react';
@@ -351,6 +352,9 @@ export function RecipeListTemplate({
   const styles = useThemedStyles(createStyles);
   const {openSearch} = useAddSheet();
   const {t} = useTranslation();
+  // 공식 레시피 회차는 작성자(어드민)만 본다 — 내 레시피(작성자 = 나)·작성자 없는 예전 데이터는 보인다
+  const {isAdmin: viewerIsAdmin, user: viewer} = useAuth();
+  const canSeeSessionsOf = (r: Recipe) => viewerIsAdmin || !r.authorId || r.authorId === viewer?.uid;
   // 회고는 계정에 저장된다 — 레시피의 reviews만 세면 새 회고가 빠진다
   const {reviewsOf} = useRecipeReviews();
   const layoutMenuItems = useMemo(() => makeLayoutMenuItems(t), [t]);
@@ -621,7 +625,8 @@ export function RecipeListTemplate({
         // reviewCount는 리메이크 그룹 합계(호출부가 계산) — 없으면 이 레시피 것
         reviewCount={Math.max(item.reviewCount ?? 0, reviewsOf(item).length)}
         // 회차 수 = 지난 회차 기록 + 지금(레시피 하나 안)
-        sessionCount={sessionCount(item)}
+        // 공식 레시피 회차는 작성자(어드민)만 — 다른 사람에겐 회차 수를 안 보인다
+        sessionCount={canSeeSessionsOf(item) ? sessionCount(item) : undefined}
         imageUrl={item.imageUri}
         layout={activeLayout}
         locked={isLocked}

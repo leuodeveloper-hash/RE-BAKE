@@ -275,8 +275,9 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     ...Typography.caption.large,
     color: colors['foreground/on-surface-muted'],
   },
+  // 본문 — 상세 과정 글과 같은 body.medium(large는 시트에서 커 보였다)
   text: {
-    ...Typography.body.large,
+    ...Typography.body.medium,
     color: colors['foreground/on-surface'],
   },
   note: {

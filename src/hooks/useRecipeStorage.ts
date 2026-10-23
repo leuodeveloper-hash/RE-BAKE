@@ -1,3 +1,4 @@
+import {setFailedUploads, clearFailedUploads} from '@utils/failedUploads';
 import {useCallback, useEffect, useRef, useState} from 'react';
 import {saveRecipeVersion} from '@utils/recipeHistory';
 import {Platform} from 'react-native';
@@ -184,8 +185,11 @@ export async function uploadAllImagesOrThrow<T extends {id: string}>(recipe: T):
   const uploaded = (await uploadLocalImages(recipe as any)) as unknown as T;
   const left = findLocalImageUris(uploaded);
   if (left.length > 0) {
-    throw Object.assign(new Error(`images-not-uploaded:${left.length}`), {code: 'images-not-uploaded', count: left.length});
+    // 어느 사진인지 화면에 표시하게 주소도 넘긴다
+    setFailedUploads(left);
+    throw Object.assign(new Error(`images-not-uploaded:${left.length}`), {code: 'images-not-uploaded', count: left.length, uris: left});
   }
+  clearFailedUploads();
   return uploaded;
 }
 
@@ -475,8 +479,10 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
         ? await Promise.all(changed.map(uploadLocalImages))
         : changed;
       if (cloudRef.current.photoCloudBackup) {
-        const left = uploaded.reduce((n, r) => n + findLocalImageUris(r).length, 0);
-        if (left > 0) showSnackbarRef.current?.(t_notUploaded(left));
+        // 못 올린 사진 주소를 기억해 편집 화면에 빨간 표시(어느 사진인지)
+        const leftUris = uploaded.flatMap(r => findLocalImageUris(r));
+        const left = leftUris.length;
+        if (left > 0) { setFailedUploads(leftUris); showSnackbarRef.current?.(t_notUploaded(left)); } else clearFailedUploads();
       }
       const byId = new Map(uploaded.map(r => [r.id, r]));
       const merged = [
@@ -560,8 +566,10 @@ export function useRecipeStorage(showSnackbar?: (message: string) => void) {
               const hasUploads = JSON.stringify(uploadedChanged) !== JSON.stringify(changed);
               // 사진을 다 못 올렸으면 바로 알린다 — 조용히 넘어가면 다른 기기에서 사진이 안 보이는 걸 늦게 안다
               if (backupNow) {
-                const left = uploadedChanged.reduce((n, r) => n + findLocalImageUris(r).length, 0);
-                if (left > 0) showSnackbarRef.current?.(t_notUploaded(left));
+                // 못 올린 사진 주소를 기억해 편집 화면에 빨간 표시(어느 사진인지)
+                const leftUris = uploadedChanged.flatMap(r => findLocalImageUris(r));
+                const left = leftUris.length;
+                if (left > 0) { setFailedUploads(leftUris); showSnackbarRef.current?.(t_notUploaded(left)); } else clearFailedUploads();
               }
               if (hasUploads) {
                 const byId = new Map(uploadedChanged.map(r => [r.id, r]));

@@ -6,6 +6,7 @@ import {useRouter} from 'expo-router';
 import {doc, updateDoc, deleteField, deleteDoc} from 'firebase/firestore';
 import {ExploreScreen} from '@screens/ExploreScreen';
 import {PlanSheet} from '@components/PlanSheet';
+import {useImportToMyRecipes} from '@hooks/useImportToMyRecipes';
 import {PdfPreviewDialog} from '@components/Dialog';
 import {generateRecipeListHtml, type RecipePdfData} from '@utils/generateRecipeHtml';
 import {useRecipes} from '@contexts/RecipeContext';
@@ -48,31 +49,8 @@ export function ExploreRouteBase({landing = false}: {landing?: boolean}) {
 
   const myRecipeSourceIds = useMemo(() => recipes.map(r => r.sourceId ?? r.id), [recipes]);
 
-  // 로그인 직후엔 이 콜백이 아직 게스트 시절 값이라 — 다시 부를 땐 최신 걸 쓴다
-  const importRef = useRef<(recipe: Recipe) => void>(() => {});
-  const handleImportRecipe = useCallback((recipe: Recipe) => {
-    if (!user) {
-      // 게스트: 로그인 → 플랜 선택(공통) → 이어서 복사
-      openAuthSheet({onSuccess: () => setTimeout(() => importRef.current(recipe), 300)});
-      return;
-    }
-    const copied: Recipe = {
-      ...recipe,
-      id: `user_${Date.now()}`,
-      sourceId: recipe.id,
-      // 둘러보기 원본 출처 박제 — 복사/회차로 내 것이 돼도 "원본: @작성자" 표시 유지
-      sourceHandle: recipe.authorHandle,
-      sourceAuthorId: recipe.authorId,
-      createdAt: new Date().toISOString(),
-    };
-    setRecipes(prev => [...prev, copied]);
-    showSnackbar(t('explore.savedToMyRecipes'), {
-      tone: 'positive',
-      label: t('explore.goTo'),
-      onPress: () => router.navigate('/recipes' as any),
-    });
-  }, [user, setRecipes, showSnackbar, router, t, openAuthSheet]);
-  importRef.current = handleImportRecipe;
+  // 내 레시피로 복사 — 공통 흐름(로그인 → 레시피북 고르기 → 복사). 상세와 같다
+  const {startImport: handleImportRecipe, importSheet} = useImportToMyRecipes();
 
   const handleRecipePress = useCallback((recipe: Recipe, locked?: boolean) => {
     const params = locked ? 'from=explore&locked=1' : 'from=explore';
@@ -199,6 +177,7 @@ export function ExploreRouteBase({landing = false}: {landing?: boolean}) {
         onDownloadPdf={handleDownloadPdf}
         onDeleteExploreCookbook={isAdmin ? handleDeleteExploreCookbook : undefined}
       />
+      {importSheet}
       <PlanSheet
         visible={showPlanSheet}
         onClose={() => setShowPlanSheet(false)}

@@ -229,7 +229,11 @@ export function buildEditorHtml(theme: EditorTheme, placeholder: string, initial
     var key = p ? p.from : null;
     if (key === lastSymbol) return;
     lastSymbol = key;
-    post(M.symbol, {suggest: p});
+    // 칩 자리 — 커서 위치(문서 기준). RN이 칸 위에 커서 바로 위로 띄운다
+    var at = null;
+    var sel = window.getSelection();
+    if (p && sel && sel.rangeCount) { var rc = sel.getRangeAt(0).getBoundingClientRect(); at = {x: rc.left, y: rc.top}; }
+    post(M.symbol, {suggest: p, at: at});
   }
   function acceptSymbol() {
     if (!acceptSymbolDom()) return;

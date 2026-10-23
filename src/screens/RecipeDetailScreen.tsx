@@ -532,6 +532,8 @@ export function RecipeDetailScreen({
   const safeBottom = useSafeBottom();
   const [showMenu, setShowMenu] = useState(false);
   const [showCookbookSubmenu, setShowCookbookSubmenu] = useState(false);
+  // 삭제 고르기 — 회차가 있을 때 '삭제'를 누르면 이 회차만 / 레시피 전체
+  const [showDeleteSubmenu, setShowDeleteSubmenu] = useState(false);
   const [showPdfPreview, setShowPdfPreview] = useState(false);
   const [showTimeDialog, setShowTimeDialog] = useState(false);
   const [showServingsDialog, setShowServingsDialog] = useState(false);
@@ -896,12 +898,7 @@ export function RecipeDetailScreen({
       const withLock = insertLockItems(items, lockMenu.lockMode, lockMenu.locked, t);
       items.splice(0, items.length, ...withLock);
     }
-    // 회차가 둘 이상이면 '이 회차 삭제'(보고 있는 회차만)를 레시피 삭제 바로 위에
-    if (onDeleteSession) {
-      const del = items.findIndex(i => i.id === 'delete');
-      const item = {id: 'deleteSession', label: t('recipeDetail.deleteSessionMenu', {session: parseSession(session).current}), icon: IconTrash, destructive: true};
-      if (del < 0) items.push(item); else items.splice(del, 0, item);
-    }
+    // 회차가 둘 이상이면 '삭제'는 하나 — 누르면 무엇을 지울지(이 회차만 / 레시피 전체) 고른다(아래 deleteSubmenu)
     // 옆에 띄우기 — 다른 레시피를 나란히(검색해서 고른다)
     if (onOpenSide) {
       const del = items.findIndex(i => i.id === 'delete');
@@ -939,6 +936,7 @@ export function RecipeDetailScreen({
   const handleMenuPress = () => {
     setShowMenu(prev => !prev);
     setShowCookbookSubmenu(false);
+    setShowDeleteSubmenu(false);
   };
 
   const [showTemplates, setShowTemplates] = useState(false);
@@ -996,9 +994,16 @@ export function RecipeDetailScreen({
     } else if (id === 'edit') {
       onEdit?.();
     } else if (id === 'deleteSession') {
+      setShowDeleteSubmenu(false);
       setDeleteTarget('session');
       setShowDeleteDialog(true);
+    } else if (id === 'delete' && onDeleteSession && !showDeleteSubmenu) {
+      // 회차가 있으면 바로 지우지 않고 무엇을 지울지 고른다(메뉴는 열어 둔 채 하위 목록으로)
+      setShowDeleteSubmenu(true);
+      setShowMenu(true);
+      return;
     } else if (id === 'delete') {
+      setShowDeleteSubmenu(false);
       setDeleteTarget('recipe');
       if (showDeleteConfirm) {
         setShowDeleteDialog(true);
@@ -1028,6 +1033,10 @@ export function RecipeDetailScreen({
   const handleOverlayPress = () => {
     if (showCookbookSubmenu) {
       setShowCookbookSubmenu(false);
+      return;
+    }
+    if (showDeleteSubmenu) {
+      setShowDeleteSubmenu(false);
       return;
     }
     setShowMenu(false);
@@ -1317,7 +1326,7 @@ export function RecipeDetailScreen({
                 )}
                 {/* 회차 — 둘 이상일 때 지금 보는 회차/전체 */}
                 {totalSessions > 1 && (
-                  <Text numberOfLines={1} style={heroDesc}>{formatSession(parseSession(session).current, totalSessions)}</Text>
+                  <Text numberOfLines={1} style={heroDesc}>{formatSession(sessionNumber || totalSessions, totalSessions)}</Text>
                 )}
                 {totalReviewCount > 0 && (
                   <>
@@ -1977,7 +1986,17 @@ export function RecipeDetailScreen({
           </GlassContainer>
         }
         rightMenu={
-          showCookbookSubmenu && cookbookSubmenu ? (
+          showDeleteSubmenu ? (
+            <Menu
+              title={t('recipeDetail.deleteMenuTitle')}
+              items={[
+                {id: 'deleteSession', label: t('recipeDetail.deleteSessionMenu', {session: sessionNumber || totalSessions || 1}), icon: IconTrash, destructive: true},
+                {id: 'delete', label: t('recipeDetail.deleteWholeRecipe'), icon: IconTrash, destructive: true},
+              ]}
+              onSelect={handleMenuSelect}
+              visible={showMenu}
+            />
+          ) : showCookbookSubmenu && cookbookSubmenu ? (
             <Menu
               title={t('recipeDetail.cookbook')}
               items={cookbookSubmenu.items}
@@ -2191,7 +2210,7 @@ export function RecipeDetailScreen({
         icon={IconTrashTwotone}
         avatarColor="red"
         // 지난 회차를 보고 있으면 그 회차 기록만 지운다 — 레시피 전체가 아니라는 걸 알린다
-        title={deleteTarget === 'session' ? t('recipeDetail.deleteSessionTitle', {session: parseSession(session).current}) : t('recipeDetail.deleteRecipeTitle')}
+        title={deleteTarget === 'session' ? t('recipeDetail.deleteSessionTitle', {session: sessionNumber || totalSessions || 1}) : t('recipeDetail.deleteRecipeTitle')}
         description={deleteTarget === 'session'
           ? t('recipeDetail.deleteSessionDesc', {title: title ?? '', session: parseSession(session).current})
           : t('recipeDetail.deleteRecipeDesc', {title: title ?? ''})}

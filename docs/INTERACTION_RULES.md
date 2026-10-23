@@ -86,5 +86,5 @@ onLongPress: onLongPress ? () => { triggerHaptic('medium'); onLongPress(); } : u
 규칙
 - 새 단축키는 `shortcuts.ts`에 먼저 적는다. 화면에서 `e.key === ...`로 직접 비교하지 않는다(`matchShortcut`).
 - 한 번 누르면 한 가지 일만 — 앞에서 처리한 키는 `preventDefault`하고, 뒤에서는 `e.defaultPrevented`면 건너뛴다.
-- 좁은 범위(입력 칩)가 넓은 범위(화면 ESC)보다 먼저 처리한다.
+- 좁은 범위(입력 칩)가 넓은 범위(화면 ESC)보다 먼저 처리한다. 단 ⌘·Ctrl 조합 키는 `useShortcut`이 capture로 먼저 잡는다(RN Web 입력칸이 keydown 전파를 멈춰 글 쓰는 중엔 안 올라온다).
 - 한글 조합 중(`isComposing`·keyCode 229) 엔터는 조합 끝내기로 둔다.

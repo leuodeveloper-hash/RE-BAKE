@@ -299,6 +299,8 @@ export function CookingMode({
   const madePromptedRef = useRef(false);
   // 눈금에서 선택된 스톱 id (스텝 시작 또는 스텝 내부 사진 노출용 중간 스톱). null이면 현재 스텝의 첫 스톱.
   const [currentStopId, setCurrentStopId] = useState<string | null>(null);
+  const currentStopIdRef = useRef<string | null>(null);
+  currentStopIdRef.current = currentStopId;
   const [isEditing, setIsEditing] = useState(false);
   const [containerWidth, setContainerWidth] = useState(Dimensions.get('window').width);
   const [editCards, setEditCards] = useState<CookingCard[]>([]);
@@ -837,7 +839,8 @@ export function CookingMode({
     let bi = 0, best = Infinity;
     ss.forEach((s, i) => { const d = Math.abs(s.offset - offsetX); if (d < best) { best = d; bi = i; } });
     const stop = ss[bi];
-    if (isEditingRef.current) exitEditing();
+    // 다른 카드로 넘어갈 때만 편집을 끝낸다 — 글 안 다른 자리를 눌러도 스크롤 끝 이벤트가 와서 편집이 풀렸다
+    if (isEditingRef.current && stop && stop.id !== currentStopIdRef.current) exitEditing();
     if (stop) {
       setCurrentStopId(stop.id);
       setCurrentIndex(stop.stepIndex);
@@ -878,7 +881,8 @@ export function CookingMode({
     if (stop) {
       // scrollTo가 대기 중인 네이티브 관성을 덮어써 한 칸에서 멈춤
       scrollViewRef.current?.scrollTo({x: stop.offset, animated: true});
-      if (isEditingRef.current) exitEditing();
+      // 같은 카드에 머무르면(글 안 커서 옮기기 등 작은 끌기) 편집은 그대로
+      if (isEditingRef.current && targetIdx !== dragStartStopIdxRef.current) exitEditing();
       setCurrentStopId(stop.id);
       setCurrentIndex(stop.stepIndex);
       setShowAddMenu(false);
@@ -889,7 +893,8 @@ export function CookingMode({
   }, [containerWidth, exitEditing]);
 
   // Editing
-  const startEditing = useCallback(() => {
+  /** caret: 커서 자리(글자 수) — 길게 누른 자리. 없으면 글 끝 */
+  const startEditing = useCallback((caret?: number) => {
     const initialCards = flatCards.map(c => ({...c, editIngredients: [...c.matchedIngredients]}));
     setEditCards(initialCards);
     editCardsRef.current = initialCards;
@@ -914,8 +919,9 @@ export function CookingMode({
         }
         const card = flatCards[currentIndex];
         if (card) {
-          const len = card.description.length;
+          const len = Math.min(caret ?? card.description.length, card.description.length);
           (input as any).setSelectionRange?.(len, len);
+          node?.setSelectionRange?.(len, len);
           (input as any).setNativeProps?.({selection: {start: len, end: len}});
         }
       }, 100);
@@ -925,10 +931,24 @@ export function CookingMode({
   // 편집 중 바깥 누름이 시작된 때 — 길게 누름은 편집 끝으로 치지 않는다
   const editPressAt = useRef(0);
   // 글을 길게 누르면 편집으로(두 번 톡 대신) — 롱프레스 = medium 햅틱
-  const handleDoubleTap = useCallback(() => {
+  // 커서는 길게 누른 자리에(웹: 누른 좌표의 글자 위치를 잰다. 앱은 좌표→글자를 알 수 없어 글 끝)
+  const handleDoubleTap = useCallback((e?: any) => {
     if (!canEdit || isEditing) return;
     triggerHaptic('medium');
-    startEditing();
+    let caret: number | undefined;
+    if (Platform.OS === 'web' && e?.nativeEvent && typeof document !== 'undefined') {
+      const ev = e.nativeEvent;
+      const x = ev.clientX ?? ev.pageX, y = ev.clientY ?? ev.pageY;
+      const at = (document as any).caretRangeFromPoint?.(x, y);
+      const root = e.currentTarget as HTMLElement | undefined;
+      if (at && root?.contains?.(at.startContainer)) {
+        const pre = document.createRange();
+        pre.selectNodeContents(root);
+        pre.setEnd(at.startContainer, at.startOffset);
+        caret = pre.toString().length;
+      }
+    }
+    startEditing(caret);
   }, [canEdit, isEditing, startEditing]);
 
   const updateCardField = useCallback((globalIndex: number, field: 'description' | 'tip' | 'caution', value: string | undefined) => {
@@ -1665,7 +1685,13 @@ export function CookingMode({
           isNarrow && {flexDirection: 'column', alignItems: 'stretch'},
           {paddingLeft: PAD + sideInset, paddingRight: PAD},
         ]}
-        onStartShouldSetResponder={() => true}
+        // 바깥(빈 자리)을 눌렀을 때만 편집 끝 — 웹은 글 칸(입력·textarea)을 눌러도 이 바깥 틀이 눌림을 가져가
+        // 커서를 옮기려고 누르기만 해도 편집이 빠졌다. 입력 칸·칩·버튼 안을 누른 건 넘긴다
+        onStartShouldSetResponder={(e: any) => {
+          const el = e?.nativeEvent?.target as HTMLElement | undefined;
+          if (Platform.OS === 'web' && el?.closest?.('input, textarea, [contenteditable="true"], [role="button"]')) return false;
+          return true;
+        }}
         onResponderGrant={() => { editPressAt.current = Date.now(); }}
         onResponderRelease={() => {
           // 짧게 누른 것만 — 길게 누르면(글 고르기 등) 저장하고 나가지 않는다
@@ -1993,49 +2019,22 @@ export function CookingMode({
 
         {/* 편집 키보드 툴바: 과정이동·실행취소/다시·추가·사진 + 완료 (우측 상단 편집 툴바 통합) */}
         {isEditing && canEdit && (
+          // 편집 화면과 같은 툴바 구성 — 실행취소·다시 / 팁·주의(바로 추가) / 사진에서 글 읽기(툴바 안 뎁스) / 완료.
+          // 사진은 카드의 사진 칸(PhotoAddSlot)에서 넣는다(편집 화면과 같다)
           <EditorToolbar
             undo={{onPress: undo, disabled: !canUndo}}
             redo={{onPress: redo, disabled: !canRedo}}
-            scan={{onPress: () => { setShowScanMenu(v => !v); setShowAddMenu(false); setShowPhotoSubmenu(false); }, active: showScanMenu, disabled: !editCards[currentIndex] || ocrBusy}}
-            add={{
-              onPress: () => { setShowAddMenu(prev => !prev); setShowPhotoSubmenu(false); setShowScanMenu(false); },
-              active: showAddMenu,
-              disabled: (() => {
-                const c = editCards[currentIndex];
-                // 팁·주의·사진 모두 이미 추가/최대면 비활성화
-                return !!c && c.tip != null && c.caution != null && (c.photos?.length ?? 0) >= MAX_PHOTOS;
-              })(),
-            }}
+            tip={{onPress: () => handleAddMenuSelect('tip'), disabled: !editCards[currentIndex] || editCards[currentIndex].tip != null}}
+            caution={{onPress: () => handleAddMenuSelect('caution'), disabled: !editCards[currentIndex] || editCards[currentIndex].caution != null}}
+            scan={{onPress: () => setShowScanMenu(v => !v), active: showScanMenu, disabled: !editCards[currentIndex] || ocrBusy}}
             onDone={exitEditing}
-            above={
-              showScanMenu ? (
-                <Menu
-                  items={[
-                    {id: 'camera', label: t('cookingMode.scanByCamera'), icon: IconCameraFilled},
-                    {id: 'gallery', label: t('cookingMode.scanFromGallery'), icon: IconPhoto},
-                  ]}
-                  visible={showScanMenu}
-                  onSelect={(id) => { setShowScanMenu(false); cookingScan(id === 'camera' ? 'camera' : 'gallery'); }}
-                  onClose={() => setShowScanMenu(false)}
-                  style={styles.bottomAddMenu}
-                />
-              ) : (
-                <Menu
-                  key={showPhotoSubmenu ? 'sub' : 'main'}
-                  items={showPhotoSubmenu ? photoSubmenuItems : addMenuItems}
-                  visible={showAddMenu}
-                  onSelect={handleAddMenuSelect}
-                  onClose={() => {
-                    if (showPhotoSubmenu) {
-                      setShowPhotoSubmenu(false);
-                    } else {
-                      setShowAddMenu(false);
-                    }
-                  }}
-                  style={styles.bottomAddMenu}
-                />
-              )
-            }
+            subView={showScanMenu ? {
+              onBack: () => setShowScanMenu(false),
+              actions: [
+                {label: t('cookingMode.scanByCamera'), icon: IconCameraFilled as any, onPress: () => { setShowScanMenu(false); cookingScan('camera'); }},
+                {label: t('cookingMode.scanFromGallery'), icon: IconPhoto as any, onPress: () => { setShowScanMenu(false); cookingScan('gallery'); }},
+              ],
+            } : null}
           />
         )}
 

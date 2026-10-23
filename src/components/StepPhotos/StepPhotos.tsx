@@ -14,15 +14,20 @@ import type {StepPhoto} from '../../types/recipe';
 import {PhotoCaptionArrow} from './PhotoCaptionArrow';
 import {useUploadingUri} from '@hooks/useUploadingUri';
 import {BrokenImageMark, ImageLoadingMark, useBrokenImage} from '@components/BrokenImage';
+import {useFailedUploads} from '@utils/failedUploads';
 
 /** 썸네일 한 장 — 깨지면 가운데 느낌표 */
 function PhotoThumb({uri, side}: {uri: string; side: number}) {
+  const colors = useColors();
   const {broken, loading, onError, onLoad} = useBrokenImage(uri);
+  // 저장 때 서버에 못 올린 사진 — 열려도(찍은 기기) 빨간 테두리 + 느낌표로 어느 사진인지 보인다
+  const failed = useFailedUploads().has(uri);
   return (
     <View style={{width: side, height: side, borderRadius: Radius['radius-sm'], overflow: 'hidden'}}>
       <Image source={{uri}} style={{width: side, height: side}} resizeMode="cover" onError={onError} onLoad={onLoad} />
       {loading ? <ImageLoadingMark /> : null}
-      {broken ? <BrokenImageMark /> : null}
+      {broken || failed ? <BrokenImageMark /> : null}
+      {failed ? <View pointerEvents="none" style={[StyleSheet.absoluteFill, {borderWidth: 2, borderColor: colors['foreground/negative'] as string, borderRadius: Radius['radius-sm']}]} /> : null}
     </View>
   );
 }
