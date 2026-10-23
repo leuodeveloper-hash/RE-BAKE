@@ -219,6 +219,7 @@
   "edit.recipeSaved": "Recipe saved",
   "edit.saveFailed": "Failed to save",
   "editCookbook": "Edit recipe book",
+  "symbolSuggest.label": "Change to {{to}}",
   "editableChip.tipPlaceholder": "Enter a tip",
   "emptySubtitle": "Add a recipe and it'll show up here",
   "emptyTitle": "No recipes in this recipe book",

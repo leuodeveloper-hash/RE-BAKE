@@ -5,12 +5,13 @@ import {IconAstriks, IconCircleAlertFilled, IconClose} from '@components/Icon/Ic
 import {TextInput} from '@components/TextInput';
 import {RichText} from '@components/RichText/RichText';
 import {Radius} from '@constants/tokens';
-import {useColors} from '@contexts/ThemeContext';
+import {useColors, useTheme} from '@contexts/ThemeContext';
 import {Spacing} from '@constants/spacing';
 import {Typography, FONT_BASELINE_OFFSET} from '@constants/typography';
 import {useTranslation} from '@contexts/LanguageContext';
 
-export type EditableChipVariant = 'tip' | 'yellow';
+/** suggest = 제안 칩 — 떠 있는 둥근 칩(보기 전용 + 닫기). 입력 제안('도씨' → ℃) 등 */
+export type EditableChipVariant = 'tip' | 'yellow' | 'suggest';
 export type EditableChipSize = 'small' | 'medium' | 'large';
 
 export interface EditableChipProps {
@@ -21,6 +22,8 @@ export interface EditableChipProps {
   placeholder?: string;
   style?: StyleProp<ViewStyle>;
   onRemove?: () => void;
+  /** 칩을 눌렀을 때(보기 모드) — 제안 칩(suggest)의 '넣기' */
+  onPress?: () => void;
   onChangeText?: (text: string) => void;
   /** 편집 입력칸에 마운트 시 자동 포커스 (팁/주의 방금 추가 → 커서 바로 이동) */
   autoFocus?: boolean;
@@ -67,9 +70,11 @@ export function EditableChip({
   placeholder,
   style,
   onRemove,
+  onPress,
   onChangeText,
   autoFocus,
 }: EditableChipProps) {
+  const {elevation} = useTheme();
   const {t} = useTranslation();
   const resolvedPlaceholder = placeholder ?? t('editableChip.tipPlaceholder');
   const colors = useColors();
@@ -103,7 +108,16 @@ export function EditableChip({
       placeholderColor: colors['custom/yellow-var'],
       Icon: IconCircleAlertFilled,
     },
+    suggest: {
+      backgroundColor: colors['surface/bright'],
+      iconColor: colors['foreground/on-surface-muted'],
+      textColor: colors['foreground/on-surface'],
+      barColor: 'transparent',
+      placeholderColor: colors['foreground/on-surface-muted'],
+      Icon: IconAstriks,
+    },
   }), [colors]);
+  const isSuggest = variant === 'suggest';
 
   const config = variantConfig[variant];
   const Icon = icon ?? config.Icon;
@@ -119,9 +133,16 @@ export function EditableChip({
   };
 
   return (
-    <View style={[styles.container, {paddingVertical: 0, paddingLeft: 8, paddingRight: 4, gap: sizeConfig.gap}, onChangeText && styles.containerEditing, style]}>
+    <View style={[
+      styles.container,
+      {paddingVertical: 0, paddingLeft: 8, paddingRight: 4, gap: sizeConfig.gap},
+      onChangeText && styles.containerEditing,
+      // 떠 있는 둥근 칩 — 바탕·그림자·알약 모서리, 좌측 바 없이
+      isSuggest && [styles.suggest, {backgroundColor: config.backgroundColor}, elevation['4']],
+      style,
+    ]}>
       {/* 좌측 바 — border 대신 상하 inset된 라인으로 글자 높이에 맞춰(line-height leading만큼 튀어나오지 않게) */}
-      <View pointerEvents="none" style={[styles.bar, {backgroundColor: config.barColor}]} />
+      {!isSuggest && <View pointerEvents="none" style={[styles.bar, {backgroundColor: config.barColor}]} />}
       {onChangeText ? (
         // 편집 모드: 아이콘 없이 풀폭 입력(좌측 끝부터). 공용 TextInput 멀티라인 변형 사용
         // → flex:1+minWidth:0 로 줄바꿈, 자동 높이 증가 내장
@@ -138,7 +159,13 @@ export function EditableChip({
         />
       ) : (
         // 보기 모드: 아이콘 없이 텍스트만 (칩 타입 일관 — tip/주의 색만 다름)
-        <RichText style={[styles.label, textStyle]}>{label}</RichText>
+        onPress ? (
+          <Pressable onPress={onPress} hitSlop={4} style={styles.pressLabel}>
+            <Text style={[styles.label, textStyle]}>{label}</Text>
+          </Pressable>
+        ) : (
+          <RichText style={[styles.label, textStyle]}>{label}</RichText>
+        )
       )}
       {onRemove && (
         <Pressable onPress={onRemove} hitSlop={4} style={[styles.iconWrap, {height: sizeConfig.lineHeight + FONT_BASELINE_OFFSET, marginLeft: 10}]}>
@@ -192,6 +219,15 @@ const styles = StyleSheet.create({
   inputReset: {
     marginTop: FONT_BASELINE_OFFSET,
   },
+  // 떠 있는 둥근 칩 — 알약 모서리, 좌우 12·위아래 6
+  suggest: {
+    borderRadius: Radius['radius-full'],
+    paddingLeft: Spacing.smd,
+    paddingRight: Spacing.sm,
+    paddingVertical: 6,
+    alignItems: 'center',
+  },
+  pressLabel: {flexShrink: 1},
   // 편집 모드: 내용에 쪼그라들지(flex-start) 않고 가로로 펴져 멀티라인이 자연 줄바꿈
   containerEditing: {
     alignSelf: 'stretch',

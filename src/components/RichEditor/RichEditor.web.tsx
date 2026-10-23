@@ -1,9 +1,16 @@
-import React, {forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef} from 'react';
-import {AUTO_SYMBOLS_DOM_SRC} from '@utils/autoSymbols';
+import React, {forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState} from 'react';
+import {StyleSheet, TextStyle, View} from 'react-native';
+import {SYMBOL_DOM_SRC} from '@utils/autoSymbols';
+import {EditableChip} from '@components/EditableChip';
+import {useTranslation} from '@contexts/LanguageContext';
+import {Spacing} from '@constants/spacing';
 
+// 기호 제안 — 앱 웹뷰 편집기와 같은 DOM 함수(문자열 하나를 같이 쓴다)
 // eslint-disable-next-line no-new-func
-const fixSymbolsDom = new Function(`${AUTO_SYMBOLS_DOM_SRC}; return fixSymbolsDom;`)() as (root: HTMLElement) => boolean;
-import {StyleSheet, TextStyle} from 'react-native';
+const symbolDom = new Function(`${SYMBOL_DOM_SRC}; return {pendingSymbolDom: pendingSymbolDom, acceptSymbolDom: acceptSymbolDom};`)() as {
+  pendingSymbolDom: () => {from: string; to: string} | null;
+  acceptSymbolDom: () => boolean;
+};
 import {useColors} from '@contexts/ThemeContext';
 import {Typography} from '@constants/typography';
 import type {RichEditorHandle, RichEditorProps} from './RichEditor';
@@ -107,11 +114,11 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
     sel?.addRange(r);
   }, []);
 
+  // 입력 횟수 — X로 닫은 제안은 다음 입력 전까지만 숨긴다
+  const emitCountRef = useRef(0);
   const emit = useCallback(() => {
     const el = elRef.current;
     if (!el) return '';
-    // '도씨' → ℃ — 글 마디 안에서 바로 바꾸고 커서는 바뀐 글자 바로 뒤(예전엔 끝으로 튀었다)
-    fixSymbolsDom(el);
     const src = toSource(el);
     lastEmitRef.current = src;
     onChangeText(src);
@@ -168,7 +175,22 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
     }
   `, [scopeId, colors]);
 
+  // 기호 제안 — '도씨'·'->' 뒤에 커서가 있으면 위에 제안 칩. 엔터·칩 누르기 = 넣기, X = 그대로 두기
+  const {t} = useTranslation();
+  const [suggest, setSuggest] = useState<{from: string; to: string} | null>(null);
+  const [dismissed, setDismissed] = useState<string | null>(null);
+  const refreshSuggest = useCallback(() => setSuggest(document.activeElement === elRef.current ? symbolDom.pendingSymbolDom() : null), []);
+  const acceptSuggest = useCallback(() => {
+    elRef.current?.focus();
+    if (symbolDom.acceptSymbolDom()) { emit(); setSuggest(null); }
+  }, [emit]);
+
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
+    if (e.key === 'Enter' && !e.shiftKey && suggest && dismissed !== suggest.from + emitCountRef.current) {
+      e.preventDefault();
+      acceptSuggest();
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       // 문단 중간에서 엔터를 누르면 커서 뒤 글자는 새 항목으로 넘긴다.
@@ -208,7 +230,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
         onBackspaceAtStart?.();
       }
     }
-  }, [emit, onSubmit, onBackspaceAtStart, caretOffset, onChangeText]);
+  }, [emit, onSubmit, onBackspaceAtStart, caretOffset, onChangeText, suggest, dismissed, acceptSuggest]);
 
   // 링크 태그를 누르면 URL 편집 — 커서 진입 대신
   const handleClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -228,9 +250,15 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
     });
   }, [onLinkTap]);
 
+  const showSuggest = !!suggest && dismissed !== suggest.from + emitCountRef.current;
   return (
     <>
       <style dangerouslySetInnerHTML={{__html: css}} />
+      {showSuggest ? (
+        <View style={styles.suggest}>
+          <EditableChip variant="suggest" label={t('symbolSuggest.label', {to: suggest!.to})} onPress={acceptSuggest} onRemove={() => setDismissed(suggest!.from + emitCountRef.current)} />
+        </View>
+      ) : null}
       <div
         ref={elRef}
         data-rich={scopeId}
@@ -248,14 +276,15 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
           width: '100%',
           flex: 1,
         }}
-        onInput={() => emit()}
+        onInput={() => { emitCountRef.current += 1; emit(); refreshSuggest(); }}
         onKeyDown={handleKeyDown}
         onClick={handleClick}
         onFocus={() => onFocus?.()}
-        onBlur={() => onBlur?.()}
+        onBlur={() => { setSuggest(null); onBlur?.(); }}
         onSelect={() => {
           const el = elRef.current;
           if (el) onSelectionChange?.(caretOffset(), toSource(el));
+          refreshSuggest();
         }}
       />
     </>
@@ -263,3 +292,8 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
 });
 
 export default RichEditor;
+
+const styles = StyleSheet.create({
+  // 제안 칩 — 편집 칸(부모) 바로 위 오른쪽에 떠 있게
+  suggest: {position: 'absolute', bottom: '100%', right: 0, marginBottom: Spacing.xs, zIndex: 50},
+});

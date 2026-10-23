@@ -1,4 +1,4 @@
-import {AUTO_SYMBOLS_DOM_SRC} from '@utils/autoSymbols';
+import {SYMBOL_DOM_SRC} from '@utils/autoSymbols';
 /**
  * 웹뷰 리치 에디터의 문서(HTML + JS).
  *
@@ -19,6 +19,7 @@ export const EDITOR_MSG = {
   selection: 'selection',
   linkTap: 'linkTap',
   height: 'height',
+  symbol: 'symbol',
   // RN → 웹
   setValue: 'setValue',
   setFocus: 'setFocus',
@@ -220,22 +221,39 @@ export function buildEditorHtml(theme: EditorTheme, placeholder: string, initial
 
   var suppress = false; // RN이 값을 밀어넣는 중엔 change를 되돌려보내지 않는다
 
-  // '도씨' → ℃ — 글 마디 안에서 바로 바꾸고 커서는 바뀐 글자 바로 뒤(RN에서 바꿔 다시 넣으면 끝으로 튀었다)
-  ${AUTO_SYMBOLS_DOM_SRC}
+  // 기호 제안 — '도씨'·'->' 뒤에 커서가 있으면 RN에 알려 위에 제안 칩. 엔터·칩 = 넣기, X = 다음 입력까지 숨김
+  ${SYMBOL_DOM_SRC}
+  var symbolDismissed = false, lastSymbol = null;
+  function reportSymbol() {
+    var p = document.activeElement === el && !symbolDismissed ? pendingSymbolDom() : null;
+    var key = p ? p.from : null;
+    if (key === lastSymbol) return;
+    lastSymbol = key;
+    post(M.symbol, {suggest: p});
+  }
+  function acceptSymbol() {
+    if (!acceptSymbolDom()) return;
+    post(M.change, {value: toSource(el)});
+    reportSymbol();
+  }
+  window.__acceptSymbol = function () { el.focus(); acceptSymbol(); };
+  window.__dismissSymbol = function () { symbolDismissed = true; reportSymbol(); };
 
   el.addEventListener('input', function () {
     if (suppress) return;
-    fixSymbolsDom(el);
+    symbolDismissed = false;
+    reportSymbol();
     post(M.change, {value: toSource(el)});
     reportHeight();
   });
 
   el.addEventListener('focus', function () { post(M.focus, {}); });
-  el.addEventListener('blur', function () { post(M.blur, {}); });
+  el.addEventListener('blur', function () { reportSymbol(); post(M.blur, {}); });
 
   document.addEventListener('selectionchange', function () {
     if (document.activeElement !== el) return;
     post(M.selection, {selection: caretOffset(), value: toSource(el)});
+    reportSymbol();
   });
 
   // 링크 태그를 누르면 RN 다이얼로그로 — 커서 진입 대신 URL 편집
@@ -257,6 +275,12 @@ export function buildEditorHtml(theme: EditorTheme, placeholder: string, initial
 
   // 엔터는 RN이 "다음 행"으로 쓰므로 줄바꿈을 막고 알린다
   el.addEventListener('keydown', function (e) {
+    // 제안이 떠 있으면 엔터는 넣기
+    if (e.key === 'Enter' && !e.shiftKey && !symbolDismissed && pendingSymbolDom()) {
+      e.preventDefault();
+      acceptSymbol();
+      return;
+    }
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault();
       // 문단 중간에서 엔터를 누르면 커서 뒤 글자는 새 항목으로 넘긴다.

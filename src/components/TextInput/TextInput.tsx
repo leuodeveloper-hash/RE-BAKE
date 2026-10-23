@@ -1,5 +1,7 @@
-import React, {useCallback, useMemo, useRef} from 'react';
-import {autoSymbols, autoSymbolsCaret} from '@utils/autoSymbols';
+import React, {useState, useCallback, useMemo, useRef} from 'react';
+import {pendingSymbolAt, acceptSymbolAt} from '@utils/autoSymbols';
+import {EditableChip} from '@components/EditableChip';
+import {useTranslation} from '@contexts/LanguageContext';
 import {
   View,
   Platform,
@@ -68,8 +70,11 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
   onContentSizeChange,
   onSelectionChange,
   onBlur,
+  onFocus,
+  onKeyPress,
   ...props
 }, ref) => {
+  const {t} = useTranslation();
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   // "선택한 텍스트에 링크" 배선.
@@ -95,18 +100,37 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
 
   const handleChangeText = useCallback((v: string) => {
     onTextChanged();
-    // '도씨'를 쓰면 바로 ℃로 — 커서는 바뀐 글자 바로 뒤(값이 바뀌면 끝으로 튀었다)
-    const fixed = autoSymbols(v);
-    onChangeText?.(fixed);
-    if (fixed !== v) {
-      const caret = autoSymbolsCaret(value ?? '', v);
-      requestAnimationFrame(() => {
-        const node = internalRef.current;
-        if (Platform.OS === 'web') node?.setSelectionRange?.(caret, caret);
-        else node?.setSelection?.(caret, caret);
-      });
-    }
-  }, [onTextChanged, onChangeText, value]);
+    onChangeText?.(v);
+  }, [onTextChanged, onChangeText]);
+
+  // 기호 제안 — '도씨'·'->'를 치면 바로 바꾸지 않고 위에 제안 칩(℃·→). 엔터나 칩을 누르면 넣고, X·계속 타이핑이면 그대로
+  const [caret, setCaret] = useState<number | null>(null);
+  const [focused, setFocused] = useState(false);
+  const [dismissed, setDismissed] = useState<string | null>(null);
+  const pending = focused && caret != null && value ? pendingSymbolAt(value, caret) : null;
+  const pendingKey = pending ? `${pending.start}:${pending.from}` : null;
+  const showSuggest = !!pending && pendingKey !== dismissed;
+  const acceptSuggest = useCallback(() => {
+    if (caret == null || !value) return;
+    const next = acceptSymbolAt(value, caret);
+    if (!next) return;
+    onChangeText?.(next.value);
+    setCaret(next.caret);
+    requestAnimationFrame(() => {
+      const node = internalRef.current;
+      if (Platform.OS === 'web') node?.setSelectionRange?.(next.caret, next.caret);
+      else node?.setSelection?.(next.caret, next.caret);
+    });
+  }, [caret, value, onChangeText]);
+  const handleKeyPress = useCallback((e: any) => {
+    if (showSuggest && e.nativeEvent?.key === 'Enter') { e.preventDefault?.(); acceptSuggest(); return; }
+    onKeyPress?.(e);
+  }, [showSuggest, acceptSuggest, onKeyPress]);
+  const suggestChip = showSuggest ? (
+    <View style={styles.suggest} pointerEvents="box-none">
+      <EditableChip variant="suggest" label={t('symbolSuggest.label', {to: pending!.to})} onPress={acceptSuggest} onRemove={() => setDismissed(pendingKey)} />
+    </View>
+  ) : null;
 
   const handleContentSize = useCallback((e: any) => {
     onContentSize(e);
@@ -135,13 +159,15 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
       onChangeText={handleChangeText}
       onContentSizeChange={handleContentSize}
       {...props}
-      onSelectionChange={handleSelectionChange}
-      onBlur={handleBlur}
+      onSelectionChange={(e: any) => { setCaret(e.nativeEvent.selection.end); handleSelectionChange(e); }}
+      onFocus={(e: any) => { setFocused(true); onFocus?.(e); }}
+      onBlur={(e: any) => { setFocused(false); handleBlur(e); }}
+      onKeyPress={handleKeyPress}
     />
   );
 
-  // 껍데기 없이 입력만 — 부모 레이아웃을 컨테이너가 바꾸지 않는다
-  if (bare) return inputEl;
+  // 껍데기 없이 입력만 — 부모 레이아웃을 컨테이너가 바꾸지 않는다(제안 칩은 입력 위에 겹쳐)
+  if (bare) return suggestChip ? <View>{inputEl}{suggestChip}</View> : inputEl;
 
   return (
     <View style={isGhost ? styles.containerGhost : (isSmall ? styles.containerSmall : styles.container)}>
@@ -166,6 +192,7 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
         ) : trailingIcon ? (
           <View style={styles.trailingIcon}>{trailingIcon}</View>
         ) : null}
+        {suggestChip}
       </View>
       {error && errorText && (
         <View style={styles.errorContainer}>
@@ -180,6 +207,8 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
 });
 
 const createStyles = (colors: SemanticColors) => StyleSheet.create({
+  // 제안 칩 — 입력칸 바로 위 오른쪽에 떠 있게
+  suggest: {position: 'absolute', bottom: '100%', right: 0, marginBottom: Spacing.xs, zIndex: 50},
   container: {
     width: '100%',
   },

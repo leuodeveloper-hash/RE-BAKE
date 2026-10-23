@@ -1,5 +1,7 @@
 import React, {forwardRef, useCallback, useImperativeHandle, useMemo, useRef, useState} from 'react';
-import {autoSymbols} from '@utils/autoSymbols';
+import {EditableChip} from '@components/EditableChip';
+import {useTranslation} from '@contexts/LanguageContext';
+import {Spacing} from '@constants/spacing';
 import {StyleProp, StyleSheet, TextStyle, View} from 'react-native';
 import {WebView} from 'react-native-webview';
 import {useColors} from '@contexts/ThemeContext';
@@ -55,6 +57,7 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
 ) {
   const colors = useColors();
   const webRef = useRef<WebView>(null);
+  const [suggest, setSuggest] = useState<{from: string; to: string} | null>(null);
   const [height, setHeight] = useState(Typography.body.medium.lineHeight);
   // 웹뷰가 준비되기 전에 온 명령은 모아뒀다 ready 때 흘려보낸다
   const readyRef = useRef(false);
@@ -136,9 +139,8 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
         pendingRef.current = [];
         break;
       case EDITOR_MSG.change:
-        // '도씨' → ℃ — 바뀌면 lastFromWeb과 달라져 아래 효과가 칸에 바로 다시 넣는다
         lastFromWebRef.current = payload.value;
-        onChangeText(autoSymbols(payload.value));
+        onChangeText(payload.value);
         if (payload.submit) onSubmit?.(payload.rest ?? '');
         if (payload.backspaceAtStart) onBackspaceAtStart?.();
         break;
@@ -146,16 +148,29 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
       case EDITOR_MSG.blur: onBlur?.(); break;
       case EDITOR_MSG.selection: onSelectionChange?.(payload.selection, payload.value); break;
       case EDITOR_MSG.linkTap: onLinkTap?.(payload); break;
+      // 기호 제안 — 웹뷰가 커서 앞 '도씨' 등을 알려 오면 위에 제안 칩
+      case EDITOR_MSG.symbol: setSuggest(payload.suggest ?? null); break;
       case EDITOR_MSG.height: setHeight(Math.max(payload.height, theme.lineHeight)); break;
     }
   }, [value, send, onChangeText, onSubmit, onBackspaceAtStart, onFocus, onBlur, onSelectionChange, onLinkTap, theme.lineHeight]);
 
+  const {t} = useTranslation();
   return (
     // style은 폰트 계산에만 쓰고 컨테이너엔 적용하지 않았다 → 호출부의 flex:1이 사라져
     // row 레이아웃(재료 행: 이름 + 분량)에서 폭이 0이 되어 글자가 통째로 안 보였다.
     // (도구·과정은 세로 레이아웃이라 폭이 자동으로 채워져 증상이 없었다.)
     // 레이아웃 속성만 넘긴다 — 폰트/색은 웹뷰 안 CSS가 담당한다.
     <View style={[{height}, layoutStyle]}>
+      {suggest ? (
+        <View style={styles.suggest}>
+          <EditableChip
+            variant="suggest"
+            label={t('symbolSuggest.label', {to: suggest.to})}
+            onPress={() => webRef.current?.injectJavaScript('window.__acceptSymbol && window.__acceptSymbol(); true;')}
+            onRemove={() => webRef.current?.injectJavaScript('window.__dismissSymbol && window.__dismissSymbol(); true;')}
+          />
+        </View>
+      ) : null}
       <WebView
         ref={webRef}
         source={{html}}
@@ -206,6 +221,8 @@ const styles = StyleSheet.create({
   web: {
     flex: 1,
   },
+  // 제안 칩 — 편집 칸 바로 위 오른쪽에 떠 있게(웹뷰 바깥 RN 쪽에 그린다)
+  suggest: {position: 'absolute', bottom: '100%', right: 0, marginBottom: Spacing.xs, zIndex: 50},
 });
 
 export default RichEditor;

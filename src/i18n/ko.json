@@ -217,6 +217,7 @@
   "edit.recipeSaved": "레시피가 저장되었습니다",
   "edit.saveFailed": "저장에 실패했습니다",
   "editCookbook": "레시피 북 편집",
+  "symbolSuggest.label": "{{to}}로 바꾸기",
   "editableChip.tipPlaceholder": "팁을 입력하세요",
   "emptySubtitle": "레시피를 추가하면 여기에 표시돼요.",
   "emptyTitle": "레시피 북에 레시피가 없습니다.",
