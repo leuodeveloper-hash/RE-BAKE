@@ -14,7 +14,7 @@ import {NativeSyntheticEvent, Platform, TextInputContentSizeChangeEventData} fro
  *    (안 하면 컨테이너가 옛 높이에 갇혀 축소가 안 됨).
  *  - 웹은 onContentSizeChange가 신뢰스럽지 않아 scrollHeight로 직접 잰다.
  */
-export function useAutoGrow(enabled: boolean, inputRef: React.RefObject<any>) {
+export function useAutoGrow(enabled: boolean, inputRef: React.RefObject<any>, value?: string) {
   const [height, setHeight] = useState<number | undefined>(undefined);
   // 웹 리사이즈가 최신 enabled를 보도록
   const enabledRef = useRef(enabled);
@@ -39,11 +39,13 @@ export function useAutoGrow(enabled: boolean, inputRef: React.RefObject<any>) {
   }, [inputRef]);
 
   // 웹은 마운트 직후에도 한 번 재야 초기 높이가 맞는다
+  // 값이 밖에서 바뀌어도(팝업이 열리며 기존 글을 채울 때 등) 다시 잰다 — 타이핑이 아니라 onTextChanged가 안 불려
+  // 빈 글 기준 높이에 갇혀 아래 줄이 잘렸다
   useEffect(() => {
     if (!enabled || Platform.OS !== 'web') return;
     const frame = requestAnimationFrame(resizeWeb);
     return () => cancelAnimationFrame(frame);
-  }, [enabled, resizeWeb]);
+  }, [enabled, resizeWeb, value]);
 
   /** 입력이 바뀌면 호출 — 줄어들 때 재측정되도록 높이를 푼다 */
   const onTextChanged = useCallback(() => {

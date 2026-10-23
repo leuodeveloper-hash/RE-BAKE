@@ -161,6 +161,7 @@ export {default as IconDicFilled} from '../../../assets/icons/dic-filled.svg';
 export {default as IconLayer} from '../../../assets/icons/layer.svg';
 export {default as IconLayerFilled} from '../../../assets/icons/layer-filled.svg';
 export {default as IconChoose} from '../../../assets/icons/choose.svg';
+export {default as IconChooseFilled} from '../../../assets/icons/choose-filled.svg';
 export {default as IconGlobeFilled} from '../../../assets/icons/globe_filled.svg';
 export {default as IconEarthFilled} from '../../../assets/icons/earth_filled.svg';
 export {default as IconCompass} from '../../../assets/icons/compass.svg';

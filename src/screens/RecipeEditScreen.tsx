@@ -168,7 +168,7 @@ import {
   IconNoteFilled,
   IconArrowTopRight,
   IconMic,
-  IconChoose,
+  IconChooseFilled,
   IconColumn2,
   IconFlash,
 } from '@components/Icon/IconIndex';
@@ -3549,7 +3549,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
                               onRemove={(pi) => updateStepPhotos(group.id, step.id, ps => ps.filter((_, i) => i !== pi))}
                               // 빈 칸 → 촬영 / 갤러리 메뉴(슬래시 메뉴와 같은 항목)
                               // 이 레시피에 사진이 있으면 '기존 사진'도 — 대표·다른 과정 사진을 이 과정에 붙인다(같은 사진을 함께 쓴다)
-                              addMenuItems={canAdd ? ((heroUris.length > 0 || stepGroups.some(g => g.steps.some(st => (st.photos?.length ?? 0) > 0))) ? [...photoSourceItems, {id: 'existing', label: t('recipeEdit.existingPhoto'), icon: IconChoose}] : photoSourceItems) : undefined}
+                              addMenuItems={canAdd ? ((heroUris.length > 0 || stepGroups.some(g => g.steps.some(st => (st.photos?.length ?? 0) > 0))) ? [...photoSourceItems, {id: 'existing', label: t('recipeEdit.existingPhoto'), icon: IconChooseFilled}] : photoSourceItems) : undefined}
                               onAddSelect={id => {
                                 if (id === 'existing') {
                                   const at = {groupId: group.id, stepId: step.id, index: photos.length};

@@ -90,7 +90,7 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
   }, [ref]);
 
   // 여러 줄 자동 확장 — 네이티브/웹 처리는 useAutoGrow 한 곳에 있다
-  const {height, onTextChanged, onContentSize} = useAutoGrow(multiline, internalRef);
+  const {height, onTextChanged, onContentSize} = useAutoGrow(multiline, internalRef, value);
 
   const handleChangeText = useCallback((v: string) => {
     onTextChanged();

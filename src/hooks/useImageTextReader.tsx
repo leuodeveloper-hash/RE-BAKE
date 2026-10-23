@@ -15,7 +15,7 @@ import {getPersistentUri} from '@utils/imageUpload';
 import {recognizeImageText, normalizeOcrWhitespace} from '@utils/recipeOcr';
 import {prepareRecipeImageForCrop, type OcrCropTarget} from '@utils/ocrImageSource';
 import {photoSourceMenuItems} from '@utils/photoSourceMenu';
-import {IconChoose} from '@components/Icon/IconIndex';
+import {IconChooseFilled} from '@components/Icon/IconIndex';
 import type {Recipe} from '../types/recipe';
 
 export type ImageTextSource = 'camera' | 'gallery' | 'recipe';
@@ -48,7 +48,7 @@ export function useImageTextReader({onText, recipePhotos, onBusyChange}: UseImag
   const hasRecipePhoto = !!(recipePhotos?.imageUri || recipePhotos?.imageUris?.length);
   const menuItems = [
     ...photoSourceMenuItems(t),
-    ...(hasRecipePhoto ? [{id: 'recipe', label: t('recipeEdit.existingPhoto'), icon: IconChoose}] : []),
+    ...(hasRecipePhoto ? [{id: 'recipe', label: t('recipeEdit.existingPhoto'), icon: IconChooseFilled}] : []),
   ];
 
   // 기존 사진(레시피 사진)에서 고른 주소 — 잘라서 읽어도 기록엔 원래 사진으로 남긴다
