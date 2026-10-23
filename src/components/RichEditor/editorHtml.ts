@@ -275,10 +275,17 @@ export function buildEditorHtml(theme: EditorTheme, placeholder: string, initial
 
   // 엔터는 RN이 "다음 행"으로 쓰므로 줄바꿈을 막고 알린다
   el.addEventListener('keydown', function (e) {
-    // 제안이 떠 있으면 엔터는 넣기
-    if (e.key === 'Enter' && !e.shiftKey && !symbolDismissed && pendingSymbolDom()) {
+    // 제안이 떠 있으면 엔터는 넣기, ESC는 칩만 닫기(constants/shortcuts의 suggestAccept·suggestDismiss와 같은 키 — 웹뷰 안이라 문자열로 둔다).
+    // 한글 조합 중 엔터는 조합 끝내기로 둔다 — 이때 넣으면 조합이 끝나며 글자가 다시 들어와 칩이 남았다
+    var composing = e.isComposing || e.keyCode === 229;
+    if (!composing && e.key === 'Enter' && !e.shiftKey && !symbolDismissed && pendingSymbolDom()) {
       e.preventDefault();
       acceptSymbol();
+      return;
+    }
+    if (e.key === 'Escape' && !symbolDismissed && pendingSymbolDom()) {
+      e.preventDefault();
+      window.__dismissSymbol();
       return;
     }
     if (e.key === 'Enter' && !e.shiftKey) {

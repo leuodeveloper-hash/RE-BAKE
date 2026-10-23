@@ -90,6 +90,7 @@ import {StepSummaryInput} from '@components/StepSummary';
 import {ViewModeButton, SummaryToggle} from '@components/ViewModeButton';
 import {summarizeFromOcr} from '@utils/summarizeSteps';
 import {useDictionary} from '@hooks/useDictionary';
+import {useShortcut} from '@hooks/useShortcut';
 import {useEscapeKey} from '@hooks/useEscapeKey';
 import {parseRecipeMarkdown, parseBulkIngredientGroups, parseBulkStepGroups, parseBulkToolGroups, toolGroupsToBulk, ingredientGroupsToBulk, stepGroupsToBulk, recipeToMarkdown} from '@utils/recipeMarkdown';
 import {
@@ -930,6 +931,9 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
       setSaving(false);
     }
   }, [title, cookbook, method, ratio, time, servings, doughTemp, divideWeight, session, ingredientGroups, toolGroups, stepGroups, activeFieldIds, reviews, description, advice, advicePhotos, kind, imageUri, imageUris, referenceUrl, sourceUrl, isExplore, hidden, onSave, reviewKey, saveReview]);
+
+  // ⌘/Ctrl+S — 쓰다가 바로 저장(편집에 남는다, 입력 툴바 저장과 같다). 단축키 정의는 constants/shortcuts
+  useShortcut('save', () => { if (canSave && !saving) handleSave({stay: true}); });
 
   const pickImage = async (source: 'camera' | 'gallery', slot: 'main' | 'extra' = 'main') => {
     if (source === 'camera') {

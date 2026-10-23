@@ -71,3 +71,20 @@ onLongPress: onLongPress ? () => { triggerHaptic('medium'); onLongPress(); } : u
 
 **웹에서 에러** — `triggerHaptic`은 웹에서 무시되도록 처리돼 있다. 직접
 `expo-haptics`를 부르지 말 것.
+
+## 키보드 단축키 (웹·하드웨어 키보드)
+
+정의는 `src/constants/shortcuts.ts` 한 곳. 걸 때는 `useShortcut(id, handler)`(웹), ESC/안드로이드 뒤로는 `useEscapeKey`.
+
+| 키 | 하는 일 | 어디서 |
+|---|---|---|
+| ESC | 뒤로 가기·닫기(입력 중이면 입력만 빠져나오기) | 전체 |
+| ⌘/Ctrl + S | 저장(편집에 남기) | 레시피 편집 |
+| Enter | 제안 넣기('도씨' → ℃) | 입력 제안 칩이 떠 있을 때 |
+| ESC | 제안 닫기 | 입력 제안 칩이 떠 있을 때 |
+
+규칙
+- 새 단축키는 `shortcuts.ts`에 먼저 적는다. 화면에서 `e.key === ...`로 직접 비교하지 않는다(`matchShortcut`).
+- 한 번 누르면 한 가지 일만 — 앞에서 처리한 키는 `preventDefault`하고, 뒤에서는 `e.defaultPrevented`면 건너뛴다.
+- 좁은 범위(입력 칩)가 넓은 범위(화면 ESC)보다 먼저 처리한다.
+- 한글 조합 중(`isComposing`·keyCode 229) 엔터는 조합 끝내기로 둔다.

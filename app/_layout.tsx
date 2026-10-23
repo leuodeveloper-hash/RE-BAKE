@@ -1,3 +1,4 @@
+import {matchShortcut} from '@constants/shortcuts';
 import '../global.css';
 import {launchLibrary} from '@components/AlbumPicker/albumPicker';
 import {AlbumPickerHost, VideoCaptureHost} from '@components/AlbumPicker';
@@ -265,7 +266,8 @@ function NavigationContent() {
   useEffect(() => {
     if (Platform.OS !== 'web') return;
     const onKey = (e: KeyboardEvent) => {
-      if (e.key !== 'Escape' || e.defaultPrevented) return;
+      // 단축키 정의는 constants/shortcuts
+      if (e.defaultPrevented || !matchShortcut('back', e)) return;
       if (document.querySelector('[aria-modal="true"]')) return;
       const el = document.activeElement as HTMLElement | null;
       if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA' || el.isContentEditable)) { el.blur(); return; }

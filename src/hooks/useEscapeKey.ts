@@ -1,5 +1,6 @@
 import {useEffect} from 'react';
 import {Platform, BackHandler} from 'react-native';
+import {matchShortcut} from '@constants/shortcuts';
 
 /**
  * ESC 키(웹) 또는 뒤로가기 버튼(Android)을 눌렀을 때 콜백 실행.
@@ -9,7 +10,8 @@ export function useEscapeKey(onEscape: () => boolean) {
   useEffect(() => {
     if (Platform.OS === 'web') {
       const handler = (e: KeyboardEvent) => {
-        if (e.key === 'Escape') {
+        // 앞에서 처리한 ESC(입력 위 제안 칩 닫기 등)는 건너뛴다 — 같이 닫히거나 뒤로 가며 엉뚱하게 스크롤됐다
+        if (!e.defaultPrevented && matchShortcut('back', e)) {
           const handled = onEscape();
           if (handled) e.preventDefault();
         }

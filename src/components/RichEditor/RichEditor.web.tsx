@@ -1,6 +1,7 @@
 import React, {forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState} from 'react';
 import {StyleSheet, TextStyle, View} from 'react-native';
 import {SYMBOL_DOM_SRC} from '@utils/autoSymbols';
+import {matchShortcut} from '@constants/shortcuts';
 import {EditableChip} from '@components/EditableChip';
 import {useTranslation} from '@contexts/LanguageContext';
 import {Spacing} from '@constants/spacing';
@@ -186,9 +187,20 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   }, [emit]);
 
   const handleKeyDown = useCallback((e: React.KeyboardEvent<HTMLDivElement>) => {
-    if (e.key === 'Enter' && !e.shiftKey && suggest && dismissed !== suggest.from + emitCountRef.current) {
+    const suggestOn = !!suggest && dismissed !== suggest.from + emitCountRef.current;
+    // 한글 조합 중 엔터는 조합 끝내기 — 이때 넣으면 조합이 끝나며 글자가 다시 들어와 칩이 남았다
+    const composing = e.nativeEvent.isComposing || e.keyCode === 229;
+    if (suggestOn && !composing && !e.shiftKey && matchShortcut('suggestAccept', e)) {
       e.preventDefault();
+      e.stopPropagation();
       acceptSuggest();
+      return;
+    }
+    // ESC는 칩만 닫는다 — 입력 빠져나오기·뒤로 가기와 겹치면 엉뚱하게 스크롤됐다
+    if (suggestOn && matchShortcut('suggestDismiss', e)) {
+      e.preventDefault();
+      e.stopPropagation();
+      setDismissed(suggest!.from + emitCountRef.current);
       return;
     }
     if (e.key === 'Enter' && !e.shiftKey) {

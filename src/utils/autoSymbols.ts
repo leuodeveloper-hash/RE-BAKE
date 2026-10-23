@@ -1,11 +1,11 @@
 /**
- * 기호 제안 — 공통 TextInput·RichEditor가 쓴다(앱 입력칸 전부). '도씨' → '℃', '-->'·'->' → '→'
+ * 기호 제안 — 공통 TextInput·RichEditor가 쓴다(앱 입력칸 전부). '도씨' → '℃'(화살표는 제안하지 않는다)
  * 바로 바꾸지 않고 입력칸 위에 제안 칩(EditableChip suggest)을 띄운다. 엔터·칩 = 넣기, X = 그대로
  */
 
 /** 커서 바로 앞이 바꿀 말로 끝나면 그 제안 — '180도씨|' → {from:'도씨', to:'℃', start:3} */
-const PENDING_RE = /(도씨|-->|->)$/;
-export const symbolFor = (from: string) => (from === '도씨' ? '℃' : '→');
+const PENDING_RE = /(도씨)$/;
+export const symbolFor = (_from: string) => '℃';
 export function pendingSymbolAt(text: string, caret: number): {from: string; to: string; start: number} | null {
   const m = text.slice(0, caret).match(PENDING_RE);
   return m ? {from: m[1], to: symbolFor(m[1]), start: caret - m[1].length} : null;
@@ -26,8 +26,8 @@ export const SYMBOL_DOM_SRC = `function pendingSymbolDom() {
   if (!sel || !sel.rangeCount || !sel.isCollapsed) return null;
   var n = sel.getRangeAt(0).startContainer, o = sel.getRangeAt(0).startOffset;
   if (n.nodeType !== 3) return null;
-  var m = n.nodeValue.slice(0, o).match(/(도씨|-->|->)$/);
-  return m ? {from: m[1], to: m[1] === '도씨' ? '℃' : '→'} : null;
+  var m = n.nodeValue.slice(0, o).match(/(도씨)$/);
+  return m ? {from: m[1], to: '℃'} : null;
 }
 function acceptSymbolDom() {
   var p = pendingSymbolDom();

@@ -1,5 +1,6 @@
 import React, {useState, useCallback, useMemo, useRef} from 'react';
 import {pendingSymbolAt, acceptSymbolAt} from '@utils/autoSymbols';
+import {matchShortcut} from '@constants/shortcuts';
 import {EditableChip} from '@components/EditableChip';
 import {useTranslation} from '@contexts/LanguageContext';
 import {
@@ -123,9 +124,13 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
     });
   }, [caret, value, onChangeText]);
   const handleKeyPress = useCallback((e: any) => {
-    if (showSuggest && e.nativeEvent?.key === 'Enter') { e.preventDefault?.(); acceptSuggest(); return; }
+    // 한글 조합 중 엔터는 조합 끝내기 — 이때 넣으면 조합이 끝나며 글자가 다시 들어와 칩이 남았다. 다음 엔터에서 넣는다
+    const composing = e.nativeEvent?.isComposing || e.nativeEvent?.keyCode === 229;
+    if (showSuggest && !composing && matchShortcut('suggestAccept', e.nativeEvent ?? {})) { e.preventDefault?.(); e.stopPropagation?.(); acceptSuggest(); return; }
+    // ESC는 칩만 닫는다(입력 빠져나오기·뒤로 가기와 겹치지 않게)
+    if (showSuggest && matchShortcut('suggestDismiss', e.nativeEvent ?? {})) { e.preventDefault?.(); e.stopPropagation?.(); setDismissed(pendingKey); return; }
     onKeyPress?.(e);
-  }, [showSuggest, acceptSuggest, onKeyPress]);
+  }, [showSuggest, acceptSuggest, onKeyPress, pendingKey]);
   const suggestChip = showSuggest ? (
     <View style={styles.suggest} pointerEvents="box-none">
       <EditableChip variant="suggest" label={t('symbolSuggest.label', {to: pending!.to})} onPress={acceptSuggest} onRemove={() => setDismissed(pendingKey)} />
