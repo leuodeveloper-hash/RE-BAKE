@@ -1,5 +1,5 @@
 import React, {useState, useCallback, useMemo, useRef} from 'react';
-import {pendingSymbolAt, acceptSymbolAt} from '@utils/autoSymbols';
+import {pendingSymbolAt, acceptSymbolAt, fixArrows, fixArrowsCaret} from '@utils/autoSymbols';
 import {matchShortcut} from '@constants/shortcuts';
 import {EditableChip} from '@components/EditableChip';
 import {useTranslation} from '@contexts/LanguageContext';
@@ -101,8 +101,18 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
 
   const handleChangeText = useCallback((v: string) => {
     onTextChanged();
-    onChangeText?.(v);
-  }, [onTextChanged, onChangeText]);
+    // '->'·'-->'는 바로 →(커서는 화살표 바로 뒤). '도씨'는 아래 제안 칩
+    const fixed = fixArrows(v);
+    onChangeText?.(fixed);
+    if (fixed !== v) {
+      const c = fixArrowsCaret(value ?? '', v);
+      requestAnimationFrame(() => {
+        const node = internalRef.current;
+        if (Platform.OS === 'web') node?.setSelectionRange?.(c, c);
+        else node?.setSelection?.(c, c);
+      });
+    }
+  }, [onTextChanged, onChangeText, value]);
 
   // 기호 제안 — '도씨'·'->'를 치면 바로 바꾸지 않고 위에 제안 칩(℃·→). 엔터나 칩을 누르면 넣고, X·계속 타이핑이면 그대로
   const [caret, setCaret] = useState<number | null>(null);

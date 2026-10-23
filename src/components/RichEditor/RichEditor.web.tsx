@@ -8,7 +8,8 @@ import {Spacing} from '@constants/spacing';
 
 // 기호 제안 — 앱 웹뷰 편집기와 같은 DOM 함수(문자열 하나를 같이 쓴다)
 // eslint-disable-next-line no-new-func
-const symbolDom = new Function(`${SYMBOL_DOM_SRC}; return {pendingSymbolDom: pendingSymbolDom, acceptSymbolDom: acceptSymbolDom};`)() as {
+const symbolDom = new Function(`${SYMBOL_DOM_SRC}; return {fixArrowsDom: fixArrowsDom, pendingSymbolDom: pendingSymbolDom, acceptSymbolDom: acceptSymbolDom};`)() as {
+  fixArrowsDom: (root: HTMLElement) => boolean;
   pendingSymbolDom: () => {from: string; to: string} | null;
   acceptSymbolDom: () => boolean;
 };
@@ -120,6 +121,8 @@ export const RichEditor = forwardRef<RichEditorHandle, RichEditorProps>(function
   const emit = useCallback(() => {
     const el = elRef.current;
     if (!el) return '';
+    // '->'·'-->'는 바로 →(글 마디 안에서 바꾸고 커서는 화살표 바로 뒤)
+    symbolDom.fixArrowsDom(el);
     const src = toSource(el);
     lastEmitRef.current = src;
     onChangeText(src);

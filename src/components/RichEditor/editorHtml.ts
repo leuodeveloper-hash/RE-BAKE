@@ -242,6 +242,7 @@ export function buildEditorHtml(theme: EditorTheme, placeholder: string, initial
   el.addEventListener('input', function () {
     if (suppress) return;
     symbolDismissed = false;
+    fixArrowsDom(el); // '->'·'-->'는 바로 →
     reportSymbol();
     post(M.change, {value: toSource(el)});
     reportHeight();
