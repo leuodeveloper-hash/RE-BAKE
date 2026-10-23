@@ -112,6 +112,7 @@ import {
   IconPenTipFilled,
   IconPhotoFilled,
   IconEditFilled,
+  IconEdit,
   IconNoteFilled,
   IconArrowTopRight,
   IconImport,
@@ -210,7 +211,7 @@ export interface RecipeDetailScreenProps {
   onMenuPress?: () => void;
   onComingSoon?: () => void;
   /** 편집으로 — bulk면 한번에 쓰기로 연다(한번에 보기 중에 들어간 경우) */
-  onEdit?: (section?: string, opts?: {bulk?: boolean}) => void;
+  onEdit?: (section?: string, opts?: {bulk?: boolean; summary?: boolean}) => void;
   /** 아래로 당겨 새로고침 — 다른 기기에서 고친 내용을 다시 받는다 */
   onRefresh?: () => Promise<void>;
   /** 다른 기기에서 고친 새 내용이 있음 — 떠 있는 '업데이트됨' 버튼, 누르면 새로고침 */
@@ -812,7 +813,8 @@ export function RecipeDetailScreen({
   const bulkIngredients = bulkViews.ingredients;
   const bulkSteps = bulkViews.steps;
   // 편집으로 — 그 섹션이 한번에 보기 중이면 편집도 한번에 쓰기로
-  const editWith = (section?: string) => onEdit?.(section, {bulk: section === 'ingredients' ? bulkIngredients : section === 'steps' ? bulkSteps : bulkIngredients && bulkSteps});
+  // 요약뷰를 보던 중이면 편집도 요약 쓰기로(과정·전체 편집일 때)
+  const editWith = (section?: string) => onEdit?.(section, {bulk: section === 'ingredients' ? bulkIngredients : section === 'steps' ? bulkSteps : bulkIngredients && bulkSteps, summary: showSummary && section !== 'ingredients'});
   const [refreshing, setRefreshing] = useState(false);
   // 목록 ⋮에서 넘어온 항목 — 한 번만 실행(화면이 다 그려진 뒤)
   const initialMenuDone = useRef(false);
@@ -1780,7 +1782,7 @@ export function RecipeDetailScreen({
                 <ListItem
                   title={t('recipeDetail.bakeyAdvice')}
                   leading={{type: 'icon', icon: IconBlackNose}}
-                  trailing={onEdit ? {type: 'iconButton', icon: IconEditFilled, onPress: () => editWith('advice'), variant: 'ghost-yellow', size: 'small'} : undefined}
+                  trailing={onEdit ? {type: 'iconButton', icon: IconEdit, onPress: () => editWith('advice'), variant: 'ghost-yellow', size: 'medium'} : undefined}
                 />
                 {/* 요리모드엔 조언이 없다 — 눌러도 요리모드로 가지 않는다 */}
                 <ListItem
@@ -1820,10 +1822,10 @@ export function RecipeDetailScreen({
                 trailing={onEdit || sessionReviews ? {type: 'custom', element: (
                   <View style={styles.reviewTrailingRow}>
                     {sessionReviews ? (
-                      <IconButton icon={IconPenTipFilled} size="small" variant="ghost-secondary" onPress={handleOpenReviewSheet} />
+                      <IconButton icon={IconPenTipFilled} size="medium" variant="ghost-secondary" onPress={handleOpenReviewSheet} />
                     ) : null}
                     {onEdit ? (
-                      <IconButton icon={IconEditFilled} size="small" variant="ghost-secondary" onPress={handleWriteReview} />
+                      <IconButton icon={IconEdit} size="medium" variant="ghost-secondary" onPress={handleWriteReview} />
                     ) : null}
                   </View>
                 )} : undefined}
@@ -1838,10 +1840,10 @@ export function RecipeDetailScreen({
                   trailing={onEdit || sessionReviews ? {type: 'custom', element: (
                     <View style={styles.reviewTrailingRow}>
                       {sessionReviews ? (
-                        <IconButton icon={IconPenTipFilled} size="small" variant="ghost-secondary" onPress={handleOpenReviewSheet} />
+                        <IconButton icon={IconPenTipFilled} size="medium" variant="ghost-secondary" onPress={handleOpenReviewSheet} />
                       ) : null}
                       {onEdit ? (
-                        <IconButton icon={IconEditFilled} size="small" variant="ghost-secondary" onPress={handleWriteReview} />
+                        <IconButton icon={IconEdit} size="medium" variant="ghost-secondary" onPress={handleWriteReview} />
                       ) : null}
                     </View>
                   )} : undefined}

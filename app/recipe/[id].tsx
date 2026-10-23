@@ -297,10 +297,11 @@ export function RecipeDetailPane({id: routeId, from, locked: lockedParam, cookin
     savePhoto(uri).then(ok => { if (!ok) showSnackbar(t('photoSave.failed'), {tone: 'error'}); });
   }, [tier, user, showSnackbar, t, openAuthSheet, openPlanSheet]);
 
-  const handleEdit = useCallback((section?: string, opts?: {bulk?: boolean}) => {
+  const handleEdit = useCallback((section?: string, opts?: {bulk?: boolean; summary?: boolean}) => {
     const params = new URLSearchParams();
     if (section) params.set('section', section);
     if (opts?.bulk) params.set('bulk', '1');
+    if (opts?.summary) params.set('summary', '1');
     if (isExploreRecipe) params.set('target', 'explore');
     const qs = params.toString();
     const path = `/recipe/edit/${id}${qs ? `?${qs}` : ''}`;

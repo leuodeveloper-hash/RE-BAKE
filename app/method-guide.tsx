@@ -1,12 +1,12 @@
 import {PageScrollView} from '@components/Page';
 import React, {useEffect, useMemo, useRef, useState} from 'react';
-import {Animated, ScrollView, StyleSheet, View} from 'react-native';
+import {Animated, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions} from 'react-native';
 import {SafeAreaView} from 'react-native-safe-area-context';
 import {useLocalSearchParams, useRouter} from 'expo-router';
 import {FloatingNavBar, NavPillButton} from '@components/Navigation';
-import {ContentContainer} from '@components/Container';
+import {ContentContainer, Card, CardItem} from '@components/Container';
 import {ListItem} from '@components/ListItem';
-import {AppIcon} from '@components/Icon/AppIcon';
+import {MetaLine} from '@components/MetaLine';
 import {Selector} from '@components/Selector';
 import {Menu} from '@components/Menu';
 import {useThemedStyles} from '@hooks/useThemedStyles';
@@ -15,7 +15,8 @@ import {useTranslation} from '@contexts/LanguageContext';
 import type {SemanticColors} from '@constants/tokens';
 import {Radius} from '@constants/tokens';
 import {Spacing} from '@constants/spacing';
-import {IconAdd, IconClose, IconEllipsisVertical, IconProcess} from '@components/Icon/IconIndex';
+import {Typography} from '@constants/typography';
+import {IconAdd, IconClose, IconEdit} from '@components/Icon/IconIndex';
 import {type MethodCategory} from '@constants/bakingMethods';
 import {useDictionary} from '@hooks/useDictionary';
 import {goBackOr} from '@utils/navigation';
@@ -57,6 +58,42 @@ export default function MethodGuideRoute() {
   ], [t]);
 
   const methods = dictionary.filter(m => (m.category ?? 'pastry') === category);
+  // 기본 3단(넓은 화면) — 폰은 칸이 좁아 설명이 안 보이니 1단, 그 사이는 2단
+  const {width} = useWindowDimensions();
+  const columns = width >= 900 ? 3 : width >= 600 ? 2 : 1;
+  const rows: typeof methods[] = [];
+  for (let i = 0; i < methods.length; i += columns) rows.push(methods.slice(i, i + columns));
+
+  // 용어 카드 — 회고 카드(ReviewCard)와 같은 구성: 공통 Card 안에 머리줄(아이콘·이름·편집) + 본문(설명)
+  const renderTerm = (m: (typeof methods)[number]) => (
+  <Animated.View
+    key={m.id ?? m.name}
+    style={[styles.termCard, m.name === target && [styles.targetCard, {backgroundColor: highlight.interpolate({inputRange: [0, 1], outputRange: ['transparent', colors['fill/accent'] as string]})}]]}
+    onLayout={e => onCardLayout(m.name, e.nativeEvent.layout.y)}>
+    <Card style={styles.termCardFill}>
+      <ListItem
+        onPress={openMethod ? () => openMethod(m, {withViewAll: false}) : undefined}
+        // 어드민 — 길게 눌러 바로 고치기
+        onLongPress={openTermEditor ? () => openTermEditor(m) : undefined}
+        title={m.name}
+        // 머리줄과 설명 사이 구분선 없이 한 덩어리로
+        showDivider={false}
+        trailing={openTermEditor ? {type: 'iconButton', icon: IconEdit, variant: 'ghost-secondary', size: 'medium', onPress: () => openTermEditor(m)} : undefined}
+      />
+      {/* 본문 — 머리줄 바로 아래(위 여백 없이). ListItem은 위아래 여백을 늘 줘서 흰 칸(CardItem)에 좌우·아래만 준다 */}
+      <CardItem style={styles.termBodyItem}>
+        <Pressable disabled={!openMethod} onPress={openMethod ? () => openMethod(m, {withViewAll: false}) : undefined}>
+          <View style={styles.termBody}>
+            {/* 링크로 찾아온 공법은 설명 전체, 나머지는 4줄 자리(카드 높이 통일) */}
+            <Text style={[styles.termText, m.name !== target && styles.termTextFixed]} numberOfLines={m.name === target ? 0 : 4}>{m.description}</Text>
+            {/* 맨 아래 메타 — 분류(제과·제빵) */}
+            <MetaLine items={[TABS.find(x => x.id === (m.category ?? 'pastry'))?.label]} textStyle={styles.termMeta} />
+          </View>
+        </Pressable>
+      </CardItem>
+    </Card>
+  </Animated.View>
+  );
 
   return (
     <View style={styles.container}>
@@ -74,7 +111,9 @@ export default function MethodGuideRoute() {
               <Selector
                 label={TABS.find(x => x.id === category)?.label ?? ''}
                 showDropdown
-                variant="tonal"
+                // 시험 일정 상단과 같은 피커(둥근 필)
+                variant="circle"
+                forcePressed={categoryMenu}
                 onPress={() => setCategoryMenu(v => !v)}
               />
               <Menu
@@ -87,26 +126,16 @@ export default function MethodGuideRoute() {
               />
             </View>
 
-            {methods.map((m, i) => (
-              <Animated.View
-                key={m.id ?? m.name}
-                onLayout={e => onCardLayout(m.name, e.nativeEvent.layout.y)}
-                style={m.name === target ? [styles.targetCard, {backgroundColor: highlight.interpolate({inputRange: [0, 1], outputRange: ['transparent', colors['fill/accent'] as string]})}] : undefined}>
-                <ListItem
-                  onPress={openMethod ? () => openMethod(m, {withViewAll: false}) : undefined}
-                  // 어드민 — 길게 눌러 바로 고치기
-                  onLongPress={openTermEditor ? () => openTermEditor(m) : undefined}
-                  leading={{type: 'custom', element: <AppIcon icon={IconProcess} size="sm" color={colors['custom/lime-var']} />}}
-                  title={m.name}
-                  description={m.description}
-                  // 링크로 찾아온 공법은 설명 전체를 보여준다
-                  descriptionNumberOfLines={m.name === target ? 0 : 2}
-                  trailing={openTermEditor ? {type: 'iconButton', icon: IconEllipsisVertical, variant: 'ghost-secondary', size: 'small', onPress: () => openTermEditor(m)} : undefined}
-                  paddingHorizontal={Spacing.md}
-                  showDivider={i !== methods.length - 1}
-                />
-              </Animated.View>
-            ))}
+            {/* 단마다 카드 — 폰 1단, 넓으면 2·3단. 같은 줄 카드는 높이를 맞춘다 */}
+            <View style={styles.grid}>
+              {rows.map((row, ri) => (
+                <View key={ri} style={styles.gridRow}>
+                  {Array.from({length: columns}).map((_, ci) => (
+                    <View key={ci} style={styles.gridCell}>{row[ci] ? renderTerm(row[ci]) : null}</View>
+                  ))}
+                </View>
+              ))}
+            </View>
           </ContentContainer>
         </PageScrollView>
       </SafeAreaView>
@@ -138,6 +167,19 @@ const createStyles = (_colors: SemanticColors) =>
     scrollContent: {
       paddingBottom: 80,
     },
+    grid: {paddingHorizontal: Spacing.md, gap: Spacing.md},
+    gridRow: {flexDirection: 'row', gap: Spacing.md},
+    gridCell: {flex: 1, minWidth: 0},
+    termCard: {flex: 1},
+    termCardFill: {flex: 1},
+    termText: {...Typography.body.medium, color: _colors['foreground/on-surface-var']},
+    termBody: {gap: Spacing.sm},
+    // 좌우는 머리줄 글자 시작선과 같게 — ListItem 바깥 12 + 글 칸 안쪽 8 = 20
+    termBodyItem: {flex: 1, paddingHorizontal: Spacing.smd + Spacing.sm, paddingBottom: Spacing.md},
+    termMeta: {...Typography.caption.large, color: _colors['foreground/on-surface-muted']},
+    // 카드 높이 통일 — 설명이 짧아도 4줄 자리를 잡는다(줄마다·줄끼리 모두 같은 높이)
+    termTextFixed: {minHeight: (Typography.body.medium.lineHeight as number) * 4},
+    // 흰 카드가 칸 높이를 채워 줄마다 높이가 맞게
     targetCard: {
       borderRadius: Radius['radius-lg'],
     },

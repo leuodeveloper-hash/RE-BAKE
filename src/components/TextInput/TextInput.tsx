@@ -1,7 +1,8 @@
 import React, {useCallback, useMemo, useRef} from 'react';
-import {autoSymbols} from '@utils/autoSymbols';
+import {autoSymbols, autoSymbolsCaret} from '@utils/autoSymbols';
 import {
   View,
+  Platform,
   TextInput as RNTextInput,
   Text,
   Pressable,
@@ -94,9 +95,18 @@ export const TextInput = React.forwardRef<RNTextInput, TextInputProps>(({
 
   const handleChangeText = useCallback((v: string) => {
     onTextChanged();
-    // '도씨'를 쓰면 바로 ℃로
-    onChangeText?.(autoSymbols(v));
-  }, [onTextChanged, onChangeText]);
+    // '도씨'를 쓰면 바로 ℃로 — 커서는 바뀐 글자 바로 뒤(값이 바뀌면 끝으로 튀었다)
+    const fixed = autoSymbols(v);
+    onChangeText?.(fixed);
+    if (fixed !== v) {
+      const caret = autoSymbolsCaret(value ?? '', v);
+      requestAnimationFrame(() => {
+        const node = internalRef.current;
+        if (Platform.OS === 'web') node?.setSelectionRange?.(caret, caret);
+        else node?.setSelection?.(caret, caret);
+      });
+    }
+  }, [onTextChanged, onChangeText, value]);
 
   const handleContentSize = useCallback((e: any) => {
     onContentSize(e);

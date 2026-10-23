@@ -70,7 +70,7 @@ export {default as IconCursor} from '../../../assets/icons/cursor.svg';
 export {default as IconCursorFilled} from '../../../assets/icons/cursor-filled.svg';
 export {default as IconUrl} from '../../../assets/icons/url.svg';
 export {default as IconEdit} from '../../../assets/icons/edit.svg';
-export {default as IconEditFilled} from '../../../assets/icons/edit_filled.svg';
+export {default as IconEditFilled} from '../../../assets/icons/edit-filled.svg';
 export {default as IconTrash} from '../../../assets/icons/trash.svg';
 export {default as IconTrashFilled} from '../../../assets/icons/trash_filled.svg';
 export {default as IconShare} from '../../../assets/icons/share.svg';

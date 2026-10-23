@@ -144,6 +144,8 @@ export interface RecipeEditScreenProps {
   initialSection?: string;
   /** 재료·과정을 한번에 쓰기로 열기 */
   initialBulk?: boolean;
+  /** 상세에서 요약뷰를 보다 왔으면 요약 쓰기로 연다 */
+  initialSummary?: boolean;
   /** 생성 시 초기 레시피 북 */
   initialCookbook?: string;
   /** 둘러보기(공식) 레시피 편집 모드 */

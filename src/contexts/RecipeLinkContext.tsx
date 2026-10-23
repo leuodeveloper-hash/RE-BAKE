@@ -2,7 +2,7 @@ import React, {useRef, createContext, useCallback, useContext, useMemo, useState
 import {Linking, StyleSheet, Text, View} from 'react-native';
 import {NavPillButton, NavPillGroup} from '@components/Navigation/NavPillButton';
 import {IconButton} from '@components/IconButton';
-import {IconEditFilled, IconArrowTopRight} from '@components/Icon/IconIndex';
+import {IconEdit, IconArrowTopRight} from '@components/Icon/IconIndex';
 import {DictionaryTermDialog} from '@components/Dialog/DictionaryTermDialog';
 import {saveDictionaryTerm, deleteDictionaryTerm} from '@hooks/useDictionary';
 import {useAuth} from '@contexts/AuthContext';
@@ -229,10 +229,10 @@ function MethodSheet({method, onClose, onViewAll, onEdit, onDismissed}: {method:
   // 헤더 오른쪽 — 시트 헤더 버튼 룰(떠 있는 알약). 여럿이면 한 알약에 묶는다: 고치기(어드민) · 사전 전체
   const right = onEdit && onViewAll ? (
     <NavPillGroup>
-      <IconButton icon={IconEditFilled} variant="ghost-primary" size="medium" onPress={onEdit} />
+      <IconButton icon={IconEdit} variant="ghost-primary" size="medium" onPress={onEdit} />
       <IconButton icon={IconDic} variant="ghost-primary" size="medium" onPress={onViewAll} />
     </NavPillGroup>
-  ) : onEdit ? <NavPillButton icon={IconEditFilled} onPress={onEdit} />
+  ) : onEdit ? <NavPillButton icon={IconEdit} onPress={onEdit} />
     : onViewAll ? <NavPillButton icon={IconDic} onPress={onViewAll} /> : undefined;
   return (
     <BottomSheet

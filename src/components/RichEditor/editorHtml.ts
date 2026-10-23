@@ -1,3 +1,4 @@
+import {AUTO_SYMBOLS_DOM_SRC} from '@utils/autoSymbols';
 /**
  * 웹뷰 리치 에디터의 문서(HTML + JS).
  *
@@ -219,8 +220,12 @@ export function buildEditorHtml(theme: EditorTheme, placeholder: string, initial
 
   var suppress = false; // RN이 값을 밀어넣는 중엔 change를 되돌려보내지 않는다
 
+  // '도씨' → ℃ — 글 마디 안에서 바로 바꾸고 커서는 바뀐 글자 바로 뒤(RN에서 바꿔 다시 넣으면 끝으로 튀었다)
+  ${AUTO_SYMBOLS_DOM_SRC}
+
   el.addEventListener('input', function () {
     if (suppress) return;
+    fixSymbolsDom(el);
     post(M.change, {value: toSource(el)});
     reportHeight();
   });

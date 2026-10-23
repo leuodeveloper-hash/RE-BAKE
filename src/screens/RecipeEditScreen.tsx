@@ -267,7 +267,7 @@ function splitAmountUnit(raw: string): {amount: string; unit: string} {
 /** 필드 관리에서 끌 수 없는 필드 — FieldManageDialog의 fixed와 같다 */
 const ALWAYS_ON_FIELDS = ['info', 'cookbook', 'photo'];
 
-function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks, cookbookColors: cookbookColorsProp, onSetCookbookColor, initialSection, initialCookbook, isExplore, onDeleteCookbook, recipeId, onLoadVersion, initialBulk, onOpenSide}: RecipeEditScreenProps) {
+function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks, cookbookColors: cookbookColorsProp, onSetCookbookColor, initialSection, initialCookbook, isExplore, onDeleteCookbook, recipeId, onLoadVersion, initialBulk, initialSummary, onOpenSide}: RecipeEditScreenProps) {
   const styles = useThemedStyles(createStyles);
   const colors = useColors();
   const {t} = useTranslation();
@@ -1244,7 +1244,7 @@ function RecipeEditScreenInner({initialInput, onClose, onSave, recipe, cookbooks
   // 사전 용어 — 요약 사진 읽기에서 맞춤법을 바로잡을 낱말로도 쓴다
   const dictionary = useDictionary();
   // 요약 한번에 쓰기 — 번개 토글. 과정 줄은 숨기고 묶음마다 요약 칸만 한 카드에(묶음 이름은 고칠 수 없는 이름표)
-  const [summaryAll, setSummaryAll] = useState(false);
+  const [summaryAll, setSummaryAll] = useState(!!initialSummary);
   // 보기(묶음뷰·문장뷰)는 그대로 두고 내용만 요약으로
   // 한번에 쓰기 묶음의 요약 입력 중 글 — 과정 글에 넣었다 꺼내면 끝 공백이 잘려 띄어쓰기가 안 됐다
   const [summaryDrafts, setSummaryDrafts] = useState<Record<string, string>>({});

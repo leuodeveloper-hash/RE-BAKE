@@ -57,5 +57,7 @@ const createStyles = (colors: SemanticColors) => StyleSheet.create({
     alignItems: 'center',
     minHeight: 52,
     paddingHorizontal: Spacing.md,
+    // 여러 줄로 늘어나도 위아래 여백 — 없으면 글이 칸 끝에 붙어 잘려 보였다(한 줄은 minHeight 52 그대로)
+    paddingVertical: Spacing.smd,
   },
 });
